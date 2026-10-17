@@ -7,6 +7,7 @@ const ZOOM = 14;
 const TILE_SIZE = 256;
 const MAX_MERCATOR_LATITUDE = 85.0511287798066;
 const USER_AGENT = "Peaks route elevation backfill/1.0";
+const MAX_MEMORY_CACHE_TILES = 128;
 
 type Point = { lat: number; lng: number };
 type Fetcher = typeof fetch;
@@ -23,6 +24,14 @@ interface DecodedTile {
 }
 
 const memoryCache = new Map<string, DecodedTile>();
+
+function rememberTile(key: string, tile: DecodedTile): void {
+  memoryCache.delete(key);
+  memoryCache.set(key, tile);
+  while (memoryCache.size > MAX_MEMORY_CACHE_TILES) {
+    memoryCache.delete(memoryCache.keys().next().value!);
+  }
+}
 
 function tileCoordinate(point: Point): TileCoordinate {
   if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) {
@@ -86,11 +95,14 @@ async function getTile(
 ): Promise<DecodedTile> {
   const key = `${cacheDir ?? "memory"}:${cacheKey(x, y)}`;
   const remembered = memoryCache.get(key);
-  if (remembered) return remembered;
+  if (remembered) {
+    rememberTile(key, remembered);
+    return remembered;
+  }
   if (cacheDir) {
     const cached = await readCachedTile(cacheDir, x, y);
     if (cached) {
-      memoryCache.set(key, cached);
+      rememberTile(key, cached);
       return cached;
     }
   }
@@ -109,7 +121,7 @@ async function getTile(
     await fs.mkdir(cacheDir, { recursive: true });
     await fs.writeFile(diskCachePath(cacheDir, x, y), tile.data);
   }
-  memoryCache.set(key, tile);
+  rememberTile(key, tile);
   return tile;
 }
 
@@ -119,26 +131,49 @@ async function getTile(
  */
 export async function sampleTerrariumProfile(
   points: Point[],
-  options: { cacheDir?: string; fetcher?: Fetcher } = {}
+  options: { cacheDir?: string; fetcher?: Fetcher; concurrency?: number } = {}
 ): Promise<number[]> {
   if (points.length < 2) throw new Error("A route needs at least two points");
+  const concurrency = options.concurrency ?? 8;
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 64) {
+    throw new Error("Terrarium concurrency must be an integer from 1 to 64");
+  }
   const coordinates = points.map(tileCoordinate);
   const fetcher = options.fetcher ?? fetch;
-  const requestedTiles = new Map<string, Promise<DecodedTile>>();
-  for (const coordinate of coordinates) {
+  const requestedTiles = new Map<string, { x: number; y: number; indexes: number[] }>();
+  for (const [index, coordinate] of coordinates.entries()) {
     const key = cacheKey(coordinate.x, coordinate.y);
-    if (!requestedTiles.has(key)) {
-      requestedTiles.set(key, getTile(coordinate.x, coordinate.y, options.cacheDir, fetcher));
-    }
+    const requested = requestedTiles.get(key);
+    if (requested) requested.indexes.push(index);
+    else requestedTiles.set(key, { x: coordinate.x, y: coordinate.y, indexes: [index] });
   }
-  await Promise.all(requestedTiles.values());
-  const elevations = await Promise.all(coordinates.map(async (coordinate) => {
-    const tile = await requestedTiles.get(cacheKey(coordinate.x, coordinate.y))!;
-    const offset = (coordinate.py * TILE_SIZE + coordinate.px) * 4;
-    const elevation = tile.data[offset] * 256 + tile.data[offset + 1] + tile.data[offset + 2] / 256 - 32768;
-    if (!Number.isFinite(elevation)) throw new Error("Terrarium sample was invalid");
-    return elevation;
+  const tiles = requestedTiles.values();
+  const elevations = new Array<number>(points.length).fill(Number.NaN);
+  let failed = false;
+  let failure: unknown;
+  // Only workers retain decoded tiles. Shared vertices across all supplied paths
+  // use one tile request, and the disk cache outlives the bounded memory cache.
+  await Promise.all(Array.from({ length: Math.min(concurrency, requestedTiles.size) }, async () => {
+    while (!failed) {
+      const next = tiles.next();
+      if (next.done) return;
+      const { x, y, indexes } = next.value;
+      try {
+        const tile = await getTile(x, y, options.cacheDir, fetcher);
+        for (const index of indexes) {
+          const coordinate = coordinates[index];
+          const offset = (coordinate.py * TILE_SIZE + coordinate.px) * 4;
+          elevations[index] = tile.data[offset] * 256 + tile.data[offset + 1] + tile.data[offset + 2] / 256 - 32768;
+        }
+      } catch (error) {
+        if (!failed) failure = error;
+        failed = true;
+      }
+    }
   }));
-  if (elevations.length !== points.length) throw new Error("Terrarium profile was incomplete");
+  if (failed) throw failure;
+  if (elevations.length !== points.length || elevations.some(elevation => !Number.isFinite(elevation))) {
+    throw new Error("Terrarium profile was incomplete or invalid");
+  }
   return elevations;
 }

@@ -26,7 +26,7 @@ export class DestinationResolver {
   private refs = new Map<string, PlaceRef>();
   private cache = new Map<string, PlaceRef>();
   private destinations = new Map<string, PeaksDestination>();
-  constructor(destinations: PeaksDestination[]) { for (const d of destinations) this.add(d); }
+  constructor(destinations: PeaksDestination[], private stateCode = 'WA') { for (const d of destinations) this.add(d); }
   private add(d: PeaksDestination): void {
     this.destinations.set(d.id, d);
     const coord: Coord = [d.lng, d.lat]; this.grid.add(coord, coord, { ...d, coord });
@@ -41,17 +41,17 @@ export class DestinationResolver {
     const limit = ['trailhead', 'campsite'].includes(feature) || /\b(?:pass|saddle)\b/i.test(p.name) ? 400 : 30;
     const candidates = this.grid.near(coord, 400).map(d => ({ d, gap: haversine(coord, d.coord) })).filter(x => x.d.features.includes(feature) && ((placeName(x.d.name) === placeName(p.name) && x.gap <= limit) || x.gap <= 30 && nearName(x.d.name, p.name))).sort((a, b) => a.gap - b.gap || a.d.id.localeCompare(b.d.id));
     const id = osmId ?? candidates[0]?.d.id;
-    if (id) { this.events.push({ from: placeIdentity(ref), name: p.name, to: id, reason: osmId ? this.inserted.has(id) ? 'within-load OSM id' : 'snapshot OSM external id' : this.inserted.has(id) ? 'within-load name/location' : 'snapshot name/location' }); const resolved = this.refs.get(id) ?? { peaks_id: id }; this.cache.set(key, resolved); return resolved; }
+    if (id) { this.events.push({ from: placeIdentity(ref, this.stateCode), name: p.name, to: id, reason: osmId ? this.inserted.has(id) ? 'within-load OSM id' : 'snapshot OSM external id' : this.inserted.has(id) ? 'within-load name/location' : 'snapshot name/location' }); const resolved = this.refs.get(id) ?? { peaks_id: id }; this.cache.set(key, resolved); return resolved; }
     if (forbiddenPlace(ref)) return ref; // The route planner reports the blocked creation.
-    const idNew = placeIdentity(ref); this.inserted.add(idNew); this.refs.set(idNew, ref);
+    const idNew = placeIdentity(ref, this.stateCode); this.inserted.add(idNew); this.refs.set(idNew, ref);
     this.add({ id: idNew, name: p.name, features: [feature], lng: p.lng, lat: p.lat, external_ids: osmExternalIds(p.source.osm_id) }); this.cache.set(key, ref); return ref;
   }
 }
-export function placeIdentity(ref: PlaceRef): string {
+export function placeIdentity(ref: PlaceRef, stateCode = 'WA'): string {
   if (ref.peaks_id) return ref.peaks_id;
   if (!ref.new) throw new Error('Unresolved destination reference');
   const p = ref.new;
-  return p.source.osm_id ? `wa-osm-${p.source.osm_id.replace('/', '-')}` : `wa-place-${hash(JSON.stringify([databaseFeature(p.feature), p.source.node_id, p.lng, p.lat]))}`;
+  return p.source.osm_id ? `${stateCode.toLowerCase()}-osm-${p.source.osm_id.replace('/', '-')}` : `${stateCode.toLowerCase()}-place-${hash(JSON.stringify([databaseFeature(p.feature), p.source.node_id, p.lng, p.lat]))}`;
 }
 const routeWords = new Set('via trail route climb glacier standard normal the of to and mount mountain peak summit'.split(' '));
 function variantWords(name: string, objectiveName: string): string[] {

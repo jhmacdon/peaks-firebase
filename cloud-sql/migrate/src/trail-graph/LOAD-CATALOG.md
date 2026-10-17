@@ -1,5 +1,7 @@
 # WA catalog loader
 
+For Oregon, California and Idaho, use the [bulk loader](LOAD-BULK.md).
+
 For a legacy WA snapshot, follow the [rebase and merge workflow](REBASE.md).
 It keeps legacy identities and session links instead of creating duplicates.
 The apply order is migrations, retire-pilot, prune, rebase, catalog, activate,

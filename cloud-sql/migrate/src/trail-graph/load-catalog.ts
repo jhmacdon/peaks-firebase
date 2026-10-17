@@ -22,7 +22,7 @@ import type { MergePlan, RebasePlan } from './rebase';
 import { transactionStart, segmentLinks, destinationLinks } from './load-sql';
 import { writeRematchNeeded } from './load-rematch';
 
-export interface LoadOptions { activate?: boolean; elevation?: boolean; includeReview?: boolean; onlyOk?: boolean; resolver?: DestinationResolver; supersede?: SupersedeDecision; overlaps?: ExistingOverlap[]; supersededIds?: Set<string>; currentIds?: Set<string>; livePreflight?: boolean; rebases?: RebasePlan[]; merges?: MergePlan[]; replacementId?: string }
+export interface LoadOptions { stateCode?: string; activate?: boolean; elevation?: boolean; includeReview?: boolean; onlyOk?: boolean; resolver?: DestinationResolver; supersede?: SupersedeDecision; overlaps?: ExistingOverlap[]; supersededIds?: Set<string>; currentIds?: Set<string>; livePreflight?: boolean; rebases?: RebasePlan[]; merges?: MergePlan[]; replacementId?: string }
 export interface Statement { kind: string; sql: string; values: unknown[] }
 export interface RoutePlan { route_id: string; seed_index: number; statements: Statement[]; segment_ids: string[]; destination_ids: string[]; activate: boolean; notes: string[]; skipped?: string; reused_segment_ids: string[]; segment_data: Map<string, Segment>; operation?: 'new' | 'merge' | 'rebase'; legacy_expected?: { name: string; status: string } }
 const STATES = "('approved','publish_leased','published','verify_leased','verified','rejected')";
@@ -31,16 +31,16 @@ export const placeId = placeIdentity;
 export function importedProvenance(provenance: Provenance, metadata: Record<string, unknown>): unknown {
   return { ...provenance, wa_catalog: { loader: IMPORT_MARKER, ...metadata } };
 }
-function destinationStatement(p: NewPlace): Statement {
+function destinationStatement(p: NewPlace, stateCode = 'WA'): Statement {
   if (p.source.kind === 'curated' && !DESTINATION_FEATURES.has(p.feature)) throw new Error(`Invalid curated destination feature ${p.feature}`);
   const rings = p.boundary?.coordinates.slice().sort((a, b) => area(b[0]) - area(a[0]))[0];
   const source = p.source.provenance ?? { source_kind: 'openstreetmap', source_url: `https://www.openstreetmap.org/${p.source.osm_id}`,
     license_name: 'Open Data Commons Open Database License (ODbL) 1.0', license_url: 'https://opendatacommons.org/licenses/odbl/1-0/', attribution: '© OpenStreetMap contributors', osm_id: p.source.osm_id };
   return { kind: 'destination_insert', sql: `INSERT INTO destinations(id,name,search_name,features,activities,state_code,country_code,location,elevation,metadata,external_ids,boundary)
-    VALUES($1,$2,peaks_search_name($2),ARRAY[$3]::destination_feature[],ARRAY['outdoor-trek']::activity_type[],'WA','US',ST_SetSRID(ST_MakePoint($4,$5,$6),4326)::geography,$7,$8::jsonb,$9::jsonb,
+    VALUES($1,$2,peaks_search_name($2),ARRAY[$3]::destination_feature[],ARRAY['outdoor-trek']::activity_type[],$11,'US',ST_SetSRID(ST_MakePoint($4,$5,$6),4326)::geography,$7,$8::jsonb,$9::jsonb,
       CASE WHEN $10::text IS NULL THEN NULL ELSE ST_SetSRID(ST_GeomFromGeoJSON($10),4326)::geography END) ON CONFLICT(id) DO NOTHING`,
-    values: [placeId({ new: p }), p.name, p.source.kind === 'curated' ? p.feature : databaseFeature(p.feature), p.lng, p.lat, p.ele ?? 0, p.ele ?? null,
-      JSON.stringify({ import: IMPORT_MARKER, natural_feature: p.feature, provenance: { ...source, wa_catalog: { loader: IMPORT_MARKER } }, resolution: p.source, ...(p.boundary ? { osm_boundary: p.boundary } : {}) }), JSON.stringify(osmExternalIds(p.source.osm_id)), rings ? JSON.stringify({ type: 'Polygon', coordinates: rings }) : null] };
+    values: [placeId({ new: p }, stateCode), p.name, p.source.kind === 'curated' ? p.feature : databaseFeature(p.feature), p.lng, p.lat, p.ele ?? 0, p.ele ?? null,
+      JSON.stringify({ import: IMPORT_MARKER, natural_feature: p.feature, provenance: { ...source, wa_catalog: { loader: IMPORT_MARKER } }, resolution: p.source, ...(p.boundary ? { osm_boundary: p.boundary } : {}) }), JSON.stringify(osmExternalIds(p.source.osm_id)), rings ? JSON.stringify({ type: 'Polygon', coordinates: rings }) : null, stateCode] };
 }
 function area(ring: Coord[]): number { let n = 0; for (let i = 1; i < ring.length; i++) n += ring[i - 1][0] * ring[i][1] - ring[i][0] * ring[i - 1][1]; return Math.abs(n); }
 export function compositionValid(r: ComposedRoute): boolean {
@@ -59,7 +59,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   const binding = bindExistingSegments(row, source, options.overlaps ?? [], options.supersededIds ?? new Set(), options.currentIds ?? new Set());
   if (binding.blocked.length) return skip(`segment overlap conflict: ${binding.blocked.join('; ')}`);
   plan.segment_data = binding.segments; plan.reused_segment_ids = binding.reused;
-  const refs = binding.refs, segments = binding.segments, resolver = options.resolver ?? new DestinationResolver([]);
+  const refs = binding.refs, segments = binding.segments, stateCode = options.stateCode ?? 'WA', resolver = options.resolver ?? new DestinationResolver([], stateCode);
   const th = resolver.resolve(row.trailhead), goal = row.objective ? resolver.resolve(row.objective) : null, end = row.end_trailhead ? resolver.resolve(row.end_trailhead) : null;
   if (goal && forbiddenPlace(goal)) return skip('uncurated pass/glacier/saddle objective requires an existing or curated destination');
   const path = routeLine({ ...row, segments: refs }, segments), resolvedDrops = [...(row.dropped_links ?? [])];
@@ -81,7 +81,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
     } }
     return true;
   });
-  const places = new Map<string, PlaceRef>(); for (const ref of [th, ...waypoints, end, goal].filter((p): p is PlaceRef => !!p)) places.set(placeId(ref), ref);
+  const places = new Map<string, PlaceRef>(); for (const ref of [th, ...waypoints, end, goal].filter((p): p is PlaceRef => !!p)) places.set(placeId(ref, stateCode), ref);
   let cursor: Coord | null = null, measured = 0;
   for (const ref of refs) {
     const s = segments.get(ref.id)!, start = s.coords[ref.direction === 'forward' ? 0 : s.coords.length - 1], finish = s.coords[ref.direction === 'forward' ? s.coords.length - 1 : 0];
@@ -98,17 +98,17 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   const dependencies = [...new Set((options.overlaps ?? []).filter(o => row.segments.some(r => r.id === o.new_id) && !binding.reused.includes(o.id))
     .flatMap(o => o.routes.map(r => r.id)).filter(id => id !== options.replacementId && id !== (options.supersede?.eligible ? options.supersede.legacy_id : null)))];
   if (dependencies.length) add('overlap_guard', `SELECT NOT EXISTS(SELECT 1 FROM routes WHERE id=ANY($1::text[]) AND status IS DISTINCT FROM 'superseded') AS valid`, [dependencies]);
-  for (const ref of places.values()) if (ref.new) plan.statements.push(destinationStatement(ref.new));
+  for (const ref of places.values()) if (ref.new) plan.statements.push(destinationStatement(ref.new, stateCode));
   plan.segment_ids = [...new Set(refs.map(s => s.id))];
   for (const id of plan.segment_ids.filter(id => !binding.reused.includes(id))) {
     const segment = segments.get(id)!, values = segmentValues(segment); values[6] = JSON.stringify(importedProvenance(segment.provenance, segment.summit_connector ? { notes: ['summit connector'] } : {}));
     add('segment_insert', `INSERT INTO segments(id,name,display_name,kind,state_code,trail_names,path,distance,provenance,description,description_source_url)
-      VALUES($1,$2,$8,$3,'WA',$4,ST_SetSRID(ST_GeomFromGeoJSON($5),4326)::geography,$6,$7::jsonb,$9,$10) ON CONFLICT(id) DO NOTHING`, values);
+      VALUES($1,$2,$8,$3,$11,$4,ST_SetSRID(ST_GeomFromGeoJSON($5),4326)::geography,$6,$7::jsonb,$9,$10) ON CONFLICT(id) DO NOTHING`, [...values, stateCode]);
   }
-  const thId = placeId(th), objectiveId = goal ? placeId(goal) : null;
+  const thId = placeId(th, stateCode), objectiveId = goal ? placeId(goal, stateCode) : null;
   const ordered = [...places.keys()].filter(id => id !== thId && id !== objectiveId); ordered.unshift(thId); if (objectiveId && objectiveId !== thId) ordered.push(objectiveId); plan.destination_ids = ordered;
   const sourceProvenance = withoutElevation(routeProvenance(plan.segment_ids.map(id => segments.get(id)!.provenance)));
-  const metadata = { compose_status: row.status, composition_hash: row.composition_hash, approximate: !!row.approximate, notes: row.notes ?? [],
+  const metadata = { ...(stateCode !== 'WA' ? { state_code: stateCode } : {}), compose_status: row.status, composition_hash: row.composition_hash, approximate: !!row.approximate, notes: row.notes ?? [],
     dropped_links: resolvedDrops.filter((d, i) => !ordered.includes(d.id) && resolvedDrops.findIndex(other => other.id === d.id) === i),
     waypoint_names: row.waypoints.map(w => ({ name: w.name, feature: w.feature, fraction: w.fraction })), loaded_binding_hash: digest(refs) };
   const provenance = importedProvenance(sourceProvenance, metadata);
@@ -118,8 +118,8 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
     [JSON.stringify(frozen.map(s => ({ id: s.id, geometry: { type: 'LineString', coordinates: s.frozen_catalog!.coords_xyz } })))]);
   if (row.wta_url && !/^https:\/\/(?:www\.)?wta\.org\/go-hiking\/hikes\/[a-z0-9.-]+\/?$/.test(row.wta_url)) throw new Error(`Invalid WTA URL ${row.wta_url}`);
   add('route_insert', `INSERT INTO routes(id,name,status,owner,kind,slug,search_name,aliases,state_code,country_code,external_links,provenance,shape,trailhead_destination_id,objective_destination_id,description)
-    VALUES($1,$2,'pending','peaks',$3,peaks_route_catalog_slug($2,$1),peaks_search_name($2),$4,'WA','US',$5::jsonb,$6::jsonb,$7::route_shape,$8,$9,NULL) ON CONFLICT(id) DO NOTHING`,
-    [row.route_id, row.name, row.kind, row.aliases, JSON.stringify(row.wta_url ? [{ type: 'wta', id: row.wta_url }] : []), JSON.stringify(provenance), row.shape, thId, objectiveId]);
+    VALUES($1,$2,'pending','peaks',$3,peaks_route_catalog_slug($2,$1),peaks_search_name($2),$4,$10,'US',$5::jsonb,$6::jsonb,$7::route_shape,$8,$9,NULL) ON CONFLICT(id) DO NOTHING`,
+    [row.route_id, row.name, row.kind, row.aliases, JSON.stringify(row.wta_url ? [{ type: 'wta', id: row.wta_url }] : []), JSON.stringify(provenance), row.shape, thId, objectiveId, stateCode]);
   plan.statements.push(segmentLinks(row.route_id!, refs), destinationLinks(row.route_id!, ordered));
   add('binding_guard', `SELECT jsonb_build_object('name',r.name,'owner',r.owner,'kind',r.kind,'aliases',r.aliases,'shape',r.shape,
       'state_code',r.state_code,'country_code',r.country_code,'trailhead_destination_id',r.trailhead_destination_id,'objective_destination_id',r.objective_destination_id,
@@ -131,7 +131,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
       OR s.description IS DISTINCT FROM(item->>'description') OR s.kind IS DISTINCT FROM(item->>'kind')
       OR (wa_catalog_provenance_elevation(s.provenance,'{}'::jsonb)-'wa_catalog') IS DISTINCT FROM(item->'provenance')
       OR NOT COALESCE(ST_OrderingEquals(ST_Force2D(s.path::geometry),ST_GeomFromGeoJSON(item->>'geometry')),false)) AS valid FROM routes r WHERE r.id=$1`,
-    [row.route_id, JSON.stringify({ name: row.name, owner: 'peaks', kind: row.kind, aliases: row.aliases, shape: row.shape, state_code: 'WA', country_code: 'US', trailhead_destination_id: thId, objective_destination_id: objectiveId, external_links: row.wta_url ? [{ type: 'wta', id: row.wta_url }] : [], provenance, description: null }),
+    [row.route_id, JSON.stringify({ name: row.name, owner: 'peaks', kind: row.kind, aliases: row.aliases, shape: row.shape, state_code: stateCode, country_code: 'US', trailhead_destination_id: thId, objective_destination_id: objectiveId, external_links: row.wta_url ? [{ type: 'wta', id: row.wta_url }] : [], provenance, description: null }),
       JSON.stringify(refs), JSON.stringify(ordered), JSON.stringify(plan.segment_ids.map(id => { const s = segments.get(id)!; return { id, name: s.name, display_name: s.display_name === undefined ? s.trail_names[0] || s.relation_names[0] || null : s.display_name, description: s.description ?? null, kind: s.kind, provenance: withoutElevation(s.provenance), geometry: { type: 'LineString', coordinates: s.coords } }; }))]);
   if (options.elevation) for (const id of plan.segment_ids) {
     add('elevation_guard', `SELECT EXISTS(${PROTECTED}) AS protected,
@@ -276,6 +276,11 @@ export function catalogPlans(rows: ComposedRoute[], segments: Map<string, Segmen
 }
 async function main() {
   const flags = loaderArgs(), mode = loaderMode(flags), dir = option(flags, 'out', DEFAULT_COMPOSE), input = option(flags, 'input', DEFAULT_INPUT);
+  if (mode === 'bulk') {
+    const { loadBulk } = await import('./load-bulk');
+    await loadBulk({ dir: option(flags, 'dir', ''), state: option(flags, 'state', '') as 'OR' | 'CA' | 'ID', apply: flags.has('apply'), activate: flags.has('activate'), batchSize: Number(option(flags, 'batch-size', '200')) });
+    return;
+  }
   const batchSize = Number(option(flags, 'batch-size', '50'));
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 50) throw new Error('Activation batch size must be 1–50');
   if (flags.has('activate') && !flags.has('elevation')) throw new Error('--activate requires --elevation');
@@ -286,7 +291,7 @@ async function main() {
   if (mode === 'prune') {
     // Keep the current graph pieces even for rows excluded by load gates; this
     // preserves their sampled elevation. Prune never executes catalog plans.
-    const keep = [...rows,...rebases.map(r=>r.row)].map(r=>({ segment_ids:r.segments.map(s=>s.id),destination_ids:[r.trailhead,r.objective,r.end_trailhead,...r.waypoints].filter((p):p is PlaceRef=>!!p && !!(p.peaks_id||p.new)).map(placeId) } as RoutePlan));
+    const keep = [...rows,...rebases.map(r=>r.row)].map(r=>({ segment_ids:r.segments.map(s=>s.id),destination_ids:[r.trailhead,r.objective,r.end_trailhead,...r.waypoints].filter((p):p is PlaceRef=>!!p && !!(p.peaks_id||p.new)).map(ref => placeId(ref)) } as RoutePlan));
     await pruneOnly(dir,keep,rows.flatMap(r=>r.route_id?[r.route_id]:[]),flags.has('apply'));return;
   }
   if (mode === 'rebase') {

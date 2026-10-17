@@ -37,6 +37,7 @@ by hand (with plain `npm test`) switches only its suites on.
 | `DESTINATION_SESSION_LINK_TEST_DATABASE_URL` | destination-session-link-update (falls back to `ROUTE_ELEVATION_JOB_TEST_DATABASE_URL`) |
 | `AREAS_LINKING_TEST_DATABASE_URL` | protected-areas-linking, route-areas-linking |
 | `PHOTO_CANDIDATE_TEST_DATABASE_URL` | listed-destination-photo-candidates |
+| `BULK_LOAD_TEST_DATABASE_URL` | trail-graph-bulk-load.db (migration operator, not `peaks_test`; never set by `test:db`) |
 
 The DB-backed files run serially by default: several suites run global
 job-seed commands against shared tables, so concurrent test files collide.
