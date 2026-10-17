@@ -53,7 +53,7 @@ export function replacementPlan(row: ComposedRoute, source: Map<string, Segment>
   add('replacement_guard', `SELECT r.id,r.name,r.status,r.owner,r.provenance,
     EXISTS(SELECT 1 FROM trail_catalog_review_jobs j WHERE j.route_id=r.id AND j.state IN ${REVIEWED}) AS protected,
     (SELECT COALESCE(jsonb_agg(jsonb_build_object('id',segment_id,'direction',direction,'ordinal',ordinal) ORDER BY ordinal),'[]') FROM route_segments WHERE route_id=r.id)=$2::jsonb AS links_match,
-    ST_HausdorffDistance(ST_Transform(ST_Force2D(r.path::geometry),32610),ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON($3),4326),32610))<=0.05 AS source_match
+    ST_HausdorffDistance(ST_Transform(ST_Force2D(r.path::geometry),32610),ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON($3),4326),32610))<=0.25 AS source_match /* snapshot coords carry 6 decimals (~0.1 m) */
     FROM routes r WHERE id=$1 FOR UPDATE`, [id, JSON.stringify(expected), JSON.stringify({ type: 'LineString', coordinates: merge?routeLine(rebase.row,source):rebase.legacy.coords })]);
   const provenance = JSON.parse((base.statements.find(s => s.kind === 'route_insert')!.values[5] as string));
   const metadata = { ...(provenance.wa_catalog ?? {}), loader: IMPORT_MARKER, notes: [...(provenance.wa_catalog?.notes ?? []), `Legacy graph rebase ${rebase.source_hash}`] };

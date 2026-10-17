@@ -47,6 +47,10 @@ export async function readPreflight(client: Pick<Client, 'query'>, segments: Seg
                 ST_Transform(ST_Force2D(i.path::geometry), CASE WHEN ST_X(ST_Centroid(i.path::geometry)) < -120 THEN 32610 ELSE 32611 END) AS path_m
               FROM incoming i) incoming
         JOIN segments s ON s.id NOT LIKE 'triple-crown-%'
+          -- Graph segments written by this loader come from distinct OSM ways/agency lines
+          -- joined at shared nodes, so they never duplicate each other; a 5 m connector at a
+          -- junction otherwise reads as "100% within 15 m" of its neighbour.
+          AND NOT (s.id LIKE 'wa-%' AND s.provenance #>> '{wa_catalog,loader}' IS NOT NULL)
           -- Triple Crown whole-trail lines (52k-68k vertices) are matched through their own
           -- point index and overlap the graph's PCT/PNT pieces by design; distance checks
           -- against them made each batch run for minutes.
