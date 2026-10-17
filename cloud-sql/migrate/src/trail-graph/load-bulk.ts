@@ -11,8 +11,9 @@ import { sampleBulkSegments } from './bulk-elevation';
 import { displayName } from './display-names';
 import type { ComposedRoute, PlaceRef } from './catalog-types';
 import type { Provenance, Segment } from './types';
+import type { StateCode } from './state';
 
-export type BulkState = 'OR' | 'CA' | 'ID';
+export type BulkState = Exclude<StateCode, 'WA'>;
 export interface BulkOptions { dir: string; state: BulkState; apply?: boolean; activate?: boolean; batchSize?: number }
 export interface BulkResult { route_id: string; state_code: BulkState; operation: 'load' | 'activate'; success: boolean; skipped?: string; error?: string; sqlstate?: string }
 export interface BulkRoute { row: ComposedRoute; plan: RoutePlan; id: string; refs: { id: string; direction: 'forward' | 'reverse' }[] }

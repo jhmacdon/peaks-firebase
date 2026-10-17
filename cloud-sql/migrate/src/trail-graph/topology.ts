@@ -1,14 +1,15 @@
 import { Grid, hash, insidePolygon, interpolate, length, unique } from './geo';
 import type { Coord, Glacier, GraphNode, Kind, Provenance, Segment, Way } from './types';
+import { stateConfig, type StateCode } from './state';
 
 export const SOURCES = {
   usfs: { url: 'https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublish_01/MapServer/0', credit: 'USDA Forest Service', license: 'Public domain', licenseUrl: 'https://www.fs.usda.gov/about-agency/disclaimers' },
   nps: { url: 'https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_Trails/FeatureServer/0', credit: 'National Park Service', license: 'Public domain', licenseUrl: 'https://www.nps.gov/aboutus/disclaimer.htm' },
   wa_state_parks: { url: 'https://services5.arcgis.com/4LKAHwqnBooVDUlX/ArcGIS/rest/services/Trails/FeatureServer/0', credit: 'Washington State Parks', license: 'WA State Parks open GIS data (retain source credit)', licenseUrl: 'https://parks.wa.gov/' },
 };
-export function provenance(wayIds: number[], retrievedAt: string, source: keyof typeof SOURCES = 'usfs', featureId?: string): Provenance {
+export function provenance(wayIds: number[], retrievedAt: string, source: keyof typeof SOURCES = 'usfs', featureId?: string, state: StateCode = 'WA'): Provenance {
   if (wayIds.length) return {
-    source_kind: 'openstreetmap', source_url: 'https://download.geofabrik.de/north-america/us/washington.html',
+    source_kind: 'openstreetmap', source_url: stateConfig(state).osmSourceUrl,
     license_name: 'Open Data Commons Open Database License (ODbL) 1.0', license_url: 'https://opendatacommons.org/licenses/odbl/1-0/',
     attribution: '© OpenStreetMap contributors', retrieved_at: retrievedAt, osm_way_ids: wayIds,
     osm_way_urls: wayIds.map(id => `https://www.openstreetmap.org/way/${id}`), contains_osm_geometry: true,
@@ -24,7 +25,8 @@ export function refresh(segment: Segment): Segment {
   segment.osm_way_ids = [...new Set(segment.osm_edge_way_ids)].sort((a, b) => a - b);
   segment.length_m = length(segment.coords);
   const identity = [segment.start_node, segment.end_node, segment.osm_way_ids];
-  segment.id = segment.osm_way_ids.length ? `wa-osm-${hash(JSON.stringify(identity))}` : `wa-${segment.provenance.source_kind}-${hash(JSON.stringify([identity, segment.alt_sources, segment.coords]))}`;
+  const prefix = (segment.state_code ?? 'WA').toLowerCase();
+  segment.id = segment.osm_way_ids.length ? `${prefix}-osm-${hash(JSON.stringify(identity))}` : `${prefix}-${segment.provenance.source_kind}-${hash(JSON.stringify([identity, segment.alt_sources, segment.coords]))}`;
   segment.provenance = { ...segment.provenance, osm_way_ids: segment.osm_way_ids,
     osm_way_urls: segment.osm_way_ids.map(id => `https://www.openstreetmap.org/way/${id}`) };
   return segment;
@@ -44,7 +46,7 @@ export function classify(way: Way, point: Coord, glaciers: Grid<Glacier>): Kind 
   if (way.tags.highway === 'track' && ['motor_vehicle', 'motorcar', 'vehicle', 'motorcycle'].some(k => ['yes', 'designated', 'permissive', 'destination'].includes(way.tags[k]))) return 'road';
   return 'trail';
 }
-export function buildTopology(ways: Way[], nodes: Map<number, Coord>, glaciers: Glacier[], retrievedAt: string): Segment[] {
+export function buildTopology(ways: Way[], nodes: Map<number, Coord>, glaciers: Glacier[], retrievedAt: string, state: StateCode = 'WA'): Segment[] {
   const uses = new Map<number, number>(), grid = glacierIndex(glaciers);
   for (const w of ways) for (const id of new Set(w.nodes)) uses.set(id, (uses.get(id) ?? 0) + 1);
   const edges: Segment[] = [], signatures: string[] = [];
@@ -57,9 +59,9 @@ export function buildTopology(ways: Way[], nodes: Map<number, Coord>, glaciers: 
     for (let i = 1; i < w.nodes.length; i++) {
       if (i !== w.nodes.length - 1 && (uses.get(w.nodes[i]) ?? 0) < 2 && (repeated.get(w.nodes[i]) ?? 0) < 2 && kinds[i - 1] === kinds[i]) continue;
       const ids = w.nodes.slice(start, i + 1), coords = ids.map(id => nodes.get(id)!);
-      const segment: Segment = { id: '', name: w.tags.name ?? null, trail_names: names, kind: kinds[start], sac_scale: w.tags.sac_scale ?? null,
+      const segment: Segment = { id: '', name: w.tags.name ?? null, trail_names: names, kind: kinds[start], state_code: state, sac_scale: w.tags.sac_scale ?? null,
         trail_visibility: w.tags.trail_visibility ?? null, informal: w.tags.informal ?? null, osm_way_ids: [w.id], relation_names: unique(w.relations.map(r => r.name).filter((s): s is string => !!s)), relations: w.relations,
-        start_node: '', end_node: '', node_ids: ids.map(String), osm_edge_way_ids: ids.slice(1).map(() => w.id), coords, length_m: 0, provenance: provenance([w.id], retrievedAt), alt_sources: [] };
+        start_node: '', end_node: '', node_ids: ids.map(String), osm_edge_way_ids: ids.slice(1).map(() => w.id), coords, length_m: 0, provenance: provenance([w.id], retrievedAt, 'usfs', undefined, state), alt_sources: [] };
       if (length(coords) > 0) { edges.push(refresh(segment)); signatures.push(JSON.stringify([names, w.tags.ref ?? null, w.relations, segment.kind, segment.sac_scale, segment.trail_visibility, segment.informal])); }
       start = i;
     }

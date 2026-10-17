@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
-import { Composer, catalogRouteId, digest, finalizeRows, materialize, segmentManifestHash } from '../trail-graph/compose';
+import { Composer, catalogRouteId, compositionHash, digest, finalizeRows, materialize, segmentManifestHash } from '../trail-graph/compose';
+import { compositionValid, planRoute } from '../trail-graph/load-catalog';
+import { digestValue } from '../trail-graph/discovery-catalog';
 import { activateBulkBatch, batches, buildBulkBatch, bulkId, bulkPreflightValues,
   executeBulkBatch, loadIsolated, planBulkActivation, planBulkBatch, runLoadBulkBatch, type BulkBatch } from '../trail-graph/load-bulk';
 import { BULK_PREFLIGHT_SQL, readBulkPreflight, type BulkPreflight } from '../trail-graph/load-bulk-preflight';
@@ -75,6 +77,25 @@ test('bulk plans keep five collection inserts and twelve transaction statements 
     assert.deepEqual(batch.statements.find(s => s.kind === 'refresh')!.values, [batch.ids]);
     assert.ok(batch.statements.every(s => !/DISABLE TRIGGER|session_replication_role|session_rematch_queue|UPDATE segments/.test(s.sql)));
   }
+});
+
+test('discovery rows hash and name themselves as the loader checks, and a tampered row still fails', () => {
+  const { row, source } = setup();
+  // Discovery writes route_id first, then the hash (compose-discover.ts).
+  const disc: ComposedRoute = { ...structuredClone(row), state_code: 'OR', discovery_source: 'named_trail', discovery_identity: 'trail:river' };
+  disc.route_id = catalogRouteId(disc); disc.composition_hash = compositionHash(disc);
+  assert.equal(digestValue, digest);
+  assert.match(disc.route_id, /^or-catalog-/);
+  assert.equal(compositionValid(JSON.parse(JSON.stringify(disc))), true);
+  const plan = planBulkBatch([JSON.parse(JSON.stringify(disc))], source, 'OR');
+  assert.deepEqual(plan.skipped, []);
+  assert.equal(plan.routes[0].id, disc.route_id);
+  for (const tamper of [(r: ComposedRoute) => { r.name += ' X'; }, (r: ComposedRoute) => { r.state_code = 'ID'; }, (r: ComposedRoute) => { r.route_id = 'or-catalog-000000000000000000000000'; }]) {
+    const bad = structuredClone(disc); tamper(bad);
+    assert.equal(compositionValid(bad), false);
+    assert.match(planBulkBatch([bad], source, 'OR').skipped[0].skipped ?? '', /invalid plan: Composition hash mismatch|is ID, not OR/);
+  }
+  assert.throws(() => planRoute(disc, source, { stateCode: 'CA' }), /is OR, not CA/);
 });
 
 test('state mapping preserves the source composition and tags every inserted collection', () => {

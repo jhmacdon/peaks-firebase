@@ -1,5 +1,7 @@
 # Washington catalog composer
 
+For seedless WA, OR, ID, and CA enumeration, see [state discovery](DISCOVERY.md).
+
 Run from `cloud-sql/migrate` with the normal package dependencies available:
 
 ```sh
@@ -15,7 +17,7 @@ dry run and neither imports `pg` nor opens a database connection in that mode.
 The elevation sampler imports only during an apply run with `--elevation`.
 
 Composition accepts `--input DIR` (default: the local `private/wa-trail-data`
-input root), `--graph DIR` (default: this worktree's `.cache/graph`), and
+input root), `--graph DIR` (default: this worktree's `.cache/wa/graph`), and
 `--out DIR` (default: `.cache/compose`). Loader `--out DIR` selects the composition
 directory. No input file is changed.
 

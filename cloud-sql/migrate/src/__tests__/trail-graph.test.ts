@@ -35,7 +35,7 @@ test('OSM pedestrian filters enforce access and footway/track exceptions', () =>
 });
 test('streaming passes keep relation metadata and join matching degree-2 ways', async () => {
   const osm = await readOsm(fixture); assert.equal(osm.ways.length, 4); assert.equal(osm.nodes.size, 6);
-  assert.deepEqual(osm.ways[0].relations, [{ id: 20, name: 'River Loop', ref: 'R', network: 'lwn' }]);
+  assert.deepEqual(osm.ways[0].relations, [{ id: 20, name: 'River Loop', ref: 'R', network: 'lwn', route: 'hiking', tags: { type: 'route', route: 'hiking', name: 'River Loop', ref: 'R', network: 'lwn' } }]);
   const graph = buildTopology(osm.ways, osm.nodes, [], time);
   assert.equal(graph.length, 4); // 1->2; 2->3->4; branch; unnamed relation footway.
   const joined = graph.find(s => s.osm_way_ids.length === 2)!;

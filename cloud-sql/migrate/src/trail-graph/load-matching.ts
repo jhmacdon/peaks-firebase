@@ -3,6 +3,7 @@ import { normalizeName, databaseFeature } from './names';
 import { expandNameAbbreviations } from '../lib/place-names';
 import type { ComposedRoute, PeaksDestination, PeaksRoute, PlaceRef } from './catalog-types';
 import type { Coord } from './types';
+import type { StateCode } from './state';
 
 export const IMPORT_MARKER = 'wa-trail-graph-v2';
 export function osmExternalIds(osmId?: string): Record<string, string> {
@@ -26,7 +27,7 @@ export class DestinationResolver {
   private refs = new Map<string, PlaceRef>();
   private cache = new Map<string, PlaceRef>();
   private destinations = new Map<string, PeaksDestination>();
-  constructor(destinations: PeaksDestination[], private stateCode = 'WA') { for (const d of destinations) this.add(d); }
+  constructor(destinations: PeaksDestination[], private stateCode: StateCode = 'WA') { for (const d of destinations) this.add(d); }
   private add(d: PeaksDestination): void {
     this.destinations.set(d.id, d);
     const coord: Coord = [d.lng, d.lat]; this.grid.add(coord, coord, { ...d, coord });
@@ -47,7 +48,7 @@ export class DestinationResolver {
     this.add({ id: idNew, name: p.name, features: [feature], lng: p.lng, lat: p.lat, external_ids: osmExternalIds(p.source.osm_id) }); this.cache.set(key, ref); return ref;
   }
 }
-export function placeIdentity(ref: PlaceRef, stateCode = 'WA'): string {
+export function placeIdentity(ref: PlaceRef, stateCode: StateCode = 'WA'): string {
   if (ref.peaks_id) return ref.peaks_id;
   if (!ref.new) throw new Error('Unresolved destination reference');
   const p = ref.new;

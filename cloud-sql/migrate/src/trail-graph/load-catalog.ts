@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { Client } from 'pg';
 import { ndjson, option, DEFAULT_INPUT } from './io';
 import { loaderArgs, loaderMode } from './loader-cli';
-import { DEFAULT_COMPOSE, catalogRouteId, digest, routeProvenance, segmentManifestHash } from './compose';
+import { DEFAULT_COMPOSE, catalogRouteId, compositionHash, digest, routeProvenance, segmentManifestHash } from './compose';
 import { databaseFeature } from './names';
 import { haversine } from './geo';
 import { assertDisplayName } from './display-names';
@@ -21,8 +21,9 @@ import { replacementPlan, rebaseLoad, SOURCE_SCHEMA_PREFLIGHT } from './load-reb
 import type { MergePlan, RebasePlan } from './rebase';
 import { transactionStart, segmentLinks, destinationLinks } from './load-sql';
 import { writeRematchNeeded } from './load-rematch';
+import { parseState, type StateCode } from './state';
 
-export interface LoadOptions { stateCode?: string; activate?: boolean; elevation?: boolean; includeReview?: boolean; onlyOk?: boolean; resolver?: DestinationResolver; supersede?: SupersedeDecision; overlaps?: ExistingOverlap[]; supersededIds?: Set<string>; currentIds?: Set<string>; livePreflight?: boolean; rebases?: RebasePlan[]; merges?: MergePlan[]; replacementId?: string }
+export interface LoadOptions { stateCode?: StateCode; activate?: boolean; elevation?: boolean; includeReview?: boolean; onlyOk?: boolean; resolver?: DestinationResolver; supersede?: SupersedeDecision; overlaps?: ExistingOverlap[]; supersededIds?: Set<string>; currentIds?: Set<string>; livePreflight?: boolean; rebases?: RebasePlan[]; merges?: MergePlan[]; replacementId?: string }
 export interface Statement { kind: string; sql: string; values: unknown[] }
 export interface RoutePlan { route_id: string; seed_index: number; statements: Statement[]; segment_ids: string[]; destination_ids: string[]; activate: boolean; notes: string[]; skipped?: string; reused_segment_ids: string[]; segment_data: Map<string, Segment>; operation?: 'new' | 'merge' | 'rebase'; legacy_expected?: { name: string; status: string } }
 const STATES = "('approved','publish_leased','published','verify_leased','verified','rejected')";
@@ -31,7 +32,7 @@ export const placeId = placeIdentity;
 export function importedProvenance(provenance: Provenance, metadata: Record<string, unknown>): unknown {
   return { ...provenance, wa_catalog: { loader: IMPORT_MARKER, ...metadata } };
 }
-function destinationStatement(p: NewPlace, stateCode = 'WA'): Statement {
+function destinationStatement(p: NewPlace, state: StateCode = 'WA'): Statement {
   if (p.source.kind === 'curated' && !DESTINATION_FEATURES.has(p.feature)) throw new Error(`Invalid curated destination feature ${p.feature}`);
   const rings = p.boundary?.coordinates.slice().sort((a, b) => area(b[0]) - area(a[0]))[0];
   const source = p.source.provenance ?? { source_kind: 'openstreetmap', source_url: `https://www.openstreetmap.org/${p.source.osm_id}`,
@@ -39,30 +40,44 @@ function destinationStatement(p: NewPlace, stateCode = 'WA'): Statement {
   return { kind: 'destination_insert', sql: `INSERT INTO destinations(id,name,search_name,features,activities,state_code,country_code,location,elevation,metadata,external_ids,boundary)
     VALUES($1,$2,peaks_search_name($2),ARRAY[$3]::destination_feature[],ARRAY['outdoor-trek']::activity_type[],$11,'US',ST_SetSRID(ST_MakePoint($4,$5,$6),4326)::geography,$7,$8::jsonb,$9::jsonb,
       CASE WHEN $10::text IS NULL THEN NULL ELSE ST_SetSRID(ST_GeomFromGeoJSON($10),4326)::geography END) ON CONFLICT(id) DO NOTHING`,
-    values: [placeId({ new: p }, stateCode), p.name, p.source.kind === 'curated' ? p.feature : databaseFeature(p.feature), p.lng, p.lat, p.ele ?? 0, p.ele ?? null,
-      JSON.stringify({ import: IMPORT_MARKER, natural_feature: p.feature, provenance: { ...source, wa_catalog: { loader: IMPORT_MARKER } }, resolution: p.source, ...(p.boundary ? { osm_boundary: p.boundary } : {}) }), JSON.stringify(osmExternalIds(p.source.osm_id)), rings ? JSON.stringify({ type: 'Polygon', coordinates: rings }) : null, stateCode] };
+    values: [placeId({ new: p }, state), p.name, p.source.kind === 'curated' ? p.feature : databaseFeature(p.feature), p.lng, p.lat, p.ele ?? 0, p.ele ?? null,
+      JSON.stringify({ import: IMPORT_MARKER, natural_feature: p.feature, provenance: { ...source, wa_catalog: { loader: IMPORT_MARKER } }, resolution: p.source, ...(p.boundary ? { osm_boundary: p.boundary } : {}) }), JSON.stringify(osmExternalIds(p.source.osm_id)), rings ? JSON.stringify({ type: 'Polygon', coordinates: rings }) : null, state] };
 }
 function area(ring: Coord[]): number { let n = 0; for (let i = 1; i < ring.length; i++) n += ring[i - 1][0] * ring[i][1] - ring[i][0] * ring[i - 1][1]; return Math.abs(n); }
 export function compositionValid(r: ComposedRoute): boolean {
-  return !!r.composition_hash && r.composition_hash === digest({ ...r, route_id: undefined, composition_hash: undefined }) && r.route_id === catalogRouteId(r);
+  return !!r.composition_hash && r.composition_hash === compositionHash(r) && r.route_id === catalogRouteId(r);
 }
 export function planRoute(row: ComposedRoute, source: Map<string, Segment>, options: LoadOptions = {}): RoutePlan {
+  // A row's own state wins; a caller's state fills older rows that predate the
+  // field. Disagreement means the wrong catalog was handed to this load.
+  const state = parseState(row.state_code ?? options.stateCode ?? 'WA');
+  if (options.stateCode && parseState(options.stateCode) !== state) throw new Error(`Row ${row.route_id ?? row.seed_index} is ${state}, not ${options.stateCode}`);
   const plan: RoutePlan = { route_id: row.route_id ?? '', seed_index: row.seed_index, statements: [], segment_ids: [], destination_ids: [], activate: false, notes: [], reused_segment_ids: [], segment_data: source };
   const skip = (reason: string) => ({ ...plan, skipped: reason });
-  if (row.status !== 'ok' && !(options.includeReview && row.status === 'review')) return skip(`composition status ${row.status}`);
+  if (row.status !== 'ok' && !(options.includeReview && !row.discovery_source && row.status === 'review')) return skip(`composition status ${row.status}`);
   if (row.segments.some(ref => source.get(ref.id)?.frozen_partial)) return skip('partial frozen catalog geometry is review-only; whole fixed segment reuse required');
   if (row.existing_route_matches.some(m => m.catalog_reviewed && !isWaPilot(m.id)) || row.existing_route_match?.catalog_reviewed && !isWaPilot(row.existing_route_match.id)) return skip('catalog_reviewed match: use trail-catalog supersede path');
   if (!compositionValid(row)) throw new Error(`Composition hash mismatch for seed ${row.seed_index}`);
   if (row.segment_manifest_hash !== segmentManifestHash(row.segments.map(s => s.id), source)) throw new Error(`Segment manifest hash mismatch for seed ${row.seed_index}`);
   if (!row.trailhead || !row.segments.length || !row.provenance) throw new Error(`Incomplete composition ${row.seed_index}`);
+  if (options.activate && state !== 'WA') throw new Error(`Activation for ${state} requires a state-generic integrity function; activate_wa_catalog_route supports WA only`);
   if (options.activate && !options.elevation) throw new Error('--activate requires --elevation; activation also checks every stored Z and gain');
   const binding = bindExistingSegments(row, source, options.overlaps ?? [], options.supersededIds ?? new Set(), options.currentIds ?? new Set());
   if (binding.blocked.length) return skip(`segment overlap conflict: ${binding.blocked.join('; ')}`);
   plan.segment_data = binding.segments; plan.reused_segment_ids = binding.reused;
-  const refs = binding.refs, segments = binding.segments, stateCode = options.stateCode ?? 'WA', resolver = options.resolver ?? new DestinationResolver([], stateCode);
+  const refs = binding.refs, segments = binding.segments, resolver = options.resolver ?? new DestinationResolver([], state);
   const th = resolver.resolve(row.trailhead), goal = row.objective ? resolver.resolve(row.objective) : null, end = row.end_trailhead ? resolver.resolve(row.end_trailhead) : null;
-  if (goal && forbiddenPlace(goal)) return skip('uncurated pass/glacier/saddle objective requires an existing or curated destination');
   const path = routeLine({ ...row, segments: refs }, segments), resolvedDrops = [...(row.dropped_links ?? [])];
+  // Discovery has exact OSM identity and a measured contact gate. Store these
+  // pass/saddle objectives as landforms, retaining their natural feature in
+  // metadata; seed routes keep the existing curation rule.
+  const osmPass = goal?.new;
+  const discoveredPass = !!row.discovery_source && !!osmPass && ['pass', 'saddle'].includes(osmPass.feature) && osmPass.source.kind === 'osm'
+    && /^(node|way|relation)\/\d+$/.test(osmPass.source.osm_id ?? '') && projection([osmPass.lng, osmPass.lat], path).distance <= 30 + 1e-6;
+  const lastRef = refs.at(-1)!, lastSegment = segments.get(lastRef.id)!, lastNode = lastSegment.node_ids[lastRef.direction === 'forward' ? lastSegment.node_ids.length - 1 : 0];
+  const mappedTrailEnd = row.status === 'ok' && !!row.discovery_source && !!osmPass && osmPass.feature === 'landform' && osmPass.source.kind === 'trail_end'
+    && osmPass.source.node_id === lastNode && haversine([osmPass.lng, osmPass.lat], path.at(-1)!) <= .1;
+  if (goal && forbiddenPlace(goal) && !discoveredPass && !mappedTrailEnd) return skip('uncurated pass/glacier/saddle objective requires an existing or curated destination');
   for (const [ref, point] of [[th, path[0]], [end, path.at(-1)!]] as const) {
     const d = ref?.peaks_id ? resolver.get(ref.peaks_id) : undefined;
     if (d && (!d.features.includes('trailhead') || haversine([d.lng, d.lat], point) > 125)) return skip(`resolved trailhead ${d.name} does not contact route endpoint within 125 m; recompose before loading`);
@@ -81,12 +96,12 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
     } }
     return true;
   });
-  const places = new Map<string, PlaceRef>(); for (const ref of [th, ...waypoints, end, goal].filter((p): p is PlaceRef => !!p)) places.set(placeId(ref, stateCode), ref);
+  const places = new Map<string, PlaceRef>(); for (const ref of [th, ...waypoints, end, goal].filter((p): p is PlaceRef => !!p)) places.set(placeId(ref, state), ref);
   let cursor: Coord | null = null, measured = 0;
   for (const ref of refs) {
     const s = segments.get(ref.id)!, start = s.coords[ref.direction === 'forward' ? 0 : s.coords.length - 1], finish = s.coords[ref.direction === 'forward' ? s.coords.length - 1 : 0];
     if (cursor && haversine(cursor, start) > 0.1) throw new Error(`Disconnected composed segments for ${row.name}`);
-    cursor = finish; measured += s.length_m; assertDisplayName(s.display_name ?? null); if (!binding.reused.includes(s.id)) segmentValues(s);
+    cursor = finish; measured += s.length_m; assertDisplayName(s.display_name ?? null); if (!binding.reused.includes(s.id)) segmentValues(s, state);
   }
   if (Math.abs(measured - row.length_m) > 0.1) throw new Error(`Composed segment length mismatch for ${row.name}`);
   const add = (kind: string, sql: string, values: unknown[] = []) => plan.statements.push({ kind, sql, values });
@@ -98,17 +113,17 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   const dependencies = [...new Set((options.overlaps ?? []).filter(o => row.segments.some(r => r.id === o.new_id) && !binding.reused.includes(o.id))
     .flatMap(o => o.routes.map(r => r.id)).filter(id => id !== options.replacementId && id !== (options.supersede?.eligible ? options.supersede.legacy_id : null)))];
   if (dependencies.length) add('overlap_guard', `SELECT NOT EXISTS(SELECT 1 FROM routes WHERE id=ANY($1::text[]) AND status IS DISTINCT FROM 'superseded') AS valid`, [dependencies]);
-  for (const ref of places.values()) if (ref.new) plan.statements.push(destinationStatement(ref.new, stateCode));
+  for (const ref of places.values()) if (ref.new) plan.statements.push(destinationStatement(ref.new, state));
   plan.segment_ids = [...new Set(refs.map(s => s.id))];
   for (const id of plan.segment_ids.filter(id => !binding.reused.includes(id))) {
-    const segment = segments.get(id)!, values = segmentValues(segment); values[6] = JSON.stringify(importedProvenance(segment.provenance, segment.summit_connector ? { notes: ['summit connector'] } : {}));
+    const segment = segments.get(id)!, values = segmentValues(segment, state); values[6] = JSON.stringify(importedProvenance(segment.provenance, segment.summit_connector ? { notes: ['summit connector'] } : {}));
     add('segment_insert', `INSERT INTO segments(id,name,display_name,kind,state_code,trail_names,path,distance,provenance,description,description_source_url)
-      VALUES($1,$2,$8,$3,$11,$4,ST_SetSRID(ST_GeomFromGeoJSON($5),4326)::geography,$6,$7::jsonb,$9,$10) ON CONFLICT(id) DO NOTHING`, [...values, stateCode]);
+      VALUES($1,$2,$8,$3,$11,$4,ST_SetSRID(ST_GeomFromGeoJSON($5),4326)::geography,$6,$7::jsonb,$9,$10) ON CONFLICT(id) DO NOTHING`, values);
   }
-  const thId = placeId(th, stateCode), objectiveId = goal ? placeId(goal, stateCode) : null;
+  const thId = placeId(th, state), objectiveId = goal ? placeId(goal, state) : null;
   const ordered = [...places.keys()].filter(id => id !== thId && id !== objectiveId); ordered.unshift(thId); if (objectiveId && objectiveId !== thId) ordered.push(objectiveId); plan.destination_ids = ordered;
   const sourceProvenance = withoutElevation(routeProvenance(plan.segment_ids.map(id => segments.get(id)!.provenance)));
-  const metadata = { ...(stateCode !== 'WA' ? { state_code: stateCode } : {}), compose_status: row.status, composition_hash: row.composition_hash, approximate: !!row.approximate, notes: row.notes ?? [],
+  const metadata = { ...(state !== 'WA' ? { state_code: state } : {}), compose_status: row.status, composition_hash: row.composition_hash, approximate: !!row.approximate, notes: row.notes ?? [],
     dropped_links: resolvedDrops.filter((d, i) => !ordered.includes(d.id) && resolvedDrops.findIndex(other => other.id === d.id) === i),
     waypoint_names: row.waypoints.map(w => ({ name: w.name, feature: w.feature, fraction: w.fraction })), loaded_binding_hash: digest(refs) };
   const provenance = importedProvenance(sourceProvenance, metadata);
@@ -119,7 +134,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   if (row.wta_url && !/^https:\/\/(?:www\.)?wta\.org\/go-hiking\/hikes\/[a-z0-9.-]+\/?$/.test(row.wta_url)) throw new Error(`Invalid WTA URL ${row.wta_url}`);
   add('route_insert', `INSERT INTO routes(id,name,status,owner,kind,slug,search_name,aliases,state_code,country_code,external_links,provenance,shape,trailhead_destination_id,objective_destination_id,description)
     VALUES($1,$2,'pending','peaks',$3,peaks_route_catalog_slug($2,$1),peaks_search_name($2),$4,$10,'US',$5::jsonb,$6::jsonb,$7::route_shape,$8,$9,NULL) ON CONFLICT(id) DO NOTHING`,
-    [row.route_id, row.name, row.kind, row.aliases, JSON.stringify(row.wta_url ? [{ type: 'wta', id: row.wta_url }] : []), JSON.stringify(provenance), row.shape, thId, objectiveId, stateCode]);
+    [row.route_id, row.name, row.kind, row.aliases, JSON.stringify(row.wta_url ? [{ type: 'wta', id: row.wta_url }] : []), JSON.stringify(provenance), row.shape, thId, objectiveId, state]);
   plan.statements.push(segmentLinks(row.route_id!, refs), destinationLinks(row.route_id!, ordered));
   add('binding_guard', `SELECT jsonb_build_object('name',r.name,'owner',r.owner,'kind',r.kind,'aliases',r.aliases,'shape',r.shape,
       'state_code',r.state_code,'country_code',r.country_code,'trailhead_destination_id',r.trailhead_destination_id,'objective_destination_id',r.objective_destination_id,
@@ -131,7 +146,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
       OR s.description IS DISTINCT FROM(item->>'description') OR s.kind IS DISTINCT FROM(item->>'kind')
       OR (wa_catalog_provenance_elevation(s.provenance,'{}'::jsonb)-'wa_catalog') IS DISTINCT FROM(item->'provenance')
       OR NOT COALESCE(ST_OrderingEquals(ST_Force2D(s.path::geometry),ST_GeomFromGeoJSON(item->>'geometry')),false)) AS valid FROM routes r WHERE r.id=$1`,
-    [row.route_id, JSON.stringify({ name: row.name, owner: 'peaks', kind: row.kind, aliases: row.aliases, shape: row.shape, state_code: stateCode, country_code: 'US', trailhead_destination_id: thId, objective_destination_id: objectiveId, external_links: row.wta_url ? [{ type: 'wta', id: row.wta_url }] : [], provenance, description: null }),
+    [row.route_id, JSON.stringify({ name: row.name, owner: 'peaks', kind: row.kind, aliases: row.aliases, shape: row.shape, state_code: state, country_code: 'US', trailhead_destination_id: thId, objective_destination_id: objectiveId, external_links: row.wta_url ? [{ type: 'wta', id: row.wta_url }] : [], provenance, description: null }),
       JSON.stringify(refs), JSON.stringify(ordered), JSON.stringify(plan.segment_ids.map(id => { const s = segments.get(id)!; return { id, name: s.name, display_name: s.display_name === undefined ? s.trail_names[0] || s.relation_names[0] || null : s.display_name, description: s.description ?? null, kind: s.kind, provenance: withoutElevation(s.provenance), geometry: { type: 'LineString', coordinates: s.coords } }; }))]);
   if (options.elevation) for (const id of plan.segment_ids) {
     add('elevation_guard', `SELECT EXISTS(${PROTECTED}) AS protected,
@@ -286,6 +301,7 @@ async function main() {
   if (flags.has('activate') && !flags.has('elevation')) throw new Error('--activate requires --elevation');
   if (mode === 'retire-pilot') { await retirePilots(dir, input, flags.has('apply')); return; }
   const segments = new Map((await readRows<Segment>(join(dir, 'segments.ndjson'))).map(s => [s.id, s])), rows = await readRows<ComposedRoute>(join(dir, 'routes.ndjson'));
+  if ((flags.has('apply') || flags.has('activate')) && rows.some(r => parseState(r.state_code ?? 'WA') !== 'WA')) throw new Error('Non-Washington catalogs support offline load plans only; live preflight and activation remain Washington-specific');
   let rebases: RebasePlan[] = [], merges: MergePlan[] = [];
   try { rebases = await readRows<RebasePlan>(join(dir, 'rebase-plans.ndjson')); merges = await readRows<MergePlan>(join(dir, 'merge-plans.ndjson')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
   if (mode === 'prune') {

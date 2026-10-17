@@ -1,5 +1,6 @@
 import { lines } from './io';
 import type { Coord, Relation, Tags, Way } from './types';
+import { intersectsBbox, type Bbox } from './state';
 
 export function decodeOpl(value: string): string {
   return value.replace(/%([a-fA-F0-9]+)%/g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)));
@@ -26,7 +27,7 @@ export function parseOpl(line: string): OplRecord {
   return record;
 }
 export function keepWay(tags: Tags, inRelation: boolean): boolean {
-  if (['no', 'private'].includes(tags.access)) return false;
+  if (['no', 'private'].includes(tags.access) || ['no', 'private'].includes(tags.foot)) return false;
   if (['path', 'bridleway', 'steps'].includes(tags.highway)) return true;
   // Some hiking relation members (notably rail trails) use cycleway geometry.
   if (tags.highway === 'cycleway') return ['yes', 'designated'].includes(tags.foot) && (!!tags.name?.trim() || inRelation);
@@ -35,14 +36,14 @@ export function keepWay(tags: Tags, inRelation: boolean): boolean {
   return tags.highway === 'track' && (named || inRelation || !!tags.sac_scale);
 }
 /** Streaming passes avoid holding the 580 MB text or discarded node records. */
-export async function readOsm(path: string): Promise<{ ways: Way[]; connectors: Way[]; nodes: Map<number, Coord>; stats: Record<string, number> }> {
+export async function readOsm(path: string, bbox?: Bbox): Promise<{ ways: Way[]; connectors: Way[]; nodes: Map<number, Coord>; stats: Record<string, number> }> {
   const relations = new Map<number, OplRecord>(), memberships = new Map<number, Map<number, Relation>>();
   const stats: Record<string, number> = { relations: 0, input_ways: 0, filtered_ways: 0, missing_node_ways: 0, kept_ways: 0 };
   for await (const line of lines(path)) if (line[0] === 'r') {
     const r = parseOpl(line); if (['hiking', 'foot', 'mountain_hiking'].includes(r.tags.route)) relations.set(r.id, r);
   }
   for (const r of relations.values()) {
-    const meta: Relation = { id: r.id, name: r.tags.name, ref: r.tags.ref, network: r.tags.network };
+    const meta: Relation = { id: r.id, name: r.tags.name, ref: r.tags.ref, network: r.tags.network, route: r.tags.route, tags: r.tags };
     const visit = (record: OplRecord, seen: Set<number>) => {
       if (seen.has(record.id)) return; seen.add(record.id);
       for (const member of record.members) {
@@ -64,7 +65,7 @@ export async function readOsm(path: string): Promise<{ ways: Way[]; connectors: 
   const connectors: Way[] = [], selectedNodes = new Set(required);
   for await (const line of lines(path)) if (line[0] === 'w') {
     const w = parseOpl(line);
-    if (keepWay(w.tags, memberships.has(w.id)) || ['private', 'no'].includes(w.tags.access) || !['footway', 'track'].includes(w.tags.highway) || w.nodes.length < 2 || !w.nodes.some(n => selectedNodes.has(n))) continue;
+    if (keepWay(w.tags, memberships.has(w.id)) || ['private', 'no'].includes(w.tags.access) || ['private', 'no'].includes(w.tags.foot) || !['footway', 'track'].includes(w.tags.highway) || w.nodes.length < 2 || !w.nodes.some(n => selectedNodes.has(n))) continue;
     connectors.push({ id: w.id, nodes: w.nodes, tags: w.tags, relations: [] }); w.nodes.forEach(n => required.add(n));
   }
   const nodes = new Map<number, Coord>();
@@ -74,7 +75,12 @@ export async function readOsm(path: string): Promise<{ ways: Way[]; connectors: 
     const x = / x(-?[\d.]+)(?: |$)/.exec(line), y = / y(-?[\d.]+)(?: |$)/.exec(line);
     if (x && y) nodes.set(id, [Number(x[1]), Number(y[1])]);
   }
-  const complete = ways.filter(w => { if (w.nodes.every(id => nodes.has(id))) return true; stats.missing_node_ways++; return false; });
+  const inBounds = (w: Way) => !bbox || intersectsBbox(w.nodes.map(id => nodes.get(id)!), bbox);
+  const complete = ways.filter(w => {
+    if (!w.nodes.every(id => nodes.has(id))) { stats.missing_node_ways++; return false; }
+    if (!inBounds(w)) { stats.bbox_excluded_ways = (stats.bbox_excluded_ways ?? 0) + 1; return false; }
+    return true;
+  });
   stats.kept_ways = complete.length;
-  return { ways: complete, connectors: connectors.filter(w => w.nodes.every(n => nodes.has(n))), nodes, stats };
+  return { ways: complete, connectors: connectors.filter(w => w.nodes.every(n => nodes.has(n)) && inBounds(w)), nodes, stats };
 }
