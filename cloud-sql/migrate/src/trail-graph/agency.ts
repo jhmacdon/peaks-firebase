@@ -1,11 +1,13 @@
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Grid, hash, length, lineIndex, midpoint, nearest, pointDistance, samples, unique, type Primitive } from './geo';
 import { vertexIndex, type SourceFeature } from './features';
 import { classify, glacierIndex, provenance, refresh, SOURCES } from './topology';
-import type { AltSource, Coord, Glacier, Segment } from './types';
+import type { AltSource, Coord, Glacier, Segment, Tags } from './types';
+import { geojsonFeatures } from './io';
+import { displayName } from './display-names';
+import { intersectsBbox, type Bbox } from './state';
 
-export interface AgencyLine { coords: Coord[]; source: keyof typeof SOURCES; id: string; name: string | null; number: string | null; names: string[]; group: string; retrieved_at: string }
+export interface AgencyLine { coords: Coord[]; source: keyof typeof SOURCES; id: string; name: string | null; number: string | null; names: string[]; group: string; retrieved_at: string; tags?: Tags }
 const clean = (v: unknown): string | null => { const s = String(v ?? '').trim(); return !s || /^(n\/a|none|unknown|unnamed)$/i.test(s) ? null : s; };
 export function agencyLine(f: SourceFeature, source: AgencyLine['source'], retrievedAt: string): AgencyLine[] {
   if (!f.geometry) return [];
@@ -13,23 +15,30 @@ export function agencyLine(f: SourceFeature, source: AgencyLine['source'], retri
   // These are pedestrian graphs. Winter-only USFS lines need their own graph.
   if (source === 'usfs' && (p.trail_type === 'SNOW' || /^(yes|restricted)$/i.test(p.hiker_pedestrian_restricted ?? ''))) return [];
   if (source === 'nps' && ((p.TRLSTATUS && p.TRLSTATUS !== 'Existing') || /^(no|false)$/i.test(p.OPENTOPUBLIC ?? ''))) return [];
-  if (source === 'wa_state_parks' && /closed|private|no access/i.test(String(p.ACCESS_STA ?? '') + ' ' + String(p.TrailStatus ?? ''))) return [];
-  const name = clean(source === 'usfs' ? p.trail_name : source === 'nps' ? p.TRLNAME : p.TR_NM);
+  if (source === 'wa_state_parks' && /closed|private|no access|planned|decommissioned|abandoned/i.test(String(p.ACCESS_STA ?? '') + ' ' + String(p.TrailStatus ?? ''))) return [];
+  const name = displayName(clean(source === 'usfs' ? p.trail_name : source === 'nps' ? p.TRLNAME : p.TR_NM));
   const number = clean(source === 'usfs' ? p.trail_no : source === 'nps' ? p.TRLNUM : p.TR_NUM || p.trail_number);
-  const alt = clean(source === 'nps' ? p.TRLALTNAME : source === 'wa_state_parks' ? p.TR_ALT_NM : null);
+  const alt = displayName(clean(source === 'nps' ? p.TRLALTNAME : source === 'wa_state_parks' ? p.TR_ALT_NM : null));
   const official = name && number ? `${name}${/\btrail\b/i.test(name) ? '' : ' Trail'} #${number}` : name ?? (number ? `Trail #${number}` : null);
   const names = unique([official, name, alt].filter((s): s is string => !!s));
   const id = String(f.id ?? p.objectid ?? p.OBJECTID);
   const paths: Coord[][] = f.geometry.type === 'LineString' ? [f.geometry.coordinates] : f.geometry.type === 'MultiLineString' ? f.geometry.coordinates : [];
+  const tags: Tags = {};
+  for (const [key, value] of Object.entries(p)) if (/national.*trail|designation|scenic|historic/i.test(key) && value !== null && value !== undefined) tags[key] = String(value);
   return paths.filter(coords => coords.length >= 2).map(coords => ({ coords: coords.map(c => [c[0], c[1]]), source, id, name, number, names,
-    group: JSON.stringify([source, name ?? id, number]), retrieved_at: retrievedAt }));
+    group: JSON.stringify([source, name ?? id, number]), retrieved_at: retrievedAt, ...(Object.keys(tags).length ? { tags } : {}) }));
 }
-export async function readAgencies(dir: string): Promise<{ lines: AgencyLine[]; counts: Record<string, { input: number; excluded: number; parts: number }> }> {
+export async function readAgencies(dir: string, bbox?: Bbox): Promise<{ lines: AgencyLine[]; counts: Record<string, { input: number; excluded: number; parts: number }> }> {
   const { stat } = await import('node:fs/promises'); const lines: AgencyLine[] = [], counts: Record<string, { input: number; excluded: number; parts: number }> = {};
   for (const source of Object.keys(SOURCES) as AgencyLine['source'][]) {
-    const path = join(dir, `${source}_trails.geojson`), collection = JSON.parse(await readFile(path, 'utf8')), retrieved = (await stat(path)).mtime.toISOString();
-    const count = { input: collection.features.length, excluded: 0, parts: 0 };
-    for (const f of collection.features) { const parts = agencyLine(f, source, retrieved); if (!parts.length) count.excluded++; count.parts += parts.length; lines.push(...parts); }
+    const path = join(dir, `${source}_trails.geojson`); let retrieved: string;
+    try { retrieved = (await stat(path)).mtime.toISOString(); }
+    catch (error) { if (source === 'wa_state_parks' && (error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error; }
+    const count = { input: 0, excluded: 0, parts: 0 };
+    for await (const f of geojsonFeatures<SourceFeature>(path)) {
+      count.input++; const parts = agencyLine(f, source, retrieved).filter(a => !bbox || intersectsBbox(a.coords, bbox));
+      if (!parts.length) count.excluded++; count.parts += parts.length; lines.push(...parts);
+    }
     counts[source] = count;
   } return { lines, counts };
 }
@@ -45,7 +54,7 @@ export function matchedAgencies(coords: Coord[], agencies: AgencyLine[], index: 
   }
   const result = new Map<string, AltSource>();
   for (const [group, metres] of covered) if (total > 0 && metres / total >= 0.8 - 1e-9)
-    for (const i of touched.get(group)!) { const a = agencies[i]; result.set(`${a.source}:${a.id}`, { source: a.source, id: a.id, name: a.name, number: a.number }); }
+    for (const i of touched.get(group)!) { const a = agencies[i]; result.set(`${a.source}:${a.id}`, { source: a.source, id: a.id, name: a.name, number: a.number, ...(a.tags ? { tags: a.tags } : {}) }); }
   return [...result.values()].sort((a, b) => `${a.source}:${a.id}`.localeCompare(`${b.source}:${b.id}`));
 }
 export function unmatchedStretches(coords: Coord[], osm: Grid<Primitive>): Coord[][] {
@@ -84,7 +93,7 @@ export function conflate(segments: Segment[], agencies: AgencyLine[], glaciers: 
     const kind = classify({ id: 0, nodes: [], tags: { highway: 'path' }, relations: [] }, midpoint(coords), ice);
     const segment = refresh({ id: '', name: a.name, trail_names: a.names, kind, sac_scale: null, trail_visibility: null,
       osm_way_ids: [], osm_edge_way_ids: [], relation_names: [], relations: [], start_node: '', end_node: '', coords, node_ids: ids, length_m: 0,
-      provenance: provenance([], a.retrieved_at, a.source, a.id), alt_sources: [{ source: a.source, id: a.id, name: a.name, number: a.number }] });
+      provenance: provenance([], a.retrieved_at, a.source, a.id), alt_sources: [{ source: a.source, id: a.id, name: a.name, number: a.number, ...(a.tags ? { tags: a.tags } : {}) }] });
     added.push(segment); stats.agency_only_segments++; stats.agency_only_length_m += segment.length_m;
   }
   const split: Segment[] = [];

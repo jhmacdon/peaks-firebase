@@ -26,7 +26,7 @@ export async function readRoadAccess(path: string, segments: Segment[]) {
       const coord: Coord = [Number(x[1]), Number(y[1])], parking = /(?: T|,)amenity=parking(?:,| |$)/.test(line);
       if (!parking && !junctions.near(coord, 160).some(p => haversine(p, coord) <= 150)) continue;
       const r = parseOpl(line);
-      if (['private', 'no'].includes(r.tags.access)) continue;
+      if (['private', 'no'].includes(r.tags.access) || ['private', 'no'].includes(r.tags.foot)) continue;
       points.push({ osm_id: `node/${r.id}`, coord, parking, ...(r.tags.name ? { name: r.tags.name } : {}) });
       if (!parking) candidateNodes.add(String(r.id));
     } else if (line[0] === 'w') {
@@ -35,7 +35,7 @@ export async function readRoadAccess(path: string, segments: Segment[]) {
       if (r.tags.highway && !['motorway', 'motorway_link'].includes(r.tags.highway) && !['private', 'no'].includes(r.tags.access) && !['private', 'no'].includes(r.tags.foot)) for (const n of r.nodes) if (candidateNodes.has(String(n))) publicNodes.add(String(n));
       if (!existingWays.has(r.id) && r.tags.highway && !['motorway', 'motorway_link', 'trunk', 'trunk_link', 'footway', 'path', 'steps', 'bridleway', 'cycleway'].includes(r.tags.highway) && !['private', 'no'].includes(r.tags.access) && !['private', 'no'].includes(r.tags.foot) && r.nodes.some(n => candidateNodes.has(String(n)))) roadWays.push({ id: r.id, nodes: r.nodes, tags: r.tags, relations: [] });
       if (r.tags.amenity !== 'parking') continue;
-      if (!['private', 'no'].includes(r.tags.access)) parkingWays.push({ id: r.id, name: r.tags.name, nodes: r.nodes });
+      if (!['private', 'no'].includes(r.tags.access) && !['private', 'no'].includes(r.tags.foot)) parkingWays.push({ id: r.id, name: r.tags.name, nodes: r.nodes });
     }
   }
   const required = new Set([...parkingWays, ...roadWays].flatMap(w => w.nodes)), coords = new Map<number, Coord>();

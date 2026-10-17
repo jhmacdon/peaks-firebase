@@ -1,6 +1,6 @@
 export function normalizeName(value: string): string {
   return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    .replace(/\bmt\.?\b/g, 'mount').replace(/\bmtn\.?\b/g, 'mountain').replace(/\bst\.?\b/g, 'saint').replace(/\bth\b/g, 'trailhead')
+    .replace(/\bmt\.?\b/g, 'mount').replace(/\bmtn\.?\b/g, 'mountain').replace(/\bpk\.?\b/g, 'peak').replace(/\bst\.?\b/g, 'saint').replace(/\bth\b/g, 'trailhead')
     .replace(/\btwenty[ -]?two\b/g, '22')
     .replace(/\b(first|1st)\b/g, '1').replace(/\b(second|2nd)\b/g, '2').replace(/\b(third|3rd)\b/g, '3')
     .replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');

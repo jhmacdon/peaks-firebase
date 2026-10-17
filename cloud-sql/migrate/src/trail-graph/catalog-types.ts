@@ -21,6 +21,10 @@ export type ComposeStatus = 'ok' | 'review' | 'needs_geometry' | 'failed';
 export interface ExistingMatch { id: string; name: string; catalog_reviewed: boolean; n_sessions: number; start_gap_m: number; end_gap_m: number | null }
 export interface Waypoint extends PlaceRef { name: string; feature: string; lng: number; lat: number; fraction: number; osm_id: string; distance_from_route_m: number }
 export interface ComposedRoute {
+  state_code?: 'WA' | 'OR' | 'CA' | 'ID';
+  discovery_source?: 'relation' | 'objective' | 'named_trail' | 'lollipop';
+  discovery_identity?: string;
+  popularity_score?: number;
   seed_index: number; name: string; aliases: string[]; kind: Seed['kind']; region: string; tier: number;
   trailhead: PlaceRef | null; objective: PlaceRef | null; end_trailhead?: PlaceRef | null;
   segments: { id: string; direction: 'forward' | 'reverse' }[]; length_m: number;
