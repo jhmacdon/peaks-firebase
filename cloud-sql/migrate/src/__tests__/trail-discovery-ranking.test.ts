@@ -100,7 +100,8 @@ test('seed-free exports contain numeric popularity in descending loading order a
       const objective = f.candidate.objective!; objective.lon += shift; objective.osm_id = `node/${i + 101}`; objective.graph_node = `b${i}`; objective.name = `Alpine ${i} Lake`; if (i >= 3) objective.tags = { wikidata: `Q${i}` }; features.push(objective);
     }
     for (const [name, rows] of [['segments', segments], ['features', features], ['access', []]] as const) await writeFile(join(graph, `${name}.ndjson`), rows.map(r => JSON.stringify(r)).join('\n') + '\n');
-    await composeDiscover('OR', graph, out, root);
+    const input = join(root, 'oregon'); await mkdir(input); await mkdir(join(root, 'peaks-snapshot')); await writeFile(join(root, 'peaks-snapshot/or-destinations.ndjson'), '');
+    await composeDiscover('OR', graph, out, input);
     const rows = (await readFile(join(out, 'routes.ndjson'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as ComposedRoute); assert.ok(rows.length >= 6);
     assert.deepEqual([...new Set(rows.filter(r => r.status === 'ok').map(r => r.tier))].sort(), [1, 2, 3]);
     for (let i = 0; i < rows.length; i++) { assert.ok(rows[i].popularity! > 0); assert.equal(rows[i].popularity_score, rows[i].popularity); if (i) assert.ok(rows[i - 1].popularity! >= rows[i].popularity!); }

@@ -30,6 +30,13 @@ Each input root contains:
 selection to the buffered state bounds in `state.ts`. It keeps whole intersecting
 lines so it does not invent source nodes at rectangle edges. These bounds do not
 replace a state boundary polygon. Frozen WA catalog segments remain WA-only.
+Discovery also requires local Peaks destination snapshots: WA reads
+`peaks-snapshot/wa-destinations.ndjson` under its input root; western states read
+`../peaks-snapshot/{or,id,ca}-destinations.ndjson` beside their input roots. It
+resolves source places to these existing destinations before final geometry.
+Summit connectors target the resolved Peaks point and keep the existing 75 m
+limit and 5 m contact gate. Missing snapshots fail the run.
+
 The spatial index uses degree cells and latitude-aware query bounds; metre checks
 still use haversine and local point-to-line distances.
 
@@ -129,7 +136,9 @@ approaches shorter than 100 m require review, since an adjacent parking area or
 lake shore otherwise yields a few-metre hike. Summits need 5 m end contact; the
 existing helper may add a credited, straight connector of at most 75 m. Other
 point objectives need 30 m contact; area objectives can contact their footprint.
-Only a loop's shared start/end stem may repeat edges. Expected length comes from
+Only a loop's shared start/end stem may repeat edges. A traverse needs a real,
+distinct far trailhead; a contacted natural objective does not count as that
+trailhead, even when a parking contact reuses its OSM ID. Expected length comes from
 the discovered walk, so it supplies no independent distance check.
 
 Dedupe compares physical shared length, not vertex counts. The same objective and
@@ -138,14 +147,21 @@ even when starts differ. The same objective and start also dedupe at 80% shared
 length. Status wins first, then a mapped trailhead, popularity, name and road
 shares, and shorter distance. After dedupe, `from <start>` distinguishes only
 remaining approaches to the same objective by the same trail. It never uses an
-invented trailhead label, parking code, or truncated source name. No two retained
-routes share a normalized name within 5 km.
+invented trailhead label, parking code, or truncated source name. No two ok routes in a state share a normalized display name. Same-objective
+approaches use safe trailhead labels at any distance. Supported trail sections
+use their named endpoints; remaining name collisions keep the better route.
 
 A search-budget review means a qualifying named alternative remains unresolved;
 it does not prove that none exists. This bound can reduce the number of ok routes.
 Rows have `ok`, `review`, or `failed` status. Only `ok` discovery rows can pass the
 loader planner, even with `--include-review`. This is a geometry and source check,
 not a review of seasonal access, hazards, or route suitability.
+
+Motorized-designated trails and highway corridor paths are excluded, using
+source names and streamed OSM motorcycle/OHV/ATV tags as well as agency and
+relation tags. Negative tags do not exclude pedestrian trails. Utility water
+features such as detention or treatment basins cannot become objectives.
+Motorized staging labels cannot supply trailhead suffixes.
 
 ## Output and scale
 

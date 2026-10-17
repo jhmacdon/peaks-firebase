@@ -7,17 +7,19 @@ import { args, ndjson, option, writeNdjson } from './io';
 import { stateConfig, statePaths, parseState, type StateCode } from './state';
 import { discover } from './discovery';
 import { createDiscoverySolver } from './discovery-solver';
+import { loadDiscoveryDestinations, discoverySnapshotPath } from './discovery-destinations';
+import { loadExcludedDiscoverySegments } from './discovery-eligibility';
 import { loadRankingContext, popularityThresholds, popularityTier, comparePopularity } from './discovery-ranking';
 import { catalogSegment } from './catalog-output';
 import { composeDiscovery, DiscoveryDeduper, DiscoveryPieces, discoverySummary, digestValue, routeDistance, routeTitle } from './discovery-catalog';
 import { catalogRouteId, finalizeRows } from './compose';
 import { haversine } from './geo';
 import { placeKey, tokenMatch, trailKey } from './names';
-import type { AccessPoint, ComposedRoute, DraftRoute, PlaceRef, Seed } from './catalog-types';
+import type { AccessPoint, ComposedRoute, DraftRoute, PeaksDestination, PlaceRef, Seed } from './catalog-types';
 import type { NamedFeature, Segment } from './types';
 
 async function readRows<T>(path: string): Promise<T[]> { const rows: T[] = []; for await (const row of ndjson<T>(path)) rows.push(row); return rows; }
-const namedPlace = (p: PlaceRef | null | undefined) => p?.new?.name ?? p?.peaks_id ?? '—';
+const namedPlace = (p: PlaceRef | null | undefined, peaks?: Map<string, PeaksDestination>) => p?.new?.name ?? peaks?.get(p?.peaks_id ?? '')?.name ?? p?.peaks_id ?? '—';
 interface DraftReceipt { offset: number; bytes: number; seed_index: number; popularity: number; status: ComposedRoute['status'] }
 async function* rankedDrafts(path: string, receipts: DraftReceipt[]): AsyncGenerator<DraftRoute> {
   const file = await open(path, 'r');
@@ -65,6 +67,9 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
   const segments = await readRows<Segment>(join(graph, 'segments.ndjson'));
   const features = await readRows<NamedFeature>(join(graph, 'features.ndjson'));
   const access = await readRows<AccessPoint>(join(graph, 'access.ndjson'));
+  const destinations = await loadDiscoveryDestinations(state, input);
+  const resolvedContacts = destinations.graphContacts(features, access);
+  const excludedSegmentIds = await loadExcludedDiscoverySegments(input, segments);
   const rankingContext = await loadRankingContext(input, access);
   const byId = new Map(segments.map(s => [s.id, s])), deduper = new DiscoveryDeduper(byId);
   const staging = join(out, `.discover-${process.pid}`); await mkdir(staging);
@@ -76,11 +81,11 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
   const samples: ComposedRoute[] = [], bad: ComposedRoute[] = [], overlapRows: ComposedRoute[] = [];
   const badReasons = new Set<string>();
   try {
-    for (const candidate of discover({ segments, features, access }, message => console.log(`${state}: ${message}`), { hardGoalSolver: solver.solve })) {
+    for (const candidate of discover({ segments, features, access }, message => console.log(`${state}: ${message}`), { hardGoalSolver: solver.solve, excludedSegmentIds, resolvedContacts })) {
       const names = new Set<string>();
       // Local source names at the start contribute to the popularity score.
       for (const s of candidate.walk.slice(0, 3)) { const segment = byId.get(s.segment_id)!; if (segment.coords.some(p => haversine(p, candidate.trailheadCoord) <= 30)) for (const n of segment.trail_names) names.add(trailKey(n)); }
-      const draft = composeDiscovery(candidate, candidates++, state, byId, candidate.junctionNameCount ?? names.size, rankingContext);
+      const draft = composeDiscovery(candidate, candidates++, state, byId, candidate.junctionNameCount ?? names.size, rankingContext, destinations);
       const summary = discoverySummary(draft);
       deduper.consider(summary); countRoute(rawCounts, draft.row);
       const line = JSON.stringify(draft) + '\n', bytes = Buffer.byteLength(line);
@@ -122,7 +127,10 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
         ok++; seenOk++; random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
         if (samples.length < 30) samples.push(row); else { const i = random % seenOk; if (i < 30) samples[i] = row; }
       } else if (bad.length < 100 && row.reasons.some(reason => !badReasons.has(reason))) { bad.push(row); row.reasons.forEach(reason => badReasons.add(reason)); }
-      if (state === 'WA') overlapRows.push({ ...row, segment_sources: [], segments: [], waypoints: [] });
+      if (state === 'WA') overlapRows.push({ ...row,
+        ...(draft.source_places?.trailhead ? { trailhead: { new: draft.source_places.trailhead } } : {}),
+        ...(draft.source_places?.objective ? { objective: { new: draft.source_places.objective } } : {}),
+        segment_sources: [], segments: [], waypoints: [] });
       for (const ref of [row.trailhead, row.objective, row.end_trailhead]) if (ref?.new) {
         const id = ref.new.source.osm_id ?? digestValue(ref.new); if (!placeIds.has(id)) { placeIds.add(id); if (!places.write(JSON.stringify({ ...ref.new, id, state_code: state }) + '\n')) await once(places, 'drain'); }
       }
@@ -141,11 +149,12 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
     }
     const summary = { state, candidates, retained, ok, by_kind_status: counts, raw_candidates_by_kind_status: rawCounts, dedupe: deduper.counts, reasons,
       segments: usedSegments.size, places: placeIds.size, catalog_segments_cleaned: catalogSegmentsCleaned,
+      peaks_snapshot: discoverySnapshotPath(state, input), destination_resolution: { ...destinations.stats, graph_contacts: resolvedContacts.size }, excluded_motorized_or_highway_segments: excludedSegmentIds.size,
       popularity: { tier_thresholds: tierThresholds, ok_by_tier: tierCounts, min: Math.min(...retainedReceipts.filter(r => r.status === 'ok').map(r => r.popularity), 1), max: Math.max(0, ...retainedReceipts.filter(r => r.status === 'ok').map(r => r.popularity)), distinct_scores: new Set(retainedReceipts.filter(r => r.status === 'ok').map(r => r.popularity)).size, source_files: rankingContext.source_files, top_25: topPopular },
       elapsed_seconds: (Date.now() - started) / 1000, max_rss_mib: process.resourceUsage().maxRSS / 1024,
       solver: solver.stats, solver_call_limit: solverCallLimit ?? null, combined_reported_rss_mib: process.resourceUsage().maxRSS / 1024 + solver.stats.peak_rss_mib,
       rss_measurement_incomplete: solver.stats.hard_timeouts > 0,
-      heap_limit_mib: 6144, wa_seed_overlap: overlap && { total: overlap.total, found: overlap.found, ok: overlap.ok, name_matches: overlap.name_matches, method: overlap.method }, samples: samples.slice(0, 10).map(r => ({ name: r.name, length_km: routeDistance(r) / 1000, trailhead: namedPlace(r.trailhead), objective: namedPlace(r.objective) })) };
+      heap_limit_mib: 6144, wa_seed_overlap: overlap && { total: overlap.total, found: overlap.found, ok: overlap.ok, name_matches: overlap.name_matches, method: overlap.method }, samples: samples.slice(0, 10).map(r => ({ name: r.name, length_km: routeDistance(r) / 1000, trailhead: namedPlace(r.trailhead, destinations.byId), objective: namedPlace(r.objective, destinations.byId) })) };
     const report = [`# ${stateConfig(state).name} discovery`, '', `Candidates: ${candidates}. Retained: ${retained}. Ok: ${ok}.`, '',
       `Runtime: ${summary.elapsed_seconds.toFixed(1)} seconds. Peak RSS: ${summary.max_rss_mib.toFixed(1)} MiB.`, '',
       `Optional local solver: ${solver.stats.calls} calls, ${solver.stats.cached} cached results, ${solver.stats.cached_limited} reused advisory limits, ${solver.stats.infeasible} infeasible proofs, ${solver.stats.optimal} optimal paths, ${solver.stats.feasible} feasible paths without a cost-optimality proof. Advisory limits continue the bounded TypeScript search and never prove infeasibility. Every accepted path passes the same quality gates. Reported solver peak RSS: ${solver.stats.peak_rss_mib.toFixed(1)} MiB; parent plus returned-child RSS sum: ${summary.combined_reported_rss_mib.toFixed(1)} MiB. The two peaks may occur at different times.`, '',
@@ -156,7 +165,7 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
       '| Group | ok | review | failed |', '| --- | ---: | ---: | ---: |', ...Object.entries(counts).map(([key, c]) => `| ${key} | ${c.ok ?? 0} | ${c.review ?? 0} | ${c.failed ?? 0} |`), '',
       ...(overlap ? [`WA seed overlap: ${overlap.found}/${overlap.total} approach matches; ${overlap.ok} matched to ok discoveries. ${overlap.name_matches} have a name match. ${overlap.method}`, 'Full matched and missing lists: seed-overlap.json.', ''] : []),
       '## Loading priority', '', 'Rows are written in descending numeric popularity. Tier 1 is the top score tercile among ok rows, tier 2 the middle, and tier 3 the rest; equal scores keep the same tier. Scores combine source tags and mapped facilities, not measured visits. Paths over 25 km one way receive a length penalty. Source tags unavailable in the local inputs cannot contribute.', '', '| Route | Popularity | Tier | Full km |', '| --- | ---: | ---: | ---: |', ...topPopular.map(r => `| ${tableSafe(r.name)} | ${r.popularity.toFixed(6)} | ${r.tier} | ${r.length_km.toFixed(2)} |`), '',
-      '## 30 random ok samples', '', '| Name | Full km | Trailhead | Objective |', '| --- | ---: | --- | --- |', ...samples.map(r => `| ${tableSafe(r.name)} | ${(routeDistance(r) / 1000).toFixed(2)} | ${tableSafe(namedPlace(r.trailhead))} | ${tableSafe(namedPlace(r.objective))} |`), '',
+      '## 30 random ok samples', '', '| Name | Full km | Trailhead | Objective |', '| --- | ---: | --- | --- |', ...samples.map(r => `| ${tableSafe(r.name)} | ${(routeDistance(r) / 1000).toFixed(2)} | ${tableSafe(namedPlace(r.trailhead, destinations.byId))} | ${tableSafe(namedPlace(r.objective, destinations.byId))} |`), '',
       '## Suspect discoveries', '', 'These failed a quality gate; this list is a local rule check, not a map review.', '', ...bad.slice(0, 30).map(r => `- ${r.name}: ${r.reasons.join('; ')}`), '',
       '## Quality reasons', '', ...Object.entries(reasons).sort((a, b) => b[1] - a[1]).map(([reason, n]) => `- ${n}: ${reason}`), '',
       'Objective approaches shorter than 100 m require review. Two-trail lollipops use a cycle basis for each pair of names meeting at a junction; this does not enumerate every possible circuit.', '',

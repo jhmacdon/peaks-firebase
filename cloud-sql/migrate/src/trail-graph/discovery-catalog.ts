@@ -4,7 +4,8 @@ import { featureDistance } from './features';
 import { hash, haversine, length, unique } from './geo';
 import { cleanTrail, normalizeName, trailKey } from './names';
 import { repeatedEdgesAllowed } from './compose-validate';
-import { appendSummitConnector } from './summit-connectors';
+import { alignSummitKind, appendSummitConnector } from './summit-connectors';
+import type { DiscoveryDestinations } from './discovery-destinations';
 import { refresh } from './topology';
 import type { AccessPoint, ComposedRoute, DraftRoute, PlaceRef } from './catalog-types';
 import type { DiscoveryCandidate } from './discovery';
@@ -39,7 +40,7 @@ export function namedSegment(s: Segment): boolean {
 export function popularity(candidate: DiscoveryCandidate, byId: Map<string, Segment>, junctionNames = 0, context?: RankingContext): number {
   return rankDiscovery(candidate, byId, junctionNames, context).popularity;
 }
-export function composeDiscovery(candidate: DiscoveryCandidate, index: number, state: NonNullable<ComposedRoute['state_code']>, byId: Map<string, Segment>, junctionNames = 0, rankingContext?: RankingContext): DraftRoute {
+export function composeDiscovery(candidate: DiscoveryCandidate, index: number, state: NonNullable<ComposedRoute['state_code']>, byId: Map<string, Segment>, junctionNames = 0, rankingContext?: RankingContext, destinations?: DiscoveryDestinations): DraftRoute {
   const walk = candidate.walk.map(s => ({ ...s })), total = walk.reduce((n, s) => n + s.length_m, 0);
   const preferred = candidate.preferredNames.map(n => trailKey(discoveryName(n) ?? n));
   const isPreferred = (s: Segment) => namedSegment(s) && (!preferred.length || [...s.trail_names, ...s.relation_names].some(n => preferred.includes(trailKey(discoveryName(n) ?? ''))));
@@ -78,6 +79,9 @@ export function composeDiscovery(candidate: DiscoveryCandidate, index: number, s
     const segment = byId.get(last.segment_id)!;
     row.objective = { new: { name: `${row.name} End`, feature: 'landform', lng: end[0], lat: end[1], source: { kind: 'trail_end', node_id: segment.node_ids[last.end_vertex], provenance: segment.provenance, note: 'Mapped named-trail end; no named natural objective.' } } };
   }
+  const source_places = destinations?.resolveRow(row);
+  const resolvedObjective = destinations?.byId.get(row.objective?.peaks_id ?? '');
+  alignSummitKind(row, resolvedObjective);
   const review = (reason: string) => { row.reasons.push(reason); if (row.status === 'ok') row.status = 'review'; };
   if (!cleanedTitle.name) review('route title lacks a usable trail or objective name');
   if (candidate.objective && !objectiveName.name) review('objective name is a road or lacks a useful name');
@@ -97,11 +101,15 @@ export function composeDiscovery(candidate: DiscoveryCandidate, index: number, s
   if (candidate.source === 'objective' && total < 100) review('objective approach shorter than 100 m');
   if (!repeatedEdgesAllowed(row.kind, walk, byId)) review('repeated edges outside a loop stem');
   if (candidate.shape === 'loop' && haversine(start, end) > .1) { row.status = 'failed'; row.reasons.push('open loop'); }
-  const th = row.trailhead!.new!; if (haversine(start, [th.lng, th.lat]) > 125) review('trailhead contact exceeds 125 m');
+  const th = row.trailhead?.new ?? destinations?.byId.get(row.trailhead?.peaks_id ?? '');
+  if (th && 'features' in th && !th.features.includes('trailhead')) review('resolved start destination is not a trailhead');
+  if (th && haversine(start, [th.lng, th.lat]) > 125) review('trailhead contact exceeds 125 m');
   if (/\b(?:road|highway|freeway|motorway)\b/i.test(row.name) && !candidate.objective) review('route title names a road');
-  if (candidate.objective?.feature === 'summit' && walk.length) {
+  if ((candidate.objective?.feature === 'summit' || resolvedObjective?.features.includes('summit')) && walk.length) {
     // Reuse the existing 75 m summit connector and exact 5 m contact rule.
-    const f = candidate.objective, id = f.osm_id, originalRef = row.objective;
+    const original = candidate.objective!;
+    const f = resolvedObjective ? { ...original, lon: resolvedObjective.lng, lat: resolvedObjective.lat, name: resolvedObjective.name, boundary: undefined } : original;
+    const id = resolvedObjective?.id ?? f.osm_id, originalRef = row.objective;
     row.objective = { peaks_id: id };
     const step = walk.at(-1)!, parent = byId.get(step.segment_id)!, low = Math.min(step.start_vertex, step.end_vertex), high = Math.max(step.start_vertex, step.end_vertex);
     // The shared helper expects whole segments; expose the exact traversed interval.
@@ -111,6 +119,7 @@ export function composeDiscovery(candidate: DiscoveryCandidate, index: number, s
     finally { byId.set(parent.id, parent); row.kind = kind; }
     row.objective = originalRef;
     if (connector) {
+      if (destinations) destinations.stats.summit_connectors++;
       const oldId = connector.id, stateId = connector.id.replace(/^wa-/, `${state.toLowerCase()}-`);
       connector.id = stateId; byId.delete(oldId); byId.set(stateId, connector);
       row.segments[row.segments.length - 1].id = stateId;
@@ -118,30 +127,37 @@ export function composeDiscovery(candidate: DiscoveryCandidate, index: number, s
       walk.push({ segment_id: connector.id, direction: forward ? 'forward' : 'reverse', start_vertex: forward ? 0 : connector.coords.length - 1, end_vertex: forward ? connector.coords.length - 1 : 0, length_m: connector.length_m });
       connector.state_code = state;
     }
-    if (featureDistance(row.route_end!, f, true) > 5 + 1e-6) review('summit end contact exceeds 5 m');
+    if (featureDistance(row.route_end!, f, true) > 5 + 1e-6) { review('summit end contact exceeds 5 m'); if (destinations) destinations.stats.summit_refused++; }
   } else if (candidate.objective) {
-    const f = candidate.objective, limit = ['campsite', 'glacier'].includes(f.feature) ? 35 : 30;
+    const original = candidate.objective;
+    const f = resolvedObjective && !original.boundary ? { ...original, lon: resolvedObjective.lng, lat: resolvedObjective.lat } : original;
+    const limit = ['campsite', 'glacier'].includes(f.feature) ? 35 : 30;
     if (featureDistance(end, f, true) > limit + 1e-6) review(`${f.feature} objective contact exceeds ${limit} m`);
   }
   if (candidate.source === 'objective' && row.length_m > 15000 + 1e-6 && !row.reasons.includes('objective beyond 15 km one way')) review('objective beyond 15 km one way');
-  const endTrailhead = row.end_trailhead?.new;
+  const endTrailhead = row.end_trailhead?.new ?? destinations?.byId.get(row.end_trailhead?.peaks_id ?? '');
+  if (row.kind === 'traverse' && (!endTrailhead || ('features' in endTrailhead ? !endTrailhead.features.includes('trailhead') : endTrailhead.feature !== 'trailhead'))) review('traverse requires a real far trailhead');
   if (endTrailhead && row.route_end && haversine(row.route_end, [endTrailhead.lng, endTrailhead.lat]) > 125) review('far trailhead contact exceeds 125 m');
   if (candidate.source === 'objective' && (unnamed + row.length_m - total) / row.length_m > .3 + 1e-9 && !row.reasons.includes('unnamed path or road share exceeds 30%')) review('unnamed path or road share exceeds 30%');
   if (preferred.length && row.preferred_fraction < .6 - 1e-9 && !row.reasons.includes('preferred-name share below 60%')) review('preferred-name share below 60%');
   if (row.reasons.length && row.status === 'ok') row.status = 'review';
   row.approx_roundtrip_mi = routeDistance(row) / 1609.344;
-  return { row, walk };
+  return { row, walk, ...(source_places ? { source_places } : {}) };
 }
 
 export interface DiscoverySummary {
   index: number; name: string; objective: string | null; start: Coord; trailhead: string; walk: RouteStep[]; length: number; quality: number;
-  trail?: string; trailheadLabel?: string; realTrailhead?: boolean; loadable?: boolean;
+  trail?: string; trailheadLabel?: string; endLabel?: string; section?: boolean; realTrailhead?: boolean; loadable?: boolean;
 }
 export function discoverySummary(draft: DraftRoute): DiscoverySummary {
-  const r = draft.row, p = r.objective?.new, th = r.trailhead?.new;
-  return { index: r.seed_index, name: r.name, objective: p ? p.source.osm_id ?? (p.source.node_id ? `graph/${p.source.node_id}` : `${normalizeName(p.name)}:${p.lng.toFixed(5)},${p.lat.toFixed(5)}`) : null,
+  const r = draft.row, p = draft.source_places?.objective ?? r.objective?.new, th = draft.source_places?.trailhead ?? r.trailhead?.new;
+  const far = draft.source_places?.end_trailhead ?? r.end_trailhead?.new;
+  const safeEndpoint = (place: typeof p): string | undefined => place && place.source.kind !== 'trail_end' && !place.source.name_is_fallback
+    ? cleanDiscoveryName(place.name, { kind: place.feature === 'trailhead' ? 'trailhead' : 'objective', officialTrailhead: place.source.official_name }).name ?? undefined : undefined;
+  return { index: r.seed_index, name: r.name, objective: r.objective?.peaks_id ?? (p ? p.source.osm_id ?? (p.source.node_id ? `graph/${p.source.node_id}` : `${normalizeName(p.name)}:${p.lng.toFixed(5)},${p.lat.toFixed(5)}`) : null),
     start: r.route_start!, trailhead: th?.source.osm_id ?? (th?.source.node_id ? `graph/${th.source.node_id}` : th?.name ?? ''), walk: draft.walk, length: r.length_m,
-    trail: trailKey(r.name.split(/\s+via\s+/i)[1] ?? r.name),
+    trail: trailKey(r.name.split(/\s+via\s+/i)[1] ?? r.name), endLabel: safeEndpoint(far ?? p),
+    section: ['named_trail', 'relation'].includes(r.discovery_source ?? '') && r.shape === 'point_to_point',
     trailheadLabel: th && th.source.kind !== 'inferred_road_contact' && !th.source.name_is_fallback ? cleanDiscoveryName(th.name, { kind: 'trailhead', officialTrailhead: th.source.official_name }).name ?? undefined : undefined,
     realTrailhead: th?.source.official_name === true,
     loadable: r.status === 'ok',
@@ -169,13 +185,14 @@ export class DiscoveryDeduper {
       && normalizeName(a.trailheadLabel) !== normalizeName(b.trailheadLabel);
   }
   distinctTrailheadName(next: DiscoverySummary): boolean {
-    return [...(this.names.get(normalizeName(next.name)) ?? [])].some(i => { const r = this.kept.get(i)!; return r.objective !== null && r.objective === next.objective && haversine(r.start, next.start) > .1 && haversine(r.start, next.start) <= 5000; });
+    return [...(this.names.get(normalizeName(next.name)) ?? [])].some(i => { const r = this.kept.get(i)!; return r.objective !== null && r.objective === next.objective && haversine(r.start, next.start) > .1 ; });
   }
   consider(next: DiscoverySummary): boolean {
     const key = normalizeName(next.name), conflicts = new Set<number>();
     for (const i of this.names.get(key) ?? []) {
       const old = this.kept.get(i)!;
-      if (haversine(old.start, next.start) <= 5000 && !this.distinguishable(old, next)) conflicts.add(i);
+      if (haversine(old.start, next.start) <= 5000 && !this.distinguishable(old, next)
+        && !(old.section && next.section && old.trailheadLabel && old.endLabel && next.trailheadLabel && next.endLabel)) conflicts.add(i);
     }
     if (next.objective) for (const i of this.objectives.get(next.objective) ?? []) {
       const old = this.kept.get(i)!;
@@ -195,13 +212,31 @@ export class DiscoveryDeduper {
     if (next.objective) { const objectives = this.objectives.get(next.objective) ?? new Set<number>(); objectives.add(next.index); this.objectives.set(next.objective, objectives); }
     return true;
   }
-  /** Add start labels only after physical duplicates have been removed. */
+  /** Name supported sections, then enforce one ok display name per state. */
   finalNames(): Map<number, string> {
     const result = new Map<number, string>();
+    const groups = new Map<string, DiscoverySummary[]>();
     for (const item of this.kept.values()) {
-      const alternatives = [...(this.names.get(normalizeName(item.name)) ?? [])].map(i => this.kept.get(i)!)
-        .filter(other => other.index !== item.index && (!item.loadable || other.loadable) && haversine(other.start, item.start) <= 5000 && this.distinguishable(item, other));
-      result.set(item.index, alternatives.length && item.trailheadLabel ? `${item.name} from ${item.trailheadLabel}` : item.name);
+      const group = groups.get(normalizeName(item.name)) ?? []; group.push(item); groups.set(normalizeName(item.name), group);
+    }
+    for (const group of groups.values()) for (const item of group) {
+      const alternatives = group.filter(other => other.index !== item.index && (item.loadable === false || other.loadable !== false));
+      let name = item.name;
+      if (alternatives.some(other => this.distinguishable(item, other)) && item.trailheadLabel) name = `${name} from ${item.trailheadLabel}`;
+      else if (alternatives.length && item.section && item.trailheadLabel && item.endLabel
+        && normalizeName(item.trailheadLabel) !== normalizeName(item.endLabel)) name = `${name}: ${item.trailheadLabel} to ${item.endLabel}`;
+      result.set(item.index, name);
+    }
+    const used = new Map<string, DiscoverySummary>();
+    const ordered = [...this.kept.values()].sort((a, b) => b.quality - a.quality || a.index - b.index);
+    for (const item of ordered) {
+      if (item.loadable === false) continue;
+      const key = normalizeName(result.get(item.index)!);
+      if (!used.has(key)) { used.set(key, item); continue; }
+      this.kept.delete(item.index); result.delete(item.index);
+      this.names.get(normalizeName(item.name))?.delete(item.index);
+      if (item.objective) this.objectives.get(item.objective)?.delete(item.index);
+      this.counts.name_collision_suppressed = (this.counts.name_collision_suppressed ?? 0) + 1;
     }
     return result;
   }

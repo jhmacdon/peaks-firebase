@@ -48,6 +48,7 @@ test('WA discovery runs without an optional seed file', async () => {
   try {
     const graph = join(root, 'graph'), out = join(root, 'compose'); await mkdir(graph);
     for (const file of ['segments', 'features', 'access']) await writeFile(join(graph, `${file}.ndjson`), '');
+    await mkdir(join(root, 'peaks-snapshot')); await writeFile(join(root, 'peaks-snapshot/wa-destinations.ndjson'), '');
     await composeDiscover('WA', graph, out, root);
     const summary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8'));
     assert.equal(summary.candidates, 0); assert.equal(summary.wa_seed_overlap, null);
@@ -466,7 +467,7 @@ test('route names expand Mount/Mountain/Peak and title-case agency capitals with
   for (const road of ['Forest Road 4110-118', 'Forest Road 9703-112', 'Forest Road 4600-301', 'Forest Road 9712-218', 'Forest Road 4110 - 118', 'Forest Road #4110-118', 'Forest Road 41.5', 'Forest Road 41 1/2', 'Forest Road 41 / 2', '4948- 119', '4948 -119', '39 - 2 - 3', '1 / 2', '1. 2 .3']) assert.equal(discoveryName(road), null, road);
   for (const road of ['Forest Road 4W325', 'Forest Road 2281-180 B125', 'Forest Road 2304 (Road to Nowhere;Green Tunnel)', 'Forest Road 5701 (closed)', 'Forest Road 3330 (unimproved)', 'Forest Road 18N09', 'Forest Road4W325', 'National Forest Development Road 056 Trail', 'North National Forest Development Road 323 Trail', 'Natl Forest Develop Road 119 Trail', 'Natl. Forest Service Road 41 Trail', 'Forest Dev. Rd. 12 Trail']) assert.equal(discoveryName(road), null, road);
   assert.equal(discoveryName('Forest Trail 12'), null); assert.equal(discoveryName('ForestTrail12'), null); assert.equal(discoveryName('NF 12 Trail'), null);
-  assert.equal(discoveryName('Fs 81 Shoshone Ridge Trail'), 'Fs 81 Shoshone Ridge Trail'); assert.equal(discoveryName('Cdt Fs 1790'), 'Cdt Fs 1790'); assert.equal(discoveryName('N88E Stinky'), 'N88E Stinky'); assert.equal(discoveryName('East Mountain Way'), 'East Mountain Way');
+  assert.equal(discoveryName('Fs 81 Shoshone Ridge Trail'), 'Fs 81 Shoshone Ridge Trail'); assert.equal(discoveryName('Cdt Fs 1790'), null); assert.equal(discoveryName('N88E Stinky'), 'N88E Stinky'); assert.equal(discoveryName('East Mountain Way'), 'East Mountain Way');
   assert.equal(discoveryName('Trail 424'), null); assert.equal(discoveryName('Black Trail #16407'), 'Black Trail'); assert.equal(discoveryName('Boulder Mountain Spur (Nf-1045)'), 'Boulder Mountain Spur');
   assert.equal(discoveryName('Trail 4110-118'), null); assert.equal(discoveryName('Black Trail #4948- 119'), 'Black Trail'); assert.equal(discoveryName('U1100'), null); assert.equal(discoveryName('A-0100'), null);
   assert.equal(discoveryName('Old Road Trail'), null); assert.equal(discoveryName('Cedar Lane Trail'), null);
@@ -679,9 +680,9 @@ test('agency inventory codes drop while proper names keep numeric refs as aliase
   assert.equal(discoveryName('Smith Ridge Trail 2w07'), 'Smith Ridge Trail');
   assert.equal(discoveryName('Smith Ridge Trail Number 04W30'), 'Smith Ridge Trail');
   assert.equal(discoveryName('Corral Creek - hat Creek'), 'Corral Creek - Hat Creek');
-  const s = segment('trail', ['a', 'b'], [xy(0), xy(2500)], 'Smith Ridge Trail #Atv-43108');
+  const s = segment('trail', ['a', 'b'], [xy(0), xy(2500)], 'Smith Ridge Trail #T-43108');
   const row = composeDiscovery(candidate([s], { name: 'Smith Ridge Trail', preferredNames: ['Smith Ridge Trail'] }), 0, 'ID', byId([s])).row;
-  assert.equal(row.status, 'ok'); assert.ok(row.aliases.includes('Smith Ridge Trail #Atv-43108'));
+  assert.equal(row.status, 'ok'); assert.ok(row.aliases.includes('Smith Ridge Trail #T-43108'));
 });
 test('display finalization preserves hyphen initials and far-trailhead objective aliases', () => {
   assert.equal(routeTitle('A-H Creek'), 'A-H Creek'); assert.equal(displayName('BLUE-RED TRAIL'), 'Blue-Red Trail');
@@ -725,4 +726,46 @@ test('only ok discovered rows are loadable even when includeReview is requested'
 });
 test('OSM pass and saddle discoveries use the loader contact rule without a database', () => {
   for (const kind of ['pass', 'saddle'] as const) { const { draft, sources } = finalizedDraft('OR', kind); assert.equal(planRoute(draft.row, sources).skipped, undefined); }
+});
+
+
+test('same objective approaches use safe trailheads even across more than five kilometres', () => {
+  const a = segment('west', ['a', 'b'], [xy(0), xy(1000)]), b = segment('east', ['c', 'd'], [xy(10000), xy(11000)]), sources = byId([a, b]);
+  const deduper = new DiscoveryDeduper(sources);
+  deduper.consider(summary(0, [step(a)], sources, { trail: 'alpha', trailheadLabel: 'West Trailhead', loadable: true }));
+  deduper.consider(summary(1, [step(b)], sources, { trail: 'alpha', trailheadLabel: 'East Trailhead', trailhead: 'node/3', start: xy(10000), loadable: true }));
+  const names = deduper.finalNames();
+  assert.equal(names.get(0), 'Alpha Peak via Alpha Trail from West Trailhead');
+  assert.equal(names.get(1), 'Alpha Peak via Alpha Trail from East Trailhead');
+  assert.equal(deduper.kept.size, 2);
+});
+
+test('long trail sections use meaningful named endpoints without source codes', () => {
+  const a = segment('north', ['a', 'b'], [xy(0), xy(1000)]), b = segment('south', ['c', 'd'], [xy(10000), xy(11000)]), sources = byId([a, b]);
+  const deduper = new DiscoveryDeduper(sources);
+  deduper.consider(summary(0, [step(a)], sources, { name: 'Timber Trail', objective: 'node/20', section: true, trailheadLabel: 'Gilchrist', endLabel: 'Chemult', loadable: true }));
+  deduper.consider(summary(1, [step(b)], sources, { name: 'Timber Trail', objective: 'node/30', section: true, trailheadLabel: 'Chemult', endLabel: 'Crescent', trailhead: 'node/3', start: xy(10000), loadable: true }));
+  const names = deduper.finalNames();
+  assert.equal(names.get(0), 'Timber Trail: Gilchrist to Chemult');
+  assert.equal(names.get(1), 'Timber Trail: Chemult to Crescent');
+  assert.equal(deduper.kept.size, 2);
+});
+
+test('unresolved state-wide display collisions retain only the best ok route', () => {
+  const a = segment('near', ['a', 'b'], [xy(0), xy(1000)]), b = segment('far', ['c', 'd'], [xy(10000), xy(11000)]), sources = byId([a, b]);
+  const deduper = new DiscoveryDeduper(sources);
+  deduper.consider(summary(0, [step(a)], sources, { name: 'Timber Trail', objective: 'node/20', loadable: true, quality: 100 }));
+  deduper.consider(summary(1, [step(b)], sources, { name: 'Timber Trail', objective: 'node/30', trailhead: 'node/3', start: xy(10000), loadable: true, quality: 110 }));
+  assert.equal(deduper.kept.size, 2);
+  const names = deduper.finalNames(); assert.deepEqual([...deduper.kept.keys()], [1]); assert.equal(names.get(1), 'Timber Trail');
+  assert.equal(deduper.counts.name_collision_suppressed, 1);
+});
+
+test('final names cannot collide with a pre-existing disambiguated display title', () => {
+  const a = segment('west', ['a', 'b'], [xy(0), xy(1000)]), b = segment('east', ['c', 'd'], [xy(10000), xy(11000)]), c = segment('other', ['e', 'f'], [xy(20000), xy(21000)]), sources = byId([a, b, c]);
+  const deduper = new DiscoveryDeduper(sources);
+  deduper.consider(summary(0, [step(a)], sources, { trail: 'alpha', trailheadLabel: 'West Trailhead', loadable: true, quality: 100 }));
+  deduper.consider(summary(1, [step(b)], sources, { trail: 'alpha', trailheadLabel: 'East Trailhead', trailhead: 'node/3', start: xy(10000), loadable: true, quality: 100 }));
+  deduper.consider(summary(2, [step(c)], sources, { name: 'Alpha Peak via Alpha Trail from West Trailhead', objective: 'node/20', start: xy(20000), loadable: true, quality: 110 }));
+  const names = deduper.finalNames(); assert.equal(deduper.kept.size, 2); assert.equal(new Set(names.values()).size, 2); assert.equal(deduper.kept.has(0), false);
 });

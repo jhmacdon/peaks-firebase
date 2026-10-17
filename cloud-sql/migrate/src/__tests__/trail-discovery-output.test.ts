@@ -79,7 +79,8 @@ test('the offline composer exports cleaned metadata before finalizing loader has
     await writeFile(join(graph, 'segments.ndjson'), JSON.stringify(segment) + '\n');
     await writeFile(join(graph, 'features.ndjson'), JSON.stringify({ osm_id: 'node/2', name: 'Alpha Lake', feature: 'lake', lon: -121, lat: 47.02, graph_node: 'b', graph_coord: [-121, 47.02], graph_distance_m: 0, location_method: 'osm_point' }) + '\n');
     await writeFile(join(graph, 'access.ndjson'), JSON.stringify({ osm_id: 'node/1', coord: [-121, 47], name: 'Alpha Parking', parking: true }) + '\n');
-    await composeDiscover('OR', graph, out, root);
+    const input = join(root, 'oregon'); await mkdir(input); await mkdir(join(root, 'peaks-snapshot')); await writeFile(join(root, 'peaks-snapshot/or-destinations.ndjson'), '');
+    await composeDiscover('OR', graph, out, input);
     const text = await readFile(join(out, 'segments.ndjson'), 'utf8'); assert.doesNotMatch(text, /alltrails\.com/i);
     const segments = text.trim().split('\n').map(line => JSON.parse(line) as Segment), source = new Map(segments.map(s => [s.id, s]));
     assert.equal(segments.length, 1); assert.equal(segments[0].id, segment.id); assert.deepEqual(segments[0].coords, segment.coords); assert.deepEqual(segments[0].provenance, segment.provenance); assert.equal(catalogSegment(segments[0]), segments[0]);

@@ -112,3 +112,35 @@ test('objective titles choose a supported full relation name over its coded sect
   assert.ok(!objective.preferredNames.some(name => /\bseg\b/i.test(name)));
   assert.ok(!routes.some(candidate => candidate.source === 'relation' && candidate.relation?.id === 1));
 });
+
+
+test('named trail labels move numeric refs to aliases and expand national designations', () => {
+  assert.deepEqual(cleanDiscoveryName('Lake Creek 8', { kind: 'trail' }), { name: 'Lake Creek', aliases: ['Lake Creek 8'], flags: [] });
+  assert.equal(cleanDiscoveryName('Lake 22', { kind: 'objective' }).name, 'Lake 22');
+  assert.deepEqual(cleanDiscoveryName('Bear Valley Lakes Nrt', { kind: 'trail' }), { name: 'Bear Valley Lakes National Recreation Trail', aliases: ['Bear Valley Lakes Nrt'], flags: [] });
+  assert.equal(cleanDiscoveryName('Pacific Crest Nst', { kind: 'trail' }).name, 'Pacific Crest National Scenic Trail');
+  assert.equal(discoveryName('NRT'), null); assert.equal(discoveryName('National Scenic Trail'), null);
+});
+
+test('trailhead-only labels and generic mid spurs cannot name routes', () => {
+  for (const name of ['Mid Spur', 'Middle Spur', 'Mid Trail', 'Missouri Bar Trailhead']) assert.equal(discoveryName(name), null, name);
+  assert.equal(cleanDiscoveryName('Missouri Bar Trailhead', { kind: 'trailhead', officialTrailhead: true }).name, 'Missouri Bar Trailhead');
+  assert.equal(cleanDiscoveryName('Missouri Bar Trailhead', { kind: 'route' }).name, null);
+});
+
+
+test('motorized staging labels cannot become route or from names', () => {
+  for (const name of ['Round Top Motorcycle', 'Norris Draw Ohv', 'Cedar ATV Trail', 'Sand OHV Staging Area', 'Dirt Bike Trail']) {
+    assert.equal(discoveryName(name), null, name);
+    assert.equal(cleanDiscoveryName(name, { kind: 'trailhead', officialTrailhead: true }).name, null, name);
+  }
+});
+
+test('numeric references before a trail suffix stay in aliases without changing numbered landforms', () => {
+  for (const [source, expected] of [['Lake Creek 8 Trail', 'Lake Creek Trail'], ['Lake Creek 10 Trail', 'Lake Creek Trail'], ['Tumalo Creek 2 Trail', 'Tumalo Creek Trail'], ['Rock Creek 904 Trail', 'Rock Creek Trail'], ['Cedar Ridge Number 04W30 Trail', 'Cedar Ridge Trail']]) {
+    assert.deepEqual(cleanDiscoveryName(source, { kind: 'trail' }), { name: expected, aliases: [source], flags: [] });
+  }
+  for (const name of ['Lake 22 Trail', 'Peak 1 Trail']) assert.equal(discoveryName(name), name, name);
+  for (const name of ['Whites Ridge 4×4 Trail', 'Whites Ridge 4x4 Trail']) assert.equal(discoveryName(name), null, 'motorized use is rejected before reference cleanup');
+  assert.equal(viaTrailName('Lake Creek 8 Trail'), 'Lake Creek Trail');
+});
