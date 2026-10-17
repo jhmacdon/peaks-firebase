@@ -4,7 +4,8 @@ import type { PilotCandidateInput, ReadyCandidate } from "./types";
 
 export type Json = Record<string, any>;
 export const HUMAN_GATES = ["route_identity", "geometry_rights", "access", "map_review", "source_geometry", "endpoints", "statistics", "self_intersection"] as const;
-export const MACHINE_GATES = ["pending_binding", "provenance", "publish_integrity", "source_geometry", "xyz_assembly", "stats", "contacts", "linked_summits", "self_intersection", "segment_reuse", "credited_cover", "elevation"] as const;
+export const MACHINE_GATES = ["pending_binding", "provenance", "publish_integrity", "source_geometry", "xyz_assembly", "stats", "contacts", "linked_summits", "self_intersection", "segment_reuse", "elevation"] as const;
+// credited_cover is reported under machineChecks.measurements; photos are optional (20261015_route_covers.sql).
 export type CandidateSnapshot = { sourceKey: string; inputHash: string; routeId: string; artifact: CandidateArtifact; pendingResult: Json; reviewReceipt: Json | null; route: Json; places: Json[]; segments: Json[]; reviewPacket?: Json; sourceCheck?: Json };
 
 export function object(value: unknown, label: string): Json {

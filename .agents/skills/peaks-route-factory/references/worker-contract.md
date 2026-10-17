@@ -252,8 +252,8 @@ The route identity and access review is separate and must also pass.
 - A zero route gap is not the listed-peak finish line. Run
   `.agents/skills/peaks-route-factory/scripts/with_route_db.sh
   cloud-sql/migrate/scripts/audit-listed-route-cover-goal.sh --format summary`
-  from the route-operator checkout to keep destination-photo and route-cover
-  gaps visible. Factory, repair, and reviewer checkouts reject this command.
+  from the route-operator checkout. It reports destination-photo and
+  route-cover gaps, but photos are optional and never block the goal. Factory, repair, and reviewer checkouts reject this command.
   Only the final operator check adds `--require-complete`.
 - An empty claim with nonzero remaining work means jobs are blocked or leased;
   inspect `stats` and `show` rather than declaring success.

@@ -26,7 +26,8 @@
     "firebase-admin": "^13.0.0",
     "google-auth-library": "^10.0.0",
     "pg": "^8.13.0",
-    "pg-query-stream": "^4.15.0"
+    "pg-query-stream": "^4.15.0",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

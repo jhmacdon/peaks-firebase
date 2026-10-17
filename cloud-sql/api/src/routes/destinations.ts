@@ -5,6 +5,7 @@ import db from "../db";
 import { normalizeExternalLinks } from "../lib/external-links";
 import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
+import { hasColumn } from "../lib/schema-features";
 
 const router = Router();
 
@@ -269,7 +270,27 @@ router.get("/viewport", asyncRoute(async (req, res: Response) => {
   res.json(result.rows);
 }));
 
-export function buildDestinationDetailQuery(id: string): { text: string; values: unknown[] } {
+/**
+ * SQL for a destination's hero origin: 'admin' for a cover an admin set
+ * through /api/admin, 'reviewed' for any other credited hero, null for none.
+ * Needs 20261015_route_covers.sql; callers pass `heroSource: false` until it
+ * is applied.
+ */
+export function destinationHeroOriginSql(alias = "d"): string {
+  return `CASE WHEN NULLIF(btrim(${alias}.hero_image), '') IS NULL
+                 OR NULLIF(btrim(${alias}.hero_image_attribution), '') IS NULL
+                 OR NULLIF(btrim(${alias}.hero_image_attribution_url), '') IS NULL THEN NULL
+               WHEN ${alias}.hero_image_source = 'admin' THEN 'admin'
+               ELSE 'reviewed' END`;
+}
+
+export function buildDestinationDetailQuery(
+  id: string,
+  options: { heroSource?: boolean } = {}
+): { text: string; values: unknown[] } {
+  const heroOrigin = options.heroSource === false
+    ? "NULL::text"
+    : destinationHeroOriginSql("d");
   return {
     text: `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
             d.activities, d.features, d.owner,
@@ -278,6 +299,7 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
             d.external_ids, d.external_links, d.amenities,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
             d.hero_image_focal_x, d.hero_image_focal_y,
+            ${heroOrigin} AS hero_image_origin,
             d.averages, d.averages_offset, d.explicitly_saved, d.recency,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
@@ -393,6 +415,9 @@ export function mapDestinationDetailRow(row: any): any {
     row.hero_image_focal_x = 50;
     row.hero_image_focal_y = 50;
   }
+  row.hero_image_origin = row.hero_image
+    ? (row.hero_image_origin === "admin" ? "admin" : "reviewed")
+    : null;
 
   row.massif_boundary = row.massif_boundary ?? null;
   return row;
@@ -401,7 +426,9 @@ export function mapDestinationDetailRow(row: any): any {
 // GET /api/destinations/:id
 router.get("/:id", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
-  const query = buildDestinationDetailQuery(id);
+  const query = buildDestinationDetailQuery(id, {
+    heroSource: await hasColumn("destinations", "hero_image_source"),
+  });
   const result = await db.query(query.text, query.values);
   if (result.rows.length === 0) {
     res.status(404).json({ error: "Destination not found" });

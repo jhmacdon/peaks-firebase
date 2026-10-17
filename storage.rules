@@ -22,6 +22,25 @@ service firebase.storage {
       allow update, delete: if false;
     }
 
+    // Admin cover uploads for routes and destinations. Only an ID token with
+    // the Firebase custom claim admin == true may write, read or list here:
+    // originals can carry EXIF GPS. The API (PUT /api/admin/{kind}/{id}/cover)
+    // reads the original with the Admin SDK, checks it, stores a processed copy
+    // under route-covers/ or destination-covers/ (served by download-token URL),
+    // then deletes the original, also when it refuses it. JPEG, PNG or WebP only:
+    // the API cannot decode HEIC.
+    match /covers/{kind}/{id}/{file} {
+      allow read: if request.auth != null
+        && request.auth.token.admin == true;
+      allow create, update: if request.auth != null
+        && request.auth.token.admin == true
+        && kind in ['routes', 'destinations']
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if request.auth != null
+        && request.auth.token.admin == true;
+    }
+
     match /profiles/{userId}/{photoId} {
       allow read: if true;
       allow create, update: if request.auth != null
