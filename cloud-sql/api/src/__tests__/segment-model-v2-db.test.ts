@@ -113,6 +113,19 @@ describe("segment model v2 database", { skip: dbSkipReason ?? undefined, concurr
     assert.deepEqual(selectRouteMatches(measured.rows), []);
   });
 
+  test("coverage divides horizontal metres by a horizontal length on a steep route", async () => {
+    // 1 km north while climbing 1 km: ST_Length(geography) reads about 1,414 m.
+    await route("steep", `SRID=4326;LINESTRING Z (${lng} ${lat - 0.05} 0,${lng} ${lat - 0.05 + 1000 / 111320} 1000)`);
+    const sid = id("steep-walk");
+    await db.query(`INSERT INTO tracking_sessions (id, user_id, start_time, ended, path)
+      VALUES ($1, $2, '2026-07-01T00:00:00Z', true, ST_GeogFromText($3))`,
+    [sid, user, `SRID=4326;LINESTRING Z (${lng} ${lat - 0.05} 0,${lng} ${lat - 0.05 + 1000 / 111320} 1000)`]);
+    const [row] = (await measure(sid, ["steep"])).rows;
+    assert.ok(Math.abs(row.length_m - 1000) < 5, `length ${row.length_m}`);
+    assert.ok(row.covered_m / row.length_m > 0.999);
+    assert.deepEqual(row.covered_intervals, [[0, 1]]);
+  });
+
   test("Rainier shared approach, primary containment, segment times and rematch replace legacy echoes", async () => {
     for (const [name, m] of [["muir-objective", 8000], ["summit-objective", 16000]] as const) {
       await db.query(`INSERT INTO destinations (id, name, search_name, owner, features, location)

@@ -18,6 +18,9 @@ test("coverage uses nearby indexed neighbours for long trails and bounded parts 
   assert.match(text, /ST_DWithin\(ST_LineInterpolatePoint\(e.geom_m, \(k \+ 0.5\)::float8 \/ e.pieces\), st.track_m, 30\)/);
   assert.match(text, /ST_Transform\(ST_Force2D\(t.track::geometry\), t.srid\) AS track_m/);
   assert.match(text, /THEN 32700 ELSE 32600 END/);
+  assert.match(text, /ST_Force2D\(path::geometry\) AS geom FROM source_lines/);
+  assert.match(text, /ST_Length\(geom::geography, false\) AS length_m/);
+  assert.doesNotMatch(text, /ST_Length\(path, false\)/);
   assert.doesNotMatch(text, /::geography, st.track, 30\)|ST_Segmentize\(e.geom/);
   assert.match(text, /ST_Subdivide\(l.geom, 512\)/);
   assert.match(text, /ST_Intersection\(piece.geom,st.track_bbox\)/);

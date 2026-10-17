@@ -51,10 +51,14 @@ export function lineCoverageCtes(indexedRoutes = false): string {
     JOIN triple_crown_route_points a ON a.route_id = n.route_id AND a.idx = n.idx
     JOIN triple_crown_route_points b ON b.route_id = a.route_id AND b.idx = a.idx + 1
   ),` : "";
+  // Horizontal lengths throughout: ST_Length(geography) adds elevation change
+  // while ST_Distance, which sizes every 10 m piece, does not. A 3D length
+  // understated coverage by 2-4% on mountain routes (DC: 11,943 m vs 11,529 m).
+  // routes.distance keeps its own convention; this only measures coverage.
   return `${indexed} line_meta AS MATERIALIZED (
-    SELECT line_id, path::geometry AS geom, ST_Length(path, false) AS length_m,
-      ST_NPoints(path::geometry) > 5000 OR ST_Length(path, false) > 50000 AS large
-    FROM source_lines
+    SELECT line_id, geom, ST_Length(geom::geography, false) AS length_m,
+      ST_NPoints(geom) > 5000 OR ST_Length(geom::geography, false) > 50000 AS large
+    FROM (SELECT line_id, ST_Force2D(path::geometry) AS geom FROM source_lines) flat
   ), line_stats AS (
     SELECT line_id, length_m FROM line_meta
     ${indexedRoutes ? "UNION ALL SELECT line_id, length_m FROM indexed_stats" : ""}
