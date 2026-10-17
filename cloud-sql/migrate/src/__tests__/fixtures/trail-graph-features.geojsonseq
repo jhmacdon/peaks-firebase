@@ -1,0 +1,4 @@
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-121,47.0001]},"properties":{"@id":101,"name":"View","tourism":"viewpoint","ele":"6800 ft"}}
+{"type":"Feature","geometry":{"type":"LineString","coordinates":[[-121,47],[-120.99,47],[-120.99,47.001],[-121,47.001],[-121,47]]},"properties":{"@id":102,"name":"Test Lake","natural":"water"}}
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[[[[-121,47],[-120.99,47],[-120.99,47.001],[-121,47.001],[-121,47]]]]},"properties":{"@id":102,"name":"Test Lake","natural":"water"}}
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[-121,47],[-120.99,47],[-120.99,47.001],[-121,47.001],[-121,47]]]},"properties":{"@id":103,"natural":"glacier"}}

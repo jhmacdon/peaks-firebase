@@ -1,0 +1,10 @@
+n1 T x-121 y47
+n2 T x-120.999 y47
+n3 T x-120.998 y47
+n4 Tamenity=parking,name=River%20%Trail%20%Parking x-121 y47.0001
+n5 T x-121.0001 y47.0001
+n6 T x-120.9999 y47.0001
+n7 T x-121 y47.0002
+n8 Tamenity=parking,access=private,name=Private%20%Lot x-121 y47
+w10 Thighway=service Nn1,n2,n3
+w11 Tamenity=parking,name=River%20%Lot Nn4,n5,n7,n6,n4

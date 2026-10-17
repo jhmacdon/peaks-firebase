@@ -1,0 +1,18 @@
+{
+  "covers": [
+    "clear_destination_hero_source_on_image_change",
+    "guard_trail_catalog_pending_only",
+    "route_cover_photo",
+    "trail_catalog_review_machine_checks",
+    "trail_catalog_source_review_passes"
+  ],
+  "segments": [
+    "queue_matching_routes",
+    "queue_rematch_on_route_change",
+    "queue_rematch_on_route_link_change",
+    "queue_rematch_on_route_objective_change",
+    "queue_rematch_on_segment_path_change",
+    "rebuild_route_path",
+    "session_match_bbox"
+  ]
+}

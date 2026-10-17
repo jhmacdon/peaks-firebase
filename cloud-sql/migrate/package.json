@@ -65,7 +65,10 @@
     "routes:elevation-jobs": "./scripts/run-tsx.sh src/route-elevation-jobs.ts",
     "roads:import": "tsx src/roads/import-road-network.ts",
     "roads:derive": "tsx src/roads/derive-trailhead-approaches.ts",
-    "backfill:fire-lookouts": "tsx src/backfill-fire-lookouts.ts"
+    "backfill:fire-lookouts": "tsx src/backfill-fire-lookouts.ts",
+    "trail-graph:build": "TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/build.ts",
+    "trail-graph:route": "TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/route.ts",
+    "trail-graph:compose": "TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/compose.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "^1.5.5-r.4",

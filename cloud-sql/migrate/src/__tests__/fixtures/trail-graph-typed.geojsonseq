@@ -1,0 +1,4 @@
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-121,47]},"properties":{"@type":"node","@id":123,"name":"View","tourism":"viewpoint"}}
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[-121,47],[-120.99,47],[-120.99,47.01],[-121,47]]]},"properties":{"@type":"way","@id":123,"name":"Way Lake","natural":"water"}}
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[[[[-121,47],[-120.98,47],[-120.98,47.02],[-121,47]]]]},"properties":{"@type":"relation","@id":123,"name":"Relation Lake","natural":"water"}}
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-121,47]},"properties":{"@type":"node","@id":124,"tourism":"viewpoint"}}

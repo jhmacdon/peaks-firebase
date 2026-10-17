@@ -1,0 +1,14 @@
+{
+  "seed": {"name":"River Lake Trail","aliases":[],"kind":"destination","objective":{"name":"River Lake","feature":"lake"},"trailhead":{"name":"River Trailhead"},"trails":["River Trail #12"],"region":"Fixture","approx_roundtrip_mi":1,"approx_gain_ft":50,"tier":1,"season":"summer","requires_permit":null,"wta_url":"https://www.wta.org/go-hiking/hikes/river-lake","notes":null},
+  "destinations": [
+    {"id":"th","name":"River Trailhead","features":["trailhead"],"lng":-121,"lat":47},
+    {"id":"lake","name":"River Lake","features":["lake"],"lng":-120.985,"lat":47.005},
+    {"id":"far-lake","name":"River Lake","features":["lake"],"lng":-118,"lat":48}
+  ],
+  "features": [
+    {"osm_id":"node/1","name":"River Trailhead","feature":"trailhead","lon":-121,"lat":47,"graph_node":"1","graph_distance_m":0,"location_method":"osm_point"},
+    {"osm_id":"node/20","name":"River View","feature":"viewpoint","lon":-120.995,"lat":47.0001,"graph_node":"2","graph_distance_m":11,"location_method":"osm_point"},
+    {"osm_id":"relation/3","name":"River Lake","feature":"lake","lon":-120.985,"lat":47.005,"graph_node":"3","graph_distance_m":0,"location_method":"area_centroid","boundary":{"type":"MultiPolygon","coordinates":[[[[-120.99,47],[-120.98,47],[-120.98,47.01],[-120.99,47.01],[-120.99,47]]]]}},
+    {"osm_id":"relation/4","name":"River Lake","feature":"lake","lon":-118,"lat":48,"graph_node":null,"graph_distance_m":null,"location_method":"area_centroid"}
+  ]
+}

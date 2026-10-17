@@ -1287,6 +1287,15 @@ this pilot. Leave descriptions empty without reusable text and all three
 description source fields. Activate at most 500 routes per batch and verify
 that `/internal/sweep` drains the rematch queue before the next batch.
 
+### Washington graph catalog loader
+
+The local graph loader uses `20261016_wa_catalog_activation.sql` and
+[`LOAD-CATALOG.md`](migrate/src/trail-graph/LOAD-CATALOG.md). Josiah chose one
+owned activation function with canonical publish-integrity/elevation checks,
+composer-ok eligibility, no per-route reviewer lane, and batches of at most 50
+with a rematch-queue drain between batches. The cover activation trigger must
+be absent. The candidate pilot below keeps its separate source-review workflow.
+
 ### Washington candidate pilot
 
 Independent review and activation use the new supervised
