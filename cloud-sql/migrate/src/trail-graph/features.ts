@@ -1,15 +1,20 @@
 import { Grid, haversine, insidePolygon, midpoint, nearest, pointDistance, type Vertex } from './geo';
 import { ndjson } from './io';
 import type { Coord, Glacier, NamedFeature, Segment, Tags } from './types';
+import { intersectsBbox, withinBbox, type Bbox } from './state';
 
 export interface SourceFeature { type: string; id?: number | string; properties: Record<string, any>; geometry: { type: string; coordinates: any } | null }
 interface FeatureRecord { feature: NamedFeature; geometry: NonNullable<SourceFeature['geometry']> }
 export function featureType(t: Tags): NamedFeature['feature'] | null {
   if (t.highway === 'trailhead') return 'trailhead';
   if (t.mountain_pass === 'yes') return 'pass';
-  if (t.natural === 'peak') return 'summit';
+  if (['peak', 'volcano'].includes(t.natural)) return 'summit';
   if (t.natural === 'saddle') return 'saddle';
   if (['camp_site', 'camp_pitch'].includes(t.tourism)) return 'campsite';
+  if (t.man_made === 'tower' && /(?:observation|watchtower|fire_watchtower)/.test(t['tower:type'] ?? '') || t.tourism === 'lookout' || t['lookout'] === 'yes') return 'lookout';
+  if (t.natural === 'hot_spring') return 'hot_spring';
+  if (t.natural === 'arch') return 'arch';
+  if (t.natural === 'meadow' || t.landuse === 'meadow') return 'meadow';
   if (t.tourism === 'viewpoint') return 'viewpoint';
   if (['alpine_hut', 'wilderness_hut'].includes(t.tourism) || t.building === 'hut') return 'hut';
   if (t.waterway === 'waterfall' || t.natural === 'waterfall') return 'waterfall';
@@ -33,18 +38,20 @@ function representative(g: NonNullable<SourceFeature['geometry']>): Coord {
   for (let i = 1; i < first.length; i++) { const a = first[i - 1], b = first[i], c = a[0] * b[1] - b[0] * a[1]; area += c; x += (a[0] + b[0]) * c; y += (a[1] + b[1]) * c; }
   return Math.abs(area) > 1e-12 ? [x / (3 * area), y / (3 * area)] : midpoint(first);
 }
-export async function readFeatures(path: string): Promise<{ records: FeatureRecord[]; glaciers: Glacier[]; input: number }> {
+export async function readFeatures(path: string, bbox?: Bbox): Promise<{ records: FeatureRecord[]; glaciers: Glacier[]; input: number }> {
   const records = new Map<string, FeatureRecord>(), glaciers: Glacier[] = []; let input = 0;
   for await (const f of ndjson<SourceFeature>(path)) {
     input++; const t = f.properties, g = f.geometry; if (!g) continue;
+    if (bbox && !(g.type === 'Point' ? withinBbox(g.coordinates, bbox) : boundaryLines(g).some(coords => intersectsBbox(coords, bbox)))) continue;
     if (t.natural === 'glacier' && ['Polygon', 'MultiPolygon'].includes(g.type)) glaciers.push({ name: t.name ?? '', polygons: g.type === 'Polygon' ? [g.coordinates] : g.coordinates });
-    const feature = featureType(t); if (!feature || !t.name?.trim()) continue;
+    const feature = featureType(t); if (!feature || !t.name?.trim() && feature !== 'trailhead') continue;
     const id = `${t['@type'] ?? (g.type === 'Point' ? 'node' : 'way')}/${t['@id'] ?? f.id}`;
     // Osmium emits both a closed way and its area. Keep its area footprint once.
     if (records.has(id) && !['Polygon', 'MultiPolygon'].includes(g.type)) continue;
     const [lon, lat] = representative(g), rawEle = String(t.ele ?? ''), parsed = parseFloat(rawEle.replace(/,/g, ''));
     const ele = Number.isFinite(parsed) ? parsed * (/ft|feet/i.test(rawEle) ? 0.3048 : 1) : undefined;
-    records.set(id, { feature: { osm_id: id, name: t.name, aliases: [...new Set([t['name:en'], ...(t.alt_name?.split(';') ?? [])].filter((s): s is string => !!s && s !== t.name))], feature, lon, lat, ...(ele !== undefined ? { ele } : {}), graph_node: null, graph_distance_m: null,
+    const tags: Tags = {}; for (const [key, value] of Object.entries(t)) if (!key.startsWith('@') && ['string', 'number', 'boolean'].includes(typeof value)) tags[key] = String(value);
+    records.set(id, { feature: { osm_id: id, name: t.name?.trim() || 'Trailhead', tags, aliases: [...new Set([t['name:en'], ...(t.alt_name?.split(';') ?? [])].filter((s): s is string => !!s && s !== t.name))], feature, lon, lat, ...(ele !== undefined ? { ele } : {}), graph_node: null, graph_distance_m: null,
       ...(['Polygon', 'MultiPolygon'].includes(g.type) ? { boundary: { type: 'MultiPolygon' as const, coordinates: g.type === 'Polygon' ? [g.coordinates] : g.coordinates } } : {}),
       location_method: g.type === 'Point' ? 'osm_point' : g.type.includes('LineString') ? 'line_midpoint' : 'area_centroid' }, geometry: g });
   }

@@ -1,5 +1,10 @@
 # WA catalog loader
 
+The [state discovery composer](DISCOVERY.md) writes the same route and segment
+schema for WA, OR, ID, and CA. Discovery rows must have status `ok`, even with
+`--include-review`. Offline plans bind their state; the route catalog apply and
+activation path still requires WA and rejects other states before a connection.
+
 For a legacy WA snapshot, follow the [rebase and merge workflow](REBASE.md).
 It keeps legacy identities and session links instead of creating duplicates.
 The apply order is migrations, retire-pilot, prune, rebase, catalog, activate,

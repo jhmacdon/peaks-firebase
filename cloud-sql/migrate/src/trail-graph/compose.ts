@@ -25,7 +25,7 @@ import type { Coord, NamedFeature, Provenance, Segment } from './types';
 
 export const DEFAULT_COMPOSE = resolve(__dirname, '../../../../.cache/compose');
 export const digest = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-export const catalogRouteId = (r: ComposedRoute): string => `wa-catalog-${digest([r.name, r.kind, r.trailhead, r.objective, r.end_trailhead, r.shape, r.segments, r.geometry_hash, r.segment_manifest_hash]).slice(0, 24)}`;
+export const catalogRouteId = (r: ComposedRoute): string => `${(r.state_code ?? 'WA').toLowerCase()}-catalog-${digest([r.name, r.kind, r.trailhead, r.objective, r.end_trailhead, r.shape, r.segments, r.geometry_hash, r.segment_manifest_hash]).slice(0, 24)}`;
 export const segmentManifestHash = (ids: string[], byId: Map<string, Segment>): string => digest(unique(ids).map(id => byId.get(id)));
 export class Composer {
   readonly router: TrailRouter;

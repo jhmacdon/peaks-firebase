@@ -35,11 +35,12 @@ export const insidePolygon = (p: Coord, rings: Coord[][]): boolean => !!rings.le
 export const hash = (s: string): string => createHash('sha256').update(s).digest('hex').slice(0, 20);
 export const unique = <T>(items: T[]): T[] => [...new Set(items)].sort();
 
-/** Fixed WA projection for indexing only; all threshold tests use metres at the point's latitude. */
+/** A degree grid works at every latitude. Query longitude bounds widen with
+ * latitude; all final threshold tests still use metres at the point. */
 export class Grid<T> {
   private cells = new Map<string, T[]>();
   constructor(private size = 100) {}
-  private xy(p: Coord): Coord { return [p[0] * M * Math.cos(47.5 * RAD), p[1] * M]; }
+  private xy(p: Coord): Coord { return [p[0] * M, p[1] * M]; }
   add(a: Coord, b: Coord, value: T): void {
     const [ax, ay] = this.xy(a), [bx, by] = this.xy(b);
     for (let x = Math.floor(Math.min(ax, bx) / this.size); x <= Math.floor(Math.max(ax, bx) / this.size); x++)
@@ -48,8 +49,9 @@ export class Grid<T> {
       }
   }
   near(p: Coord, metres: number): T[] {
-    const [px, py] = this.xy(p), found = new Set<T>(), r = metres * 1.15;
-    for (let x = Math.floor((px - r) / this.size); x <= Math.floor((px + r) / this.size); x++)
+    const [px, py] = this.xy(p), found = new Set<T>(), r = metres * 1.01;
+    const extremeLat = Math.min(89.99, Math.abs(p[1]) + r / M), rx = r / Math.max(0.0001, Math.cos(extremeLat * RAD));
+    for (let x = Math.floor((px - rx) / this.size); x <= Math.floor((px + rx) / this.size); x++)
       for (let y = Math.floor((py - r) / this.size); y <= Math.floor((py + r) / this.size); y++)
         for (const value of this.cells.get(`${x},${y}`) ?? []) found.add(value);
     return [...found];
