@@ -12,7 +12,7 @@ export interface Curation { routes: CuratedRoute[] }
 export interface NamingConflict { segment_id: string; selected: string | null; votes: { name: string | null; routes: string[] }[]; curated?: string }
 export interface StretchAudit { conflicts: NamingConflict[]; splits: { parent: string; parts: string[]; waypoint: string; gap_m: number }[]; remapped: { requested: string; resolved: string[] }[]; deferred: string[] }
 export const DESTINATION_FEATURES = new Set(['volcano', 'fire-lookout', 'summit', 'trailhead', 'hut', 'lookout', 'lake', 'landform', 'viewpoint', 'waterfall', 'campsite']);
-export const principalName = (s: Segment): string | null => s.trail_names[0] || s.relation_names[0] || null;
+export const principalName = (s: Segment): string | null => s.legacy_tail ? null : s.trail_names[0] || s.relation_names[0] || null;
 
 /** Work on whole runs: several short segments together can exceed 300 m. */
 export function smoothNames(refs: ComposedRoute['segments'], byId: Map<string, Segment>): (string | null)[] {
@@ -40,6 +40,7 @@ export function assignNames(rows: ComposedRoute[], segments: Segment[]): NamingC
   }
   const conflicts: NamingConflict[] = [];
   for (const s of segments) {
+    if (s.frozen_catalog) continue;
     const options = [...(votes.get(s.id) ?? new Map<string | null, Set<string>>())].sort((a, b) => b[1].size - a[1].size || Number(b[0] === principalName(s)) - Number(a[0] === principalName(s)) || String(a[0]).localeCompare(String(b[0])));
     s.display_name = options[0]?.[0] ?? principalName(s); s.description ??= null; s.description_source_url = null;
     if (options.length > 1) conflicts.push({ segment_id: s.id, selected: s.display_name, votes: options.map(([name, voters]) => ({ name, routes: [...voters].sort() })) });
@@ -60,6 +61,7 @@ export function projection(p: Coord, coords: Coord[]): { coord: Coord; edge: num
 /** Split at the projected point, not the closest old vertex. Parts follow the
  * supplied route direction; each part itself keeps canonical node orientation. */
 export function splitSegment(parent: Segment, point: Coord, direction: 'forward' | 'reverse'): { segments: Segment[]; refs: ComposedRoute['segments']; gap: number } {
+  if (parent.frozen_catalog) throw new Error(`Cannot split frozen catalog segment ${parent.id}`);
   const p = projection(point, parent.coords);
   if (p.along < 0.1 || parent.length_m - p.along < 0.1) throw new Error(`split_at falls at an endpoint of ${parent.id}`);
   const atVertex = p.t < 1e-8 ? p.edge : p.t > 1 - 1e-8 ? p.edge + 1 : null;
@@ -128,6 +130,7 @@ export function applyCuration(rows: ComposedRoute[], segments: Segment[], curati
       const ids = stretch.split_at ? splitRefs.get(`${stretch.segments.join(',')}@${stretch.split_at}`)![stretch.part ?? 'before'] : stretch.segments.flatMap(resolve);
       for (const id of ids) {
         const s = byId.get(id); if (!s) throw new Error(`Overlapping split assignment ${id}`);
+        if (s.frozen_catalog) continue;
         const identity = JSON.stringify([stretch.display_name, stretch.kind, stretch.description ?? null]);
         if (assigned.has(id) && assigned.get(id) !== identity) throw new Error(`Conflicting curated stretch assignments for ${id}`);
         assigned.set(id, identity); s.display_name = stretch.display_name; s.kind = stretch.kind; s.description = stretch.description ?? null; s.description_source_url = null;
@@ -165,7 +168,7 @@ export function applyCuration(rows: ComposedRoute[], segments: Segment[], curati
   for (const r of rows) {
     r.stretches = [];
     for (const ref of r.segments) { const s = byId.get(ref.id)!, last = r.stretches[r.stretches.length - 1];
-      if (last && (s.summit_connector || last.display_name === s.display_name && last.kind === s.kind)) { last.length_m += s.length_m; last.segment_ids.push(s.id); }
+      if (last && (s.summit_connector || s.legacy_tail && !s.display_name || last.display_name === s.display_name && last.kind === s.kind)) { last.length_m += s.length_m; last.segment_ids.push(s.id); }
       else r.stretches.push({ display_name: s.display_name ?? null, kind: s.kind, length_m: s.length_m, segment_ids: [s.id] });
     }
   }

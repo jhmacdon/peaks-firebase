@@ -12,6 +12,9 @@ import { DestinationResolver, IMPORT_MARKER, checkSupersede, claimSupersedes, fo
 import { bindExistingSegments, readPreflight, type ExistingOverlap } from './load-preflight';
 import { pruneOnly } from './load-prune';
 import { DESTINATION_FEATURES, routeLine, projection } from './stretches';
+import { withoutElevation } from './source-provenance';
+import { assertPilotsRetired, retirePilots } from './load-pilot';
+import { isWaPilot } from './pilot-routes';
 import type { ComposedRoute, NewPlace, PeaksDestination, PeaksRoute, PlaceRef } from './catalog-types';
 import type { Coord, Provenance, Segment } from './types';
 import { replacementPlan, rebaseLoad, SOURCE_SCHEMA_PREFLIGHT } from './load-rebase';
@@ -45,7 +48,8 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   const plan: RoutePlan = { route_id: row.route_id ?? '', seed_index: row.seed_index, statements: [], segment_ids: [], destination_ids: [], activate: false, notes: [], reused_segment_ids: [], segment_data: source };
   const skip = (reason: string) => ({ ...plan, skipped: reason });
   if (row.status !== 'ok' && !(options.includeReview && row.status === 'review')) return skip(`composition status ${row.status}`);
-  if (row.existing_route_matches.some(m => m.catalog_reviewed) || row.existing_route_match?.catalog_reviewed) return skip('catalog_reviewed match: use trail-catalog supersede path');
+  if (row.segments.some(ref => source.get(ref.id)?.frozen_partial)) return skip('partial frozen catalog geometry is review-only; whole fixed segment reuse required');
+  if (row.existing_route_matches.some(m => m.catalog_reviewed && !isWaPilot(m.id)) || row.existing_route_match?.catalog_reviewed && !isWaPilot(row.existing_route_match.id)) return skip('catalog_reviewed match: use trail-catalog supersede path');
   if (!compositionValid(row)) throw new Error(`Composition hash mismatch for seed ${row.seed_index}`);
   if (row.segment_manifest_hash !== segmentManifestHash(row.segments.map(s => s.id), source)) throw new Error(`Segment manifest hash mismatch for seed ${row.seed_index}`);
   if (!row.trailhead || !row.segments.length || !row.provenance) throw new Error(`Incomplete composition ${row.seed_index}`);
@@ -101,12 +105,15 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   }
   const thId = placeId(th), objectiveId = goal ? placeId(goal) : null;
   const ordered = [...places.keys()].filter(id => id !== thId && id !== objectiveId); ordered.unshift(thId); if (objectiveId && objectiveId !== thId) ordered.push(objectiveId); plan.destination_ids = ordered;
-  const sourceProvenance: any = { ...routeProvenance(plan.segment_ids.map(id => segments.get(id)!.provenance)) };
-  delete sourceProvenance.elevation_source; delete sourceProvenance.elevation_profile; delete sourceProvenance.wa_catalog;
+  const sourceProvenance = withoutElevation(routeProvenance(plan.segment_ids.map(id => segments.get(id)!.provenance)));
   const metadata = { compose_status: row.status, composition_hash: row.composition_hash, approximate: !!row.approximate, notes: row.notes ?? [],
     dropped_links: resolvedDrops.filter((d, i) => !ordered.includes(d.id) && resolvedDrops.findIndex(other => other.id === d.id) === i),
     waypoint_names: row.waypoints.map(w => ({ name: w.name, feature: w.feature, fraction: w.fraction })), loaded_binding_hash: digest(refs) };
   const provenance = importedProvenance(sourceProvenance, metadata);
+  const frozen = plan.segment_ids.map(id => segments.get(id)!).filter(s => s.frozen_catalog);
+  if (frozen.length) add('frozen_segment_guard', `SELECT NOT EXISTS(SELECT 1 FROM jsonb_array_elements($1::jsonb) item LEFT JOIN segments s ON s.id=item->>'id'
+    WHERE s.id IS NULL OR ST_AsEWKB(s.path::geometry) IS DISTINCT FROM ST_AsEWKB(ST_SetSRID(ST_GeomFromGeoJSON(item->>'geometry'),4326))) AS valid`,
+    [JSON.stringify(frozen.map(s => ({ id: s.id, geometry: { type: 'LineString', coordinates: s.frozen_catalog!.coords_xyz } })))]);
   if (row.wta_url && !/^https:\/\/(?:www\.)?wta\.org\/go-hiking\/hikes\/[a-z0-9.-]+\/?$/.test(row.wta_url)) throw new Error(`Invalid WTA URL ${row.wta_url}`);
   add('route_insert', `INSERT INTO routes(id,name,status,owner,kind,slug,search_name,aliases,state_code,country_code,external_links,provenance,shape,trailhead_destination_id,objective_destination_id,description)
     VALUES($1,$2,'pending','peaks',$3,peaks_route_catalog_slug($2,$1),peaks_search_name($2),$4,'WA','US',$5::jsonb,$6::jsonb,$7::route_shape,$8,$9,NULL) ON CONFLICT(id) DO NOTHING`,
@@ -124,11 +131,12 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
       OR (wa_catalog_provenance_elevation(s.provenance,'{}'::jsonb)-'wa_catalog') IS DISTINCT FROM(item->'provenance')
       OR NOT COALESCE(ST_OrderingEquals(ST_Force2D(s.path::geometry),ST_GeomFromGeoJSON(item->>'geometry')),false)) AS valid FROM routes r WHERE r.id=$1`,
     [row.route_id, JSON.stringify({ name: row.name, owner: 'peaks', kind: row.kind, aliases: row.aliases, shape: row.shape, state_code: 'WA', country_code: 'US', trailhead_destination_id: thId, objective_destination_id: objectiveId, external_links: row.wta_url ? [{ type: 'wta', id: row.wta_url }] : [], provenance, description: null }),
-      JSON.stringify(refs), JSON.stringify(ordered), JSON.stringify(plan.segment_ids.map(id => { const s = segments.get(id)!, p: any = { ...s.provenance }; delete p.elevation_source; delete p.elevation_profile; delete p.wa_catalog; return { id, name: s.name, display_name: s.display_name === undefined ? s.trail_names[0] || s.relation_names[0] || null : s.display_name, description: s.description ?? null, kind: s.kind, provenance: p, geometry: { type: 'LineString', coordinates: s.coords } }; }))]);
+      JSON.stringify(refs), JSON.stringify(ordered), JSON.stringify(plan.segment_ids.map(id => { const s = segments.get(id)!; return { id, name: s.name, display_name: s.display_name === undefined ? s.trail_names[0] || s.relation_names[0] || null : s.display_name, description: s.description ?? null, kind: s.kind, provenance: withoutElevation(s.provenance), geometry: { type: 'LineString', coordinates: s.coords } }; }))]);
   if (options.elevation) for (const id of plan.segment_ids) {
     add('elevation_guard', `SELECT EXISTS(${PROTECTED}) AS protected,
       gain IS NOT NULL AND gain_loss IS NOT NULL AND NOT EXISTS(SELECT 1 FROM ST_DumpPoints(path::geometry) p WHERE ST_Z((p).geom) IS NULL OR ST_Z((p).geom)=0) AS complete
       FROM segments WHERE id=$1`, [id]);
+    if (segments.get(id)!.frozen_catalog) continue; // Never write frozen XYZ/stats/provenance, even when incomplete.
     add('elevation_segment_update', `UPDATE segments SET path=ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography,
       gain=(SELECT gain FROM route_elevation_stats(ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography)),gain_loss=(SELECT loss FROM route_elevation_stats(ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography)),
       provenance=wa_catalog_provenance_elevation(provenance,'{"elevation_source":"terrarium_z14","elevation_profile":"terrain"}'::jsonb)
@@ -138,7 +146,8 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   add('rebuild_route_path', 'SELECT rebuild_route_path($1)', [row.route_id]);
   if (options.elevation) add('elevation_route_metadata', `UPDATE routes SET gain=stats.gain,gain_loss=stats.loss,elevation_source='segment_profiles',
     elevation_source_url='https://registry.opendata.aws/terrain-tiles/',elevation_attribution='Mapzen / AWS Open Data Terrain Tiles',elevation_license_url='https://github.com/tilezen/joerd/blob/master/docs/attribution.md',elevation_retrieved_at=now(),
-    provenance=wa_catalog_provenance_elevation(provenance,'{"elevation_source":"terrarium_z14","elevation_profile":"terrain"}'::jsonb)
+    provenance=(SELECT wa_catalog_union_provenance(jsonb_agg(s.provenance ORDER BY rs.ordinal)) FROM route_segments rs JOIN segments s ON s.id=rs.segment_id WHERE rs.route_id=$1)
+      ||jsonb_build_object('wa_catalog',routes.provenance->'wa_catalog')
     FROM route_elevation_stats((SELECT path FROM routes WHERE id=$1)) stats WHERE id=$1`, [row.route_id]);
   if (options.activate && row.status === 'ok') {
     plan.activate = true;
@@ -193,7 +202,7 @@ export async function executePlan(client: Pick<Client, 'query'>, plan: RoutePlan
           if (!r || r.owner !== 'peaks' || r.protected || !r.links_match || !r.source_match || r.name !== plan.legacy_expected?.name || r.status !== plan.legacy_expected?.status) throw new Error('Legacy route changed, is reviewed, or rebase has not completed; replacement refused: '+JSON.stringify({protected:r?.protected,links_match:r?.links_match,source_match:r?.source_match,name:r?.name,status:r?.status}));
         }
         if (statement.kind === 'completed_rebase_guard' && result.rows[0]?.valid !== true) throw new Error('Merge refused: matching completed rebase receipt missing; run --rebase before catalog loading');
-        if (['source_integrity','active_integrity','legacy_source_guard','segment_xy_guard','replacement_links_guard'].includes(statement.kind) && result.rows[0]?.valid !== true) throw new Error(`${statement.kind} failed; legacy replacement rolled back${result.rows[0]?.diagnostics ? ': '+JSON.stringify(result.rows[0].diagnostics) : ''}`);
+        if (['source_integrity','active_integrity','legacy_source_guard','segment_xy_guard','replacement_links_guard','frozen_segment_guard'].includes(statement.kind) && result.rows[0]?.valid !== true) throw new Error(`${statement.kind} failed; legacy replacement rolled back${result.rows[0]?.diagnostics ? ': '+JSON.stringify(result.rows[0].diagnostics) : ''}`);
         if (statement.kind === 'review_guard') {
           if (result.rows.some(r => r.protected)) { await client.query('ROLLBACK'); return 'skipped: live catalog review protects a matched route'; }
           const own = result.rows.find(r => r.id === plan.route_id);
@@ -201,7 +210,7 @@ export async function executePlan(client: Pick<Client, 'query'>, plan: RoutePlan
         }
         if (statement.kind === 'binding_guard' && result.rows[0]?.valid !== true) throw new Error('Stored route/segments differ from the composition binding');
         if (statement.kind === 'overlap_guard' && result.rows[0]?.valid !== true) throw new Error('Overlapping legacy owner has not been superseded; retry after its replacement succeeds');
-        if (statement.kind === 'elevation_guard') { const row = result.rows[0]; if (row?.complete) elevated.add(statement.values[0] as string); else if (row?.protected) throw new Error('Protected segment lacks usable elevation'); }
+        if (statement.kind === 'elevation_guard') { const row = result.rows[0]; if (row?.complete) elevated.add(statement.values[0] as string); else if (row?.protected || plan.segment_data.get(statement.values[0] as string)?.frozen_catalog) throw new Error('Protected segment lacks usable elevation'); }
         if (statement.kind === 'legacy_supersede' && result.rowCount !== 1) throw new Error('Legacy supersede refused by live objective/start/end/overlap/review checks');
       }
     }
@@ -230,7 +239,7 @@ async function readRows<T>(file: string): Promise<T[]> { const rows: T[] = []; f
 export function catalogPlans(rows: ComposedRoute[], segments: Map<string, Segment>, destinations: PeaksDestination[], legacyRoutes: PeaksRoute[], options: LoadOptions = {}) {
   const resolver = new DestinationResolver(destinations), decisions: SupersedeDecision[] = [], byId = new Map(legacyRoutes.map(r => [r.id, r]));
   for (const row of rows) for (const match of [...new Map([...row.existing_route_matches, ...(row.existing_route_match ? [row.existing_route_match] : [])].map(m => [m.id, m])).values()]) {
-    const legacy = byId.get(match.id); if (!legacy) continue;
+    const legacy = byId.get(match.id); if (!legacy || isWaPilot(legacy.id)) continue;
     const goal = row.objective ? resolver.resolve(row.objective) : null, objectiveName = goal?.peaks_id ? destinations.find(d => d.id === goal.peaks_id)?.name ?? '' : goal?.new?.name ?? '';
     const valid = compositionValid(row) && row.segments.every(s => segments.has(s.id)) && row.segment_manifest_hash === segmentManifestHash(row.segments.map(s => s.id), segments);
     const decision = checkSupersede(row, legacy, valid ? routeLine(row, segments) : [], objectiveName, goal ? placeId(goal) : null);
@@ -269,6 +278,7 @@ async function main() {
   const batchSize = Number(option(flags, 'batch-size', '50'));
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 50) throw new Error('Activation batch size must be 1–50');
   if (flags.has('activate') && !flags.has('elevation')) throw new Error('--activate requires --elevation');
+  if (mode === 'retire-pilot') { await retirePilots(dir, input, flags.has('apply')); return; }
   const segments = new Map((await readRows<Segment>(join(dir, 'segments.ndjson'))).map(s => [s.id, s])), rows = await readRows<ComposedRoute>(join(dir, 'routes.ndjson'));
   let rebases: RebasePlan[] = [], merges: MergePlan[] = [];
   try { rebases = await readRows<RebasePlan>(join(dir, 'rebase-plans.ndjson')); merges = await readRows<MergePlan>(join(dir, 'merge-plans.ndjson')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
@@ -289,6 +299,7 @@ async function main() {
     if (flags.has('apply')) {
       if (!process.env.DATABASE_URL) throw new Error('--apply requires DATABASE_URL');
       const { Client } = await import('pg'); client = new Client({ connectionString: process.env.DATABASE_URL }); await client.connect();
+      await assertPilotsRetired(client);
       // Serialize competing WA loaders across the read-only snapshot and writes.
       // Session close releases this lock, including on failure.
       await client.query("SELECT pg_advisory_lock(hashtextextended('wa_trail_catalog_loader',0))");

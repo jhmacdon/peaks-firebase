@@ -18,6 +18,8 @@ export interface Segment {
   relation_names: string[]; relations: Relation[]; start_node: string; end_node: string;
   coords: Coord[]; node_ids: string[]; osm_edge_way_ids: number[]; length_m: number; provenance: Provenance;
   alt_sources: AltSource[];
+  frozen_catalog?: { route_ids: string[]; coords_xyz: number[][] };
+  frozen_partial?: { segment_id: string; from_vertex: number; to_vertex: number };
   legacy_tail?: { route_id: string; source_hash: string; attachment_gap_m: number };
   summit_connector?: { destination_id: string; destination_coord: Coord; from: Coord; gap_m: number; note: 'summit connector' };
 }

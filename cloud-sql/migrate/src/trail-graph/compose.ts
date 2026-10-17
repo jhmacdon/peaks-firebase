@@ -2,7 +2,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { args, DEFAULT_INPUT, DEFAULT_OUT, ndjson, option, writeNdjson } from './io';
-import { hash, haversine, lineIndex, midpoint, nearest, pointDistance, unique } from './geo';
+import { hash, haversine, length as lengthOf, lineIndex, midpoint, nearest, pointDistance, unique } from './geo';
 import { featureDistance, vertexIndex } from './features';
 import { accessIndex, resolveAccessTrailhead } from './compose-access';
 import { namedOsm, namedPeaks, osmRef, resolveObjective, resolveTrailhead } from './compose-resolve';
@@ -16,8 +16,10 @@ import { applyCuration, reviewData, type Curation } from './stretches';
 import { refresh, provenance } from './topology';
 import { rebaseDraft, finalizeRebases, rebasePlanHash, mergePlans, type LegacyRoute } from './rebase';
 import { unionProvenance } from './source-provenance';
-import { alignSummitKind, appendSummitConnector, finalizePlaceLinks } from './summit-connectors';
+import { alignSummitKind, alignTraverseObjective, appendSummitConnector, finalizePlaceLinks } from './summit-connectors';
 import { DestinationResolver } from './load-matching';
+import { adoptFrozenSegments, readFrozenSegments } from './frozen-segments';
+import { isWaPilot } from './pilot-routes';
 import type { AccessPoint, CatalogInputs, ComposedRoute, DraftRoute, ExistingMatch, PeaksDestination, PeaksRoute, PlaceRef, ResolvedPlace, Seed, Waypoint } from './catalog-types';
 import type { Coord, NamedFeature, Provenance, Segment } from './types';
 
@@ -33,6 +35,9 @@ export class Composer {
   private access;
   private parking;
   constructor(public readonly input: CatalogInputs) {
+    // The coarse snapshot flag includes these pending candidate receipts.
+    // They will retire before loading; no reviewed row outside the allowlist changes.
+    input = this.input = { ...input, routes: input.routes.filter(r => !isWaPilot(r.id)) };
     this.router = new TrailRouter(input.segments, input.features); this.byId = new Map(input.segments.map(s => [s.id, s]));
     for (const s of input.segments) for (const key of unique([...s.trail_names, ...s.relation_names].map(trailKey))) this.trails.set(key, [...(this.trails.get(key) ?? []), s]);
     this.roads = lineIndex(input.segments.filter(s => s.kind === 'road'));
@@ -267,8 +272,12 @@ const formatGap = (n: number) => Number.isFinite(n) ? `${n.toFixed(1)} m` : '>20
 /** Split all consumed parent segments at the union of route cuts, so routes
  * share the same pieces and route_segments never silently includes extra line. */
 export function materialize(drafts: DraftRoute[], source: Map<string, Segment>): Segment[] {
+  for (const draft of drafts) {
+    const partial = draft.walk.find(step => { const s = source.get(step.segment_id)!; return s.frozen_catalog && (Math.min(step.start_vertex, step.end_vertex) !== 0 || Math.max(step.start_vertex, step.end_vertex) !== s.coords.length - 1); });
+    if (partial) { draft.row.status = draft.row.seed_index < 0 ? 'review' : 'needs_geometry'; draft.row.reasons.push(`fixed catalog segment ${partial.segment_id} needs partial traversal; cannot cut frozen geometry`); }
+  }
   const cuts = new Map<string, Set<number>>();
-  for (const d of drafts) for (const s of d.walk) { const set = cuts.get(s.segment_id) ?? new Set([0, source.get(s.segment_id)!.coords.length - 1]); set.add(s.start_vertex); set.add(s.end_vertex); cuts.set(s.segment_id, set); }
+  for (const d of drafts) for (const s of d.walk) { const parent = source.get(s.segment_id)!, set = cuts.get(s.segment_id) ?? new Set([0, parent.coords.length - 1]); if (!parent.frozen_catalog) { set.add(s.start_vertex); set.add(s.end_vertex); } cuts.set(s.segment_id, set); }
   const pieces = new Map<string, { from: number; to: number; segment: Segment; forward: boolean }[]>(), all: Segment[] = [];
   for (const [id, positions] of cuts) {
     const parent = source.get(id)!, sorted = [...positions].sort((a, b) => a - b), parts: { from: number; to: number; segment: Segment; forward: boolean }[] = [];
@@ -279,13 +288,23 @@ export function materialize(drafts: DraftRoute[], source: Map<string, Segment>):
         segment.id = `wa-span-${hash(JSON.stringify([parent.id, segment.node_ids]))}`;
         if (parent.legacy_tail) segment.provenance = parent.provenance;
       }
-      if (drafts.some(d => d.xc?.some(step => step.segment_id === id && from >= Math.min(step.start_vertex, step.end_vertex) && to <= Math.max(step.start_vertex, step.end_vertex)))) segment.kind = 'xc';
+      if (!segment.frozen_catalog && drafts.some(d => d.xc?.some(step => step.segment_id === id && from >= Math.min(step.start_vertex, step.end_vertex) && to <= Math.max(step.start_vertex, step.end_vertex)))) segment.kind = 'xc';
       parts.push({ from, to, segment, forward: segment.node_ids[0] === parent.node_ids[from] }); all.push(segment);
     } pieces.set(id, parts);
   }
   const allById = new Map(all.map(s => [s.id, s]));
   for (const d of drafts) {
     d.row.segments = d.walk.flatMap(step => {
+      const parent = source.get(step.segment_id)!, from = Math.min(step.start_vertex, step.end_vertex), to = Math.max(step.start_vertex, step.end_vertex);
+      if (parent.frozen_catalog && (from > 0 || to < parent.coords.length - 1)) {
+        const id = `wa-fixed-partial-${hash(JSON.stringify([parent.id, from, to]))}`;
+        if (!all.some(s => s.id === id)) {
+          const coords = parent.coords.slice(from, to + 1), node_ids = parent.node_ids.slice(from, to + 1);
+          all.push({ ...parent, id, coords, node_ids, start_node: node_ids[0], end_node: node_ids.at(-1)!, length_m: lengthOf(coords), osm_edge_way_ids: parent.osm_edge_way_ids.slice(from, to),
+            frozen_catalog: undefined, frozen_partial: { segment_id: parent.id, from_vertex: from, to_vertex: to }, source_segment_ids: unique([parent.id, ...(parent.source_segment_ids ?? [])]) });
+        }
+        return [{ id, direction: step.direction }];
+      }
       const selected = pieces.get(step.segment_id)!.filter(p => p.from >= Math.min(step.start_vertex, step.end_vertex) && p.to <= Math.max(step.start_vertex, step.end_vertex));
       if (step.direction === 'reverse') selected.reverse();
       return selected.map(p => ({ id: p.segment.id, direction: (step.direction === 'forward') === p.forward ? 'forward' as const : 'reverse' as const }));
@@ -316,6 +335,8 @@ export async function composeCatalog(input: string, graph: string, out: string, 
   const inputs: CatalogInputs = { seeds: JSON.parse(await readFile(join(input, 'seed/wa-hike-seed.json'), 'utf8')), destinations: await readRows<PeaksDestination>(join(input, 'peaks-snapshot/wa-destinations.ndjson')),
     routes: await readRows<PeaksRoute>(join(input, 'peaks-snapshot/wa-routes.ndjson')), popularity: await readRows(join(input, 'peaks-snapshot/wa-route-popularity.ndjson')),
     segments: await readRows<Segment>(join(graph, 'segments.ndjson')), features: await readRows<NamedFeature>(join(graph, 'features.ndjson')), access: await readRows<AccessPoint>(join(graph, 'access.ndjson')) };
+  const fixed = adoptFrozenSegments(inputs.segments, await readFrozenSegments(input)); inputs.segments = fixed.segments;
+  await writeFile(join(out, 'frozen-segment-audit.json'), JSON.stringify(fixed.audit, null, 2) + '\n');
   const composer = new Composer(inputs), drafts: DraftRoute[] = [];
   for (let i = 0; i < inputs.seeds.length; i++) {
     if (indices && !indices.includes(i)) continue;
@@ -323,7 +344,7 @@ export async function composeCatalog(input: string, graph: string, out: string, 
     console.log(`${i + 1}/${inputs.seeds.length} ${draft.row.status}: ${draft.row.name} (${Math.round(draft.row.length_m)} m) ${draft.row.reasons.join('; ')}`);
   }
   let legacy: LegacyRoute[] = [];
-  try { legacy = await readRows<LegacyRoute>(join(input, 'peaks-snapshot/wa-legacy-routes-with-paths.ndjson')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
+  try { legacy = (await readRows<LegacyRoute>(join(input, 'peaks-snapshot/wa-legacy-routes-with-paths.ndjson'))).filter(r => !isWaPilot(r.id)); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
   const rebases = legacy.map((r, i) => {
     const prior=inputs.routes.find(p=>p.id===r.id),key=(n:string)=>normalizeName(cleanTrail(n)).replace(/\s+(?:trail|route)$/,'');
     const names=inputs.seeds.filter(s=>[s.name,...s.aliases].some(n=>key(n)===key(r.name)));
@@ -343,6 +364,7 @@ export async function composeCatalog(input: string, graph: string, out: string, 
     for (const key of ['trailhead', 'objective', 'end_trailhead'] as const) if (row[key]) row[key] = resolvePlace(row[key]!);
     row.waypoints = row.waypoints.map(w => { const { peaks_id, new: candidate, ...point } = w; return { ...point, ...resolvePlace(w) }; });
     const destination = peaks.get(row.objective?.peaks_id ?? ''); alignSummitKind(row, destination);
+    alignTraverseObjective(row);
     const connector = appendSummitConnector(row, byId, destination);
     if (connector && !segments.some(s => s.id === connector.id)) segments.push(connector);
   }

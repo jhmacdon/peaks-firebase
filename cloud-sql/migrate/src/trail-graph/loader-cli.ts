@@ -1,5 +1,5 @@
-export type LoaderMode = 'catalog' | 'rebase' | 'prune';
-const switches = ['apply','activate','elevation','only-ok','include-review','prune-pending','rebase'];
+export type LoaderMode = 'catalog' | 'rebase' | 'prune' | 'retire-pilot';
+const switches = ['apply','activate','elevation','only-ok','include-review','prune-pending','rebase','retire-pilot'];
 /** Loader entry points must parse before reading files or opening a client.
  * A quoted string containing two flags is one invalid argument, never a mode. */
 export function loaderArgs(argv = process.argv.slice(2), cli: 'catalog' | 'segments' = 'catalog'): Map<string, string[]> {
@@ -18,13 +18,13 @@ export function loaderArgs(argv = process.argv.slice(2), cli: 'catalog' | 'segme
   }
   if (cli === 'segments') return result;
   const mode = loaderMode(result);
-  if (mode !== 'catalog') for (const key of ['activate','only-ok','include-review','batch-size', ...(mode === 'prune' ? ['elevation'] : [])]) if (result.has(key)) throw new Error(`--${key} is not valid in ${mode} mode`);
+  if (mode !== 'catalog') for (const key of ['activate','only-ok','include-review','batch-size', ...(mode !== 'rebase' ? ['elevation'] : [])]) if (result.has(key)) throw new Error(`--${key} is not valid in ${mode} mode`);
   if (result.has('only-ok') && result.has('include-review')) throw new Error('Choose --only-ok or --include-review');
   const batch = Number(result.get('batch-size')?.[0] ?? '50'); if (!Number.isInteger(batch) || batch < 1 || batch > 50) throw new Error('Activation batch size must be 1–50');
   if (result.has('activate') && !result.has('elevation')) throw new Error('--activate requires --elevation');
   return result;
 }
 export function loaderMode(flags: Map<string, string[]>): LoaderMode {
-  if (flags.has('rebase') && flags.has('prune-pending')) throw new Error('--prune-pending and --rebase are exclusive modes');
-  return flags.has('prune-pending') ? 'prune' : flags.has('rebase') ? 'rebase' : 'catalog';
+  if (['rebase','prune-pending','retire-pilot'].filter(f => flags.has(f)).length > 1) throw new Error('--retire-pilot, --prune-pending and --rebase are exclusive modes');
+  return flags.has('retire-pilot') ? 'retire-pilot' : flags.has('prune-pending') ? 'prune' : flags.has('rebase') ? 'rebase' : 'catalog';
 }

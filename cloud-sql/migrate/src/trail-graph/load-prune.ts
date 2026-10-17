@@ -4,6 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { SCHEMA_PREFLIGHT } from './load-preflight';
 import type { Client } from 'pg';
+import { assertPilotsRetired } from './load-pilot';
 export function prunePlan(plans: RoutePlan[], keepRouteIds: string[]): Statement[] {
   const marker = JSON.stringify({ wa_catalog: { loader: IMPORT_MARKER } });
   const segments = [...new Set(plans.flatMap(p => p.segment_ids))], places = [...new Set(plans.flatMap(p => p.destination_ids ?? []))];
@@ -35,5 +36,5 @@ export async function pruneOnly(dir: string, plans: RoutePlan[], keepRouteIds: s
   await writeFile(join(dir,'prune-plan.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({mode:report.mode,operation:'prune',statements:statements.map(s=>s.kind),catalog_routes_loaded:0,merges:0,rebases:0},null,2));
   if (!apply) return; if (!process.env.DATABASE_URL) throw new Error('--apply requires DATABASE_URL');
   const {Client} = await import('pg'),client = new Client({connectionString:process.env.DATABASE_URL});await client.connect();
-  try {const schema=(await client.query(SCHEMA_PREFLIGHT)).rows[0];if(!schema?.activation_ready||schema.lease_bound_worker)throw new Error('Prune requires the WA migration and an operator connection');const results=await executePrune(client,statements);await writeFile(join(dir,'prune-results.json'),JSON.stringify(results,null,2)+'\n');}finally{await client.end();}
+  try {await assertPilotsRetired(client);const schema=(await client.query(SCHEMA_PREFLIGHT)).rows[0];if(!schema?.activation_ready||schema.lease_bound_worker)throw new Error('Prune requires the WA migration and an operator connection');const results=await executePrune(client,statements);await writeFile(join(dir,'prune-results.json'),JSON.stringify(results,null,2)+'\n');}finally{await client.end();}
 }

@@ -69,7 +69,11 @@ test('merge requires symmetric 90% shared length or identical place IDs within 5
   assert.equal(mergePlans([{...withOtherSpan,objective:{peaks_id:'other'}}],[plan],[...segments.values(),alt]).length,0);
 });
 test('rebase SQL preserves identity/status/session facts, locks jobs, and deletes only unreferenced old segments', () => {
-  const { plan, segments } = setup(true), p = replacementPlan(plan.row,segments,plan,{ elevation:true });
+  const { plan, segments } = setup(true), unused = { ...structuredClone([...segments.values()][0]), id: 'frozen-unused', frozen_catalog: { route_ids: ['frozen-route'], coords_xyz: [[-121, 47, 100], [-120.99, 47, 200]] } };
+  segments.set(unused.id, unused);
+  const p = replacementPlan(plan.row,segments,plan,{ elevation:true });
+  const cleanup = p.statements.find(s => s.kind === 'delete_unused_legacy_segments')!;
+  assert.match(cleanup.sql, /NOT\(id=ANY\(\$3::text\[\]\)\)/); assert.deepEqual(cleanup.values[2], ['frozen-unused']);
   assert.ok(!p.skipped); assert.equal(p.route_id,'legacy'); assert.equal(p.operation,'rebase');
   assert.ok(p.statements.some(s=>s.kind==='factory_lock')); assert.ok(p.statements.some(s=>s.kind==='active_integrity'));
   assert.ok(!p.statements.some(s=>/session_routes/.test(s.sql) || /SET status=/.test(s.sql)));
@@ -100,5 +104,20 @@ test('a valid replacement can resume without rewriting the route or resampling i
 });
 test('Josiah preflight retains Triple Crown exclusion and clipped UTM buffering', () => {
   const sql=readFileSync(join(__dirname,'../trail-graph/load-preflight.ts'),'utf8');
-  for(const fragment of ["s.id NOT LIKE 'triple-crown-%'",'ST_ClipByBox2D','incoming.path_m','32610','32611']) assert.ok(sql.includes(fragment));
+  for(const fragment of ["s.id NOT LIKE 'triple-crown-%'","AND NOT (s.id LIKE 'wa-%' AND s.provenance #>> '{wa_catalog,loader}' IS NOT NULL)",'ST_ClipByBox2D','incoming.path_m','32610','32611']) assert.ok(sql.includes(fragment));
+  const { plan, segments } = setup();
+  assert.match(replacementPlan(plan.row, segments, plan).statements.find(s => s.kind === 'replacement_guard')!.sql, /<=0\.25 AS source_match/);
+});
+test('dense lines retain selected original spans to fix shortening without relaxing length or geometry gates', () => {
+  const { old, source } = setup(), segment = [...source.values()][0];
+  const coords: Coord[] = Array.from({ length: 601 }, (_, i) => [-121 + i * .00002, 47 + .000015 * Math.sin(i * Math.PI / 4)]);
+  const graph = refresh({ ...structuredClone(segment), coords: coords.map(([x]) => [x, 47]), node_ids: coords.map((_, i) => `v${String(i).padStart(4, '0')}`), osm_edge_way_ids: coords.slice(1).map(() => 10) });
+  const byId = new Map([[graph.id, graph]]), { plan, draft } = rebaseDraft({ ...old, coords }, new TrailRouter([graph]), byId);
+  const segments = materialize([draft], byId); finalizeRebases([plan], segments);
+  assert.equal(plan.sparse, false); assert.equal(plan.status, 'ok', plan.reasons.join());
+  assert.ok(plan.reasons.some(r => r.includes('mapped length distortion')));
+  assert.ok(plan.deviation_fraction! <= .07); assert.ok(plan.hausdorff_m! <= 50);
+  assert.ok(plan.tail_length_m > 0 && plan.tail_length_m / plan.row.length_m <= .8); assert.ok(plan.graph_length_m > 0);
+  const huge = rebaseDraft({ ...old, coords: coords.map(([x, y]) => [x, y + .1]) }, new TrailRouter([graph]), new Map([[graph.id, graph]]));
+  assert.equal(huge.plan.status, 'failed');
 });

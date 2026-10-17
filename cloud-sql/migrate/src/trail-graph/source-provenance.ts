@@ -7,6 +7,13 @@ export function sourceLeaves(value: Provenance): Provenance[] {
   if (value.sources) return value.sources.flatMap(sourceLeaves);
   const {wa_catalog, ...source} = value as Provenance & {wa_catalog?: unknown}; return [source];
 }
+/** Compare rights independently of each segment's retained elevation profile. */
+export function withoutElevation(value: Provenance): Provenance {
+  return unionProvenance(sourceLeaves(value).map(leaf => {
+    const { elevation_source, elevation_profile, ...rights } = leaf as Provenance & { elevation_source?: string; elevation_profile?: string };
+    return rights;
+  }));
+}
 export const sourceKey = (p: Provenance): string => JSON.stringify([p.source_kind,p.license_name,p.license_url,p.attribution,p.contains_osm_geometry,p.contains_osm_geometry?null:p.source_url,(p as any).elevation_source ?? null,(p as any).elevation_profile ?? null]);
 /** Includes every rights group. An offline missing created_at remains empty;
  * the loader binds it to the locked route's timestamp instead of inventing it. */

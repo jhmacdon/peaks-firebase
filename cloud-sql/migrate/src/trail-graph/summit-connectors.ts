@@ -14,8 +14,17 @@ export const SUMMIT_CONNECTOR_LIMIT_M = 75;
  * Correct that resolved type conflict before considering endpoint geometry;
  * loops/traverses still follow their own objective/contact rules. */
 export function alignSummitKind(row: ComposedRoute, destination?: PeaksDestination): void {
+  if (row.kind === 'summit' && destination && row.objective?.peaks_id === destination.id && !destination.features.includes('summit') && destination.features.some(f => ['fire-lookout', 'lookout', 'hut'].includes(f))) {
+    row.kind = 'destination'; row.notes = unique([...(row.notes ?? []), `Resolved Peaks objective ${destination.name} is a lookout/hut; use destination route kind.`]);
+  }
   if (row.kind === 'destination' && destination?.features.includes('summit') && row.objective?.peaks_id === destination.id) {
     row.kind = 'summit'; row.notes = unique([...(row.notes ?? []), `Resolved Peaks objective ${destination.name} is a summit; use summit route kind instead of seed destination kind.`]);
+  }
+}
+export function alignTraverseObjective(row: ComposedRoute): void {
+  if (row.kind === 'traverse' && !row.objective && row.end_trailhead) {
+    row.objective = row.end_trailhead;
+    row.notes = unique([...(row.notes ?? []), 'Traverse objective is its contacted far trailhead.']);
   }
 }
 /** Only the objective can authorize a connector. Intermediate summit links are

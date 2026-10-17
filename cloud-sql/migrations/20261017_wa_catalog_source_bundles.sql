@@ -227,4 +227,117 @@ REVOKE ALL ON wa_catalog_rebase_receipts FROM PUBLIC,"peaks-api","peaks-route-fa
 -- The migration operator owns receipts. Insertion happens only after the route
 -- transaction's source, ordered-XY, elevation and active-integrity checks pass.
 -- peaks_route_passes_publish_integrity itself is deliberately unchanged.
+
+-- Retire only the four approved, never-reviewed pending pilot candidates.
+-- The migration operator owns this entry point. Receipts and source artifacts
+-- remain; no application/factory/reviewer role can invoke this repair.
+CREATE OR REPLACE FUNCTION retire_wa_catalog_pilot(p_route_id TEXT) RETURNS JSONB
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
+DECLARE job trail_catalog_candidate_jobs%ROWTYPE; r routes%ROWTYPE; expected_name TEXT;
+  old_segment_ids TEXT[]; removed_ids TEXT[]; detached_segments INTEGER; detached_places INTEGER; table_owner NAME;
+BEGIN
+  SELECT pg_get_userbyid(relowner) INTO table_owner FROM pg_class WHERE oid='public.trail_catalog_candidate_jobs'::regclass;
+  IF session_user<>table_owner OR current_user<>table_owner
+    OR pg_has_role(session_user,'peaks-route-factory','member') OR pg_has_role(session_user,'peaks-route-reviewer','member') THEN
+    RAISE EXCEPTION 'Pilot retirement requires the candidate table owner operator login';
+  END IF;
+  SELECT approved.name INTO expected_name FROM (VALUES
+    ('trail-6dfd43dc-8f23-4791-ab00-570049a1c39b','Skyline Loop (Paradise)'),
+    ('trail-f39e1eac-83f9-4ce7-b870-e10c04f396b0','Lake Serene Trail'),
+    ('trail-e7e610fd-b4be-4b67-94c5-bc7646cfb346','Rattlesnake Ledge via Rattlesnake Ledge Trail'),
+    ('trail-6391bc0f-8687-4bc8-b465-a2add6d99d58','Lake Twentytwo via Lake Twenty Two Trail')
+  ) approved(id,name) WHERE approved.id=p_route_id;
+  IF expected_name IS NULL THEN RAISE EXCEPTION 'Route is not an approved WA pilot'; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('wa_trail_catalog_loader',0));
+  SELECT * INTO job FROM trail_catalog_candidate_jobs WHERE proposed_route_id=p_route_id FOR UPDATE;
+  SELECT * INTO r FROM routes WHERE id=p_route_id FOR UPDATE;
+  IF job.source_key IS NULL AND r.id IS NULL THEN RETURN jsonb_build_object('outcome','not_present','route_id',p_route_id); END IF;
+  IF job.source_key IS NULL OR r.id IS NULL OR job.batch_key IS DISTINCT FROM 'wa-cascades-20261013'
+    OR r.owner IS DISTINCT FROM 'peaks' OR r.name IS DISTINCT FROM expected_name
+    OR job.artifact#>>'{candidate,input,name}' IS DISTINCT FROM expected_name THEN
+    RAISE EXCEPTION 'Pilot identity, batch or source receipt differs from approval';
+  END IF;
+  -- The route row lock also blocks new FK-backed user/review links until commit.
+  IF EXISTS(SELECT 1 FROM trail_catalog_review_jobs WHERE route_id=p_route_id OR source_key=job.source_key)
+    OR EXISTS(SELECT 1 FROM wa_catalog_activation_receipts WHERE route_id=p_route_id)
+    OR EXISTS(SELECT 1 FROM session_routes WHERE route_id=p_route_id)
+    OR EXISTS(SELECT 1 FROM list_routes WHERE route_id=p_route_id)
+    OR EXISTS(SELECT 1 FROM plan_routes WHERE route_id=p_route_id)
+    OR EXISTS(SELECT 1 FROM trip_report_routes WHERE route_id=p_route_id) THEN
+    RAISE EXCEPTION 'Pilot has review/publication history or user references; retirement refused';
+  END IF;
+  IF job.state='rejected' AND job.route_id IS NULL AND job.rejection_reason='superseded_by_wa_graph_catalog'
+    AND job.result#>>'{wa_graph_retirement,route_id}'=p_route_id AND r.status='superseded'
+    AND NOT EXISTS(SELECT 1 FROM route_segments WHERE route_id=p_route_id)
+    AND NOT EXISTS(SELECT 1 FROM route_destinations WHERE route_id=p_route_id) THEN
+    RETURN jsonb_build_object('outcome','already_retired','route_id',p_route_id);
+  END IF;
+  IF job.state IS DISTINCT FROM 'pending' OR job.route_id IS DISTINCT FROM p_route_id OR r.status IS DISTINCT FROM 'pending'
+    OR job.lease_owner IS NOT NULL OR job.lease_token IS NOT NULL OR job.lease_expires_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Only an unleased pending candidate with a pending route may retire';
+  END IF;
+  PERFORM 1 FROM route_segments WHERE route_id=p_route_id ORDER BY ordinal FOR UPDATE;
+  PERFORM 1 FROM route_destinations WHERE route_id=p_route_id ORDER BY ordinal FOR UPDATE;
+  old_segment_ids:=ARRAY(SELECT DISTINCT segment_id FROM route_segments WHERE route_id=p_route_id ORDER BY segment_id);
+  UPDATE trail_catalog_candidate_jobs SET state='rejected',route_id=NULL,rejection_reason='superseded_by_wa_graph_catalog',updated_at=now(),
+    result=COALESCE(result,'{}'::jsonb)||jsonb_build_object('wa_graph_retirement',jsonb_build_object(
+      'route_id',p_route_id,'from_state','pending','reason','superseded_by_wa_graph_catalog','operator',session_user,
+      'retired_at',clock_timestamp(),'segment_ids',to_jsonb(old_segment_ids))) WHERE source_key=job.source_key;
+  UPDATE routes SET status='superseded',updated_at=now() WHERE id=p_route_id;
+  DELETE FROM route_segments WHERE route_id=p_route_id; GET DIAGNOSTICS detached_segments=ROW_COUNT;
+  DELETE FROM route_destinations WHERE route_id=p_route_id; GET DIAGNOSTICS detached_places=ROW_COUNT;
+  WITH removed AS (DELETE FROM segments s WHERE s.id=ANY(old_segment_ids)
+    AND NOT EXISTS(SELECT 1 FROM route_segments rs WHERE rs.segment_id=s.id)
+    AND NOT EXISTS(SELECT 1 FROM wa_catalog_activation_receipts a WHERE s.id=ANY(a.segment_ids))
+    AND NOT wa_catalog_has_references('public.segments'::regclass,s.id) RETURNING s.id)
+    SELECT COALESCE(array_agg(id ORDER BY id),'{}'::text[]) INTO removed_ids FROM removed;
+  RETURN jsonb_build_object('outcome','retired','route_id',p_route_id,'segments_detached',detached_segments,
+    'destinations_detached',detached_places,'segments_deleted',to_jsonb(removed_ids),
+    'segments_kept',to_jsonb(ARRAY(SELECT unnest(old_segment_ids) EXCEPT SELECT unnest(removed_ids))));
+END $$;
+REVOKE ALL ON FUNCTION retire_wa_catalog_pilot(TEXT) FROM PUBLIC,"peaks-api","peaks-route-factory","peaks-route-reviewer","peaks-trail-publisher","peaks-wa-catalog-publisher";
+
+-- Base guard: 20261015_route_covers.sql, including its reviewed cover exemptions.
+-- It rejects every non-activation status change, even for the table owner.
+-- Add only this operator-only pending -> superseded exception.
+-- Candidate job guards, receipt-removal guards and reviewed-link guards stay intact.
+CREATE OR REPLACE FUNCTION guard_trail_catalog_pending_only() RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog,public,pg_temp AS $$
+DECLARE candidate_route_id TEXT:=CASE WHEN TG_OP='INSERT' THEN NEW.id ELSE OLD.id END; receipt_state TEXT;
+BEGIN
+  IF NOT EXISTS(SELECT 1 FROM trail_catalog_candidate_jobs WHERE proposed_route_id=candidate_route_id) THEN
+    IF TG_OP='DELETE' THEN RETURN OLD; END IF; RETURN NEW;
+  END IF;
+  IF TG_OP='DELETE' THEN RAISE EXCEPTION 'catalog candidate route cannot be deleted outside explicit receipt repair'; END IF;
+  IF TG_OP='UPDATE' AND NEW.id IS DISTINCT FROM OLD.id THEN RAISE EXCEPTION 'trail catalog candidate route identity is immutable'; END IF;
+  -- BEGIN approved pilot retirement exception
+  -- Retirement itself changes only status/updated_at; ordinary cover edits
+  -- continue through the cover-aware reviewed-row check below.
+  IF TG_OP='UPDATE' AND OLD.status='pending' AND NEW.status='superseded' AND OLD.owner='peaks'
+    AND (to_jsonb(NEW)-ARRAY['status','updated_at'])=(to_jsonb(OLD)-ARRAY['status','updated_at'])
+    AND session_user=pg_get_userbyid((SELECT proowner FROM pg_proc WHERE oid='retire_wa_catalog_pilot(text)'::regprocedure))
+    AND current_user=session_user AND (OLD.id,OLD.name) IN (
+      ('trail-6dfd43dc-8f23-4791-ab00-570049a1c39b','Skyline Loop (Paradise)'),
+      ('trail-f39e1eac-83f9-4ce7-b870-e10c04f396b0','Lake Serene Trail'),
+      ('trail-e7e610fd-b4be-4b67-94c5-bc7646cfb346','Rattlesnake Ledge via Rattlesnake Ledge Trail'),
+      ('trail-6391bc0f-8687-4bc8-b465-a2add6d99d58','Lake Twentytwo via Lake Twenty Two Trail'))
+    AND EXISTS(SELECT 1 FROM trail_catalog_candidate_jobs j WHERE j.proposed_route_id=OLD.id AND j.batch_key='wa-cascades-20261013'
+      AND j.state='rejected' AND j.route_id IS NULL AND j.rejection_reason='superseded_by_wa_graph_catalog'
+      AND j.result#>>'{wa_graph_retirement,route_id}'=OLD.id AND j.result#>>'{wa_graph_retirement,from_state}'='pending'
+      AND NOT EXISTS(SELECT 1 FROM trail_catalog_review_jobs review WHERE review.route_id=OLD.id OR review.source_key=j.source_key))
+    AND NOT EXISTS(SELECT 1 FROM wa_catalog_activation_receipts WHERE route_id=OLD.id)
+    AND NOT EXISTS(SELECT 1 FROM session_routes WHERE route_id=OLD.id)
+    AND NOT EXISTS(SELECT 1 FROM list_routes WHERE route_id=OLD.id)
+    AND NOT EXISTS(SELECT 1 FROM plan_routes WHERE route_id=OLD.id)
+    AND NOT EXISTS(SELECT 1 FROM trip_report_routes WHERE route_id=OLD.id) THEN RETURN NEW;
+  END IF;
+  -- END approved pilot retirement exception
+  SELECT state INTO receipt_state FROM trail_catalog_review_jobs WHERE route_id=candidate_route_id;
+  IF TG_OP='UPDATE' AND receipt_state IN ('approved','publish_leased','published','verify_leased','verified','rejected')
+    AND(to_jsonb(NEW)-ARRAY['status','updated_at','cover_image','cover_attribution','cover_attribution_url','cover_storage_path','cover_focal_x','cover_focal_y','cover_source','cover_updated_at']) IS DISTINCT FROM(to_jsonb(OLD)-ARRAY['status','updated_at','cover_image','cover_attribution','cover_attribution_url','cover_storage_path','cover_focal_x','cover_focal_y','cover_source','cover_updated_at']) THEN RAISE EXCEPTION 'catalog reviewed route is immutable'; END IF;
+  IF NEW.status='active' AND(TG_OP='INSERT' OR OLD.status IS DISTINCT FROM NEW.status) THEN
+    IF NOT trail_catalog_publish_authorized(candidate_route_id) THEN RAISE EXCEPTION 'trail catalog candidate requires independent review; direct activation is disabled except its owned activation function'; END IF;
+  ELSIF TG_OP='UPDATE' AND NEW.status IS DISTINCT FROM OLD.status THEN RAISE EXCEPTION 'catalog route transition requires explicit reviewed activation'; END IF;
+  RETURN NEW;
+END $$;
 COMMIT;

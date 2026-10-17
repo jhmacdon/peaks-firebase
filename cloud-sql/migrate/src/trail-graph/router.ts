@@ -29,6 +29,7 @@ export class TrailRouter {
   private graph = new Map<string, Edge[]>();
   private costCache = new Map<string, number[]>();
   private componentWeights: number[] = [];
+  private positions: number[][];
   public readonly vertices;
   private featureIndex = new Grid<NamedFeature>(1000);
   constructor(public readonly segments: Segment[], public readonly features: NamedFeature[] = []) {
@@ -39,10 +40,12 @@ export class TrailRouter {
       for (const [x, y] of points) { minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); }
       this.featureIndex.add([minX, minY], [maxX, maxY], f);
     }
-    segments.forEach((s, i) => this.add(this.graph, i, 0, s.coords.length - 1));
+    const endpoints = new Set(segments.flatMap(s => [s.start_node, s.end_node]));
+    this.positions = segments.map(s => s.node_ids.flatMap((id, i) => endpoints.has(id) ? [i] : []));
+    segments.forEach((s, i) => { for (let j = 1; j < this.positions[i].length; j++) this.add(this.graph, i, this.positions[i][j - 1], this.positions[i][j]); });
     const parent = new Map<string, string>();
     const root = (id: string): string => { const p = parent.get(id); if (!p) return id; const r = root(p); parent.set(id, r); return r; };
-    for (const s of segments) { const a = root(s.start_node), b = root(s.end_node); if (a !== b) parent.set(a, b); }
+    for (let i = 0; i < segments.length; i++) for (const v of this.positions[i]) { const a = root(segments[i].start_node), b = root(segments[i].node_ids[v]); if (a !== b) parent.set(a, b); }
     const totals = new Map<string, number>(); for (const s of segments) { const r = root(s.start_node); totals.set(r, (totals.get(r) ?? 0) + s.length_m); }
     this.componentWeights = segments.map(s => totals.get(root(s.start_node))!);
   }
@@ -78,7 +81,7 @@ export class TrailRouter {
   /** Length distances to graph junctions, with an interior source vertex split. */
   networkDistances(from: Endpoint, allowed?: Set<string>): Map<string, number> {
     const snap = this.snap(from).value, distances = new Map<string, number>(), heap = new MinHeap<string>(), source = this.segments[snap.segment];
-    if (!allowed || allowed.has(source.id)) for (const i of [0, source.coords.length - 1]) {
+    if (!allowed || allowed.has(source.id)) for (const i of this.positions[snap.segment]) {
       const cost = length(source.coords.slice(Math.min(i, snap.vertex), Math.max(i, snap.vertex) + 1));
       if (cost < (distances.get(source.node_ids[i]) ?? Infinity)) { distances.set(source.node_ids[i], cost); heap.push(cost, source.node_ids[i]); }
     }
@@ -99,10 +102,10 @@ export class TrailRouter {
     let graph = this.graph; const cuts = new Map<number, Set<number>>();
     for (const { value: v } of snapped) { const set = cuts.get(v.segment) ?? new Set<number>(); set.add(v.vertex); cuts.set(v.segment, set); }
     for (const [i, indices] of cuts) {
-      const s = this.segments[i], positions = [...new Set([0, ...indices, s.coords.length - 1])].sort((a, b) => a - b);
-      if (positions.length === 2) continue;
+      const s = this.segments[i], positions = [...new Set([...this.positions[i], ...indices])].sort((a, b) => a - b);
+      if (positions.length === this.positions[i].length) continue;
       if (graph === this.graph) graph = new Map(this.graph);
-      for (const id of [s.start_node, s.end_node]) graph.set(id, (graph.get(id) ?? []).filter(e => e.segment !== i));
+      for (const v of this.positions[i]) { const id = s.node_ids[v]; graph.set(id, (graph.get(id) ?? []).filter(e => e.segment !== i)); }
       for (let j = 1; j < positions.length; j++) this.add(graph, i, positions[j - 1], positions[j]);
     }
     const steps: RouteStep[] = [], avoid = new Set(options.avoidKinds ?? []), preferences = (options.preferNames ?? []).map(trailKey);

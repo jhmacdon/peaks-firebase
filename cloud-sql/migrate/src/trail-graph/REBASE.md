@@ -10,15 +10,21 @@ Install the segment-model, activation and
 
 ```sh
 npm run trail-graph:compose
+TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts --retire-pilot
 TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts --prune-pending
 TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts --rebase --elevation
 TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts --elevation
+TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts --elevation --activate
 ```
 
 These commands are dry-runs. A future apply needs a separate `--apply` argument,
 `DATABASE_URL` and an operator connection. Never quote several flags as one shell
 argument. The CLI rejects unknown, joined, repeated or incompatible arguments.
-Prune only prunes; rebase only rebases; the default only loads the catalog.
+Retire-pilot only retires the four approved never-reviewed pending candidates;
+prune only prunes; rebase only rebases; the default only loads the catalog.
+The corrected migrations must run before retire-pilot. All later apply modes
+verify retirement first. See the [loader guide](LOAD-CATALOG.md) for its checks
+and the narrow pending-only guard exception. The hikes remain normal seeds.
 `--elevation` fetches tiles only during apply. No apply or database connection ran
 in this task.
 
@@ -29,6 +35,10 @@ including curated splits. Legacy spans outside the graph retain their geometry
 and record their source route hash and attachment gap. Retaining an interior
 span adds a note; the final route must still pass all acceptance checks. Copying
 more than 80% of a route as retained geometry requires review.
+For dense lines whose mapped walk changes length by more than 7%, the matcher
+may retain selected original spans to reduce that error. It keeps the 7%
+length limit, 50 m deviation limit, and 80% maximum legacy share. It reports
+each retained span; an inability to meet those limits still requires review.
 
 Dense lines require symmetric maximum deviation <=50 m and length within 7% of
 the supplied coordinates. Sparse means median vertex spacing strictly >50 m.
@@ -115,7 +125,10 @@ A merge needs at least 90% shared segment length in both directions, or the same
 trailhead and objective IDs with length within 5%. Old/New variants cannot merge.
 One catalog row and one legacy ID can take part in at most one merge. Non-ok
 rebases or catalog rows produce blocked proposals, never duplicate new routes.
-Four reviewed routes remain frozen.
+Reviewed routes remain frozen. The exact four pilots approved for retirement
+are excluded from the legacy rebase snapshot and reviewed-match filtering.
+Pilot-only frozen pieces are ignored even if the old exporter still lists them;
+any piece shared with another frozen owner stays fixed.
 
 A successful merge uses the legacy ID, status and sessions. It applies the
 composer's segments, kind, shape, places and waypoints. WTA links append without
@@ -137,6 +150,6 @@ parameter, including in `wa_catalog_provenance_elevation`. It repeats the base
 validator fix for clones where the prior activation migration already ran. The
 `dropped_links` extension is typed and checked; source rights rules stay intact.
 
-Plans go to `prune-plan.json`, `rebase-load-plan.json` and `load-plan.json`.
-Future apply results go to `prune-results.json`, `rebase-load-results.json` and
+Plans go to `retire-pilot-plan.json`, `prune-plan.json`, `rebase-load-plan.json` and `load-plan.json`.
+Future apply results go to `retire-pilot-results.json`, `prune-results.json`, `rebase-load-results.json` and
 `load-results.json`. Dry-runs leave prior apply result files intact.

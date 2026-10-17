@@ -71,7 +71,7 @@ export function bindExistingSegments(row: ComposedRoute, source: Map<string, Seg
   const result: SegmentBinding = { refs: [], segments: new Map(source), reused: [], blocked: [] };
   for (const ref of row.segments) {
     const s = source.get(ref.id)!, candidates = overlaps.filter(o => o.new_id === ref.id);
-    const reusable = candidates.filter(o => o.routes.some(r => r.reviewed) || o.id === ref.id && o.routes.length > 0 && o.routes.every(r => currentIds.has(r.id) && r.loader === IMPORT_MARKER))
+    const reusable = candidates.filter(o => s.frozen_catalog && o.id === s.id || o.routes.some(r => r.reviewed) || o.id === ref.id && o.routes.length > 0 && o.routes.every(r => currentIds.has(r.id) && r.loader === IMPORT_MARKER))
       .map(o => ({ o, coords: o.path.coordinates.map(c => c.slice(0, 2) as Coord) }))
       .filter(x => sameXY(s.coords, x.coords) || sameXY(s.coords, [...x.coords].reverse())).sort((a, b) => a.o.id.localeCompare(b.o.id))[0];
     if (reusable) {
@@ -80,6 +80,11 @@ export function bindExistingSegments(row: ComposedRoute, source: Map<string, Seg
         trail_names: o.trail_names, coords, start_node: forward ? s.start_node : s.end_node, end_node: forward ? s.end_node : s.start_node, node_ids: forward ? [...s.node_ids] : [...s.node_ids].reverse(), provenance: o.provenance };
       result.segments.set(o.id, replacement); result.reused.push(o.id);
       result.refs.push({ id: o.id, direction: forward ? ref.direction : ref.direction === 'forward' ? 'reverse' : 'forward' }); continue;
+    }
+    if (s.frozen_catalog) {
+      if (candidates.length) result.blocked.push(`${s.id}: frozen snapshot does not match the live whole segment exactly`);
+      else result.reused.push(s.id); // Offline plan: the transaction still checks the saved asset.
+      result.refs.push(ref); continue;
     }
     for (const o of candidates) if (!o.routes.length || !o.routes.every(r => !r.reviewed && superseded.has(r.id))) {
       result.blocked.push(`${s.id} overlaps ${o.id}: ${o.routes.some(r => r.reviewed) ? 'reviewed geometry cannot replace the whole segment exactly; split/recompose needed' : 'not owned solely by legacy routes this load supersedes'}`);

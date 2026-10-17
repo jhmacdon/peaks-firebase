@@ -120,9 +120,10 @@ export function resolveIdCollisions(segments: Segment[]): { collisions: number; 
 }
 export function graphNodes(segments: Segment[]): GraphNode[] {
   const nodes = new Map<string, GraphNode>();
-  for (const s of segments) for (const i of [0, s.coords.length - 1]) {
+  const endpoints = new Set(segments.flatMap(s => [s.start_node, s.end_node]));
+  for (const s of segments) for (const i of s.node_ids.flatMap((id, i) => endpoints.has(id) ? [i] : [])) {
     const id = s.node_ids[i], previous = nodes.get(id), [lon, lat] = s.coords[i];
     if (previous && (Math.abs(previous.lon - lon) > 1e-9 || Math.abs(previous.lat - lat) > 1e-9)) throw new Error(`Conflicting node geometry: ${id}`);
-    nodes.set(id, { id, lon, lat, degree: (previous?.degree ?? 0) + 1 });
+    nodes.set(id, { id, lon, lat, degree: (previous?.degree ?? 0) + (i > 0 && i < s.coords.length - 1 ? 2 : 1) });
   } return [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
 }

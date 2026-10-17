@@ -18,6 +18,7 @@ export const SEGMENT_CONFLICT = `SELECT
   FROM segments WHERE id=$1`;
 
 export function segmentValues(s: Segment): unknown[] {
+  if (s.frozen_partial || s.frozen_catalog) throw new Error(`Frozen catalog geometry is not insertable: ${s.id}`);
   if (!s.id || !s.coords || s.coords.length < 2 || s.coords.some(c => !Number.isFinite(c[0]) || !Number.isFinite(c[1]) || Math.abs(c[0]) > 180 || Math.abs(c[1]) > 90) || !(s.length_m > 0)) throw new Error(`Invalid segment geometry: ${s.id}`);
   if (!['trail', 'road', 'snowfield', 'glacier', 'scramble', 'climb', 'xc'].includes(s.kind)) throw new Error(`Invalid segment kind: ${s.kind}`);
   const name = s.display_name === undefined ? displayName(s.trail_names[0] || s.relation_names[0] || null) : s.display_name;
@@ -25,9 +26,9 @@ export function segmentValues(s: Segment): unknown[] {
   return [s.id, s.name, s.kind, s.trail_names, JSON.stringify({ type: 'LineString', coordinates: s.coords.map(c => [c[0], c[1], 0]) }), s.length_m, JSON.stringify(s.provenance), name, s.description ?? null, null];
 }
 export async function loadSegments(path: string, apply = false): Promise<void> {
-  const report = { mode: apply ? 'apply' : 'dry-run', validated: 0, upserted: 0, skipped_reviewed: 0, existing_unchanged: 0, xy_conflicts: 0, reviewed_status: apply ? 'checked by SQL and trigger' : 'unknown; no database connection' };
+  const report = { mode: apply ? 'apply' : 'dry-run', validated: 0, upserted: 0, skipped_reviewed: 0, skipped_frozen: 0, existing_unchanged: 0, xy_conflicts: 0, reviewed_status: apply ? 'checked by SQL and trigger' : 'unknown; no database connection' };
   if (!apply) {
-    for await (const s of ndjson<Segment>(path)) { segmentValues(s); report.validated++; }
+    for await (const s of ndjson<Segment>(path)) { if (s.frozen_catalog || s.frozen_partial) { report.skipped_frozen++; continue; } segmentValues(s); report.validated++; }
     console.log(JSON.stringify(report, null, 2)); return;
   }
   if (!process.env.DATABASE_URL) throw new Error('--apply requires DATABASE_URL');
@@ -37,6 +38,7 @@ export async function loadSegments(path: string, apply = false): Promise<void> {
   try {
     await client.query('BEGIN');
     for await (const s of ndjson<Segment>(path)) {
+      if (s.frozen_catalog || s.frozen_partial) { report.skipped_frozen++; continue; }
       const values = segmentValues(s); report.validated++; await client.query('SAVEPOINT segment_load');
       try {
         const result = await client.query(UPSERT_SEGMENT, values);

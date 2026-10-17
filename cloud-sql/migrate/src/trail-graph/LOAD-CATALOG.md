@@ -1,7 +1,8 @@
 # WA catalog loader
 
-For a legacy WA snapshot, run the [rebase and merge workflow](REBASE.md) first.
+For a legacy WA snapshot, follow the [rebase and merge workflow](REBASE.md).
 It keeps legacy identities and session links instead of creating duplicates.
+The apply order is migrations, retire-pilot, prune, rebase, catalog, activate.
 
 The default command makes a local dry-run plan. It opens no database connection:
 
@@ -35,6 +36,13 @@ and report that a split/recompose is needed. Other overlaps are allowed only
 when all owning routes will be superseded by this activation run. The preflight
 never alters reviewed geometry. Missing v2 kind/display metadata on a reused
 reviewed segment stays unchanged.
+
+The composer also adopts the fixed pieces in
+`peaks-snapshot/wa-reviewed-catalog-segments.ndjson`, including frozen pending
+catalog routes except the four approved pilots below. Reuse requires the same whole ID and XY. A transaction checks
+the snapshot's full XYZ and refuses changed or missing assets. It never inserts
+or samples a fixed segment. Route provenance unions the stored segment sources
+after elevation so profiles from earlier imports retain their own source names.
 Before inserting geometry shared with another replacement, a live guard checks
 that its legacy owner is already superseded. A failed or later replacement
 cannot authorize duplicates; the dependent route reports a retry instead.
@@ -100,14 +108,41 @@ links use `source='auto'`, NULL coverage/intervals and `is_primary=false`; an
 existing new-route PK wins. All affected sessions enter the rematch queue before
 the old rows are deleted. `processSession` computes the new facts.
 
+`--retire-pilot` is an exclusive mode. It plans four transactions and needs no
+graph outputs. The owned `retire_wa_catalog_pilot` function permits only the
+four approved identities in batch `wa-cascades-20261013`: Skyline Loop (Paradise),
+Lake Serene Trail, Rattlesnake Ledge via Rattlesnake Ledge Trail, and Lake
+Twentytwo via Lake Twenty Two Trail. Apply requires the candidate table owner's
+operator login. Each job and route must still be pending, with no lease, review
+job, activation receipt, or session/list/plan/trip-report route reference.
+The function keeps the job receipt, sets it rejected with reason
+`superseded_by_wa_graph_catalog` and NULL route_id, retires the route as
+superseded, detaches its links, and deletes only unreferenced segments. A repeat
+recognizes the retained audit receipt. Absent pilots need no change.
+
+The old pending-only trigger blocks even this operator status change. The
+corrected 20261017 migration adds an exception for these exact pending route
+identities, after their job receipt has the retirement audit and only while no
+review/publication/user links exist. The base body comes from PR #235's cover
+migration and retains all eight cover-column exemptions on reviewed rows.
+Retirement itself still changes only status and updated_at.
+Candidate-job, receipt-removal and reviewed-link guards remain unchanged.
+Later apply modes check that all four pilots have retired before any writes.
+Frozen inputs may still list their segments: only pilot-owned pieces are
+ignored; pieces shared with any other frozen owner remain fixed. The four hikes
+then enter the catalog as ordinary seed routes, without a stale reviewed-match
+skip. Retirement handles their old overlaps; ordinary supersede matching does
+not target them.
+
 `--prune-pending` is an exclusive mode: it runs only a prune transaction and
 never loads or merges catalog routes. It removes stale `wa-*` rows with this
 loader's provenance marker. It keeps current composition IDs, all activated
 receipts/assets, reviewed rows, and rows with user/foreign-key references. It
 never deletes active routes or unmarked earlier imports. The latter cannot be
 safely identified from an ID prefix alone. The flag stays dry-run unless apply
-is explicitly requested. `--rebase` is also exclusive. The required order is compose,
-prune, rebase with elevation, then catalog with elevation. A catalog merge requires
+is explicitly requested. `--rebase` is also exclusive. After composing and
+installing migrations, retire the pilots, prune, rebase with elevation, load
+the catalog with elevation, then activate with elevation. A catalog merge requires
 a matching completed-rebase receipt and the expected rebased geometry/links;
 it refuses the original snapshot even if that source still matches. Each option
 must be a separate shell argument. Unknown, joined and incompatible flags fail

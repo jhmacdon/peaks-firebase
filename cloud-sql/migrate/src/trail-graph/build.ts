@@ -7,6 +7,7 @@ import { readFeatures, attachFeatures } from './features';
 import { conflate, readAgencies } from './agency';
 import { length } from './geo';
 import { attachRoadLinks, readRoadAccess } from './road-access';
+import { adoptFrozenSegments, readFrozenSegments } from './frozen-segments';
 import type { Segment } from './types';
 
 export async function build(input: string, out: string): Promise<void> {
@@ -29,7 +30,8 @@ export async function build(input: string, out: string): Promise<void> {
   const access = await readRoadAccess(join(input, 'extract/roads-parking.opl'), conflated.segments);
   const withRoadLinks = attachRoadLinks(conflated.segments, access.links, access.coords, (await stat(join(input, 'extract/roads-parking.opl'))).mtime.toISOString());
   const idStats = resolveIdCollisions(withRoadLinks);
-  const segments = withRoadLinks.sort((a, b) => a.id.localeCompare(b.id));
+  const fixed = adoptFrozenSegments(withRoadLinks, await readFrozenSegments(input));
+  const segments = fixed.segments;
   const ids = new Set<string>();
   for (const s of segments) { if (ids.has(s.id)) throw new Error(`Duplicate stable segment ID: ${s.id}`); ids.add(s.id); }
   console.log(`Features: snapping to ${segments.length} final segments`);
@@ -44,7 +46,7 @@ export async function build(input: string, out: string): Promise<void> {
     segments: segments.length, nodes: nodes.length, geometry_vertices: segments.reduce((n, s) => n + s.coords.length, 0), features: features.length,
     snapped_features: features.filter(f => f.graph_node).length, length_m: segments.reduce((n, s) => n + s.length_m, 0), by_kind: summarize(s => s.kind),
     by_source: summarize(s => s.provenance.source_kind), osm: osmStats, dropped: pruned.dropped, osm_components_kept: pruned.components,
-    agency_inputs: agencies.counts, conflation: conflated.stats, stable_id_collisions: idStats, road_access: access.stats,
+    agency_inputs: agencies.counts, conflation: conflated.stats, stable_id_collisions: idStats, road_access: access.stats, frozen_catalog: fixed.audit,
     top_30_trail_names_by_length: [...names].sort((a, b) => b[1] - a[1]).slice(0, 30).map(([name, length_m]) => ({ name, length_m })),
     elapsed_seconds: (Date.now() - started) / 1000 };
   // Stage all files before replacing outputs; publish stats.json last.

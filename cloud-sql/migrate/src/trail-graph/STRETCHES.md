@@ -7,6 +7,27 @@ when both adjacent runs have the same name. Shared segments use the name chosen
 by the most routes; ties keep the principal name, then sort by name. Each route
 gets one vote per name, even if it repeats a segment.
 
+Legacy tails have no principal or display name. A route name never supplies a
+stretch name. A curated rule may name a tail; otherwise its timeline continues
+the preceding stretch. The loader leaves the segment display name null.
+
+Build and compose read `peaks-snapshot/wa-reviewed-catalog-segments.ndjson` when
+present. These fixed whole segments replace covered graph spans. The remaining
+graph snaps to their exact endpoints within one metre. Fixed segments retain
+their IDs, directed XY, full XYZ snapshot and source credit. They cannot split
+at a route endpoint or a curated point. A partial traversal needs geometry
+review. `frozen-segment-audit.json` records the replaced graph IDs and lengths.
+The loader reuses these assets, checks their full XYZ, and never writes them.
+The router keeps internal junctions for review. Partial pieces carry
+`frozen_partial`, retain the correct preview geometry, and cannot load even
+when review rows are included. Whole-piece routes still use the fixed IDs.
+The four approved pending pilots retire before loading. Pieces owned only by
+those pilots no longer freeze graph cuts, even if the snapshot still lists
+them. A piece shared with another frozen route remains fixed. The audit records
+the number of ignored pilot pieces. A graph cache that already adopted those
+pieces must rebuild from raw inputs to recover the original cuts and per-edge
+source rights; composition reports this case instead of inventing that lineage.
+
 The composer reads `seed/curated-stretches.json` from `--input`. Its `routes`
 array can cover any mountain. Each rule has `route`, optional
 `also_applies_to`, `approximate`, `note`, `stretches`, `points`, and `deferred`.

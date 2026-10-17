@@ -8,6 +8,7 @@ import { routeLine } from './stretches';
 import { legacyHash, leased, rebasePlanHash, type MergePlan, type RebasePlan } from './rebase';
 import type { ComposedRoute } from './catalog-types';
 import type { Segment } from './types';
+import { assertPilotsRetired } from './load-pilot';
 
 const REVIEWED = "('approved','publish_leased','published','verify_leased','verified','rejected')";
 const links = (r: ComposedRoute) => r.segments.map((s, ordinal) => ({ id: s.id, direction: s.direction, ordinal }));
@@ -105,10 +106,11 @@ export function replacementPlan(row: ComposedRoute, source: Map<string, Segment>
       'summit_gaps',(SELECT jsonb_agg(jsonb_build_object('id',d.id,'name',d.name,'gap_m',ST_Distance(r.path,d.location))) FROM route_destinations rd JOIN destinations d ON d.id=rd.destination_id WHERE rd.route_id=r.id AND 'summit'::destination_feature=ANY(d.features))) AS diagnostics FROM routes r WHERE id=$1`, [id]);
   if (!merge) add('rebase_receipt', `INSERT INTO wa_catalog_rebase_receipts(route_id,source_hash,binding_hash) VALUES($1,$2,$3)
     ON CONFLICT(route_id) DO UPDATE SET source_hash=EXCLUDED.source_hash,binding_hash=EXCLUDED.binding_hash,completed_at=clock_timestamp()`,[id,rebase.source_hash,digest(rebase.row.segments)]);
-  add('delete_unused_legacy_segments', `DELETE FROM segments s WHERE id=ANY($1::text[]) AND NOT(id=ANY($2::text[]))
+  add('delete_unused_legacy_segments', `DELETE FROM segments s WHERE id=ANY($1::text[]) AND NOT(id=ANY($2::text[])) AND NOT(id=ANY($3::text[]))
     AND NOT EXISTS(SELECT 1 FROM route_segments rs WHERE rs.segment_id=s.id)
     AND NOT EXISTS(SELECT 1 FROM wa_catalog_activation_receipts receipt WHERE s.id=ANY(receipt.segment_ids))
-    AND NOT wa_catalog_has_references('public.segments'::regclass,s.id) RETURNING id`, [[...new Set([...(rebase.legacy.segments ?? []).map(s => s.id), ...(merge ? rebase.row.segments.map(s => s.id) : [])])], p.segment_ids]);
+    AND NOT wa_catalog_has_references('public.segments'::regclass,s.id) RETURNING id`, [[...new Set([...(rebase.legacy.segments ?? []).map(s => s.id), ...(merge ? rebase.row.segments.map(s => s.id) : [])])], p.segment_ids,
+      [...source.values()].filter(s => s.frozen_catalog).map(s => s.id)]);
   add('commit', 'COMMIT'); return p;
 }
 import { displayName } from './display-names';
@@ -122,6 +124,7 @@ export async function rebaseLoad(dir: string, plans: RebasePlan[], segments: Map
   if (!elevation && plans.some(p => p.status === 'ok' && p.legacy.status === 'active')) throw new Error('Active route rebase requires --elevation');
   const { Client } = await import('pg'), client = new Client({ connectionString: process.env.DATABASE_URL }); await client.connect();
   try {
+    await assertPilotsRetired(client);
     const schema = (await client.query(SCHEMA_PREFLIGHT)).rows[0]; if (!schema?.rebuild_ready || !schema.activation_ready || schema.lease_bound_worker) throw new Error('Rebase needs the segment and WA provenance migrations and an operator connection');
     if (!(await client.query(SOURCE_SCHEMA_PREFLIGHT)).rows[0]?.ready) throw new Error('Install 20261017_wa_catalog_source_bundles.sql before rebase');
     await client.query("SELECT pg_advisory_lock(hashtextextended('wa_trail_catalog_loader',0))");
