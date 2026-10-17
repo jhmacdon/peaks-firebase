@@ -27,7 +27,14 @@ export function buildRouteDetailQuery(
             r.created_at, r.updated_at,
             ${routeCoverSelectSql()},
             COALESCE(area_rows.areas, '[]'::json) AS areas,
-            COALESCE(section_rows.sections, '[]'::json) AS sections
+            COALESCE(section_rows.sections, '[]'::json) AS sections,
+            COALESCE((SELECT json_agg(json_build_object(
+              'id', seg.id, 'ordinal', rs.ordinal, 'direction', rs.direction,
+              'display_name', seg.display_name, 'trail_names', seg.trail_names,
+              'kind', seg.kind, 'distance', seg.distance, 'gain', seg.gain
+            ) ORDER BY rs.ordinal, rs.segment_id)
+              FROM route_segments rs JOIN segments seg ON seg.id = rs.segment_id
+              WHERE rs.route_id = r.id), '[]'::json) AS segments
      FROM routes r
      ${routeCoverJoinSql()}
      LEFT JOIN LATERAL (
@@ -199,6 +206,7 @@ export function buildNearbyRoutesQuery(
 
 export function mapRouteDetailRow(row: any, destinations: any[] = []): any {
   row.areas = Array.isArray(row.areas) ? row.areas : [];
+  row.segments = Array.isArray(row.segments) ? row.segments : [];
   row.sections = Array.isArray(row.sections) ? row.sections : [];
   row.external_links = normalizeExternalLinks(row.external_links);
   // Embedded in ordinal order, straight from the query — route detail costs

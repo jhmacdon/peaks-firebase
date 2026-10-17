@@ -477,6 +477,12 @@ CREATE TABLE destination_areas (
 -- Distance, gain, gain_loss are one-way values in the forward direction.
 -- ---------------------------------------------------------------------------
 CREATE TABLE segments (
+    kind TEXT NOT NULL DEFAULT 'trail'
+      CONSTRAINT segments_kind_check CHECK (kind IN ('trail','road','snowfield','glacier','scramble','climb','xc')),
+    display_name TEXT,
+    description TEXT,
+    description_source_url TEXT,
+    state_code TEXT,
     id              TEXT PRIMARY KEY,
     name            TEXT,
     path            geography(LineStringZ, 4326),  -- one-way geometry with elevation per vertex
@@ -654,6 +660,72 @@ CREATE TABLE route_segments (
     direction       TEXT NOT NULL DEFAULT 'forward' CHECK (direction IN ('forward', 'reverse')),
     PRIMARY KEY (route_id, segment_id, ordinal)
 );
+
+-- Conservative metre-sized query box without buffering thousands of GPS
+-- vertices. Polar/dateline tracks retain PostGIS's geography buffer handling.
+CREATE OR REPLACE FUNCTION session_match_bbox(track geography, radius_m DOUBLE PRECISION DEFAULT 600)
+RETURNS geometry LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE AS $$
+DECLARE box geometry; west FLOAT8; east FLOAT8; south FLOAT8; north FLOAT8;
+  dy FLOAT8; dx FLOAT8;
+BEGIN
+  box:=ST_Envelope(track::geometry);
+  west:=ST_XMin(box); east:=ST_XMax(box); south:=ST_YMin(box); north:=ST_YMax(box);
+  -- 100 km per degree is below Earth's minimum meridional scale.
+  dy:=radius_m/100000.0;
+  IF GREATEST(abs(south),abs(north))+dy>=89.9 OR east-west>180 THEN
+    RETURN ST_Envelope(ST_Buffer(track,radius_m)::geometry);
+  END IF;
+  dx:=dy/cos(radians(GREATEST(abs(south),abs(north))+dy));
+  IF west-dx < -180 OR east+dx > 180 THEN RETURN ST_Envelope(ST_Buffer(track,radius_m)::geometry); END IF;
+  RETURN ST_MakeEnvelope(west-dx,south-dy,east+dx,north+dy,4326);
+END;
+$$;
+ALTER FUNCTION session_match_bbox(geography,DOUBLE PRECISION) OWNER TO postgres;
+
+-- Invoker rights and ordinary UPDATE preserve all catalog/worker guards.
+CREATE OR REPLACE FUNCTION rebuild_route_path(route_id TEXT)
+RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+  assembled geometry;
+  missing_segment TEXT;
+  elevation_gain DOUBLE PRECISION;
+  elevation_loss DOUBLE PRECISION;
+BEGIN
+  PERFORM 1 FROM routes WHERE id = route_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Unknown route: %', route_id; END IF;
+  PERFORM 1 FROM route_segments rs WHERE rs.route_id = rebuild_route_path.route_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Route % has no segments', route_id; END IF;
+  SELECT s.id INTO missing_segment
+    FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
+    WHERE rs.route_id = rebuild_route_path.route_id AND (s.path IS NULL OR ST_IsEmpty(s.path::geometry)) LIMIT 1;
+  IF FOUND THEN RAISE EXCEPTION 'Segment % has no path', missing_segment; END IF;
+
+  WITH ordered AS (
+    SELECT rs.ordinal, rs.segment_id,
+      CASE WHEN rs.direction = 'reverse' THEN ST_Reverse(s.path::geometry)
+           ELSE s.path::geometry END AS geom
+    FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
+    WHERE rs.route_id = rebuild_route_path.route_id
+  ), vertices AS (
+    SELECT ordinal, segment_id, (dp).path[1] AS idx, (dp).geom AS pt
+    FROM ordered CROSS JOIN LATERAL ST_DumpPoints(geom) dp
+  ), joints AS (
+    SELECT *, lag(pt) OVER (ORDER BY ordinal, segment_id, idx) AS previous_pt FROM vertices
+  )
+  SELECT ST_MakeLine(pt ORDER BY ordinal, segment_id, idx)
+    FILTER (WHERE idx > 1 OR previous_pt IS NULL OR NOT ST_DWithin(previous_pt::geography, pt::geography, 0.1))
+    INTO assembled FROM joints;
+  SELECT stats.gain,stats.loss INTO elevation_gain,elevation_loss
+    FROM route_elevation_stats(assembled::geography) stats;
+  UPDATE routes SET path = assembled::geography,
+    polyline6 = ST_AsEncodedPolyline(ST_Force2D(assembled), 6),
+    distance = ST_Length(assembled::geography),
+    elevation_string = encode_route_elevation_profile(assembled::geography),
+    gain = elevation_gain, gain_loss = elevation_loss
+  WHERE id = route_id;
+END;
+$$;
+ALTER FUNCTION rebuild_route_path(TEXT) OWNER TO postgres;
 
 -- ---------------------------------------------------------------------------
 -- route_sections
@@ -1488,6 +1560,8 @@ CREATE TABLE session_areas (
 -- Which routes were followed during a session.
 -- ---------------------------------------------------------------------------
 CREATE TABLE session_routes (
+    is_primary BOOLEAN NOT NULL DEFAULT false,
+    covered_m DOUBLE PRECISION,
     session_id      TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
     route_id        TEXT NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
     source          TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'auto')),
@@ -1499,6 +1573,26 @@ CREATE TABLE session_routes (
     covered_intervals JSONB,
     PRIMARY KEY (session_id, route_id)
 );
+
+CREATE UNIQUE INDEX idx_session_routes_one_primary
+  ON session_routes (session_id) WHERE is_primary;
+
+CREATE TABLE session_segments (
+  session_id TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
+  segment_id TEXT NOT NULL REFERENCES segments(id) ON DELETE CASCADE,
+  covered_fraction DOUBLE PRECISION,
+  covered_m DOUBLE PRECISION,
+  entered_at TIMESTAMPTZ,
+  exited_at TIMESTAMPTZ,
+  direction TEXT CHECK (direction IN ('forward','reverse')),
+  -- 0-based; a new pass starts after 10 min outside the 30 m corridor or a
+  -- reversal of more than 100 m along the segment (api/src/segment-passes.ts).
+  pass_index INTEGER NOT NULL DEFAULT 0 CHECK (pass_index >= 0),
+  PRIMARY KEY (session_id, segment_id, pass_index)
+);
+ALTER TABLE session_segments OWNER TO postgres;
+CREATE INDEX idx_session_segments_segment ON session_segments (segment_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON session_segments TO "peaks-api";
 
 -- ---------------------------------------------------------------------------
 -- trip_reports
@@ -1922,6 +2016,10 @@ FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
 
 CREATE TRIGGER trg_session_areas_touch_session
 AFTER INSERT OR UPDATE OR DELETE ON session_areas
+FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
+
+CREATE TRIGGER trg_session_segments_touch_session
+AFTER INSERT OR UPDATE OR DELETE ON session_segments
 FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
 
 CREATE TRIGGER trg_session_routes_touch_session
@@ -2403,3 +2501,6 @@ LEFT JOIN successful_runs ON successful_runs.source = known.source;
 --    SELECT * FROM destinations
 --    WHERE features @> '{summit}'
 --      AND activities @> '{outdoor-trek}';
+
+-- Segment and route-link rematch functions/triggers are installed by
+-- migrations/20261015_segment_model_v2.sql after the rematch queue exists.

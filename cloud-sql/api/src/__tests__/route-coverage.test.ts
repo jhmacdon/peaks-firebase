@@ -10,6 +10,9 @@ import {
   gapToleranceMeters,
   meetsRouteWriteGate,
   mergeCoveredIntervals,
+  mergeRouteIntervals,
+  normalizeCoveredIntervals,
+  dropContainedRouteMatches,
   routeDoneCoverageSql,
   selectRouteMatches,
 } from "../route-coverage";
@@ -24,7 +27,7 @@ function everyMetres(spacingM: number, throughM: number): number[] {
 test("the spec's constants are what the module uses", () => {
   assert.equal(ROUTE_VERTEX_TOLERANCE_M, 30);
   assert.equal(ROUTE_DONE_COVERAGE, 0.7);
-  assert.equal(ROUTE_PARTIAL_MIN_COVERED_M, 500);
+  assert.equal(ROUTE_PARTIAL_MIN_COVERED_M, 2000);
   assert.equal(GAP_TOLERANCE_MIN_M, 100);
   assert.equal(GAP_TOLERANCE_MAX_M, 1_000);
 });
@@ -100,54 +103,56 @@ test("covered length is the interval spans scaled by route length", () => {
   assert.equal(coveredLengthMeters([], 10_000), 0);
 });
 
-test("the write gate takes 500 m of covered route OR 70% coverage", () => {
-  // Drive past a trailhead: 200 m covered of a long route.
-  assert.equal(meetsRouteWriteGate(0.02, 200), false);
-  // Approach hike: 2.7 mi of an 18 mi trail.
-  assert.equal(meetsRouteWriteGate(0.15, 4_345), true);
-  // Exactly at the floor.
-  assert.equal(meetsRouteWriteGate(0.01, 500), true);
-  // A completed 400 m route: under the metre floor, over the coverage floor.
-  assert.equal(meetsRouteWriteGate(1, 400), true);
-  assert.equal(meetsRouteWriteGate(0.7, 100), true);
-  assert.equal(meetsRouteWriteGate(0.69, 100), false);
+test("write gate uses both partial floors and the long-route exception", () => {
+  assert.equal(meetsRouteWriteGate(0.7, 100, 143), true);
+  assert.equal(meetsRouteWriteGate(0.69, 100, 145), false);
+  assert.equal(meetsRouteWriteGate(0.25, 2000, 8000), true);
+  assert.equal(meetsRouteWriteGate(0.249, 2490, 10000), false);
+  assert.equal(meetsRouteWriteGate(0.5, 1999, 3998), false);
+  assert.equal(meetsRouteWriteGate(0.1, 10000, 100000), false);
+  assert.equal(meetsRouteWriteGate(0.04999, 4999, 100001), false);
+  assert.equal(meetsRouteWriteGate(0.001, 5000, 5000000), true);
+  assert.equal(meetsRouteWriteGate(0.0002, 1000, 5000000), false);
+  assert.equal(meetsRouteWriteGate(NaN, 5000, 10000), false);
 });
 
-test("selectRouteMatches applies the gate and shapes the write", () => {
-  const matches = selectRouteMatches([
-    {
-      // 10 km route, vertex every 100 m, the first 1.5 km covered.
-      route_id: "long-trail",
-      length_m: 10_000,
-      total_points: 101,
-      matched_points: 16,
-      covered_along_m: everyMetres(100, 1_500),
-    },
-    {
-      // The same route, 200 m at the trailhead: a drive-by, not a hike.
-      route_id: "drive-by",
-      length_m: 10_000,
-      total_points: 101,
-      matched_points: 3,
-      covered_along_m: everyMetres(100, 200),
-    },
-  ]);
-  assert.equal(matches.length, 1);
-  assert.equal(matches[0].route_id, "long-trail");
-  assert.equal(matches[0].coverage, 16 / 101);
-  assert.deepEqual(matches[0].covered_intervals, [[0, 0.15]]);
-});
-
-test("selectRouteMatches skips rows a route can never honestly answer for", () => {
-  const matches = selectRouteMatches([
-    { route_id: "no-length", length_m: 0, total_points: 10, matched_points: 10, covered_along_m: [0] },
-    { route_id: "no-points", length_m: 1_000, total_points: 0, matched_points: 0, covered_along_m: null },
-    { route_id: "null-length", length_m: null, total_points: 10, matched_points: 10, covered_along_m: [0] },
-  ]);
-  assert.deepEqual(matches, []);
+test("selection uses measured lengths rather than vertex counts", () => {
+  assert.deepEqual(selectRouteMatches([
+    { route_id: "partial", length_m: 10000, covered_m: 3000, covered_intervals: [[0, 0.3]] },
+    { route_id: "clip", length_m: 10000, covered_m: 1500, covered_intervals: [[0, 0.15]] },
+    { route_id: "invalid", length_m: null, covered_m: 1000, covered_intervals: [] },
+  ]), [{ route_id: "partial", coverage: 0.3, covered_m: 3000,
+    covered_intervals: [[0, 0.3]], is_primary: true }]);
 });
 
 test("the did-this-route predicate keeps NULL coverage rows", () => {
   assert.equal(routeDoneCoverageSql("sr"), "(sr.coverage IS NULL OR sr.coverage >= 0.7)");
   assert.equal(routeDoneCoverageSql("x"), "(x.coverage IS NULL OR x.coverage >= 0.7)");
+});
+
+test("normalizes covered interval fractions to six decimals within [0, 1]", () => {
+  assert.deepEqual(normalizeCoveredIntervals([
+    [-0.000001, 0.999999999975], [0.12345678, 1.0001],
+    [0.00000001, 0.00000002], [NaN, 1], [0.9, 0.8],
+  ]), [[0, 1], [0.123457, 1]]);
+});
+
+test("containment drops only secondary ids and keeps independent routes", () => {
+  const matches = selectRouteMatches([
+    { route_id: "primary", length_m: 10000, covered_m: 10000, covered_intervals: [[0, 1]] },
+    { route_id: "contained", length_m: 8000, covered_m: 8000, covered_intervals: [[0, 1]] },
+    { route_id: "independent", length_m: 5000, covered_m: 4000, covered_intervals: [[0, 0.8]] },
+  ]);
+  assert.deepEqual(dropContainedRouteMatches(matches, ["primary", "contained"]).map((m) => m.route_id),
+    ["primary", "independent"]);
+});
+
+test("every writer merges small gaps without increasing measured covered metres", () => {
+  assert.deepEqual(mergeRouteIntervals([[0,0.1],[0.115,0.2],[0.4,0.5]],10000), [[0,0.2],[0.4,0.5]]);
+  const row = { route_id: "r", length_m: 10000, covered_m: 7400,
+    covered_intervals: [[0,0.3],[0.315,0.7],[0.72,0.8]] as Array<[number,number]> };
+  const match = selectRouteMatches([row])[0];
+  assert.deepEqual(match.covered_intervals, [[0,0.8]]);
+  assert.equal(match.covered_m,7400);
+  assert.deepEqual(mergeRouteIntervals([[0,0.00002],[0.002,0.00202]],5000000), [[0,0.00002],[0.002,0.00202]]);
 });
