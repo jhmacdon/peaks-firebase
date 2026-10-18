@@ -376,67 +376,45 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   const geo = hasGeo(input);
   const values: unknown[] = [q, `${q}%`, short ? tokenPrefixTsQuery(q) : `%${q}%`, input.limit, input.uid ?? ""];
   if (geo) values.push(input.lat, input.lng);
-  const indexedNameMatch = (name: string) => short ? `${name} LIKE $2` : `(${name} % $1 OR ${name} LIKE $2)`;
-  // Expression indexes find a name anywhere in each array. Two-character
-  // queries use token prefixes so later array entries need no substring scan.
-  const indexedArrayMatch = (names: string) => short
-    ? `to_tsvector('simple', ${names}) @@ to_tsquery('simple', $3::text)`
-    : `(${names} % $1 OR ${names} %> $1 OR ${names} LIKE $3)`;
-  const individualTermMatch = short
-    ? "to_tsvector('simple', terms.term) @@ to_tsquery('simple', $3::text)"
-    : "(terms.term % $1 OR terms.term %> $1 OR terms.term LIKE $3)";
-  const distance = geo ? "ST_Distance(r.path, ST_MakePoint($7, $6)::geography)" : "NULL::double precision";
+  // route_search_terms holds one row per (active route, searchable term):
+  // name, aliases, linked place names, and segment trail names. One pass over
+  // the matching rows scores each route by its best matching term; routes rows
+  // load only for the shortlist. Two-character queries use token prefixes so
+  // later words still match.
+  const termMatch = short
+    ? "to_tsvector('simple', t.term) @@ to_tsquery('simple', $3::text)"
+    : "(t.term % $1 OR t.term %> $1 OR t.term LIKE $3)";
+  // Signed-out callers never match or score a private place's name.
+  const publicTerm = input.publicOnly ? "AND t.public" : "";
+  const shortlistSize = Math.min(500, Math.max(100, input.limit * 10));
+  // Proximity measures to the route's start point, kept on each term row, so
+  // ranking never reads a route's full path (about 13 ms per long path on the
+  // db-f1-micro). distance_m is therefore the distance to the start.
+  const distance = geo ? "ST_Distance(s.anchor, ST_MakePoint($7, $6)::geography)" : "NULL::double precision";
   const proximity = geo ? `COALESCE(EXP(-1.0 * ${distance} / 500000.0) * 0.05, 0)` : "0";
 
   return {
-    text: `WITH indexed_destination_candidates AS MATERIALIZED (
-         SELECT candidate_d.id
-         FROM destinations candidate_d
-         WHERE ${indexedNameMatch("candidate_d.search_name")}
-           AND ${publicCatalogSql("candidate_d", input.publicOnly)}
+    text: `WITH scored_routes AS MATERIALIZED (
+         SELECT t.route_id AS id,
+                max(${searchTextScoreSql("t.term", "$1", "$2")}) AS text_score,
+                bool_or(t.term = $1) AS exact_match,
+                min(t.owner) AS owner,
+                max(t.popularity) AS popularity,
+                (array_agg(t.anchor))[1] AS anchor
+         FROM route_search_terms t
+         WHERE ${termMatch}
+           ${publicTerm}
+         GROUP BY t.route_id
        ),
-       candidate_route_ids AS MATERIALIZED (
-         SELECT candidate_r.id
-         FROM routes candidate_r
-         WHERE candidate_r.status = 'active'
-           AND ${indexedNameMatch("candidate_r.search_name")}
-         UNION
-         SELECT candidate_r.id
-         FROM routes candidate_r
-         WHERE candidate_r.status = 'active'
-           AND ${indexedArrayMatch("peaks_search_names(candidate_r.aliases)")}
-         UNION
-         SELECT linked_r.id
-         FROM indexed_destination_candidates candidate_d
-         JOIN routes linked_r
-           ON linked_r.objective_destination_id = candidate_d.id
-          AND linked_r.status = 'active'
-         UNION
-         SELECT linked_r.id
-         FROM indexed_destination_candidates candidate_d
-         JOIN route_destinations candidate_rd
-           ON candidate_rd.destination_id = candidate_d.id
-         JOIN routes linked_r
-           ON linked_r.id = candidate_rd.route_id
-          AND linked_r.status = 'active'
-         UNION
-         SELECT linked_r.id
-         FROM segments candidate_s
-         JOIN route_segments candidate_rs ON candidate_rs.segment_id = candidate_s.id
-         JOIN routes linked_r ON linked_r.id = candidate_rs.route_id AND linked_r.status = 'active'
-         WHERE ${indexedArrayMatch("peaks_search_names(candidate_s.trail_names)")}
+       -- Proximity (at most 0.05) joins the score after this cut, so a broad
+       -- query such as "trail" measures 200 distances, not thousands.
+       shortlist AS MATERIALIZED (
+         SELECT s.id, s.text_score, s.exact_match, s.anchor
+         FROM scored_routes s
+         WHERE ${buildRouteAccessSql("s", "$5")}
+         ORDER BY s.text_score + ${searchPopularityScoreSql("s.popularity")} DESC, s.id
+         LIMIT ${shortlistSize}
        ),
-       ${short ? `visible_candidate_route_ids AS MATERIALIZED (
-         SELECT candidate_r.id
-         FROM candidate_route_ids candidate
-         JOIN routes candidate_r ON candidate_r.id = candidate.id
-         WHERE ${buildRouteAccessSql("candidate_r", "$5")}
-         ORDER BY (candidate_r.search_name = $1) DESC NULLS LAST,
-                  (candidate_r.search_name LIKE $2) DESC NULLS LAST,
-                  similarity(candidate_r.search_name, $1) DESC NULLS LAST,
-                  candidate_r.popularity DESC NULLS LAST, candidate_r.id
-         LIMIT ${Math.min(500, Math.max(100, input.limit * 10))}
-       ),` : ""}
        ranked_routes AS MATERIALIZED (
          SELECT r.id, r.name, r.polyline6, r.owner,
                 r.distance, r.gain, r.gain_loss, r.elevation_string,
@@ -445,38 +423,14 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
                 r.kind, r.slug, r.aliases, r.objective_destination_id, r.trailhead_destination_id,
                 r.difficulty, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
                 (r.search_name = $1) AS name_exact_match,
-                matched_terms.exact_match AS term_exact_match,
+                s.exact_match AS term_exact_match,
                 ${distance} AS distance_m,
-                (COALESCE(matched_terms.text_score, 0)
+                (s.text_score
                   + ${searchPopularityScoreSql("r.popularity")}
                   + ${proximity}) AS score
-         FROM ${short ? "visible_candidate_route_ids" : "candidate_route_ids"} candidate
-         JOIN routes r ON r.id = candidate.id
-         LEFT JOIN LATERAL (
-           SELECT max(${searchTextScoreSql("terms.term", "$1", "$2")}) AS text_score,
-                  bool_or(${individualTermMatch}) AS matches,
-                  bool_or(terms.term = $1) AS exact_match
-           FROM (
-             SELECT r.search_name AS term
-             UNION ALL
-             SELECT peaks_search_name(alias) FROM unnest(r.aliases) alias
-             UNION ALL
-             SELECT d.search_name FROM destinations d WHERE d.id = r.objective_destination_id
-               AND ${publicCatalogSql("d", input.publicOnly)}
-             UNION ALL
-             SELECT d.search_name
-             FROM route_destinations rd JOIN destinations d ON d.id = rd.destination_id
-             WHERE rd.route_id = r.id
-               AND ${publicCatalogSql("d", input.publicOnly)}
-             UNION ALL
-             SELECT peaks_search_name(trail_name)
-             FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
-             CROSS JOIN LATERAL unnest(s.trail_names) trail_name
-             WHERE rs.route_id = r.id
-           ) terms
-         ) matched_terms ON true
+         FROM shortlist s
+         JOIN routes r ON r.id = s.id
          WHERE r.status = 'active'
-           AND matched_terms.matches
            AND ${buildRouteAccessSql("r", "$5")}
          ORDER BY score DESC, r.name, r.id
          LIMIT $4

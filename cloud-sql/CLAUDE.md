@@ -1230,9 +1230,24 @@ and `data`: a small summary of its bucket row (`name`, `type`, `kind`,
 `features`, `state_code`, `country_code`, `elevation` when present). It keeps a
 destination's geographic `type` without repeating the row; the full row,
 geometry included, stays in its bucket. Clients join a result to its row by
-`type` and `id`. Route-query errors fail the request. The route candidate
-queries use names, aliases, objective names, linked destination names, and
-segment trail names. All types use the same text-score weights: 0.45 trigram
+`type` and `id`. Route-query errors fail the request.
+
+Route search reads `route_search_terms`
+(`migrations/20261019_route_search_terms.sql`), never `routes` or `segments`
+names at query time. It holds one narrow row per active route and term: the
+route's name, aliases, objective and linked destination names, and segment
+trail names. `public` is false only for a destination name whose destination
+is not Peaks-owned; signed-out search skips those rows. Triggers on `routes`,
+`route_destinations`, `route_segments`, `segments.trail_names`, and
+`destinations.search_name`/`owner` keep it current, so bulk writers need
+nothing extra. The query scores each route by its best matching term, keeps
+the best 200 accessible routes by text and popularity, then loads `routes`
+rows, rechecks status and access there, and adds proximity. Proximity and a
+route's `distance_m` measure to the path's start point (`anchor`), never the
+whole path. The table has no foreign key to `routes` (a statement trigger
+deletes rows), so renaming a segment or place never locks routes. Matching against fat route rows took 0.7 s
+warm and up to 60 s cold on the db-f1-micro (2026-10-18); the narrow table
+takes milliseconds. All types use the same text-score weights: 0.45 trigram
 similarity, 0.20 word similarity, 0.15 when the query starts any word of the
 name, 0.10 exact; bounded popularity adds up to 0.10 and proximity up to 0.05.
 Word similarity keeps "Mount Pilchuck" above a campsite named "Pilchuck"; whole

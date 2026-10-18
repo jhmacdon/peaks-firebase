@@ -45,6 +45,11 @@ ROUTE_API_TEST_DB_PASSWORD="${ROUTE_API_TEST_DB_PASSWORD:-peaks_api_test}"
 
 psql_admin() { psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -q "$@"; }
 
+# Apply migrations in byte order. Under en_US.UTF-8 (the macOS default) the
+# glob ignores punctuation and runs 20261014_expand_name_abbreviations_validate.sql
+# before 20261014_expand_name_abbreviations.sql, which fails.
+LC_COLLATE=C
+
 # ---------------------------------------------------------------------------
 # Safety gate. This script drops the whole `public` schema, so it must never be
 # able to point at production. The database is asked for its own name rather
