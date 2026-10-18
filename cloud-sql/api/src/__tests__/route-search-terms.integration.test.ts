@@ -92,14 +92,83 @@ test("route_search_terms follows route, segment, and destination changes", {
 });
 
 // Autovacuum and other writer roles run with their own search_path.
-test("refresh_route_search_terms works with an empty search_path", {
+test("route search triggers work for a writer with an empty search_path", {
   skip: dbSkipReason ?? undefined,
 }, async () => {
   const client = await db.connect();
+  const routeId = `route-terms-path-${randomUUID()}`;
   try {
     await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO routes (id, name, owner, status, aliases, path)
+       VALUES ($1, 'Empty Path Ridge', 'peaks', 'active', ARRAY['Mt Path Trl'],
+         ST_GeomFromText('LINESTRING Z(-121 47 900, -121.1 47.1 1000)', 4326)::geography)`, [routeId]);
     await client.query("SET LOCAL search_path = ''");
-    await client.query("SELECT public.refresh_route_search_terms(ARRAY[]::text[])");
+    // Only the triggers may call refresh_route_search_terms.
+    await client.query("UPDATE public.routes SET popularity = 9 WHERE id = $1", [routeId]);
+    const rows = (await client.query(
+      `SELECT term, public.ST_AsText(anchor) AS anchor, popularity FROM public.route_search_terms
+       WHERE route_id = $1 ORDER BY term`, [routeId])).rows;
+    assert.deepEqual(rows, [
+      { term: "empty path ridge", anchor: "POINT(-121 47)", popularity: 9 },
+      { term: "mount path trail", anchor: "POINT(-121 47)", popularity: 9 },
+    ]);
+  } finally {
+    await client.query("ROLLBACK");
+    client.release();
+  }
+});
+
+test("renames and deletes upstream of a route reach its search terms", {
+  skip: dbSkipReason ?? undefined,
+}, async () => {
+  const client = await db.connect();
+  const prefix = `route-terms-edits-${randomUUID()}`;
+  const id = (key: string) => `${prefix}-${key}`;
+  const termNames = async () => (await client.query(
+    "SELECT term FROM route_search_terms WHERE route_id = $1 ORDER BY term", [id("route")])).rows.map((row) => row.term);
+  await client.query("BEGIN");
+  try {
+    await client.query(
+      `INSERT INTO routes (id, name, owner, status) VALUES ($1, 'Copper Ridge', 'peaks', 'active')`, [id("route")]);
+    // A BEFORE trigger rewrites search_name; the statement sets only name.
+    await client.query("UPDATE routes SET name = 'Copper Ridge Loop' WHERE id = $1", [id("route")]);
+    assert.deepEqual(await termNames(), ["copper ridge loop"]);
+
+    await client.query(
+      `INSERT INTO destinations (id, name, search_name, features, state_code, country_code)
+       VALUES ($1, 'Egg Lake', 'egg lake', ARRAY['lake'::destination_feature], 'WA', 'US')`, [id("lake")]);
+    await client.query("INSERT INTO route_destinations (route_id, destination_id, ordinal) VALUES ($1, $2, 0)", [id("route"), id("lake")]);
+    await client.query("INSERT INTO segments (id, trail_names) VALUES ($1, ARRAY['Chilliwack Trl'])", [id("segment")]);
+    await client.query("INSERT INTO route_segments (route_id, segment_id, ordinal) VALUES ($1, $2, 0)", [id("route"), id("segment")]);
+    assert.deepEqual(await termNames(), ["chilliwack trail", "copper ridge loop", "egg lake"]);
+
+    await client.query("DELETE FROM destinations WHERE id = $1", [id("lake")]);
+    await client.query("DELETE FROM segments WHERE id = $1", [id("segment")]);
+    assert.deepEqual(await termNames(), ["copper ridge loop"]);
+  } finally {
+    await client.query("ROLLBACK");
+    client.release();
+  }
+});
+
+test("a term named by both the route and a private place is public once", {
+  skip: dbSkipReason ?? undefined,
+}, async () => {
+  const client = await db.connect();
+  const prefix = `route-terms-dupe-${randomUUID()}`;
+  const id = (key: string) => `${prefix}-${key}`;
+  await client.query("BEGIN");
+  try {
+    await client.query(
+      `INSERT INTO destinations (id, name, search_name, features, owner, state_code, country_code)
+       VALUES ($1, 'Twin Tarns', 'twin tarns', ARRAY['lake'::destination_feature], 'someone', 'WA', 'US')`, [id("tarn")]);
+    await client.query(
+      `INSERT INTO routes (id, name, owner, status, objective_destination_id)
+       VALUES ($1, 'Twin Tarns', 'peaks', 'active', $2)`, [id("route"), id("tarn")]);
+    const rows = (await client.query(
+      "SELECT term, public FROM route_search_terms WHERE route_id = $1", [id("route")])).rows;
+    assert.deepEqual(rows, [{ term: "twin tarns", public: true }]);
   } finally {
     await client.query("ROLLBACK");
     client.release();
