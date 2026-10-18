@@ -66,9 +66,12 @@
     "roads:import": "tsx src/roads/import-road-network.ts",
     "roads:derive": "tsx src/roads/derive-trailhead-approaches.ts",
     "backfill:fire-lookouts": "tsx src/backfill-fire-lookouts.ts",
-    "trail-graph:build": "TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/build.ts",
+    "trail-graph:build": "TSX_DISABLE_CACHE=1 node --max-old-space-size=6144 --import tsx src/trail-graph/build.ts",
     "trail-graph:route": "TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/route.ts",
-    "trail-graph:compose": "TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/compose.ts"
+    "trail-graph:compose": "TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/compose.ts",
+    "trail-graph:discover": "TSX_DISABLE_CACHE=1 node --max-old-space-size=6144 --import tsx src/trail-graph/compose-discover.ts",
+    "trail-graph:test-discovery": "mkdir -p ../../.cache/test-tmp && TMPDIR=../../.cache/test-tmp TSX_DISABLE_CACHE=1 node --test --import tsx src/__tests__/trail-discovery*.test.ts src/__tests__/trail-graph-state.test.ts src/__tests__/trail-loader-state.test.ts",
+    "trail-graph:typecheck": "tsc -p tsconfig.trail-graph.json"
   },
   "dependencies": {
     "@duckdb/node-api": "^1.5.5-r.4",

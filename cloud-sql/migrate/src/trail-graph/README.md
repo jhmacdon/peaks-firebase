@@ -1,4 +1,8 @@
-# Washington trail graph
+# State trail graph
+
+Use [state discovery](DISCOVERY.md) to build WA, OR, ID, or CA and compose routes
+without a seed list. `trail-graph:build -- --state XX` now writes
+`.cache/<lowercase-state>/graph`; the default state is WA.
 
 The next step is the [catalog composer and loader](COMPOSER.md). The original
 [run report](RUN-REPORT.md) records the first task, before the relation-polygon
@@ -20,10 +24,11 @@ TSX_DISABLE_CACHE=1 node --test --import tsx src/__tests__/trail-graph.test.ts
 ```
 
 `--input DIR` changes the build input root. It must contain `extract/trails.opl`,
-`extract/features.geojsonseq`, `extract/roads-parking.opl`, and `raw/agency/{usfs,nps,wa_state_parks}_trails.geojson`.
+`extract/features.geojsonseq`, `extract/roads-parking.opl`, and `raw/agency/{usfs,nps}_trails.geojson`.
+`raw/agency/wa_state_parks_trails.geojson` is optional.
 The default is `/Users/josiahm/projects/peaks/private/wa-trail-data`.
 
-Every command accepts `--out DIR`; the default is the worktree's `.cache/graph`.
+Every graph command accepts `--out DIR`; the WA default is the worktree's `.cache/wa/graph`.
 The build writes `segments.ndjson`, `nodes.ndjson`, `features.ndjson`, and
 `access.ndjson` and `stats.json` there. The route checks write `route-checks.json` there. Build files
 are staged before replacement, with `stats.json` replaced last. Do not read the
@@ -32,7 +37,7 @@ output directory while a build runs.
 The trail OPL reader streams relations, kept ways, short connector candidates,
 then needed node coordinates. The road/parking reader makes two passes. It never loads the OPL text into memory. Agency JSON is small
 enough to read one source at a time. The metre tests use haversine lengths and
-local equirectangular point-to-line distances. A fixed Washington grid supplies
+local equirectangular point-to-line distances. A latitude-aware degree grid supplies
 candidates; it does not decide whether a distance meets a threshold.
 
 ## Graph and sources
@@ -53,7 +58,7 @@ segment. Relations retain IDs, names, refs, and networks. `nodes.ndjson` lists
 segment endpoints, including degree-2 nodes where trail details change. Internal
 source vertices stay on their segment, so they need not become tiny stored edges.
 
-The usual ID is `wa-osm-` plus 20 hex characters from SHA-256 of the canonical
+The usual ID is the lowercase state code and `-osm-` plus 20 hex characters from SHA-256 of the canonical
 start node, end node, and sorted way IDs. Parallel arcs of a closed source way can
 share that tuple. For those collisions only, append ten hex characters from the
 node/coordinate chain's hash. `stable_id_collisions` reports them. This exception
@@ -126,7 +131,7 @@ source vertex to choose its return side.
 The default dry-run reads and validates geometry, prints counts, and opens no DB
 connection. It cannot count reviewed rows without a database. `--apply` requires
 `DATABASE_URL` and the companion `20261015_segment_model_v2.sql` migration. It
-inserts by ID, sets `state_code='WA'`, and writes new geography LineStringZ with
+inserts by ID, uses each segment's state code (WA when absent), and writes new geography LineStringZ with
 Z=0. On conflict it preserves path and elevation, and reports differing XY. Extra source and topology fields remain in the NDJSON.
 
 Existing rows receive no updates. The conflict report identifies review-protected

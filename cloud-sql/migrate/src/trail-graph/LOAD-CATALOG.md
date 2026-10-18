@@ -1,5 +1,11 @@
 # WA catalog loader
 
+The [state discovery composer](DISCOVERY.md) writes the same route and segment
+schema for WA, OR, ID, and CA. Discovery rows must have status `ok`, even with
+`--include-review`. This catalog loader applies and activates WA only, and
+rejects other states before it opens a connection. To load Oregon, California
+or Idaho, use the [bulk loader](LOAD-BULK.md).
+
 For a legacy WA snapshot, follow the [rebase and merge workflow](REBASE.md).
 It keeps legacy identities and session links instead of creating duplicates.
 The apply order is migrations, retire-pilot, prune, rebase, catalog, activate,
