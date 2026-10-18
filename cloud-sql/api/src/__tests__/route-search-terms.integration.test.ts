@@ -105,3 +105,44 @@ test("refresh_route_search_terms works with an empty search_path", {
     client.release();
   }
 });
+
+// A segment rename and a new destination link can refresh one route from two
+// transactions at once. The second must not fail on rows the first inserted.
+test("concurrent refreshes of one route do not fail the second writer", {
+  skip: dbSkipReason ?? undefined,
+}, async () => {
+  const prefix = `route-terms-race-${randomUUID()}`;
+  const id = (key: string) => `${prefix}-${key}`;
+  await db.query(
+    `INSERT INTO routes (id, name, owner, status) VALUES ($1, 'Race Ridge', 'peaks', 'active')`, [id("route")]);
+  await db.query("INSERT INTO segments (id, trail_names) VALUES ($1, ARRAY['Race Trl'])", [id("segment")]);
+  await db.query("INSERT INTO route_segments (route_id, segment_id, ordinal) VALUES ($1, $2, 0)", [id("route"), id("segment")]);
+  await db.query(
+    `INSERT INTO destinations (id, name, search_name, features, state_code, country_code)
+     VALUES ($1, 'Race Lake', 'race lake', ARRAY['lake'::destination_feature], 'WA', 'US')`, [id("lake")]);
+  const first = await db.connect();
+  const second = await db.connect();
+  try {
+    await first.query("BEGIN");
+    await first.query("UPDATE segments SET trail_names = ARRAY['Race Ridge Trl'] WHERE id = $1", [id("segment")]);
+    await second.query("BEGIN");
+    const secondWrite = second.query(
+      "INSERT INTO route_destinations (route_id, destination_id, ordinal) VALUES ($1, $2, 1)", [id("route"), id("lake")]);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await first.query("COMMIT");
+    await secondWrite;
+    await second.query("COMMIT");
+    // The pool holds two connections; both are checked out here.
+    const terms = (await first.query(
+      "SELECT term FROM route_search_terms WHERE route_id = $1 ORDER BY term", [id("route")])).rows.map((row) => row.term);
+    assert.deepEqual(terms, ["race lake", "race ridge", "race ridge trail"]);
+  } finally {
+    await first.query("ROLLBACK").catch(() => undefined);
+    await second.query("ROLLBACK").catch(() => undefined);
+    first.release();
+    second.release();
+    await db.query("DELETE FROM routes WHERE id = $1", [id("route")]);
+    await db.query("DELETE FROM segments WHERE id = $1", [id("segment")]);
+    await db.query("DELETE FROM destinations WHERE id = $1", [id("lake")]);
+  }
+});

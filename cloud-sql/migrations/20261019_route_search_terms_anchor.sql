@@ -39,7 +39,11 @@ BEGIN
   ) terms
   WHERE r.id = ANY(route_ids)
     AND r.status = 'active'
-    AND terms.term IS NOT NULL AND terms.term <> '';
+    AND terms.term IS NOT NULL AND terms.term <> ''
+  -- Two writers refreshing one route at once: the second's DELETE cannot see
+  -- rows the first just inserted, so a plain INSERT would fail its write.
+  ON CONFLICT (route_id, term, public) DO UPDATE
+    SET owner = EXCLUDED.owner, popularity = EXCLUDED.popularity, anchor = EXCLUDED.anchor;
 END;
 $$;
 ALTER FUNCTION refresh_route_search_terms(TEXT[]) OWNER TO postgres;
