@@ -8,12 +8,13 @@ export function buildRouteAccessSql(
 ): string {
   return `(
     ${routeAlias}.owner = 'peaks'
-    OR ${routeAlias}.owner = ${uidParameter}
+    OR (${uidParameter} <> '' AND ${routeAlias}.owner = ${uidParameter})
     OR EXISTS (
       SELECT 1
       FROM plan_routes access_pr
       JOIN plans access_p ON access_p.id = access_pr.plan_id
       WHERE access_pr.route_id = ${routeAlias}.id
+        AND ${uidParameter} <> ''
         AND (
           ${routeAlias}.owner = 'peaks'
           OR ${routeAlias}.owner = access_p.user_id

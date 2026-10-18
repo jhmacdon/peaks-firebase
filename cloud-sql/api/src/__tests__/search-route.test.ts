@@ -81,7 +81,7 @@ test("destination search keeps its filter on the indexed search_name", () => {
   });
 
   assertSelectsDestinationDisplayLocation(query.text);
-  assert.match(query.text, /WHERE search_name % \$1\s+OR search_name LIKE \$2/);
+  assert.match(query.text, /WHERE \(search_name % \$1\s+OR search_name LIKE \$2\)/);
   assert.doesNotMatch(query.text, /OR lower\(name\) (?:I?LIKE|%)/);
   assert.match(query.text, /destination_areas da/);
   assert.match(query.text, /JOIN areas a ON a\.id = da\.area_id/);
@@ -100,7 +100,7 @@ test("geo destination search keeps its filter on the indexed search_name", () =>
   });
 
   assertSelectsDestinationDisplayLocation(query.text);
-  assert.match(query.text, /WHERE search_name % \$1\s+OR search_name LIKE \$4/);
+  assert.match(query.text, /WHERE \(search_name % \$1\s+OR search_name LIKE \$4\)/);
   assert.doesNotMatch(query.text, /OR lower\(name\) (?:I?LIKE|%)/);
   assert.match(query.text, /LIMIT \$5/);
   assert.deepEqual(query.values, ["south sis", 44.103, -121.769, "south sis%", 20]);
@@ -281,13 +281,13 @@ test("route search finds aliases, explicit objectives, and shared trail names be
   assert.match(query.text, /peaks_search_names\(candidate_s\.trail_names\)/);
   assert.match(query.text, /CROSS JOIN LATERAL unnest\(s\.trail_names\)/);
   assert.match(query.text, /AND matched_terms\.matches/);
-  assert.match(query.text, /r\.owner = 'peaks'\s+OR r\.owner = \$5/);
+  assert.match(query.text, /r\.owner = 'peaks'\s+OR \(\$5 <> '' AND r\.owner = \$5\)/);
   assert.deepEqual(query.values, ["ingalls way", "ingalls way%", "%ingalls way%", 20, ""]);
 });
 
 test("list search excludes another user's private lists", () => {
   const query = buildListSearchQuery({ normalizedQuery: "cascades", rawQuery: "Cascades", limit: 20, uid: "viewer" });
-  assert.match(query.text, /l\.owner = 'peaks' OR l\.owner = \$4/);
+  assert.match(query.text, /l\.owner = 'peaks' OR \(\$4 <> '' AND l\.owner = \$4\)/);
   assert.deepEqual(query.values, ["cascades", "cascades%", 20, "viewer"]);
 });
 
@@ -353,7 +353,8 @@ test("mixed search route returns typed result buckets", async (t) => {
       if (text === "SELECT pg_backend_pid() AS pid") {
         return { rows: [{ pid: 246 }] };
       }
-      if (/JOIN routes r/.test(text)) {
+      // Area counts also join routes, so match the route query's own CTE.
+      if (/FROM ranked_routes r/.test(text)) {
         return { rows: [{ id: "disappointment-cleaver", name: "Disappointment Cleaver", areas: [], score: 0.5 }] };
       }
       if (/FROM destinations/.test(text)) {
@@ -400,7 +401,7 @@ test("mixed search exposes route failures as 500 instead of an empty route bucke
       if (text === "SELECT pg_backend_pid() AS pid") {
         return { rows: [{ pid: 246 }] };
       }
-      if (/JOIN routes r/.test(text)) {
+      if (/FROM ranked_routes r/.test(text)) {
         throw Object.assign(new Error("argument of OR must be type boolean, not type text"), { code: "42804" });
       }
       if (/FROM destinations/.test(text)) {
