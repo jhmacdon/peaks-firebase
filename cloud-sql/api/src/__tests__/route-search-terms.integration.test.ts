@@ -61,6 +61,20 @@ test("route_search_terms follows route, segment, and destination changes", {
     await client.query("UPDATE routes SET popularity = 42 WHERE id = $1", [id("route")]);
     assert.ok((await terms()).every((row) => row.popularity === 42));
 
+    // Proximity measures to the path's start, kept on every term row.
+    const anchors = async () => (await client.query(
+      `SELECT DISTINCT ST_AsText(anchor) AS anchor FROM route_search_terms WHERE route_id = $1`, [id("route")]))
+      .rows.map((row) => row.anchor);
+    assert.deepEqual(await anchors(), [null]);
+    await client.query(
+      `UPDATE routes SET path = ST_GeomFromText('LINESTRING Z(-120.7 48.5 1500, -120.8 48.6 2000)', 4326)::geography
+       WHERE id = $1`, [id("route")]);
+    assert.deepEqual(await anchors(), ["POINT(-120.7 48.5)"]);
+    await client.query(
+      `UPDATE routes SET path = ST_GeomFromText('LINESTRING Z(-120.6 48.4 1400, -120.8 48.6 2000)', 4326)::geography
+       WHERE id = $1`, [id("route")]);
+    assert.deepEqual(await anchors(), ["POINT(-120.6 48.4)"]);
+
     await client.query("UPDATE routes SET status = 'pending' WHERE id = $1", [id("route")]);
     assert.deepEqual(await terms(), []);
     await client.query("UPDATE routes SET status = 'active' WHERE id = $1", [id("route")]);

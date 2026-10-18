@@ -239,6 +239,8 @@ test("route search scores narrow term rows before loading route rows", () => {
   assert.doesNotMatch(sql, /peaks_search_names?\(/, "no per-row name normalization at query time");
   assert.doesNotMatch(sql, /candidate_route_ids|matched_terms|route_segments/);
   assert.doesNotMatch(sql, /t\.public/, "signed-in search reads every term");
+  assert.match(sql, /ST_Distance\(s\.anchor, ST_MakePoint\(\$7, \$6\)::geography\)/);
+  assert.doesNotMatch(sql, /r\.path/, "proximity never reads the route path");
 });
 
 test("signed-out route search skips private destination names", () => {

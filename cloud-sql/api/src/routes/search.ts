@@ -386,7 +386,10 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   // Signed-out callers never match or score a private place's name.
   const publicTerm = input.publicOnly ? "AND t.public" : "";
   const shortlistSize = Math.min(500, Math.max(100, input.limit * 10));
-  const distance = geo ? "ST_Distance(r.path, ST_MakePoint($7, $6)::geography)" : "NULL::double precision";
+  // Proximity measures to the route's start point, kept on each term row, so
+  // ranking never reads a route's full path (about 13 ms per long path on the
+  // db-f1-micro). distance_m is therefore the distance to the start.
+  const distance = geo ? "ST_Distance(s.anchor, ST_MakePoint($7, $6)::geography)" : "NULL::double precision";
   const proximity = geo ? `COALESCE(EXP(-1.0 * ${distance} / 500000.0) * 0.05, 0)` : "0";
 
   return {
@@ -401,7 +404,8 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
                 max(${searchTextScoreSql("t.term", "$1", "$2")}) AS text_score,
                 bool_or(t.term = $1) AS exact_match,
                 min(t.owner) AS owner,
-                max(t.popularity) AS popularity
+                max(t.popularity) AS popularity,
+                (array_agg(t.anchor))[1] AS anchor
          FROM matched_route_ids m
          JOIN route_search_terms t ON t.route_id = m.route_id
          WHERE true
@@ -409,10 +413,10 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
          GROUP BY t.route_id
        ),
        shortlist AS MATERIALIZED (
-         SELECT s.id, s.text_score, s.exact_match
+         SELECT s.id, s.text_score, s.exact_match, s.anchor
          FROM scored_routes s
          WHERE ${buildRouteAccessSql("s", "$5")}
-         ORDER BY s.text_score + ${searchPopularityScoreSql("s.popularity")} DESC, s.id
+         ORDER BY s.text_score + ${searchPopularityScoreSql("s.popularity")} + ${proximity} DESC, s.id
          LIMIT ${shortlistSize}
        ),
        ranked_routes AS MATERIALIZED (
