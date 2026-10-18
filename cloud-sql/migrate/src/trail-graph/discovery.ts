@@ -1,6 +1,7 @@
 import { Grid, haversine, interpolate, nearest, pointDistance, type Vertex } from './geo';
 import { nearestFeatureVertex, vertexIndex } from './features';
-import { displayName } from './display-names';
+import { cleanDiscoveryName, viaTrailName } from './discovery-names';
+import { eligibleDiscoverySegment, isUtilityObjective } from './discovery-eligibility';
 import { trailKey } from './names';
 import { MinHeap, type RouteStep } from './router';
 import type { AccessPoint } from './catalog-types';
@@ -28,7 +29,8 @@ export interface HardGoalResult {
   [key: string]: unknown;
 }
 export type HardGoalSolver = (request: HardGoalRequest) => HardGoalResult;
-export interface DiscoveryOptions { hardGoalSolver?: HardGoalSolver; hardGoalAfterStates?: number; maxObjectiveStates?: number }
+export interface ResolvedDiscoveryContact { coord: Coord; summit: boolean }
+export interface DiscoveryOptions { hardGoalSolver?: HardGoalSolver; hardGoalAfterStates?: number; maxObjectiveStates?: number; excludedSegmentIds?: ReadonlySet<string>; resolvedContacts?: ReadonlyMap<string, ResolvedDiscoveryContact> }
 interface Attachment { node: string; coord: Coord; vertex: Vertex }
 interface Start extends Attachment { place: NamedFeature | AccessPoint }
 interface Edge { id: number; segment: number; from: string; to: string; a: number; b: number; length: number }
@@ -50,20 +52,9 @@ const coord = (place: NamedFeature | AccessPoint): Coord => 'coord' in place ? p
 const placeId = (place: NamedFeature | AccessPoint): string => place.osm_id;
 const reversed = (walk: RouteStep[]): RouteStep[] => [...walk].reverse().map(s => ({ ...s, direction: s.direction === 'forward' ? 'reverse' : 'forward', start_vertex: s.end_vertex, end_vertex: s.start_vertex }));
 
-function roadName(name: string): boolean {
-  return /\bforest\s+(?:(?:development|develop|dev\.?|service)\s+)?(?:road|rd)(?=\b|\d)/i.test(name)
-    || /\b(?:road|rd\.?|street|st\.?|avenue|ave\.?|highway|hwy\.?|drive|dr\.?|boulevard|blvd\.?|lane|ln\.?|place|pl\.?)\s*(?:#?\s*\d+[a-z]?(?:\s*[-./]\s*\d+[a-z]?|\s+\d+[a-z]?)*)?(?:\s+(?:north(?:east|west)?|south(?:east|west)?|east|west|n|s|e|w|ne|nw|se|sw))?$/i.test(name)
-    || /\b(?:nfdr|ndfr|nfr|fsr|fdr|fr)\s*[-#]?\s*\d+[a-z]?\b/i.test(name)
-    || /^(?:(?:nfd|nf|fs|usfs)\s*[-#]?\s*|forest\s+service\s+)\d+[a-z]?(?:[.-]\d+[a-z]?)*(?:\s*\((?:abandoned|closed|decommissioned)\))?$/i.test(name)
-    || /^(?:north|south|east|west|northeast|northwest|southeast|southwest|n|s|e|w|ne|nw|se|sw)\s*\d+(?:st|nd|rd|th)?\s*(?:north|south|east|west|n|s|e|w|way)$/i.test(name)
-    || /\b(?:road|rd\.?)\s+(?:nfdr|ndfr|nfr|nfd|nf|fsr|fs|fdr|fr|usfs)\s*[-#]?\s*\d+[a-z]?(?:[.-]\d+[a-z]?)*\b/i.test(name);
-}
 /** Use the same expanded display names as the graph. Road names cannot become hike titles. */
 export function discoveryName(value: string | null | undefined): string | null {
-  const name = displayName(value ?? null);
-  if (!name || roadName(name) || name.includes('/') && name.split('/').some(part => roadName(part.trim()))) return null;
-  if (/^#?\s*\d+(?:\s*[-./]\s*\d+|\s+\d+)*$/.test(name) || /^\d+\s*(?:north|south|east|west|n|s|e|w|ne|nw|se|sw)$/i.test(name)) return null;
-  return name;
+  return cleanDiscoveryName(value, { kind: 'trail' }).name;
 }
 function trailNames(s: Segment): string[] {
   if (s.kind === 'road') return [];
@@ -84,7 +75,7 @@ function featureRadius(f: NamedFeature): number {
   return f.feature === 'trailhead' ? 150 : f.feature === 'summit' ? 75 : 30;
 }
 function eligibleObjective(f: NamedFeature): boolean {
-  if (!OBJECTIVES.has(f.feature) || !f.name?.trim()) return false;
+  if (!OBJECTIVES.has(f.feature) || isUtilityObjective(f) || !cleanDiscoveryName(f.name, { kind: 'objective' }).name) return false;
   if (f.feature !== 'lake') return true;
   // The legacy graph classifier also labels artificial and flowing water as
   // lakes. Keep sparse lake tags, but exclude these explicit other types.
@@ -112,7 +103,7 @@ class DiscoveryGraph {
   readonly namesById: Map<string, string[]>;
   readonly isNamed: boolean[];
   private readonly accessIndex = new Grid<AccessPoint>(200);
-  constructor(readonly segments: Segment[], features: NamedFeature[], access: AccessPoint[], private readonly hardGoalSolver?: HardGoalSolver, private readonly hardGoalAfterStates = 5000, private readonly maxObjectiveStates = 25000) {
+  constructor(readonly segments: Segment[], features: NamedFeature[], access: AccessPoint[], private readonly hardGoalSolver?: HardGoalSolver, private readonly hardGoalAfterStates = 5000, private readonly maxObjectiveStates = 25000, private readonly resolvedContacts?: ReadonlyMap<string, ResolvedDiscoveryContact>) {
     this.byId = new Map(segments.map(s => [s.id, s]));
     this.namesBySegment = segments.map(trailNames);
     this.keysBySegment = this.namesBySegment.map(names => names.map(trailKey));
@@ -136,7 +127,11 @@ class DiscoveryGraph {
       }
       return null;
     };
-    const attach = (f: NamedFeature): Attachment | null => knownAttachment(f) ?? attachment(nearestFeatureVertex(f, vertices, featureRadius(f)));
+    const attach = (f: NamedFeature): Attachment | null => {
+      const resolved = this.resolvedContacts?.get(f.osm_id);
+      if (resolved) return attachment(nearest(vertices, resolved.coord, resolved.summit ? 75 : f.feature === 'trailhead' ? 125 : featureRadius(f)));
+      return knownAttachment(f) ?? attachment(nearestFeatureVertex(f, vertices, featureRadius(f)));
+    };
     const areaAttachments = (f: NamedFeature): Attachment[] => {
       const found = new Map<string, Attachment>(), known = knownAttachment(f), radius = 30;
       if (known && (f.graph_distance_m ?? Infinity) <= radius) found.set(known.node, known);
@@ -158,7 +153,7 @@ class DiscoveryGraph {
     };
     for (const f of features) {
       if (f.feature !== 'trailhead' && !eligibleObjective(f)) continue;
-      const attached = f.boundary && f.feature !== 'trailhead' ? areaAttachments(f) : [attach(f)].filter((at): at is Attachment => !!at);
+      const attached = f.boundary && f.feature !== 'trailhead' && !this.resolvedContacts?.get(f.osm_id)?.summit ? areaAttachments(f) : [attach(f)].filter((at): at is Attachment => !!at);
       if (!attached.length) continue;
       const at = attached[0]; this.featureAt.set(f, at);
       if (f.feature === 'trailhead') {
@@ -168,7 +163,8 @@ class DiscoveryGraph {
       } else for (const contact of attached) { cuts.add(contact.node); const list = this.objectives.get(contact.node) ?? []; list.push(f); this.objectives.set(contact.node, list); const nodes = this.objectiveNodes.get(f) ?? new Set<string>(); nodes.add(contact.node); this.objectiveNodes.set(f, nodes); }
     }
     for (const a of access) {
-      const at = attachment(nearest(vertices, a.coord, 150)); if (!at) continue;
+      const target = this.resolvedContacts?.get(a.osm_id);
+      const at = attachment(nearest(vertices, target?.coord ?? a.coord, target ? 125 : 150)); if (!at) continue;
       cuts.add(at.node); this.accessAt.set(a, at);
       const start = { ...at, place: a }; this.addStart(this.contacts, start);
       if (a.parking && a.name?.trim()) this.starts.push(start);
@@ -217,8 +213,9 @@ class DiscoveryGraph {
     return edge.length * (1 + (this.isNamed[edge.segment] ? 0 : .6) + (this.segments[edge.segment].kind === 'road' ? 1.5 : 0));
   }
   private connectorLength(objective: NamedFeature, node: string): number | null {
-    if (objective.feature !== 'summit') return 0;
-    const gap = haversine(this.positions.get(node)!, [objective.lon, objective.lat]);
+    const target = this.resolvedContacts?.get(objective.osm_id);
+    if (!target?.summit && objective.feature !== 'summit') return 0;
+    const gap = haversine(this.positions.get(node)!, target?.summit ? target.coord : [objective.lon, objective.lat]);
     return gap <= 5 + 1e-6 ? 0 : gap <= 75 + 1e-6 ? gap : null;
   }
   private goalValid(label: Label, connector: number): boolean {
@@ -567,7 +564,9 @@ export function* discover(input: { segments: Segment[]; features: NamedFeature[]
   if (!Number.isInteger(hardGoalAfterStates) || hardGoalAfterStates < 0) throw new Error('hardGoalAfterStates must be a nonnegative integer');
   const maxObjectiveStates = options.maxObjectiveStates ?? 25000;
   if (!Number.isInteger(maxObjectiveStates) || maxObjectiveStates < 1) throw new Error('maxObjectiveStates must be a positive integer');
-  const graph = new DiscoveryGraph(input.segments, input.features, input.access, options.hardGoalSolver, hardGoalAfterStates, maxObjectiveStates), covered = new Set<number>();
+  const segments = input.segments.filter(segment => !options.excludedSegmentIds?.has(segment.id) && eligibleDiscoverySegment(segment));
+  const graph = new DiscoveryGraph(segments, input.features, input.access, options.hardGoalSolver, hardGoalAfterStates, maxObjectiveStates, options.resolvedContacts), covered = new Set<number>();
+  if (segments.length !== input.segments.length) progress(`Excluded ${input.segments.length - segments.length} motorized or highway-path segments`);
   progress(`Discovery graph: ${graph.edges.length} edges, ${graph.starts.length} trailheads, ${graph.featureAt.size} attached features`);
   const markCovered = (walk: RouteStep[]) => {
     const ranges = new Map<string, [number, number][]>();
@@ -575,7 +574,7 @@ export function* discover(input: { segments: Segment[]; features: NamedFeature[]
     for (const [id, intervals] of ranges) for (const e of graph.edgesBySegment.get(id) ?? []) if (intervals.some(([a, b]) => a <= e.a && b >= e.b)) covered.add(e.id);
   };
   const relations = new Map<number, { relation: Relation; edges: Edge[] }>();
-  for (const e of graph.edges) for (const r of input.segments[e.segment].relations) {
+  for (const e of graph.edges) for (const r of segments[e.segment].relations) {
     if (!r.name?.trim() || (routeType(r) && !['hiking', 'foot'].includes(routeType(r)!)) || !discoveryName(r.name)) continue;
     const entry = relations.get(r.id) ?? { relation: r, edges: [] }; entry.edges.push(e); relations.set(r.id, entry);
   }
@@ -595,7 +594,11 @@ export function* discover(input: { segments: Segment[]; features: NamedFeature[]
       const farthest = [...search.best.values()].sort((a, b) => b.distance - a.distance || a.node.localeCompare(b.node))[0];
       walk = graph.walk(farthest); end = farthest.node;
     } else { walk = chain(graph, selected, start.node); const last = walk[walk.length - 1]; end = last ? graph.byId.get(last.segment_id)!.node_ids[last.end_vertex] : start.node; }
-    const objective = loop ? undefined : bestObjective(graph, end), endContact = graph.contacts.get(end)?.[0];
+    const objective = loop ? undefined : bestObjective(graph, end);
+    // A natural feature can share its OSM node with an access record. It is
+    // still the hike's destination, not a second trailhead for a traverse.
+    const endContact = graph.contacts.get(end)?.find(contact => contact.place.osm_id !== start.place.osm_id
+      && contact.place.osm_id !== objective?.osm_id && ('feature' in contact.place ? contact.place.feature === 'trailhead' : contact.place.parking));
     const shape = loop ? 'loop' : endContact && end !== start.node ? 'point_to_point' : 'out_and_back';
     if (!reasons.length) markCovered(walk);
     yield { source: 'relation', identity: `relation/${relation.id}`, name, shape, walk, trailhead: start.place, trailheadCoord: start.coord, ...(objective ? { objective } : {}), ...(shape === 'point_to_point' ? { endTrailhead: endContact!.place } : {}), preferredNames: [name], relation, junctionNameCount: graph.junctionNameCount(start.node), ...(reasons.length ? { reasons } : {}) };
@@ -610,8 +613,9 @@ export function* discover(input: { segments: Segment[]; features: NamedFeature[]
     if (th % 10 === 0 || elapsed > 5) progress(`Objective search ${th + 1} complete in ${elapsed.toFixed(2)}s: ${search.scalarNodes} scalar nodes, ${search.scalarSettled} scalar settled, ${search.unresolved} fallback goals, ${search.expanded} fallback states, ${search.resourceInfeasible} resource-infeasible, ${search.namedInfeasible} named-infeasible, ${search.maskGoals} mask goals, ${search.ancestorGoals} ancestor goals, ${search.offTargetNodes} off-target nodes, ${search.costExcludedEdges} cost-excluded edges, ${search.badExcludedEdges} bad-excluded edges, ${search.physicalExcludedNodes} physical-excluded nodes, ${search.physicalExcludedEdges} physical-excluded edges, ${search.couplingPasses} coupling passes, ${search.capacityPruned} named-capacity prunes, ${search.priorityPruned} resource-cost prunes, ${search.budgetExhausted} exhausted budgets, ${search.review.size} budget reviews; RSS ${(process.memoryUsage().rss / 1048576).toFixed(0)} MiB`);
     for (const [objective, label] of [...search.goals].sort(([a], [b]) => a.osm_id.localeCompare(b.osm_id))) {
       const walk = graph.walk(label), preferredNames = preferences(walk, graph.namesById), reasons = search.review.get(objective); if (!reasons?.length) markCovered(walk);
-      const name = displayName(objective.name)!; if (!name) continue;
-      yield { source: 'objective', identity: `${placeId(start.place)}/${objective.osm_id}`, name: preferredNames[0] ? `${name} via ${preferredNames[0]}` : name, shape: 'out_and_back', walk, trailhead: start.place, trailheadCoord: start.coord, objective, preferredNames, junctionNameCount, ...(reasons?.length ? { reasons } : {}) };
+      const name = cleanDiscoveryName(objective.name, { kind: 'objective' }).name; if (!name) continue;
+      const via = viaTrailName(preferredNames[0]);
+      yield { source: 'objective', identity: `${placeId(start.place)}/${objective.osm_id}`, name: via ? `${name} via ${via}` : name, shape: 'out_and_back', walk, trailhead: start.place, trailheadCoord: start.coord, objective, preferredNames, junctionNameCount, ...(reasons?.length ? { reasons } : {}) };
       objectives++;
     }
     if (++th % 100 === 0) progress(`Objective approaches: ${th}/${graph.starts.length} trailheads, ${objectives} candidates`);
@@ -630,7 +634,7 @@ export function* discover(input: { segments: Segment[]; features: NamedFeature[]
       const search = graph.search([node], Infinity, e => ids.has(e.id), false);
       const destination = ends.filter(n => n !== node).map(n => search.best.get(n)).filter((l): l is Label => !!l).sort((a, b) => b.distance - a.distance || a.node.localeCompare(b.node))[0];
       if (!destination || destination.distance < 2000) continue;
-      const walk = graph.walk(destination), used = selected.filter(e => walk.some(s => s.segment_id === input.segments[e.segment].id && Math.min(s.start_vertex, s.end_vertex) <= e.a && Math.max(s.start_vertex, s.end_vertex) >= e.b));
+      const walk = graph.walk(destination), used = selected.filter(e => walk.some(s => s.segment_id === segments[e.segment].id && Math.min(s.start_vertex, s.end_vertex) <= e.a && Math.max(s.start_vertex, s.end_vertex) >= e.b));
       if (used.reduce((n, e) => n + (covered.has(e.id) ? e.length : 0), 0) >= destination.distance * 0.8) continue;
       const reasons = [...map.values()].some(arcs => arcs.length > 2) ? ['named trail branches; its longest approach needs review'] : [];
       yield { source: 'named_trail', identity: `${key}/${placeId(start.place)}/${destination.node}`, name: group.name, shape: 'out_and_back', walk, trailhead: start.place, trailheadCoord: start.coord, preferredNames: [group.name], junctionNameCount: graph.junctionNameCount(start.node), ...(inferred ? { trailheadEvidence: inferred } : {}), ...(reasons.length ? { reasons } : {}) };

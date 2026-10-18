@@ -12,7 +12,7 @@ export function displayName(value: string | null): string | null {
   if (/^(?:PCT|PCNST)\s*:/i.test(name)) return 'Pacific Crest Trail';
   name = name.replace(/\b(?:PCNST|PCT)\b/gi, 'Pacific Crest Trail').replace(/\bSand Pt\.?\b/gi, 'Sand Point');
   name = expandSeparatedNames(name);
-  name = name.replace(/\b[A-Z][A-Z'’-]+\b/g, word => word[0] + word.slice(1).toLowerCase());
+  name = name.replace(/\b[A-Z][A-Z'’-]+\b/g, word => word.split('-').map(part => part ? part[0] + part.slice(1).toLowerCase() : part).join('-'));
   return expandSeparatedNames(name).replace(/\s+/g, ' ').trim();
 }
 export function assertDisplayName(name: string | null): void {

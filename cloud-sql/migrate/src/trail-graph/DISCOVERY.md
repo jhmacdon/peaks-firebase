@@ -30,6 +30,13 @@ Each input root contains:
 selection to the buffered state bounds in `state.ts`. It keeps whole intersecting
 lines so it does not invent source nodes at rectangle edges. These bounds do not
 replace a state boundary polygon. Frozen WA catalog segments remain WA-only.
+Discovery also requires local Peaks destination snapshots: WA reads
+`peaks-snapshot/wa-destinations.ndjson` under its input root; western states read
+`../peaks-snapshot/{or,id,ca}-destinations.ndjson` beside their input roots. It
+resolves source places to these existing destinations before final geometry.
+Summit connectors target the resolved Peaks point and keep the existing 75 m
+limit and 5 m contact gate. Missing snapshots fail the run.
+
 The spatial index uses degree cells and latitude-aware query bounds; metre checks
 still use haversine and local point-to-line distances.
 
@@ -97,6 +104,10 @@ checks returned paths again. Input-bound proof receipts live under
 can reuse them. The CLI also reuses prior no-path limits only when the full
 request and time budget match. These advisory results still run the bounded
 TypeScript search; they never prove infeasibility or make a route loadable.
+For a bounded offline pass, `--solver-call-limit 20` caps new native solves per
+state. Cached paths and proofs remain eligible after the cap; all other goals
+continue the same TypeScript search. Skipped native work supplies no cache entry
+or infeasibility claim. The default leaves new native calls uncapped.
 
 Out-and-back routes store the **outbound** path and `length_m`, matching the seed
 composer and loader. `approx_roundtrip_mi`, report tables, and sample `length_km`
@@ -107,13 +118,17 @@ trailhead. No seed, WTA page, AllTrails link, or copied description is used.
 
 ## Names, checks, and dedupe
 
-Names use `names.ts` and `display-names.ts`: expand Mount, Mountain, and Peak;
-expand Pacific Crest Trail; title-case agency capitals. Street and road names
-cannot supply route or preferred-trail titles. Bare number codes also cannot
-supply those titles; an explicit title such as `Trail 424` or `Black Trail #16407`
-remains eligible. A slash-separated alias cannot hide a road title; numbered
-trail labels such as `Trail 1/2` remain eligible. Source tags remain available for
-source checks; route and segment display fields use expanded names.
+Names use `names.ts`, `display-names.ts`, and `discovery-names.ts`: expand Mount,
+Mountain, Peak, and Pacific Crest Trail; title-case agency capitals and words
+after hyphens. Road names cannot supply preferred trails or viewpoint objectives.
+Only a mapped official trailhead can retain a road-containing name. Parking codes,
+truncated labels, bare numbers, inventory codes, and generic labels such as
+`Trail 024` or `Foot Trail` cannot name a hike. A proper trail name loses its
+`#number` in display and keeps that spelling as an alias. Parentheticals choose a
+full trail name where available, otherwise keep the outer name. Seasonal notes
+move to `flags`. Objective aliases remain available for overlap and search.
+Source tags remain available for source checks. A `via` clause keeps the full
+trail name, appending `Trail` when the source omits a generic word.
 
 A walk must connect by source node and coordinate. Roads may make up at most 10%
 of the walk; preferred trail names must cover at least 60% where present. Objective
@@ -121,15 +136,20 @@ approaches shorter than 100 m require review, since an adjacent parking area or
 lake shore otherwise yields a few-metre hike. Summits need 5 m end contact; the
 existing helper may add a credited, straight connector of at most 75 m. Other
 point objectives need 30 m contact; area objectives can contact their footprint.
-Only a loop's shared start/end stem may repeat edges. Expected length comes from
+Only a loop's shared start/end stem may repeat edges. A traverse needs a real,
+distinct far trailhead; a contacted natural objective does not count as that
+trailhead, even when a parking contact reuses its OSM ID. Expected length comes from
 the discovered walk, so it supplies no independent distance check.
 
-Dedupe compares physical shared length, not vertex counts. The same objective
-and start with at least 80% shared length keeps the stronger candidate. Different
-trailheads remain distinct, using `via <trail>` and, where needed, `from <start>`.
-No two retained routes share a normalized name within 5 km. Quality status outranks
-relation membership, preferred-name share, road share, and popularity when choosing
-between duplicate walks.
+Dedupe compares physical shared length, not vertex counts. The same objective and
+named trail with at least 60% of the shorter approach shared keeps one candidate,
+even when starts differ. The same objective and start also dedupe at 80% shared
+length. Status wins first, then a mapped trailhead, popularity, name and road
+shares, and shorter distance. After dedupe, `from <start>` distinguishes only
+remaining approaches to the same objective by the same trail. It never uses an
+invented trailhead label, parking code, or truncated source name. No two ok routes in a state share a normalized display name. Same-objective
+approaches use safe trailhead labels at any distance. Supported trail sections
+use their named endpoints; remaining name collisions keep the better route.
 
 A search-budget review means a qualifying named alternative remains unresolved;
 it does not prove that none exists. This bound can reduce the number of ok routes.
@@ -137,15 +157,25 @@ Rows have `ok`, `review`, or `failed` status. Only `ok` discovery rows can pass 
 loader planner, even with `--include-review`. This is a geometry and source check,
 not a review of seasonal access, hazards, or route suitability.
 
+Motorized-designated trails and highway corridor paths are excluded, using
+source names and streamed OSM motorcycle/OHV/ATV tags as well as agency and
+relation tags. Negative tags do not exclude pedestrian trails. Utility water
+features such as detention or treatment basins cannot become objectives.
+Motorized staging labels cannot supply trailhead suffixes.
+
 ## Output and scale
 
 The three NDJSON files are `routes`, `segments`, and `places`. Routes retain the
 existing `ComposedRoute` fields and hashes, with optional `state_code`,
-`discovery_source`, `discovery_identity`, and `popularity_score`. Places are the
+`discovery_source`, `discovery_identity`, `popularity`, `popularity_score`,
+`popularity_signals`, and `flags`. Places are the
 unique new-place records embedded in those routes, with ID and state added.
 Shared route cuts produce shared whole-segment IDs and exact path assembly.
 Catalog segments omit AllTrails links from copied relation and agency tags before
-manifest hashes are built. The local graph keeps its raw tags for source checks.
+manifest hashes are built. Trail segment display labels use the same name cleanup;
+raw `trail_names` and relation names retain their source spellings for aliases
+and checks. Road segments keep their road labels as physical route facts. The
+local graph keeps its raw tags for source checks.
 `report.md` contains counts by kind, source, shape, and status, 30 fixed-seed random
 ok samples, and suspect candidates. `summary.json` includes ten samples, runtime,
 peak RSS, and dedupe counts. Build stats record runtime and peak RSS too.
@@ -160,11 +190,21 @@ manifests. A later pass splits shared geometry at the union of selected route cu
 The 6 GiB heap cap bounds each process; it does not promise constant memory as
 input size grows.
 
-Popularity is a 0–1 score from relation membership and network, objective
-Wikidata/Wikipedia tags, prominence and elevation tags, a USFS national trail
-designation, and distinct named trails meeting at the start. It is not a visit
-count. Missing tags contribute zero. The supplied extractor must include each
-objective type; absent meadow records cannot be recovered by composition.
+`popularity` is a numeric 0–1 loading priority; `popularity_score` retains the
+same value for compatibility. It uses hiking relation membership and network
+(`iwn`, `nwn`, `rwn`, `lwn`), objective and trail Wikidata/Wikipedia tags, summit
+prominence and elevation, mapped landmark and waterfall height tags, national
+trail designations, NPS or explicit park/wilderness evidence, and trailhead
+junctions, parking, capacity, and facilities. Correlated trail hierarchy signals
+share a cap so a brief national-trail connection cannot outweigh a known
+objective. Approaches over 25 km one way get a distance penalty. Source OPL files
+stream to recover tags omitted from graph geometry; the composer installs
+nothing. It records signal contributions on each route, writes rows in descending
+popularity, and sets tiers 1/2/3 from ok-score terciles while preserving ties.
+This ranks mapped evidence, not visits. Park and wilderness credit needs source
+tags or NPS geometry; no boundary polygons are supplied for a full containment
+check. The supplied extractor must include each objective type; absent meadow
+records cannot be recovered by composition.
 
 WA also writes `seed-overlap.json`. An overlap needs route, alias, or objective
 name agreement plus a compatible named start or a mapped seed trailhead within
