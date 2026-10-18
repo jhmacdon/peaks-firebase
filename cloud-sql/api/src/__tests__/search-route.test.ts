@@ -224,12 +224,12 @@ test("route search scores narrow term rows before loading route rows", () => {
   });
 
   const sql = queries.routes.text;
-  const matchedIndex = sql.indexOf("matched_route_ids AS MATERIALIZED");
+  const scoredIndex = sql.indexOf("scored_routes AS MATERIALIZED");
   const shortlistIndex = sql.indexOf("shortlist AS MATERIALIZED");
   const routeJoinIndex = sql.indexOf("JOIN routes r ON r.id = s.id");
 
-  assert.ok(matchedIndex >= 0, "expected a materialized matched route set");
-  assert.ok(shortlistIndex > matchedIndex, "expected a shortlist after matching");
+  assert.ok(scoredIndex >= 0, "expected a materialized scored route set");
+  assert.ok(shortlistIndex > scoredIndex, "expected a shortlist after scoring");
   assert.ok(routeJoinIndex > shortlistIndex, "expected route rows only after the shortlist");
   assert.match(sql, /t\.term % \$1 OR t\.term %> \$1 OR t\.term LIKE \$3/);
   assert.match(sql, /LIMIT 200/);
@@ -238,6 +238,8 @@ test("route search scores narrow term rows before loading route rows", () => {
   assert.match(sql, /r\.owner = 'peaks'/, "access is rechecked on the routes row");
   assert.doesNotMatch(sql, /peaks_search_names?\(/, "no per-row name normalization at query time");
   assert.doesNotMatch(sql, /candidate_route_ids|matched_terms|route_segments/);
+  const shortlist = sql.slice(shortlistIndex, sql.indexOf("ranked_routes AS MATERIALIZED"));
+  assert.doesNotMatch(shortlist, /ST_Distance/, "proximity is measured only after the shortlist cut");
   assert.doesNotMatch(sql, /t\.public/, "signed-in search reads every term");
   assert.match(sql, /ST_Distance\(s\.anchor, ST_MakePoint\(\$7, \$6\)::geography\)/);
   assert.doesNotMatch(sql, /r\.path/, "proximity never reads the route path");
@@ -245,9 +247,7 @@ test("route search scores narrow term rows before loading route rows", () => {
 
 test("signed-out route search skips private destination names", () => {
   const query = buildMixedSearchQueries({ normalizedQuery: "hidden tarn", rawQuery: "hidden tarn", limit: 20, publicOnly: true }).routes;
-  const matched = query.text.slice(query.text.indexOf("matched_route_ids"), query.text.indexOf("scored_routes"));
-  const scored = query.text.slice(query.text.indexOf("scored_routes"), query.text.indexOf("shortlist"));
-  assert.match(matched, /AND t\.public/);
+  const scored = query.text.slice(query.text.indexOf("scored_routes"), query.text.indexOf("shortlist AS"));
   assert.match(scored, /AND t\.public/);
 });
 
@@ -258,7 +258,8 @@ test("2-character route search uses token prefixes instead of trigram scans", ()
     limit: 20,
   });
 
-  const matched = queries.routes.text.slice(0, queries.routes.text.indexOf("scored_routes"));
+  const scored = queries.routes.text.slice(0, queries.routes.text.indexOf("shortlist AS"));
+  const matched = scored.slice(scored.indexOf("WHERE"), scored.indexOf("GROUP BY"));
   assert.match(matched, /to_tsvector\('simple', t\.term\) @@ to_tsquery\('simple', \$3::text\)/);
   assert.doesNotMatch(matched, /% \$1/);
   // Candidate selection must stay index-backed. The word-start bonus may use an
@@ -281,9 +282,10 @@ test("2-character area search uses contiguous prefix parameters", () => {
   assert.deepEqual(query.values, ["ra", "ra%", 20, []]);
 });
 
-test("route search scores every term of a matched route and keeps the access check", () => {
+test("route search scores each route by its best matching term and keeps the access check", () => {
   const query = buildMixedSearchQueries({ normalizedQuery: "ingalls way", rawQuery: "Ingalls Way", limit: 20 }).routes;
-  assert.match(query.text, /JOIN route_search_terms t ON t\.route_id = m\.route_id/);
+  assert.match(query.text, /FROM route_search_terms t\s+WHERE \(t\.term % \$1/);
+  assert.match(query.text, /GROUP BY t\.route_id/);
   assert.match(query.text, /bool_or\(t\.term = \$1\) AS exact_match/);
   assert.match(query.text, /r\.owner = 'peaks'\s+OR \(\$5 <> '' AND r\.owner = \$5\)/);
   assert.deepEqual(query.values, ["ingalls way", "ingalls way%", "%ingalls way%", 20, ""]);

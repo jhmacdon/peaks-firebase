@@ -377,9 +377,10 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   const values: unknown[] = [q, `${q}%`, short ? tokenPrefixTsQuery(q) : `%${q}%`, input.limit, input.uid ?? ""];
   if (geo) values.push(input.lat, input.lng);
   // route_search_terms holds one row per (active route, searchable term):
-  // name, aliases, linked place names, and segment trail names. Matching and
-  // scoring read only those narrow rows; routes rows load for the shortlist.
-  // Two-character queries use token prefixes so later words still match.
+  // name, aliases, linked place names, and segment trail names. One pass over
+  // the matching rows scores each route by its best matching term; routes rows
+  // load only for the shortlist. Two-character queries use token prefixes so
+  // later words still match.
   const termMatch = short
     ? "to_tsvector('simple', t.term) @@ to_tsquery('simple', $3::text)"
     : "(t.term % $1 OR t.term %> $1 OR t.term LIKE $3)";
@@ -393,30 +394,25 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   const proximity = geo ? `COALESCE(EXP(-1.0 * ${distance} / 500000.0) * 0.05, 0)` : "0";
 
   return {
-    text: `WITH matched_route_ids AS MATERIALIZED (
-         SELECT DISTINCT t.route_id
-         FROM route_search_terms t
-         WHERE ${termMatch}
-           ${publicTerm}
-       ),
-       scored_routes AS MATERIALIZED (
+    text: `WITH scored_routes AS MATERIALIZED (
          SELECT t.route_id AS id,
                 max(${searchTextScoreSql("t.term", "$1", "$2")}) AS text_score,
                 bool_or(t.term = $1) AS exact_match,
                 min(t.owner) AS owner,
                 max(t.popularity) AS popularity,
                 (array_agg(t.anchor))[1] AS anchor
-         FROM matched_route_ids m
-         JOIN route_search_terms t ON t.route_id = m.route_id
-         WHERE true
+         FROM route_search_terms t
+         WHERE ${termMatch}
            ${publicTerm}
          GROUP BY t.route_id
        ),
+       -- Proximity (at most 0.05) joins the score after this cut, so a broad
+       -- query such as "trail" measures 200 distances, not thousands.
        shortlist AS MATERIALIZED (
          SELECT s.id, s.text_score, s.exact_match, s.anchor
          FROM scored_routes s
          WHERE ${buildRouteAccessSql("s", "$5")}
-         ORDER BY s.text_score + ${searchPopularityScoreSql("s.popularity")} + ${proximity} DESC, s.id
+         ORDER BY s.text_score + ${searchPopularityScoreSql("s.popularity")} DESC, s.id
          LIMIT ${shortlistSize}
        ),
        ranked_routes AS MATERIALIZED (
