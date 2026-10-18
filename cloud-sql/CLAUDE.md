@@ -1241,8 +1241,9 @@ is not Peaks-owned; signed-out search skips those rows. Triggers on `routes`,
 `route_destinations`, `route_segments`, `segments.trail_names`, and
 `destinations.search_name`/`owner` keep it current, so bulk writers need
 nothing extra. The query matches and scores those rows, keeps the best 200
-accessible routes by text and popularity, then loads `routes` rows and
-rechecks status and access there. Matching against fat route rows took 0.7 s
+accessible routes by text, popularity and proximity, then loads `routes` rows
+and rechecks status and access there. Proximity and a route's `distance_m`
+measure to the path's start point (`anchor`), never the whole path. Matching against fat route rows took 0.7 s
 warm and up to 60 s cold on the db-f1-micro (2026-10-18); the narrow table
 takes milliseconds. All types use the same text-score weights: 0.45 trigram
 similarity, 0.20 word similarity, 0.15 when the query starts any word of the
