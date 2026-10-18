@@ -122,8 +122,8 @@ test("mixed search and destination routes apply catalog filters only when signed
       assert.match(lists.text, /\$4 <> '' AND l\.owner = \$4/);
       assertVisibility(destinations.text, /destinations\.owner = 'peaks'/);
       // Private linked destination names must not affect discovery or ranking.
-      assertVisibility(routes.text, /candidate_d\.owner = 'peaks'/);
-      assertVisibility(routes.text, /\bd\.owner = 'peaks'/);
+      // route_search_terms.public is false for a non-Peaks destination's name.
+      assertVisibility(routes.text, /AND t\.public/);
       assertVisibility(routes.text, /cover_destination\.owner = 'peaks'/);
       // The uid stays $5; geo searches append lat/lng after it.
       assert.equal(routes.values?.[4], uid);
