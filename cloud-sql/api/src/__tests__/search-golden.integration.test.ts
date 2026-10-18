@@ -64,9 +64,11 @@ test("golden trail queries execute against real PostgreSQL names, aliases, objec
       await client.query("INSERT INTO route_segments (route_id, segment_id) VALUES ($1, $2)", [id(route), id(segment)]);
     }
 
-    const search = async (query: string, geo = false, viewer = user) => {
+    // viewer null searches signed out.
+    const search = async (query: string, geo = false, viewer: string | null = user) => {
       const queries = buildMixedSearchQueries({
-        normalizedQuery: normalizeSearchName(query), rawQuery: query, limit: 20, uid: viewer,
+        normalizedQuery: normalizeSearchName(query), rawQuery: query, limit: 20, uid: viewer ?? undefined,
+        publicOnly: viewer === null,
         ...(geo ? { lat: 47.5, lng: -121.5 } : {}),
       });
       const buckets: SearchBuckets = { destinations: [], routes: [], areas: [], lists: [] };
@@ -130,6 +132,27 @@ test("golden trail queries execute against real PostgreSQL names, aliases, objec
       assert.equal((await search("ingalls", false, id("other-viewer"))).buckets.routes.length, 0);
       await client.query("UPDATE routes SET status = 'pending' WHERE id = $1", [id("lake-trail")]);
       assert.ok(!(await search("ingalls way")).buckets.routes.some((r) => r.id === id("lake-trail")));
+      // A stale search row cannot bring a pending route back: status is
+      // rechecked on the routes row.
+      await client.query(
+        `INSERT INTO route_search_terms (route_id, term, public, owner, popularity)
+         VALUES ($1, 'ingalls way', true, $2, 0)`, [id("lake-trail"), user]);
+      assert.ok(!(await search("ingalls way")).buckets.routes.some((r) => r.id === id("lake-trail")));
+    });
+
+    await t.test("a private place name finds a public route only for signed-in callers", async () => {
+      await client.query(
+        `INSERT INTO destinations (id, name, search_name, features, owner, state_code, country_code)
+         VALUES ($1, 'Quillback Tarn', 'quillback tarn', ARRAY['lake'::destination_feature], $2, 'WA', 'US')`,
+        [id("private-tarn"), user]);
+      await client.query(
+        `INSERT INTO routes (id, name, owner, status, kind, objective_destination_id)
+         VALUES ($1, 'Unmarked Approach', 'peaks', 'active', 'destination', $2)`,
+        [id("public-route"), id("private-tarn")]);
+      assert.ok((await search("quillback tarn")).buckets.routes.some((r) => r.id === id("public-route")));
+      assert.ok(!(await search("quillback tarn", false, null)).buckets.routes.some((r) => r.id === id("public-route")));
+      assert.ok((await search("unmarked approach", false, null)).buckets.routes.some((r) => r.id === id("public-route")),
+        "the route's own name still finds it signed out");
     });
 
     await t.test("lists join the ranked results and retain destination and trail counts", async () => {
