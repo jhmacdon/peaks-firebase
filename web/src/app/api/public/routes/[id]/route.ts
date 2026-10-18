@@ -53,6 +53,11 @@ export async function GET(_request: Request, context: Context) {
             r.owner,
             r.status,
             r.shape::text AS shape,
+            r.kind,
+            r.objective_destination_id,
+            r.trailhead_destination_id,
+            peaks_route_kind_passes_contact(r.id) AS kind_contact_valid,
+            route_segments_cover_provenance(r.id) AS source_coverage_valid,
             is_valid_route_provenance(r.provenance) AS provenance_valid,
             ST_NPoints(r.path::geometry)::int AS point_count,
             r.elevation_string,
@@ -88,7 +93,7 @@ export async function GET(_request: Request, context: Context) {
               JOIN segments s ON s.id = rs.segment_id
               WHERE rs.route_id = r.id
                 AND s.path IS NOT NULL
-                AND s.provenance IS NOT DISTINCT FROM r.provenance
+                AND route_segment_provenance_compatible(s.provenance, r.provenance)
             ) AS matching_segment_count,
             (
               SELECT COUNT(*)::int

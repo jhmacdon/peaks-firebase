@@ -120,19 +120,22 @@ describe("session_destination_rejections is honored by every auto-matcher", { sk
     assert.match(res.rows[0].prosrc, /NOT EXISTS/);
   });
 
-  // The fourth auto-writer. link_sessions_on_destination_update fires on
-  // AFTER UPDATE OF boundary, location and inserts source='auto' rows, so an
-  // admin dragging a summit onto a track would resurrect every rejected pair in
-  // range. It is created by 20260411_boundary_update_trigger.sql and is absent
-  // from schema.sql, so a database built from schema.sql alone will not have it
-  // — assert only that WHERE IT EXISTS it carries the anti-join.
-  test("the live link_sessions_on_destination_update anti-joins rejections", async () => {
+  // Destination edits used to run link_sessions_on_destination_update, a fourth
+  // auto-writer with its own radii. Migration 20261004_session_rematch_queue
+  // replaced it: an edit now only queues sessions, and processSession (proven
+  // above) does the matching. Where the migration has run, nothing but the
+  // insert trigger and processSession may write auto rows on a destination edit.
+  test("destination edits queue sessions instead of writing reached rows", async () => {
     const res = await db.query(
-      `SELECT prosrc FROM pg_proc WHERE proname = 'link_sessions_on_destination_update'`
+      `SELECT to_regprocedure('queue_rematch_on_destination_change()') AS queue_fn,
+              to_regprocedure('link_sessions_on_destination_update()') AS old_fn`
     );
-    if (res.rows.length === 0) return; // schema.sql-built database; no such trigger
-    assert.match(res.rows[0].prosrc, /session_destination_rejections/);
-    assert.match(res.rows[0].prosrc, /NOT EXISTS/);
+    if (res.rows[0].queue_fn === null) return; // database predates the migration
+    assert.equal(res.rows[0].old_fn, null, "the old direct-writing update trigger must be gone");
+    const body = await db.query(
+      `SELECT prosrc FROM pg_proc WHERE proname = 'queue_rematch_on_destination_change'`
+    );
+    assert.doesNotMatch(body.rows[0].prosrc, /session_destinations/);
   });
 
   test("creating a destination still links a session that never rejected it", async () => {

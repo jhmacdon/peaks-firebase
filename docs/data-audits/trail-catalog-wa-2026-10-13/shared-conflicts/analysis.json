@@ -1,0 +1,867 @@
+{
+  "schemaVersion": 1,
+  "analysisOnly": true,
+  "repairApproved": false,
+  "snapshotSha256": "8b2c9eb656f5de7a62d1898b6fc32b1a5ba3db3c360c25dfb6afe8e4d1fab48e",
+  "snapshotGeneratedAt": "2026-10-13T15:36:59.327162+00:00",
+  "inventory": {
+    "complete": true,
+    "evidence_bytes": 26546,
+    "route_count_ok": true,
+    "route_vertices": 2406,
+    "targets_present": true,
+    "segment_vertices": 712,
+    "boundary_vertices": 0,
+    "references_complete": true,
+    "place_links_complete": true,
+    "segment_links_complete": true,
+    "candidate_jobs_complete": true,
+    "observed_private_references": 0,
+    "observed_private_place_references": 0,
+    "targets_without_catalog_reference": 0
+  },
+  "privateRouteReferenceCount": 0,
+  "privatePlaceReferenceCount": 0,
+  "cases": [
+    {
+      "sourceKey": "wa:osm-relation:4793517",
+      "parentId": "L4JeIhjFWrqIGzkkZ1fk",
+      "parentPathSha256": "fbf911dedbed63c1f4ca81f3f9cab4e339f8aa4b7640e4a896b2ae92875f2eab",
+      "parentPointCount": 406,
+      "parentDistanceM": 4933,
+      "parentComputedDistanceM": 4933.037395865182,
+      "parentGainM": 943.3000000000001,
+      "parentLossM": 156.80000000000018,
+      "parentComputedStats": {
+        "gainM": 943.3000000000001,
+        "lossM": 156.80000000000018
+      },
+      "parentProvenance": {
+        "source_url": "https://www.openstreetmap.org/",
+        "attribution": "© OpenStreetMap contributors",
+        "license_url": "https://opendatacommons.org/licenses/odbl/1-0/",
+        "osm_way_ids": [
+          434828572,
+          1524792903,
+          162620236,
+          661915380,
+          1172669106,
+          1207074648
+        ],
+        "source_kind": "openstreetmap",
+        "license_name": "Open Data Commons Open Database License (ODbL) 1.0",
+        "osm_way_urls": [
+          "https://www.openstreetmap.org/way/434828572",
+          "https://www.openstreetmap.org/way/1524792903",
+          "https://www.openstreetmap.org/way/162620236",
+          "https://www.openstreetmap.org/way/661915380",
+          "https://www.openstreetmap.org/way/1172669106",
+          "https://www.openstreetmap.org/way/1207074648"
+        ],
+        "retrieved_at": "2026-08-13T03:08:52.853Z",
+        "elevation_source": "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",
+        "elevation_profile": "terrain",
+        "contains_osm_geometry": true
+      },
+      "parentStatsMatch": true,
+      "candidate": {
+        "geometryHash": "7386bc4a84a4c367955712fd2c0583bc69ad55faee5624887dde25e41e0e1e86",
+        "sourceSnapshots": [
+          {
+            "path": "sources/osm-relation-4793517-full.json",
+            "sha256": "7885c3eb0df7a917c8ede2a18ebfad7f8704f7677fcf4e9f95fe3522bd57b986",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4793517/full.json",
+            "retrievedAt": "2026-10-13T04:59:45.975960+00:00"
+          }
+        ],
+        "elevation": {
+          "path": "elevation/wa-osm-relation-4793517.json",
+          "sha256": "b549ac980aed1e14410cb208efbbbc0724b496b310601a1d9db2a39c4cd2de37"
+        },
+        "pointCount": 512,
+        "distanceM": 5386.955311239522,
+        "gainM": 554.34765625,
+        "lossM": 229.98828125,
+        "cutIndices": [
+          0,
+          263,
+          438,
+          511
+        ],
+        "usedWayIds": [
+          162620235,
+          162620236,
+          358720744
+        ]
+      },
+      "comparison": {
+        "commonWayIds": [
+          162620236
+        ],
+        "sharedExactXySpanStrictProof": {
+          "errors": [],
+          "usedWayIds": [
+            162620236
+          ],
+          "maxOffsetM": 7.009724264192758e-9,
+          "p95OffsetM": 2.1226648334932503e-9,
+          "coverage": 1,
+          "sampleCount": 295,
+          "startConnectorM": 0,
+          "endConnectorM": 0,
+          "topologyValid": true
+        },
+        "endpointProjections": [
+          {
+            "parentIndex": 0,
+            "distanceM": 14.18971679561042,
+            "fraction": 0,
+            "edgeIndex": 0,
+            "z": 956.84375
+          },
+          {
+            "parentIndex": 405,
+            "distanceM": 1434.352263525946,
+            "fraction": 0,
+            "edgeIndex": 247,
+            "z": 1154.8984375
+          }
+        ],
+        "routeComparisons": [
+          {
+            "routeId": "ilRTqqEXD7S7nxfV8XPf",
+            "parentXyVerticesFound": 406,
+            "parentXyzVerticesEqualWithin01": 406,
+            "zAbsDeltaAtParentXy": {
+              "count": 406,
+              "min": 0,
+              "max": 0,
+              "mean": 0,
+              "p95": 0
+            },
+            "firstPair": {
+              "parentIndex": 0,
+              "routeIndex": 5,
+              "zDeltaM": 0
+            },
+            "lastPair": {
+              "parentIndex": 405,
+              "routeIndex": 410,
+              "zDeltaM": 0
+            }
+          }
+        ],
+        "parentWayIdsMissingFromSavedCandidateBundle": [
+          434828572,
+          1524792903,
+          661915380,
+          1172669106,
+          1207074648
+        ],
+        "exactXyVertexPairs": 264,
+        "exactXyRuns": [
+          {
+            "parentStart": 1,
+            "parentEnd": 264,
+            "candidateStart": 0,
+            "candidateEnd": 263,
+            "vertices": 264
+          }
+        ],
+        "zAbsDeltaAtExactXy": {
+          "count": 264,
+          "min": 0,
+          "max": 0.049999999999954525,
+          "mean": 0.026674952651517134,
+          "p95": 0.04843749999997726
+        },
+        "roundedOneDecimalMatchesAtExactXy": 264,
+        "parentPositiveZSteps": 247,
+        "parentNegativeZSteps": 116,
+        "strictParentProofAgainstCommonSavedWays": {
+          "errors": [
+            "segment changes cited ways outside shared source nodes",
+            "segment start connector is unsupported",
+            "segment end connector is unsupported",
+            "segment maximum source offset is 1504.78 m",
+            "segment p95 source offset is 1358.65 m",
+            "segment source coverage within3m is 62.37%",
+            "segment edges do not match exact cited source edges: 0,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282…"
+          ],
+          "usedWayIds": [
+            162620236
+          ],
+          "maxOffsetM": 1504.7780839203992,
+          "p95OffsetM": 1358.6460941857279,
+          "coverage": 0.6236786469344608,
+          "sampleCount": 473,
+          "startConnectorM": 14.189718253105994,
+          "endConnectorM": 2225.200487726908,
+          "topologyValid": false
+        },
+        "tolerantContributingSavedWayIds": [
+          162620236
+        ]
+      },
+      "matcher": {
+        "candidatePoolComplete": false,
+        "exactOnly": true,
+        "allowExistingSplitsForAnalysis": true,
+        "sourceCutsRetained": true,
+        "segmentCount": 27,
+        "splitRuns": [
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.07195078529821354,
+            "endFraction": 0.07256593321631818,
+            "segmentStartIndex": 40,
+            "segmentEndIndex": 41,
+            "routeStartIndex": 39,
+            "routeEndIndex": 40,
+            "distance": 3,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 2
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.07510165239551907,
+            "endFraction": 0.07573144897013814,
+            "segmentStartIndex": 44,
+            "segmentEndIndex": 45,
+            "routeStartIndex": 43,
+            "routeEndIndex": 44,
+            "distance": 3,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 2
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.08949245999938304,
+            "endFraction": 0.0919923175032037,
+            "segmentStartIndex": 56,
+            "segmentEndIndex": 59,
+            "routeStartIndex": 55,
+            "routeEndIndex": 58,
+            "distance": 12,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 4
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.17145466716915295,
+            "endFraction": 0.17278460717834593,
+            "segmentStartIndex": 101,
+            "segmentEndIndex": 102,
+            "routeStartIndex": 100,
+            "routeEndIndex": 101,
+            "distance": 7,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 2
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.1877267012778009,
+            "endFraction": 0.18880813610866504,
+            "segmentStartIndex": 109,
+            "segmentEndIndex": 110,
+            "routeStartIndex": 108,
+            "routeEndIndex": 109,
+            "distance": 5,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 2
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.19546022537050722,
+            "endFraction": 0.20533310914905928,
+            "segmentStartIndex": 113,
+            "segmentEndIndex": 115,
+            "routeStartIndex": 112,
+            "routeEndIndex": 114,
+            "distance": 49,
+            "gain": 5.88671875,
+            "loss": 0,
+            "pointCount": 3
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.22832338224035265,
+            "endFraction": 0.2289369609930764,
+            "segmentStartIndex": 130,
+            "segmentEndIndex": 131,
+            "routeStartIndex": 129,
+            "routeEndIndex": 130,
+            "distance": 3,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 2
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.23053840899451047,
+            "endFraction": 0.23095398821286675,
+            "segmentStartIndex": 133,
+            "segmentEndIndex": 134,
+            "routeStartIndex": 132,
+            "routeEndIndex": 133,
+            "distance": 2,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 2
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.293072963539486,
+            "endFraction": 0.2938635598760152,
+            "segmentStartIndex": 172,
+            "segmentEndIndex": 174,
+            "routeStartIndex": 171,
+            "routeEndIndex": 173,
+            "distance": 4,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 3
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.5233176378908817,
+            "endFraction": 0.5244840206001926,
+            "segmentStartIndex": 251,
+            "segmentEndIndex": 252,
+            "routeStartIndex": 250,
+            "routeEndIndex": 251,
+            "distance": 6,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 2
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.5369631171669844,
+            "endFraction": 0.5383388699776407,
+            "segmentStartIndex": 257,
+            "segmentEndIndex": 258,
+            "routeStartIndex": 256,
+            "routeEndIndex": 257,
+            "distance": 7,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 2
+          },
+          {
+            "type": "split",
+            "parentSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "existingSegmentName": null,
+            "direction": "forward",
+            "name": null,
+            "startFraction": 0.5422394438700661,
+            "endFraction": 0.5434326938936087,
+            "segmentStartIndex": 260,
+            "segmentEndIndex": 261,
+            "routeStartIndex": 259,
+            "routeEndIndex": 260,
+            "distance": 6,
+            "gain": 0,
+            "loss": 0,
+            "pointCount": 2
+          }
+        ],
+        "parentSplits": [
+          {
+            "originalSegmentId": "L4JeIhjFWrqIGzkkZ1fk",
+            "originalSegmentName": null,
+            "vertexIndices": [
+              40,
+              41,
+              44,
+              45,
+              56,
+              59,
+              101,
+              102,
+              109,
+              110,
+              113,
+              115,
+              130,
+              131,
+              133,
+              134,
+              172,
+              174,
+              251,
+              252,
+              257,
+              258,
+              260,
+              261
+            ],
+            "originalPointCount": 406,
+            "fractions": [
+              0.07195078529821354,
+              0.07256593321631818,
+              0.07510165239551907,
+              0.07573144897013814,
+              0.08949245999938304,
+              0.0919923175032037,
+              0.17145466716915295,
+              0.17278460717834593,
+              0.1877267012778009,
+              0.18880813610866504,
+              0.19546022537050722,
+              0.20533310914905928,
+              0.22832338224035265,
+              0.2289369609930764,
+              0.23053840899451047,
+              0.23095398821286675,
+              0.293072963539486,
+              0.2938635598760152,
+              0.5233176378908817,
+              0.5244840206001926,
+              0.5369631171669844,
+              0.5383388699776407,
+              0.5422394438700661,
+              0.5434326938936087
+            ]
+          }
+        ]
+      },
+      "affectedRoutes": [
+        {
+          "id": "ilRTqqEXD7S7nxfV8XPf",
+          "name": "The Tooth via South Face",
+          "status": "active",
+          "owner": "peaks",
+          "pointCount": 411,
+          "pathSha256": "4b5863026b047dd2c0c6d8271effad6dc0a2217acf4b500b2b936b4825f1f2c2",
+          "gainM": 947.5000000000003,
+          "lossM": 156.80000000000018,
+          "trailheadId": "7mdR4I31n8VQQdPVN5Nd",
+          "objectiveId": "Caq8WofDTWcSAHnUPrcA",
+          "segmentLinks": [
+            {
+              "ordinal": 0,
+              "direction": "forward",
+              "segmentId": "jEoW6JjvEGP0WwgDB0gr"
+            },
+            {
+              "ordinal": 1,
+              "direction": "forward",
+              "segmentId": "L4JeIhjFWrqIGzkkZ1fk"
+            }
+          ],
+          "publishIntegrityValid": true,
+          "sourceCoverageValid": true,
+          "kindContactValid": true,
+          "pendingBindingValid": false,
+          "elevation": {
+            "source": "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",
+            "sourceUrl": "https://registry.opendata.aws/terrain-tiles/",
+            "licenseUrl": "https://github.com/tilezen/joerd/blob/master/docs/attribution.md",
+            "statsMatch": true,
+            "attribution": "* ArcticDEM terrain data DEM(s) were created from DigitalGlobe, Inc., imagery and\n  funded under National Science Foundation awards 1043681, 1559691, and 1542736;\n* Australia terrain data © Commonwealth of Australia (Geoscience Australia) 2017;\n* Austria terrain data © offene Daten Österreichs – Digitales Geländemodell (DGM)\n  Österreich;\n* Canada terrain data contains information licensed under the Open Government\n  Licence – Canada;\n* Europe terrain data produced using Copernicus data and information funded by the\n  European Union - EU-DEM layers;\n* Global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration\n* Mexico terrain data source: INEGI, Continental relief, 2016;\n* New Zealand terrain data Copyright 2011 Crown copyright (c) Land Information New\n  Zealand and the New Zealand Government (All rights reserved);\n* Norway terrain data © Kartverket;\n* United Kingdom terrain data © Environment Agency copyright and/or database right\n  2015. All rights reserved;\n* United States 3DEP (formerly NED) and global GMTED2010 and SRTM terrain data\n  courtesy of the U.S. Geological Survey.",
+            "retrievedAt": "2026-08-13T03:08:52.853+00:00",
+            "hasRealRange": true,
+            "computedGainM": 947.5000000000003,
+            "computedLossM": 156.80000000000018,
+            "profileMatchesXYZ": true
+          }
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186",
+      "parentId": "vTRZQyeAZpTecyFjAGIr",
+      "parentPathSha256": "80b68f8bf6db6f6262ecbd9e89ac4aaf45cc05804713f03f2bcd018df1c5f37d",
+      "parentPointCount": 306,
+      "parentDistanceM": 2446,
+      "parentComputedDistanceM": 2446.102314357767,
+      "parentGainM": 329.3,
+      "parentLossM": 0,
+      "parentComputedStats": {
+        "gainM": 329.2907372861159,
+        "lossM": 0
+      },
+      "parentProvenance": {
+        "source_url": "https://api.openstreetmap.org/api/0.6",
+        "attribution": "© OpenStreetMap contributors",
+        "license_url": "https://opendatacommons.org/licenses/odbl/1-0/",
+        "osm_way_ids": [
+          1193241119,
+          236470870,
+          236364511,
+          295213928,
+          5844815,
+          295213943,
+          1328419258,
+          1328419257,
+          1328419259,
+          295213929,
+          295213954,
+          295213941
+        ],
+        "source_kind": "openstreetmap",
+        "license_name": "Open Data Commons Open Database License (ODbL) 1.0",
+        "osm_way_urls": [
+          "https://www.openstreetmap.org/way/1193241119",
+          "https://www.openstreetmap.org/way/236470870",
+          "https://www.openstreetmap.org/way/236364511",
+          "https://www.openstreetmap.org/way/295213928",
+          "https://www.openstreetmap.org/way/5844815",
+          "https://www.openstreetmap.org/way/295213943",
+          "https://www.openstreetmap.org/way/1328419258",
+          "https://www.openstreetmap.org/way/1328419257",
+          "https://www.openstreetmap.org/way/1328419259",
+          "https://www.openstreetmap.org/way/295213929",
+          "https://www.openstreetmap.org/way/295213954",
+          "https://www.openstreetmap.org/way/295213941"
+        ],
+        "retrieved_at": "2026-07-28T02:20:12.101Z",
+        "contains_osm_geometry": true
+      },
+      "parentStatsMatch": false,
+      "candidate": {
+        "geometryHash": "bde978139abdc386dd6af0b6e119a496d7ff03c370b5c74ea84986ba7d6588d9",
+        "sourceSnapshots": [
+          {
+            "path": "sources/osm-relation-5626186-full.json",
+            "sha256": "ee132297bb0863feab4521c4b6262e8119481b1ac6bb6f1040a826fe4832e311",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5626186/full.json",
+            "retrievedAt": "2026-10-13T04:56:09.580128+00:00"
+          }
+        ],
+        "elevation": {
+          "path": "elevation/wa-osm-relation-5626186.json",
+          "sha256": "f1140edf7cfe239fa251d70cb79aa31cc1aeadb8d1d59169891f9c01e3f1ca35"
+        },
+        "pointCount": 1008,
+        "distanceM": 7107.041749059399,
+        "gainM": 907.22265625,
+        "lossM": 226.640625,
+        "cutIndices": [
+          0,
+          42,
+          850,
+          944,
+          1007
+        ],
+        "usedWayIds": [
+          236470870,
+          236470876,
+          538410242,
+          1193241119
+        ]
+      },
+      "comparison": {
+        "commonWayIds": [
+          1193241119,
+          236470870
+        ],
+        "sharedExactXySpanStrictProof": {
+          "errors": [],
+          "usedWayIds": [
+            236470870,
+            1193241119
+          ],
+          "maxOffsetM": 8.555141541690738e-9,
+          "p95OffsetM": 0,
+          "coverage": 1,
+          "sampleCount": 320,
+          "startConnectorM": 0,
+          "endConnectorM": 0,
+          "topologyValid": true
+        },
+        "endpointProjections": [
+          {
+            "parentIndex": 0,
+            "distanceM": 5.985994925177148,
+            "fraction": 0.48624258633690476,
+            "edgeIndex": 1,
+            "z": 1302.87109375
+          },
+          {
+            "parentIndex": 305,
+            "distanceM": 1.7749174338576247e-9,
+            "fraction": 0.9814745710693356,
+            "edgeIndex": 304,
+            "z": 1628.8534974041868
+          }
+        ],
+        "routeComparisons": [
+          {
+            "routeId": "aXEHeJetvshw8lnmHEZD",
+            "parentXyVerticesFound": 305,
+            "parentXyzVerticesEqualWithin01": 121,
+            "zAbsDeltaAtParentXy": {
+              "count": 305,
+              "min": 0,
+              "max": 2.099999999999909,
+              "mean": 0.2478688524590146,
+              "p95": 0.900000000000091
+            },
+            "firstPair": {
+              "parentIndex": 0,
+              "routeIndex": 0,
+              "zDeltaM": 0
+            },
+            "lastPair": {
+              "parentIndex": 304,
+              "routeIndex": 304,
+              "zDeltaM": 0.5
+            }
+          },
+          {
+            "routeId": "wCtFia9bHjfOnGeXeyEQ",
+            "parentXyVerticesFound": 305,
+            "parentXyzVerticesEqualWithin01": 305,
+            "zAbsDeltaAtParentXy": {
+              "count": 305,
+              "min": 0,
+              "max": 0,
+              "mean": 0,
+              "p95": 0
+            },
+            "firstPair": {
+              "parentIndex": 0,
+              "routeIndex": 0,
+              "zDeltaM": 0
+            },
+            "lastPair": {
+              "parentIndex": 304,
+              "routeIndex": 304,
+              "zDeltaM": 0
+            }
+          }
+        ],
+        "parentWayIdsMissingFromSavedCandidateBundle": [
+          236364511,
+          295213928,
+          5844815,
+          295213943,
+          1328419258,
+          1328419257,
+          1328419259,
+          295213929,
+          295213954,
+          295213941
+        ],
+        "exactXyVertexPairs": 304,
+        "exactXyRuns": [
+          {
+            "parentStart": 1,
+            "parentEnd": 304,
+            "candidateStart": 1,
+            "candidateEnd": 304,
+            "vertices": 304
+          }
+        ],
+        "zAbsDeltaAtExactXy": {
+          "count": 304,
+          "min": 0.0054687500000909495,
+          "max": 7.970312500000091,
+          "mean": 2.711068564967106,
+          "p95": 5.93359375
+        },
+        "roundedOneDecimalMatchesAtExactXy": 5,
+        "parentPositiveZSteps": 305,
+        "parentNegativeZSteps": 0,
+        "strictParentProofAgainstCommonSavedWays": {
+          "errors": [
+            "segment start connector is unsupported",
+            "segment maximum source offset is 5.99 m",
+            "segment edges do not match exact cited source edges: 0,304"
+          ],
+          "usedWayIds": [
+            236470870,
+            1193241119
+          ],
+          "maxOffsetM": 5.985994925177148,
+          "p95OffsetM": 0,
+          "coverage": 0.9968944099378882,
+          "sampleCount": 322,
+          "startConnectorM": 6.331022136831671,
+          "endConnectorM": 0,
+          "topologyValid": true
+        },
+        "tolerantContributingSavedWayIds": [
+          236470870,
+          1193241119
+        ],
+        "sharedCandidatePositiveZSteps": 190,
+        "sharedCandidateNegativeZSteps": 54,
+        "sharedCandidateFlatZSteps": 59
+      },
+      "matcher": {
+        "candidatePoolComplete": false,
+        "exactOnly": true,
+        "allowExistingSplitsForAnalysis": true,
+        "sourceCutsRetained": true,
+        "segmentCount": 4,
+        "splitRuns": [],
+        "parentSplits": []
+      },
+      "affectedRoutes": [
+        {
+          "id": "aXEHeJetvshw8lnmHEZD",
+          "name": "Ingalls Peak via Ingalls Way and South Ridge",
+          "status": "active",
+          "owner": "peaks",
+          "pointCount": 980,
+          "pathSha256": "5668f005ddbe4677c8dfdba34cf3d6f6548f4dc1546fb9ebcdb2f1a1aa3a2241",
+          "gainM": 1119.9,
+          "lossM": 93.4,
+          "trailheadId": "Vm0gOD6OdjW4lQmHn0Fj",
+          "objectiveId": "8gW9WZ6tngvhNn0TIDpc",
+          "segmentLinks": [
+            {
+              "ordinal": 0,
+              "direction": "forward",
+              "segmentId": "vTRZQyeAZpTecyFjAGIr"
+            },
+            {
+              "ordinal": 1,
+              "direction": "forward",
+              "segmentId": "4iSCsdGqrnhPfqGc9ame"
+            },
+            {
+              "ordinal": 2,
+              "direction": "forward",
+              "segmentId": "QLv4kiKc94TsKGwmhSK0"
+            }
+          ],
+          "publishIntegrityValid": false,
+          "sourceCoverageValid": false,
+          "kindContactValid": true,
+          "pendingBindingValid": false,
+          "elevation": {
+            "source": null,
+            "sourceUrl": null,
+            "licenseUrl": null,
+            "statsMatch": false,
+            "attribution": null,
+            "retrievedAt": null,
+            "hasRealRange": true,
+            "computedGainM": 1140.2000000000003,
+            "computedLossM": 126.80000000000018,
+            "profileMatchesXYZ": true
+          }
+        },
+        {
+          "id": "wCtFia9bHjfOnGeXeyEQ",
+          "name": "Mount Stuart via Cascadian Couloir",
+          "status": "active",
+          "owner": "peaks",
+          "pointCount": 1015,
+          "pathSha256": "d66c5c9eb618e8c7a972a5af4a53003a2f99931d37bb72becee38377b4e506c4",
+          "gainM": 1953.3,
+          "lossM": 398,
+          "trailheadId": "Vm0gOD6OdjW4lQmHn0Fj",
+          "objectiveId": "JasFS6IMlSoKE9LWIO6q",
+          "segmentLinks": [
+            {
+              "ordinal": 0,
+              "direction": "forward",
+              "segmentId": "vTRZQyeAZpTecyFjAGIr"
+            },
+            {
+              "ordinal": 1,
+              "direction": "forward",
+              "segmentId": "dzvzs3gzMWimVjitNE1q"
+            }
+          ],
+          "publishIntegrityValid": false,
+          "sourceCoverageValid": true,
+          "kindContactValid": true,
+          "pendingBindingValid": false,
+          "elevation": {
+            "source": null,
+            "sourceUrl": null,
+            "licenseUrl": null,
+            "statsMatch": false,
+            "attribution": null,
+            "retrievedAt": null,
+            "hasRealRange": true,
+            "computedGainM": 1970.599999999999,
+            "computedLossM": 413.4000000000001,
+            "profileMatchesXYZ": true
+          }
+        }
+      ]
+    }
+  ],
+  "method": {
+    "databaseAccess": false,
+    "matcherCandidatePool": "only each captured target parent; not the complete live pool",
+    "sourceProof": "existing proveOsmSegmentSource with strictMappedGeometry true against saved common-way edges",
+    "xyComparison": "literal longitude/latitude equality; no snapping or resampling",
+    "zComparison": "saved exact-vertex DEM; one-decimal check is diagnostic only",
+    "limits": {
+      "cases": 2,
+      "parentVertices": 712,
+      "candidateVertices": 1520,
+      "maximumPairsPerCase": 500000
+    },
+    "interpolation": "nearest source-edge fraction and interpolated DEM Z are diagnostic only; not repair geometry or elevation"
+  },
+  "inputs": {
+    "cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/manifest.json": "a4ac8e38b23c017b3d113f7663973f89b1a0479d99601eb76701fbcc8896b4cc",
+    "cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/catalog-places-6bb7916bb071.json": "6bb7916bb071a10305e3b8a0a44f791f0c3cf0c7f343388184213df2a360f626"
+  },
+  "repairReady": false,
+  "blockers": [
+    "No source-aware catalog split/repair command exists; current admin deliberately refuses these sourced parents.",
+    "Four adjoining public segment geometries and their exact per-span source/DEM evidence are not exported by this snapshot.",
+    "All three affected route IDs and their contacts must be rechecked before any shared mutation; both Ingalls routes already fail current publish integrity.",
+    "Both candidate jobs are rejected; an explicit audited recovery path is needed, not ordinary retry or new source keys.",
+    "Saved candidate access status is unknown; independent current source/access/review/cover checks remain required."
+  ]
+}

@@ -11,18 +11,18 @@ import db from "./db";
  * that user's sessions.
  *
  * Per-feature radius is delegated to the SQL function destination_match_radius()
- * (see cloud-sql/schema.sql). Boundary destinations use a 10m polygon match
- * regardless of feature.
+ * (see cloud-sql/schema.sql). Boundary destinations use
+ * destination_boundary_match_radius(): 50 m for lakes, 10 m otherwise.
  *
  * Idempotent via ON CONFLICT — safe to call repeatedly.
  *
  * Rejections: a (session, destination) pair in session_destination_rejections
  * is skipped. The user vetoed that ascent; creating a destination must not
  * overrule them. Same anti-join as buildSessionDestinationMatchSql
- * (cloud-sql/api/src/processing.ts), link_sessions_on_destination_insert
- * (cloud-sql/schema.sql) and link_sessions_on_destination_update (patched by
- * cloud-sql/migrations/20260725_session_destination_rejections.sql) —
- * scripts/check-cross-refs.sh fails CI if one of the four drifts.
+ * (cloud-sql/api/src/processing.ts) and link_sessions_on_destination_insert
+ * (cloud-sql/schema.sql) — scripts/check-cross-refs.sh fails CI if one of them
+ * drifts. Later edits to the destination re-match through session_rematch_queue
+ * (cloud-sql/migrations/20261004_session_rematch_queue.sql).
  *
  * Returns the number of rows inserted (sessions newly tagged).
  */
@@ -37,7 +37,13 @@ export async function backfillDestinationToSessions(
      WHERE d.id = $1
        AND s.path IS NOT NULL
        AND CASE WHEN d.boundary IS NOT NULL
-             THEN ST_DWithin(s.path, d.boundary, 10)
+             -- Indexed boundary pieces: a lake outline can hold 475k points.
+             THEN EXISTS (
+               SELECT 1 FROM destination_boundary_parts bp
+               WHERE bp.destination_id = d.id
+                 AND ST_DWithin(s.path, bp.boundary_part, 50)
+                 AND ST_DWithin(s.path, bp.boundary_part, destination_boundary_match_radius(d.features))
+             )
              ELSE ST_DWithin(s.path, d.location, destination_match_radius(d.features))
            END
        AND NOT EXISTS (

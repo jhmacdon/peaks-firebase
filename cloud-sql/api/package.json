@@ -1,7 +1,7 @@
 {
   "name": "peaks-api",
   "version": "1.0.0",
-  "description": "Peaks Cloud Run API \u2014 PostGIS query layer with Firebase Auth",
+  "description": "Peaks Cloud Run API — PostGIS query layer with Firebase Auth",
   "main": "dist/index.js",
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
@@ -27,7 +27,8 @@
     "firebase-admin": "^13.0.0",
     "google-auth-library": "^10.0.0",
     "pg": "^8.13.0",
-    "pg-query-stream": "^4.15.0"
+    "pg-query-stream": "^4.15.0",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

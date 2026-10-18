@@ -24,7 +24,7 @@
 # Why schema.sql is not enough on its own: it is a partially-maintained
 # baseline. It carries most of the current schema but is missing everything
 # added by later migrations that were never folded back in — the
-# `link_sessions_on_destination_update` trigger, `areas_refresh_boundary_display`,
+# re-match queue triggers, `areas_refresh_boundary_display`,
 # destination place-copy and hero-credit columns, `areas.parent_area_id`, and the
 # destination search vector. Applying schema.sql AND migrations/ reproduces the
 # live schema exactly; applying either one alone does not.
@@ -40,6 +40,8 @@ ROUTE_FACTORY_TEST_DB_ROLE="${ROUTE_FACTORY_TEST_DB_ROLE:-peaks-route-factory-te
 ROUTE_FACTORY_TEST_DB_PASSWORD="${ROUTE_FACTORY_TEST_DB_PASSWORD:-peaks_route_factory_test}"
 ROUTE_REVIEWER_TEST_DB_ROLE="${ROUTE_REVIEWER_TEST_DB_ROLE:-peaks-route-reviewer-test}"
 ROUTE_REVIEWER_TEST_DB_PASSWORD="${ROUTE_REVIEWER_TEST_DB_PASSWORD:-peaks_route_reviewer_test}"
+ROUTE_API_TEST_DB_ROLE="${ROUTE_API_TEST_DB_ROLE:-peaks-api-test}"
+ROUTE_API_TEST_DB_PASSWORD="${ROUTE_API_TEST_DB_PASSWORD:-peaks_api_test}"
 
 psql_admin() { psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -q "$@"; }
 
@@ -99,6 +101,16 @@ psql_admin -c "CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT E
 # ---------------------------------------------------------------------------
 echo "  applying schema.sql"
 psql_admin -f "$CLOUD_SQL_DIR/schema.sql" > /dev/null
+
+# Match production's postgres/public default DML grants before migrations, so
+# narrow tables must explicitly revoke API writes rather than rely on defaults.
+psql_admin <<'SQL'
+GRANT USAGE ON SCHEMA public TO "peaks-api";
+GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO "peaks-api";
+GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO "peaks-api";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO "peaks-api";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE,SELECT ON SEQUENCES TO "peaks-api";
+SQL
 
 # ---------------------------------------------------------------------------
 # Migrations, oldest first.
@@ -182,17 +194,24 @@ EOF
     -v factory_role="$ROUTE_FACTORY_TEST_DB_ROLE" \
     -v factory_password="$ROUTE_FACTORY_TEST_DB_PASSWORD" \
     -v reviewer_role="$ROUTE_REVIEWER_TEST_DB_ROLE" \
-    -v reviewer_password="$ROUTE_REVIEWER_TEST_DB_PASSWORD" <<'SQL'
+    -v reviewer_password="$ROUTE_REVIEWER_TEST_DB_PASSWORD" \
+    -v api_role="$ROUTE_API_TEST_DB_ROLE" \
+    -v api_password="$ROUTE_API_TEST_DB_PASSWORD" <<'SQL'
 SELECT format('CREATE ROLE %I LOGIN', :'factory_role')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'factory_role')
 \gexec
 SELECT format('CREATE ROLE %I LOGIN', :'reviewer_role')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'reviewer_role')
 \gexec
+SELECT format('CREATE ROLE %I LOGIN', :'api_role')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'api_role')
+\gexec
 
 ALTER ROLE :"factory_role" LOGIN PASSWORD :'factory_password'
   NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT;
 ALTER ROLE :"reviewer_role" LOGIN PASSWORD :'reviewer_password'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT;
+ALTER ROLE :"api_role" LOGIN PASSWORD :'api_password'
   NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT;
 
 SELECT format('REVOKE %I FROM %I', granted.rolname, member.rolname)
@@ -209,8 +228,16 @@ JOIN pg_roles member ON member.oid = membership.member
 WHERE member.rolname = :'reviewer_role'
   AND granted.rolname <> 'peaks-route-reviewer'
 \gexec
+SELECT format('REVOKE %I FROM %I', granted.rolname, member.rolname)
+FROM pg_auth_members membership
+JOIN pg_roles granted ON granted.oid = membership.roleid
+JOIN pg_roles member ON member.oid = membership.member
+WHERE member.rolname = :'api_role'
+  AND granted.rolname <> 'peaks-api'
+\gexec
 GRANT "peaks-route-factory" TO :"factory_role";
 GRANT "peaks-route-reviewer" TO :"reviewer_role";
+GRANT "peaks-api" TO :"api_role";
 SQL
 else
   echo "  route-worker test logins: skipped"

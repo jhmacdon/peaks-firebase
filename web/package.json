@@ -3,14 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "npm run build:petrics",
     "dev": "next dev",
+    "pretest": "npm run build:petrics",
     "test": "node --test --import tsx src/lib/*.test.ts src/lib/__tests__/*.test.ts src/components/*.test.ts",
+    "prebuild": "npm run build:petrics",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:petrics": "tsc -p vendor/petrics-client/tsconfig.json"
   },
   "dependencies": {
     "@google-cloud/cloud-sql-connector": "^1.9.2",
+    "@petrics/client": "file:vendor/petrics-client",
     "@types/leaflet": "^1.9.21",
     "@types/pg": "^8.18.0",
     "firebase": "^12.10.0",

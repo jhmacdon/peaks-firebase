@@ -1,0 +1,151 @@
+{
+  "mode": "public-media-preflight-only",
+  "startedAt": "2026-10-13T15:48:44.673Z",
+  "manifestSha256": "392d64de9ad074a4f12535d5495092401332cb80f457887c8f25efd0dbff6412",
+  "rendererBodySha256": "da3a31d4dd1c480391436ec6387e85e64ce0654889c3d66ff8a5330173c54af9",
+  "qualityHelperSha256": "ebc67dd19bd4810a98af0950a7ae0897f78735b4c5777e01eec1275f6de3918d",
+  "sharpVersion": "0.33.5",
+  "limitation": "Pure Sharp equivalent: importing destination-photo-storage.ts initializes Firebase Admin and selects cert/ADC credentials. No Firebase module was imported; authentication, Storage upload, admin action and public serving were not tested.",
+  "bounds": {
+    "candidates": 4,
+    "sourceBytes": 41943040,
+    "downloadTimeoutMs": 30000,
+    "maxRedirects": 5,
+    "maxInputPixels": 80000000,
+    "maxOutputEdge": 2400
+  },
+  "databaseAccess": false,
+  "credentialAccess": false,
+  "uploads": 0,
+  "approvals": 0,
+  "fixedMonthlyCostDeltaUsd": 0,
+  "candidates": [
+    {
+      "candidateId": "ZPP7hf-AtZYGdOlc7iNn",
+      "destinationId": "1755CBB232F3FCC6A437",
+      "name": "Lake Serene",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1f/Lake_Serene_July_2025.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Serene_July_2025.jpg",
+      "expectedSha1": "5b32a4fc714d2dff1bf870b4fd779a2c8c37a761",
+      "checkedAt": "2026-10-13T15:48:44.673Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1f/Lake_Serene_July_2025.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 3187750,
+      "sourceSha1": "5b32a4fc714d2dff1bf870b4fd779a2c8c37a761",
+      "sourceSha256": "1ede20c90a83e0d0319a0515d7c7acbb4d03ad75b63745e621bb1bf28f71752f",
+      "sourceDimensions": {
+        "width": 6000,
+        "height": 4000,
+        "orientation": null
+      },
+      "orientedDimensions": {
+        "width": 6000,
+        "height": 4000
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1600
+      },
+      "renderedBytes": 610800,
+      "renderedSha256": "e8cebf077d9d5af7d46593cc8033b8ebc542115e0d73261c971d733ed972eb24"
+    },
+    {
+      "candidateId": "NtXYecChVsFWyawb22Q0",
+      "destinationId": "7F9130E5AAEC9213E123",
+      "name": "Rattlesnake Ledge",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d1/Rattlesnake_Ledge%2C_seen_from_Rattlesnake_Lake.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Rattlesnake_Ledge,_seen_from_Rattlesnake_Lake.jpg",
+      "expectedSha1": "af118d9cbbfb3b2b82b4d954f526b7c44c449e53",
+      "checkedAt": "2026-10-13T15:48:50.195Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d1/Rattlesnake_Ledge%2C_seen_from_Rattlesnake_Lake.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 2406310,
+      "sourceSha1": "af118d9cbbfb3b2b82b4d954f526b7c44c449e53",
+      "sourceSha256": "4b2040be7bd078185a34f5a1f93e2382298eec33bdebff6b864f72510ef7ba06",
+      "sourceDimensions": {
+        "width": 2272,
+        "height": 1553,
+        "orientation": null
+      },
+      "orientedDimensions": {
+        "width": 2272,
+        "height": 1553
+      },
+      "renderedDimensions": {
+        "width": 2272,
+        "height": 1553
+      },
+      "renderedBytes": 787486,
+      "renderedSha256": "19a46c3e1205e2c2a51cd85c73840721ca7f68882479747e901b785e97627100"
+    },
+    {
+      "candidateId": "5Z3MCMBjAQxs1K9yKbwc",
+      "destinationId": "C21AD354B7FEA99C277F",
+      "name": "Skyline Trailhead",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/e/ec/Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg",
+      "expectedSha1": "77bdbf04426a5fa8a0acedea8de3472d51b45ba8",
+      "checkedAt": "2026-10-13T15:48:51.655Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/e/ec/Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 3233008,
+      "sourceSha1": "77bdbf04426a5fa8a0acedea8de3472d51b45ba8",
+      "sourceSha256": "e117b8a1f4241e9742a373d09a04127ee8b30fa93ece8d5b67f909445c3505d4",
+      "sourceDimensions": {
+        "width": 4188,
+        "height": 2782,
+        "orientation": 1
+      },
+      "orientedDimensions": {
+        "width": 4188,
+        "height": 2782
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1594
+      },
+      "renderedBytes": 592287,
+      "renderedSha256": "99ceea3b55685dcef14839ad1e2f5fae657502551cde11d77a0d7e9b87fb6838"
+    },
+    {
+      "candidateId": "fw-ML4vsorEL5j7sl4im",
+      "destinationId": "FF006293EBCD1BBDA398",
+      "name": "Lake Twentytwo",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/7a/Lake_22_-_Flickr_-_brewbooks.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_22_-_Flickr_-_brewbooks.jpg",
+      "expectedSha1": "bd223a55223506e776e4cd3f7f045107a491366b",
+      "checkedAt": "2026-10-13T15:48:52.755Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/7/7a/Lake_22_-_Flickr_-_brewbooks.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 3458007,
+      "sourceSha1": "bd223a55223506e776e4cd3f7f045107a491366b",
+      "sourceSha256": "0b61ee921ed73f47305dc760504add3b45f48d41713c6ef822d7b33339b45b6f",
+      "sourceDimensions": {
+        "width": 4288,
+        "height": 2909,
+        "orientation": 1
+      },
+      "orientedDimensions": {
+        "width": 4288,
+        "height": 2909
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1628
+      },
+      "renderedBytes": 683833,
+      "renderedSha256": "757894b61c6b11942077044f4d645b75b3316d8e90ea9dfd7780fd47741bf202"
+    }
+  ],
+  "finishedAt": "2026-10-13T15:48:53.801Z",
+  "cacheRetained": false,
+  "complete": true
+}

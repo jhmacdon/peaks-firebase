@@ -65,6 +65,7 @@ const coverAliases = [
   "cover_image_attribution_url",
   "cover_image_focal_x",
   "cover_image_focal_y",
+  "cover_image_origin",
 ];
 
 test("every flat route API shape returns the shared derived cover", () => {
@@ -103,4 +104,30 @@ test("every embedded route API shape returns the shared derived cover", () => {
       assert.match(sql, new RegExp(`'${key}'`));
     }
   }
+});
+
+const ownCoverMigration = readFileSync(
+  resolve(__dirname, "../../../migrations/20261015_route_covers.sql"),
+  "utf8"
+);
+
+test("route cover lookup prefers the route's own credited cover, then its places", () => {
+  const fn = ownCoverMigration.match(
+    /CREATE FUNCTION route_cover_photo\(target_route_id text\)([\s\S]*?)\n\$\$;/
+  )?.[1];
+  assert.ok(fn, "expected route_cover_photo");
+  const body = fn.replace(/\s+/g, " ");
+  assert.match(body, /'route'::text AS origin, 0 AS priority FROM routes r LEFT JOIN destinations objective ON objective\.id = r\.objective_destination_id/);
+  // Shipped iOS needs a place id on every cover, the route's own included.
+  assert.match(body, /SELECT COALESCE\(objective\.id, linked\.id\) AS destination_id, COALESCE\(objective\.name, linked\.name\) AS destination_name/);
+  assert.match(body, /WHERE r\.id = target_route_id AND NULLIF\(btrim\(r\.cover_image\), ''\) IS NOT NULL/);
+  assert.match(body, /NULLIF\(btrim\(r\.cover_attribution\), ''\) IS NOT NULL/);
+  assert.match(body, /NULLIF\(btrim\(r\.cover_attribution_url\), ''\) IS NOT NULL/);
+  assert.match(body, /'destination'::text, 1 FROM route_destinations rd/);
+  assert.match(body, /ORDER BY choice\.priority LIMIT 1/);
+  // The seven existing columns keep their order; origin is appended.
+  assert.match(
+    body,
+    /RETURNS TABLE \( destination_id text, destination_name text, image_url text, attribution text, attribution_url text, focal_x smallint, focal_y smallint, origin text \)/
+  );
 });

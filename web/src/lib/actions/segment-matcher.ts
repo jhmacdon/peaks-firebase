@@ -10,592 +10,18 @@ import {
   pointsToLineStringZ,
   generateId,
 } from "../route-utils";
-import { extractSubPoints } from "../segment-geometry";
+import { splitSegmentAtVertices, splitSegmentPieceIndices } from "../segment-geometry";
+import { assertSegmentSplitsHaveNoCatalogSource } from "../segment-split-source";
 import { verifyAdminToken } from "../auth-actions";
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-export interface ProposedSegment {
-  type: "existing" | "new" | "split";
-  points: TrackPoint[];
-
-  // existing: reuse as-is
-  existingSegmentId?: string;
-  existingSegmentName?: string | null;
-  direction?: "forward" | "reverse";
-
-  // split: partial reuse — references parent being split
-  parentSegmentId?: string;
-  startFraction?: number;
-  endFraction?: number;
-
-  // computed
-  distance: number;
-  gain: number;
-  loss: number;
-
-  // user-assignable
-  name: string | null;
-}
-
-export interface SegmentSplit {
-  originalSegmentId: string;
-  originalSegmentName: string | null;
-  fractions: number[]; // sorted cut points (0-1)
-}
-
-export interface AffectedRoute {
-  routeId: string;
-  routeName: string | null;
-  segmentId: string;
-  ordinal: number;
-  direction: string;
-}
-
-export interface RouteDecomposition {
-  segments: ProposedSegment[];
-  splits: SegmentSplit[];
-  affectedRoutes: AffectedRoute[];
-}
-
-// ─── Internal types ─────────────────────────────────────────────────────────
-
-interface CandidateSegment {
-  id: string;
-  name: string | null;
-  points: { lat: number; lng: number; ele: number }[];
-  distanceFractions: number[];
-  distance: number;
-}
-
-interface MatchRun {
-  routeStart: number;
-  routeEnd: number;
-  segmentId: string;
-  segmentName: string | null;
-  direction: "forward" | "reverse";
-  startFraction: number;
-  endFraction: number;
-  avgDeviation: number;
-}
-
-// ─── Constants ──────────────────────────────────────────────────────────────
-
-const MATCH_THRESHOLD_M = 30;
-const MIN_RUN_LENGTH_M = 50;
-const GAP_BRIDGE_POINTS = 3;
-const GAP_BRIDGE_METERS = 60;
-const SNAP_FRACTION = 0.03; // snap split to endpoint if within 3%
-
-// ─── Phase 1: Find candidate segments ───────────────────────────────────────
-
-async function findCandidateSegments(
-  routePoints: TrackPoint[],
-  excludeSegmentIds: string[] = []
-): Promise<CandidateSegment[]> {
-  if (routePoints.length < 2) return [];
-
-  // Build WKT for the route
-  const wkt = pointsToLineStringZ(routePoints);
-
-  const result = await db.query(
-    `SELECT s.id, s.name, s.distance,
-            ST_AsGeoJSON(s.path::geometry) AS geojson
-     FROM segments s
-     WHERE ST_DWithin(
-       s.path,
-       ST_GeomFromText($1, 4326)::geography,
-       $2
-     )
-       AND NOT (s.id = ANY($3::text[]))`,
-    [wkt, MATCH_THRESHOLD_M * 3, excludeSegmentIds] // wider buffer for candidates
-  );
-
-  return result.rows.map((r: any) => {
-    const geo = JSON.parse(r.geojson);
-    const coords = geo.coordinates as number[][];
-    const points = coords.map((c) => ({
-      lng: c[0],
-      lat: c[1],
-      ele: c[2] || 0,
-    }));
-    const cumulativeDistances = [0];
-    for (let i = 1; i < points.length; i++) {
-      cumulativeDistances.push(
-        cumulativeDistances[i - 1] +
-          haversineDistance(
-            points[i - 1].lat,
-            points[i - 1].lng,
-            points[i].lat,
-            points[i].lng
-          )
-      );
-    }
-    const measuredDistance = cumulativeDistances.at(-1) || 1;
-    return {
-      id: r.id,
-      name: r.name,
-      distance: Number(r.distance),
-      points,
-      distanceFractions: cumulativeDistances.map(
-        (distance) => distance / measuredDistance
-      ),
-    };
-  });
-}
-
-// ─── Phase 2: Point-to-segment matching ─────────────────────────────────────
-
-function buildSpatialHash(
-  points: { lat: number; lng: number }[],
-  cellSizeDeg: number = 0.0005 // ~50m
-): Map<string, number[]> {
-  const hash = new Map<string, number[]>();
-  for (let i = 0; i < points.length; i++) {
-    const cx = Math.floor(points[i].lng / cellSizeDeg);
-    const cy = Math.floor(points[i].lat / cellSizeDeg);
-    // Check this cell and neighbors
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        const key = `${cx + dx},${cy + dy}`;
-        if (!hash.has(key)) hash.set(key, []);
-        hash.get(key)!.push(i);
-      }
-    }
-  }
-  return hash;
-}
-
-function computeMatchRibbon(
-  routePoints: TrackPoint[],
-  segment: CandidateSegment
-): { matched: boolean[]; deviations: number[]; nearestSegIdx: number[] } {
-  const segHash = buildSpatialHash(segment.points);
-  const matched: boolean[] = [];
-  const deviations: number[] = [];
-  const nearestSegIdx: number[] = [];
-
-  for (let i = 0; i < routePoints.length; i++) {
-    const rp = routePoints[i];
-    const cx = Math.floor(rp.lng / 0.0005);
-    const cy = Math.floor(rp.lat / 0.0005);
-    const key = `${cx},${cy}`;
-
-    let minDist = Infinity;
-    let bestIdx = -1;
-
-    const candidates = segHash.get(key);
-    if (candidates) {
-      // Deduplicate (spatial hash puts same index in multiple cells)
-      const seen = new Set<number>();
-      for (const idx of candidates) {
-        if (seen.has(idx)) continue;
-        seen.add(idx);
-        const sp = segment.points[idx];
-        const d = haversineDistance(rp.lat, rp.lng, sp.lat, sp.lng);
-        if (d < minDist) {
-          minDist = d;
-          bestIdx = idx;
-        }
-      }
-    }
-
-    matched.push(minDist <= MATCH_THRESHOLD_M);
-    deviations.push(minDist);
-    nearestSegIdx.push(bestIdx);
-  }
-
-  return { matched, deviations, nearestSegIdx };
-}
-
-function detectDirection(
-  nearestSegIdx: number[],
-  start: number,
-  end: number
-): "forward" | "reverse" {
-  let fwd = 0;
-  let rev = 0;
-  for (let i = start + 1; i <= end; i++) {
-    if (nearestSegIdx[i] < 0 || nearestSegIdx[i - 1] < 0) continue;
-    const diff = nearestSegIdx[i] - nearestSegIdx[i - 1];
-    if (diff > 0) fwd += diff;
-    else if (diff < 0) rev += Math.abs(diff);
-  }
-  return fwd >= rev ? "forward" : "reverse";
-}
-
-// ─── Phase 3: Extract and bridge match runs ─────────────────────────────────
-
-function extractRuns(
-  ribbon: { matched: boolean[]; deviations: number[]; nearestSegIdx: number[] },
-  routePoints: TrackPoint[],
-  segment: CandidateSegment
-): MatchRun[] {
-  // Find contiguous matched runs
-  const rawRuns: { start: number; end: number }[] = [];
-  let runStart = -1;
-
-  for (let i = 0; i < ribbon.matched.length; i++) {
-    if (ribbon.matched[i] && runStart < 0) {
-      runStart = i;
-    } else if (!ribbon.matched[i] && runStart >= 0) {
-      rawRuns.push({ start: runStart, end: i - 1 });
-      runStart = -1;
-    }
-  }
-  if (runStart >= 0) {
-    rawRuns.push({ start: runStart, end: ribbon.matched.length - 1 });
-  }
-
-  // Bridge small gaps
-  const bridged: { start: number; end: number }[] = [];
-  for (const run of rawRuns) {
-    if (
-      bridged.length > 0 &&
-      run.start - bridged[bridged.length - 1].end <= GAP_BRIDGE_POINTS
-    ) {
-      const gapDist =
-        routePoints[run.start].dist - routePoints[bridged[bridged.length - 1].end].dist;
-      if (gapDist <= GAP_BRIDGE_METERS) {
-        bridged[bridged.length - 1].end = run.end;
-        continue;
-      }
-    }
-    bridged.push({ ...run });
-  }
-
-  // Convert to MatchRuns, filtering short ones
-  const runs: MatchRun[] = [];
-  for (const run of bridged) {
-    const runDist = routePoints[run.end].dist - routePoints[run.start].dist;
-    if (runDist < MIN_RUN_LENGTH_M) continue;
-
-    const direction = detectDirection(ribbon.nearestSegIdx, run.start, run.end);
-    // Compute distance fractions along the existing segment. Normalize the
-    // endpoints so reverse-direction matches split the same physical span.
-    const startSegIdx = ribbon.nearestSegIdx[run.start];
-    const endSegIdx = ribbon.nearestSegIdx[run.end];
-    const firstFraction = segment.distanceFractions[startSegIdx] ?? 0;
-    const lastFraction = segment.distanceFractions[endSegIdx] ?? 1;
-    const startFrac = Math.max(0, Math.min(firstFraction, lastFraction));
-    const endFrac = Math.min(1, Math.max(firstFraction, lastFraction));
-
-    let avgDev = 0;
-    let devCount = 0;
-    for (let i = run.start; i <= run.end; i++) {
-      if (ribbon.matched[i]) {
-        avgDev += ribbon.deviations[i];
-        devCount++;
-      }
-    }
-
-    runs.push({
-      routeStart: run.start,
-      routeEnd: run.end,
-      segmentId: segment.id,
-      segmentName: segment.name,
-      direction,
-      startFraction: direction === "forward" ? Math.min(startFrac, endFrac) : Math.min(startFrac, endFrac),
-      endFraction: direction === "forward" ? Math.max(startFrac, endFrac) : Math.max(startFrac, endFrac),
-      avgDeviation: devCount > 0 ? avgDev / devCount : Infinity,
-    });
-  }
-
-  return runs;
-}
-
-// ─── Phase 4: Conflict resolution ───────────────────────────────────────────
-
-function resolveConflicts(
-  allRuns: MatchRun[],
-  routePointCount: number
-): MatchRun[] {
-  // Score: prefer higher coverage and lower deviation
-  const scored = allRuns.map((run) => ({
-    run,
-    score:
-      (run.routeEnd - run.routeStart) * 10 - run.avgDeviation,
-  }));
-  scored.sort((a, b) => b.score - a.score);
-
-  const claimed = new Uint8Array(routePointCount); // 0 = unclaimed
-  const resolved: MatchRun[] = [];
-
-  for (const { run } of scored) {
-    // Check if the run's range is mostly unclaimed
-    let claimedCount = 0;
-    for (let i = run.routeStart; i <= run.routeEnd; i++) {
-      if (claimed[i]) claimedCount++;
-    }
-    if (claimedCount > (run.routeEnd - run.routeStart) * 0.5) continue;
-
-    // Find the largest unclaimed sub-range
-    let bestStart = -1;
-    let bestEnd = -1;
-    let curStart = -1;
-
-    for (let i = run.routeStart; i <= run.routeEnd; i++) {
-      if (!claimed[i]) {
-        if (curStart < 0) curStart = i;
-      } else {
-        if (curStart >= 0 && (bestStart < 0 || i - curStart > bestEnd - bestStart)) {
-          bestStart = curStart;
-          bestEnd = i - 1;
-        }
-        curStart = -1;
-      }
-    }
-    if (curStart >= 0 && (bestStart < 0 || run.routeEnd - curStart + 1 > bestEnd - bestStart)) {
-      bestStart = curStart;
-      bestEnd = run.routeEnd;
-    }
-
-    if (bestStart < 0) continue;
-
-    // Claim the range
-    for (let i = bestStart; i <= bestEnd; i++) {
-      claimed[i] = 1;
-    }
-
-    resolved.push({ ...run, routeStart: bestStart, routeEnd: bestEnd });
-  }
-
-  resolved.sort((a, b) => a.routeStart - b.routeStart);
-  return resolved;
-}
-
-// ─── Phase 5-6: Build decomposition ─────────────────────────────────────────
-
-function buildDecomposition(
-  routePoints: TrackPoint[],
-  matches: MatchRun[],
-  candidates: Map<string, CandidateSegment>
-): { segments: ProposedSegment[]; splits: SegmentSplit[] } {
-  const proposed: ProposedSegment[] = [];
-  const splitMap = new Map<string, Set<number>>(); // segmentId → fractions as ints (x10000)
-  let cursor = 0;
-
-  for (const match of matches) {
-    // Gap before this match = new segment
-    if (match.routeStart > cursor) {
-      const gapPoints = routePoints.slice(cursor, match.routeStart + 1);
-      if (gapPoints.length >= 2) {
-        const elev = computeElevationStats(gapPoints.map((p) => p.ele));
-        proposed.push({
-          type: "new",
-          points: gapPoints,
-          distance: Math.round(totalDistance(gapPoints)),
-          gain: elev.gain,
-          loss: elev.loss,
-          name: null,
-        });
-      }
-    }
-
-    // A fraction-only endpoint snap can cover far more than the 30 m match
-    // limit on a long segment. Require the route boundary to be close to the
-    // physical segment endpoint as well.
-    const candidate = candidates.get(match.segmentId)!;
-    const candidateStart = candidate.points[0];
-    const candidateEnd = candidate.points[candidate.points.length - 1];
-    const lowerRoutePoint =
-      match.direction === "reverse"
-        ? routePoints[match.routeEnd]
-        : routePoints[match.routeStart];
-    const upperRoutePoint =
-      match.direction === "reverse"
-        ? routePoints[match.routeStart]
-        : routePoints[match.routeEnd];
-    const canSnapStart =
-      match.startFraction <= SNAP_FRACTION &&
-      haversineDistance(
-        lowerRoutePoint.lat,
-        lowerRoutePoint.lng,
-        candidateStart.lat,
-        candidateStart.lng
-      ) <= MATCH_THRESHOLD_M;
-    const canSnapEnd =
-      match.endFraction >= 1 - SNAP_FRACTION &&
-      haversineDistance(
-        upperRoutePoint.lat,
-        upperRoutePoint.lng,
-        candidateEnd.lat,
-        candidateEnd.lng
-      ) <= MATCH_THRESHOLD_M;
-    const isFullReuse = canSnapStart && canSnapEnd;
-
-    const matchPoints = routePoints.slice(match.routeStart, match.routeEnd + 1);
-    const elev = computeElevationStats(matchPoints.map((p) => p.ele));
-
-    if (isFullReuse) {
-      proposed.push({
-        type: "existing",
-        points: matchPoints,
-        existingSegmentId: match.segmentId,
-        existingSegmentName: match.segmentName,
-        direction: match.direction,
-        distance: Math.round(totalDistance(matchPoints)),
-        gain: elev.gain,
-        loss: elev.loss,
-        name: match.segmentName,
-      });
-    } else {
-      // Partial overlap → split needed
-      const sf = Math.max(0, match.startFraction);
-      const ef = Math.min(1, match.endFraction);
-
-      // Snap to endpoints
-      const snappedSf = canSnapStart ? 0 : sf;
-      const snappedEf = canSnapEnd ? 1 : ef;
-
-      // Record split fractions
-      if (!splitMap.has(match.segmentId)) splitMap.set(match.segmentId, new Set());
-      const fracs = splitMap.get(match.segmentId)!;
-      if (snappedSf > 0) fracs.add(Math.round(snappedSf * 10000));
-      if (snappedEf < 1) fracs.add(Math.round(snappedEf * 10000));
-
-      proposed.push({
-        type: "split",
-        points: matchPoints,
-        parentSegmentId: match.segmentId,
-        existingSegmentName: match.segmentName,
-        direction: match.direction,
-        startFraction: snappedSf,
-        endFraction: snappedEf,
-        distance: Math.round(totalDistance(matchPoints)),
-        gain: elev.gain,
-        loss: elev.loss,
-        name: match.segmentName,
-      });
-    }
-
-    cursor = match.routeEnd;
-  }
-
-  // Trailing gap
-  if (cursor < routePoints.length - 1) {
-    const gapPoints = routePoints.slice(cursor);
-    if (gapPoints.length >= 2) {
-      const elev = computeElevationStats(gapPoints.map((p) => p.ele));
-      proposed.push({
-        type: "new",
-        points: gapPoints,
-        distance: Math.round(totalDistance(gapPoints)),
-        gain: elev.gain,
-        loss: elev.loss,
-        name: null,
-      });
-    }
-  }
-
-  // If no matches at all, the entire route is one new segment
-  if (proposed.length === 0) {
-    const elev = computeElevationStats(routePoints.map((p) => p.ele));
-    proposed.push({
-      type: "new",
-      points: routePoints,
-      distance: Math.round(totalDistance(routePoints)),
-      gain: elev.gain,
-      loss: elev.loss,
-      name: null,
-    });
-  }
-
-  // Build splits list
-  const splits: SegmentSplit[] = [];
-  for (const [segId, fracSet] of splitMap) {
-    const seg = candidates.get(segId);
-    splits.push({
-      originalSegmentId: segId,
-      originalSegmentName: seg?.name || null,
-      fractions: Array.from(fracSet)
-        .map((f) => f / 10000)
-        .sort((a, b) => a - b),
-    });
-  }
-
-  return { segments: proposed, splits };
-}
-
-// ─── Phase 7: Find affected routes ──────────────────────────────────────────
-
-async function findAffectedRoutes(
-  segmentIds: string[]
-): Promise<AffectedRoute[]> {
-  if (segmentIds.length === 0) return [];
-
-  const result = await db.query(
-    `SELECT rs.route_id, r.name AS route_name,
-            rs.segment_id, rs.ordinal, rs.direction
-     FROM route_segments rs
-     JOIN routes r ON r.id = rs.route_id
-     WHERE rs.segment_id = ANY($1)
-     ORDER BY rs.route_id, rs.ordinal`,
-    [segmentIds]
-  );
-
-  return result.rows.map((r: any) => ({
-    routeId: r.route_id,
-    routeName: r.route_name,
-    segmentId: r.segment_id,
-    ordinal: Number(r.ordinal),
-    direction: r.direction,
-  }));
-}
-
-// ─── Public API: Analyze ────────────────────────────────────────────────────
+export type { ProposedSegment, SegmentSplit, AffectedRoute, RouteDecomposition } from "../segment-matcher-core";
+import { analyzeRouteSegmentsWithClient, type RouteDecomposition } from "../segment-matcher-core";
 
 export async function analyzeRouteSegments(
   points: TrackPoint[],
   options?: { excludeSegmentIds?: string[] }
 ): Promise<RouteDecomposition> {
-  // Phase 1: Find candidates
-  const candidates = await findCandidateSegments(
-    points,
-    options?.excludeSegmentIds ?? []
-  );
-
-  if (candidates.length === 0) {
-    // No existing segments nearby — everything is new
-    const elev = computeElevationStats(points.map((p) => p.ele));
-    return {
-      segments: [
-        {
-          type: "new",
-          points,
-          distance: Math.round(totalDistance(points)),
-          gain: elev.gain,
-          loss: elev.loss,
-          name: null,
-        },
-      ],
-      splits: [],
-      affectedRoutes: [],
-    };
-  }
-
-  // Phase 2-3: Match and extract runs for each candidate
-  const allRuns: MatchRun[] = [];
-  const candidateMap = new Map<string, CandidateSegment>();
-
-  for (const seg of candidates) {
-    candidateMap.set(seg.id, seg);
-    const ribbon = computeMatchRibbon(points, seg);
-    const runs = extractRuns(ribbon, points, seg);
-    allRuns.push(...runs);
-  }
-
-  // Phase 4: Resolve conflicts
-  const resolved = resolveConflicts(allRuns, points.length);
-
-  // Phase 5-6: Build decomposition
-  const { segments, splits } = buildDecomposition(points, resolved, candidateMap);
-
-  // Phase 7: Find affected routes
-  const splitSegIds = splits.map((s) => s.originalSegmentId);
-  const affectedRoutes = await findAffectedRoutes(splitSegIds);
-
-  return { segments, splits, affectedRoutes };
+  return analyzeRouteSegmentsWithClient(db, points, options);
 }
 
 // ─── Public API: Save ───────────────────────────────────────────────────────
@@ -620,6 +46,7 @@ export async function saveRouteWithSegments(
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    await assertSegmentSplitsHaveNoCatalogSource(client, decomposition.splits);
 
     // ── Step 1: Execute splits ──
     // Map: old segment id → array of new sub-segment ids (in order)
@@ -628,11 +55,11 @@ export async function saveRouteWithSegments(
     for (const split of decomposition.splits) {
       // Read original segment geometry
       const segResult = await client.query(
-        `SELECT ST_AsGeoJSON(path::geometry) AS geojson, name, distance, gain, gain_loss
-         FROM segments WHERE id = $1`,
+        `SELECT ST_AsGeoJSON(path::geometry, 15) AS geojson, name, distance, gain, gain_loss
+         FROM segments WHERE id = $1 FOR UPDATE`,
         [split.originalSegmentId]
       );
-      if (segResult.rows.length === 0) continue;
+      if (segResult.rows.length !== 1) throw new Error(`segment_split_missing:${split.originalSegmentId}`);
 
       const segRow = segResult.rows[0];
       const geo = JSON.parse(segRow.geojson);
@@ -644,24 +71,12 @@ export async function saveRouteWithSegments(
               cumDist += haversineDistance(arr[j - 1][1], arr[j - 1][0], arr[j][1], arr[j][0]);
             }
           }
-          return { lat: c[1], lng: c[0], ele: c[2] || 0, dist: cumDist };
+          return { lat: c[1], lng: c[0], ele: c[2], dist: cumDist };
         }
       );
 
-      const totalDist = origPoints[origPoints.length - 1].dist;
-
-      // Build cut points: [0, ...fractions, 1]
-      const cuts = [0, ...split.fractions, 1];
       const subSegIds: string[] = [];
-
-      for (let i = 0; i < cuts.length - 1; i++) {
-        const startDist = cuts[i] * totalDist;
-        const endDist = cuts[i + 1] * totalDist;
-
-        // Extract sub-segment points
-        const subPoints = extractSubPoints(origPoints, startDist, endDist);
-        if (subPoints.length < 2) continue;
-
+      for (const subPoints of splitSegmentAtVertices(origPoints, split)) {
         const subId = generateId();
         subSegIds.push(subId);
 
@@ -737,31 +152,14 @@ export async function saveRouteWithSegments(
           direction: seg.direction || "forward",
         });
       } else if (seg.type === "split") {
-        // Find the sub-segment that covers this portion
         const subIds = splitResults.get(seg.parentSegmentId!);
-        if (subIds && subIds.length > 0) {
-          // Determine which sub-segment this split portion corresponds to
-          const split = decomposition.splits.find(
-            (s) => s.originalSegmentId === seg.parentSegmentId
-          );
-          if (split) {
-            const cuts = [0, ...split.fractions, 1];
-            // Find the sub-segment whose range contains our startFraction
-            for (let i = 0; i < cuts.length - 1; i++) {
-              if (
-                seg.startFraction! >= cuts[i] - 0.01 &&
-                seg.endFraction! <= cuts[i + 1] + 0.01
-              ) {
-                if (i < subIds.length) {
-                  routeSegRefs.push({
-                    segmentId: subIds[i],
-                    direction: seg.direction || "forward",
-                  });
-                }
-                break;
-              }
-            }
-          }
+        const split = decomposition.splits.find(item => item.originalSegmentId === seg.parentSegmentId);
+        if (!subIds || !split || subIds.length !== split.vertexIndices.length + 1) {
+          throw new Error(`segment_split_result_missing:${seg.parentSegmentId}`);
+        }
+        const direction = seg.direction || "forward";
+        for (const index of splitSegmentPieceIndices(split, seg.segmentStartIndex, seg.segmentEndIndex, direction)) {
+          routeSegRefs.push({ segmentId: subIds[index], direction });
         }
       } else {
         // New segment — create it
@@ -782,7 +180,9 @@ export async function saveRouteWithSegments(
     // ── Step 3: Build full route geometry from segments ──
     const allPoints: TrackPoint[] = [];
     for (const seg of decomposition.segments) {
-      const pts = seg.direction === "reverse" ? [...seg.points].reverse() : seg.points;
+      // The matcher already orders proposed points along the route. Direction
+      // applies only to the stored segment reference, not this route slice.
+      const pts = seg.points;
       if (allPoints.length > 0 && pts.length > 0) {
         allPoints.push(...pts.slice(1));
       } else {

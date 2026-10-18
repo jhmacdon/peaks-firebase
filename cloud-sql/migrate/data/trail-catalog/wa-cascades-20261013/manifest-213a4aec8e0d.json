@@ -1,0 +1,942 @@
+{
+  "version": 1,
+  "batchKey": "wa-cascades-20261013",
+  "candidates": [
+    {
+      "sourceKey": "wa:osm-relation:4807642",
+      "name": "Lake Serene Trail",
+      "aliases": [],
+      "kind": "destination",
+      "trailheadId": "DiZjSucepuEsfCtfKw6F",
+      "objectiveId": "1755CBB232F3FCC6A437",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4807642-full.json",
+            "sha256": "215f944089218ea2c66528d0b0865efbc30f6d6441c0039a00da49c63c7d4f62",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4807642/full.json",
+            "retrievedAt": "2026-10-13T04:59:45.975720+00:00"
+          }
+        ],
+        "relationId": 4807642,
+        "wayIds": [
+          33724724,
+          992999553,
+          1419074002,
+          992999554,
+          33724734,
+          33724737,
+          35649242,
+          35649240,
+          1315876918,
+          35565745,
+          1185773070,
+          35565743,
+          1314474512,
+          35565707,
+          33724738
+        ]
+      },
+      "startNodeId": 2328918400,
+      "endNodeId": 416751343,
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/4807642",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      },
+      "elevation": {
+        "path": "elevation/wa-osm-relation-4807642.json",
+        "sha256": "ef97bf3c03a03f1ea150f706db62ccaf375a83a059fb55228f45ed9730d9ba55"
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:4793517",
+      "name": "Snow Lake Trail (Alpental)",
+      "aliases": [
+        "Snow Lake Trail"
+      ],
+      "kind": "destination",
+      "trailheadId": "7mdR4I31n8VQQdPVN5Nd",
+      "objectiveId": "4EDA7A56C36153040635",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4793517-full.json",
+            "sha256": "7885c3eb0df7a917c8ede2a18ebfad7f8704f7677fcf4e9f95fe3522bd57b986",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4793517/full.json",
+            "retrievedAt": "2026-10-13T04:59:45.975960+00:00"
+          }
+        ],
+        "relationId": 4793517,
+        "wayIds": [
+          162620236,
+          358720744,
+          162620235
+        ]
+      },
+      "startNodeId": 2009748375,
+      "endNodeId": 1340136721,
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/4793517",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      },
+      "elevation": {
+        "path": "elevation/wa-osm-relation-4793517.json",
+        "sha256": "b549ac980aed1e14410cb208efbbbc0724b496b310601a1d9db2a39c4cd2de37"
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186",
+      "name": "Ingalls Lake via Ingalls Way",
+      "aliases": [
+        "Ingalls Way Trail"
+      ],
+      "kind": "destination",
+      "trailheadId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "objectiveId": "4F56621F3FF823F6A480",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5626186-full.json",
+            "sha256": "ee132297bb0863feab4521c4b6262e8119481b1ac6bb6f1040a826fe4832e311",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5626186/full.json",
+            "retrievedAt": "2026-10-13T04:56:09.580128+00:00"
+          }
+        ],
+        "relationId": 5626186,
+        "wayIds": [
+          236470876,
+          295213950,
+          694942415,
+          1193241119,
+          236470870,
+          538410242
+        ]
+      },
+      "startNodeId": 2989196541,
+      "endNodeId": 2444987448,
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5626186",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      },
+      "elevation": {
+        "path": "elevation/wa-osm-relation-5626186.json",
+        "sha256": "f1140edf7cfe239fa251d70cb79aa31cc1aeadb8d1d59169891f9c01e3f1ca35"
+      },
+      "commonDestinationEvidence": {
+        "objectiveId": "4F56621F3FF823F6A480",
+        "name": "Lake Ingalls",
+        "publisher": "wta",
+        "sourceUrl": "https://www.wta.org/go-hiking/hikes/lake-ingalls",
+        "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+        "attestation": "standalone_named_hike",
+        "note": "The WTA Lake Ingalls hike guide describes the lake as the named hike destination and the far shore as an optional continuation. The saved endpoint review preserves the southern lake-shore turnaround separately from the Ingalls Peak climb."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186:ingalls-peak",
+      "name": "Ingalls Peak via Ingalls Way and South Ridge",
+      "aliases": [
+        "Ingalls Way Trail"
+      ],
+      "kind": "summit",
+      "trailheadId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "objectiveId": "8gW9WZ6tngvhNn0TIDpc",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5626186-full.json",
+            "sha256": "ee132297bb0863feab4521c4b6262e8119481b1ac6bb6f1040a826fe4832e311",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5626186/full.json",
+            "retrievedAt": "2026-10-13T04:56:09.580128+00:00"
+          }
+        ],
+        "relationId": 5626186,
+        "wayIds": [
+          236470876,
+          295213950,
+          694942415,
+          1193241119,
+          236470870,
+          538410242
+        ]
+      },
+      "startNodeId": 2989196541,
+      "blockedReason": "Known 118.7 m unmapped final summit span; source way 1213228739 stops below the summit and has demanding terrain / bad visibility. No connector may be invented.",
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5626186",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152031",
+      "name": "Colchuck Lake Trail",
+      "aliases": [],
+      "kind": "destination",
+      "trailheadId": "0kwic89q2UWPLE6jGyk0",
+      "objectiveId": "RedSHjLLfieFAySd8gFZ",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4152031-full.json",
+            "sha256": "73a72c2f14a226c40ebb4cbc628a7282ea2d50541bd5bee14436379eea889d1c",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4152031/full.json",
+            "retrievedAt": "2026-10-13T04:56:10.469196+00:00"
+          }
+        ],
+        "relationId": 4152031,
+        "wayIds": [
+          1219407739,
+          1219407738,
+          5838047,
+          310632646,
+          854796770,
+          235696406,
+          854796771,
+          340350765,
+          310632679,
+          310632640,
+          844433058
+        ]
+      },
+      "startNodeId": 3160876212,
+      "endNodeId": 3160874701,
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/4152031",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      },
+      "elevation": {
+        "path": "elevation/wa-osm-relation-4152031.json",
+        "sha256": "0135be7184ad9b721e223206f5adfe252f5f5efb61c24427747a60365304078c"
+      },
+      "attestedStats": [
+        {
+          "sourceUrl": "https://research.fs.usda.gov/download/treesearch/80472.pdf",
+          "distanceM": 14484.096000000001,
+          "distanceBasis": "round_trip",
+          "gainM": 713.8416000000001,
+          "gainBasis": "unspecified"
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152034",
+      "name": "Lake Stuart Trail",
+      "aliases": [
+        "Stuart Lake Trail"
+      ],
+      "kind": "destination",
+      "trailheadId": "0kwic89q2UWPLE6jGyk0",
+      "objectiveId": "3F941B9F4262007D704D",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4152034-full.json",
+            "sha256": "f36145d31fb0a883c767ed4c3be44371970e80c51f7d730992d8f72c949b596e",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4152034/full.json",
+            "retrievedAt": "2026-10-13T04:56:10.449550+00:00"
+          }
+        ],
+        "relationId": 4152034,
+        "wayIds": [
+          1219407739,
+          1219407738,
+          5838047,
+          310632646,
+          854796770,
+          235696406,
+          854796771,
+          340350765,
+          235696409
+        ]
+      },
+      "startNodeId": 3160876212,
+      "endNodeId": 4452331687,
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/4152034",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      },
+      "elevation": {
+        "path": "elevation/wa-osm-relation-4152034.json",
+        "sha256": "9382c34143d0423c645e64728099ba4e71d3a502b8b4693d9493ae28505d1540"
+      },
+      "attestedStats": [
+        {
+          "sourceUrl": "https://research.fs.usda.gov/download/treesearch/80472.pdf",
+          "distanceM": 14484.096000000001,
+          "distanceBasis": "round_trip",
+          "gainM": 560.832,
+          "gainBasis": "unspecified"
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4829792",
+      "name": "Enchantment Traverse",
+      "aliases": [
+        "Enchantments Traverse"
+      ],
+      "kind": "traverse",
+      "trailheadId": "0kwic89q2UWPLE6jGyk0",
+      "objectiveId": "kQJLnN0L4ee8fL0ig1Xb",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4829792-full.json",
+            "sha256": "c8cd6df3fc637b15d3c2acf37b013a5d95f72ca499463447523b70ca9edfe7e0",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4829792/full.json",
+            "retrievedAt": "2026-10-13T04:56:11.689652+00:00"
+          },
+          {
+            "path": "sources/osm-relation-4152031-full.json",
+            "sha256": "73a72c2f14a226c40ebb4cbc628a7282ea2d50541bd5bee14436379eea889d1c",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4152031/full.json",
+            "retrievedAt": "2026-10-13T04:56:10.469196+00:00"
+          },
+          {
+            "path": "sources/osm-relation-4152033-full.json",
+            "sha256": "f04cdc57400e247eee0d6b7c28cda86e278fb02c9f67fcd655a8d801401bfb74",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4152033/full.json",
+            "retrievedAt": "2026-10-13T04:56:11.568952+00:00"
+          }
+        ],
+        "relationId": 4829792,
+        "wayIds": [
+          1219407739,
+          1219407738,
+          5838047,
+          310632646,
+          854796770,
+          235696406,
+          854796771,
+          340350765,
+          310632679,
+          844433058,
+          235696395,
+          1084352602,
+          1084352603,
+          1084352604,
+          538405794,
+          844433059,
+          310632663,
+          310632633,
+          529572397,
+          300728913,
+          300403958,
+          310632682,
+          201671966,
+          201671967,
+          154033401,
+          310632640,
+          1305124458,
+          310632627,
+          1305124456,
+          300403957
+        ]
+      },
+      "startNodeId": 3160876212,
+      "endNodeId": 2116942640,
+      "endTrailheadId": "kQJLnN0L4ee8fL0ig1Xb",
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/4829792",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      },
+      "attestedStats": [
+        {
+          "sourceUrl": "https://research.fs.usda.gov/download/treesearch/80472.pdf",
+          "distanceM": 29772.864,
+          "distanceBasis": "one_way",
+          "gainM": 1476.756,
+          "gainBasis": "full_trip"
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626187",
+      "name": "Esmeralda Basin Trail",
+      "aliases": [],
+      "kind": "destination",
+      "trailheadId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "objectiveId": null,
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5626187-full.json",
+            "sha256": "75f4384108f8c2d64134cb0105c694fa06c154bb70fe85957f909c7f5733fbf8",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5626187/full.json",
+            "retrievedAt": "2026-10-13T04:56:09.637848+00:00"
+          }
+        ],
+        "relationId": 5626187,
+        "wayIds": [
+          1193241119,
+          236365556
+        ]
+      },
+      "startNodeId": 2989196541,
+      "blockedReason": "Named basin objective and common turnaround are absent from the reviewed catalog/source evidence; full relation continues beyond the basin toward Lake Ann.",
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5626187",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5553769",
+      "name": "Mount Si Trail",
+      "aliases": [],
+      "kind": "summit",
+      "trailheadId": "FLFBZ7rDLOFHPlUn9TMI",
+      "objectiveId": "nSf6z4vL0zjdG2sXibBM",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5553769-full.json",
+            "sha256": "dd454818c2a7ce98b3d046f86eeecf386ed67c704a4c3f5135274b7f00c80082",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5553769/full.json",
+            "retrievedAt": "2026-10-13T05:07:06.779101+00:00"
+          }
+        ],
+        "relationId": 5553769,
+        "wayIds": [
+          42636914,
+          42636915,
+          1087178168,
+          1087178167,
+          1087178166,
+          946181464,
+          946181461,
+          946181463,
+          946181462,
+          1393070463,
+          1393070464,
+          42730595,
+          479966018,
+          162157943
+        ]
+      },
+      "startNodeId": 532712300,
+      "endNodeId": 356546426,
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5553769",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:6106367",
+      "name": "Little Si",
+      "aliases": [],
+      "kind": "summit",
+      "trailheadId": "7etiVGkvGugHxmFja3xK",
+      "objectiveId": "xHaYBgzoxgfAZNLTfWid",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-6106367-full.json",
+            "sha256": "0aa5ebba2ac06013f92d344a603d7b5c42a53070eb8b17dabea49e4413743b54",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/6106367/full.json",
+            "retrievedAt": "2026-10-13T05:07:06.779359+00:00"
+          }
+        ],
+        "relationId": 6106367,
+        "wayIds": [
+          40413381,
+          479966020
+        ]
+      },
+      "startNodeId": 4729927256,
+      "endNodeId": 356545680,
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/6106367",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5588030",
+      "name": "Rattlesnake Ledge",
+      "aliases": [
+        "Rattlesnake Ledge Trail"
+      ],
+      "kind": "destination",
+      "trailheadId": "oPjIYQZRJoeTSxvofmZj",
+      "objectiveId": "7F9130E5AAEC9213E123",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5588030-full.json",
+            "sha256": "b2a86529bfda4a585b756c1842688f501065a0f86873579fc71bac9bf6c5d88f",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5588030/full.json",
+            "retrievedAt": "2026-10-13T05:07:06.779418+00:00"
+          }
+        ],
+        "relationId": 5588030,
+        "wayIds": [
+          43529800,
+          1024988821,
+          1024988820
+        ]
+      },
+      "startNodeId": 549500300,
+      "endNodeId": 534472312,
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5588030",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5199914",
+      "name": "Skyline Loop (Paradise)",
+      "aliases": [
+        "Skyline Trail"
+      ],
+      "kind": "loop",
+      "trailheadId": "xaMGyHut8CoGCSkCPKh6",
+      "objectiveId": null,
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5199914-full.json",
+            "sha256": "d3c06d5e8b257684cb2632dd2b6ad003c68f34baefca92d8fc07b5ef40b451aa",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5199914/full.json",
+            "retrievedAt": "2026-10-13T05:07:07.625745+00:00"
+          }
+        ],
+        "relationId": 5199914,
+        "wayIds": [
+          1216082470,
+          1216082471,
+          348842091,
+          514662032,
+          235057029,
+          439627178,
+          1216080551,
+          1216080552,
+          439627177,
+          1216080546,
+          1216080545,
+          1216080544,
+          1216080543,
+          1216080541,
+          1216080540,
+          286202120,
+          1314055304,
+          286202121,
+          1314055303,
+          178755821
+        ]
+      },
+      "startNodeId": 1891140697,
+      "blockedReason": "Paradise catalog trailhead is about 150 m from the named Skyline Trailhead (125 m gate). Relation also includes highway=steps edges unsupported by the current graph filter. Do not select a different nearby start to hide either gap.",
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5199914",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      },
+      "attestedStats": [
+        {
+          "sourceUrl": "https://www.nps.gov/mora/planyourvisit/skyline-trail.htm",
+          "distanceM": 8851.392,
+          "distanceBasis": "round_trip",
+          "gainM": 518.1600000000001,
+          "gainBasis": "full_trip"
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5194432",
+      "name": "Naches Peak Loop",
+      "aliases": [
+        "Naches Peak Loop Trail"
+      ],
+      "kind": "loop",
+      "trailheadId": null,
+      "objectiveId": null,
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5194432-full.json",
+            "sha256": "2d74b2d8f972a8ea2750b309d38709881a2b475ea7a024c6aabc7dea1942f2bf",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5194432/full.json",
+            "retrievedAt": "2026-10-13T05:07:07.682567+00:00"
+          }
+        ],
+        "relationId": 5194432,
+        "wayIds": [
+          232482239,
+          920595653,
+          348487956,
+          86477430,
+          86477887,
+          232595237,
+          235057030,
+          232595119,
+          699285217,
+          699285216,
+          232595238,
+          364714558
+        ]
+      },
+      "startNodeId": 2431576647,
+      "blockedReason": "Nearby catalog row ZELAKQAzdxPhff3TZmTS is named American Lake Trailhead, not Tipsoo Lake Trailhead. Proximity alone does not establish identity.",
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5194432",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      },
+      "attestedStats": [
+        {
+          "sourceUrl": "https://www.nps.gov/mora/planyourvisit/natches-peak-loop.htm",
+          "distanceM": 5632.704,
+          "distanceBasis": "round_trip",
+          "gainM": 152.4,
+          "gainBasis": "full_trip"
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5426108",
+      "name": "Mailbox Peak (new trail)",
+      "aliases": [
+        "Mailbox Peak Trail"
+      ],
+      "kind": "summit",
+      "trailheadId": "GHg65nKUeQhQU3D9A7ie",
+      "objectiveId": "5hVnUW4tmqj3A6YbU0oB",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5426108-full.json",
+            "sha256": "bc1d25f576fa138f019eeec83c020bbee7cc78c5d8fe5201d7eaf15e12f5c232",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5426108/full.json",
+            "retrievedAt": "2026-10-13T05:07:07.694827+00:00"
+          }
+        ],
+        "relationId": 5426108,
+        "wayIds": [
+          485762910,
+          348441237,
+          348441239,
+          348441238,
+          348441236,
+          1314051685,
+          1314051686,
+          485762908,
+          866130465,
+          1248929672,
+          866130466,
+          160893250
+        ]
+      },
+      "startNodeId": 53207063,
+      "endNodeId": 285408190,
+      "variant": "mailbox-new",
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5426108",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:7147738",
+      "name": "Mailbox Peak (old trail)",
+      "aliases": [
+        "Mailbox Peak Old Trail"
+      ],
+      "kind": "summit",
+      "trailheadId": "GHg65nKUeQhQU3D9A7ie",
+      "objectiveId": "5hVnUW4tmqj3A6YbU0oB",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-7147738-full.json",
+            "sha256": "ae2ae5c4e2c1e765acdf1d254ee2115aed3a48597d0b814b5a2338daca012729",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/7147738/full.json",
+            "retrievedAt": "2026-10-13T05:07:08.579373+00:00"
+          }
+        ],
+        "relationId": 7147738,
+        "wayIds": [
+          485762910,
+          485762909,
+          312552541,
+          769791465,
+          1248929672,
+          866130466,
+          160893250
+        ]
+      },
+      "startNodeId": 53207063,
+      "endNodeId": 285408190,
+      "variant": "mailbox-old",
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/7147738",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:6632394",
+      "name": "Heather–Maple Pass Loop",
+      "aliases": [
+        "Maple Pass Loop Trail"
+      ],
+      "kind": "loop",
+      "trailheadId": "b5keGEdwDwFwkodbuwaq",
+      "objectiveId": null,
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-6632394-full.json",
+            "sha256": "9ce812158c6fe6821125be55b42ab6f363726f55b0e8ab3494495319199d5c2a",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/6632394/full.json",
+            "retrievedAt": "2026-10-13T05:07:08.622697+00:00"
+          }
+        ],
+        "relationId": 6632394,
+        "wayIds": [
+          446198653,
+          347774425,
+          5836788,
+          347774424
+        ]
+      },
+      "startNodeId": 5751012388,
+      "blockedReason": "Rainy Pass catalog trailhead is about 175 m from the named source trailhead (125 m gate); selected relation is an open chain with a 9.4 m end gap. No synthetic loop closure.",
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/6632394",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:4807643",
+      "name": "Blanca Lake",
+      "aliases": [
+        "Blanca Lake Trail"
+      ],
+      "kind": "destination",
+      "trailheadId": "StXAAUitgEK1WrECejNX",
+      "objectiveId": "9B40DE76DC0878A92331",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4807643-full.json",
+            "sha256": "b2dfec921a1cd29bb4105b7c7bb25a26ce635b022a647085c62319f120aaee55",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4807643/full.json",
+            "retrievedAt": "2026-10-13T05:08:45.828913+00:00"
+          }
+        ],
+        "relationId": 4807643,
+        "wayIds": [
+          109044256,
+          1307290574,
+          174254527
+        ]
+      },
+      "startNodeId": 1249568914,
+      "endNodeId": 1249568900,
+      "access": {
+        "status": "closed",
+        "sourceUrl": "https://www.wta.org/go-hiking/hikes/blanca-lake",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "WTA currently displays a 2025-12-23 warning that the trailhead is inaccessible because Beckler River Road is closed by flood damage. Requires land-manager reopening evidence."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537770",
+      "name": "Lake 22",
+      "aliases": [
+        "Lake Twenty Two Trail"
+      ],
+      "kind": "destination",
+      "trailheadId": "oXomNSntgwhCMyHqrFMA",
+      "objectiveId": "FF006293EBCD1BBDA398",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5537770-full.json",
+            "sha256": "570956fac60648576367216e61d48da753ea57d263c69b36795b3392eaeecdca",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5537770/full.json",
+            "retrievedAt": "2026-10-13T05:07:08.655216+00:00"
+          }
+        ],
+        "relationId": 5537770,
+        "wayIds": [
+          55055545,
+          55055544,
+          55055543,
+          891132731,
+          891132730
+        ]
+      },
+      "startNodeId": 692525327,
+      "endNodeId": 692525452,
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5537770",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      },
+      "elevation": {
+        "path": "elevation/wa-osm-relation-5537770.json",
+        "sha256": "c96e377e14a6bbe41fa5188c22dc86842426d9ce821af6fcc226428f4cb00e94"
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5519228",
+      "name": "Poo Poo Point (Chirico Trail candidate)",
+      "aliases": [
+        "Chirico Trail"
+      ],
+      "kind": "destination",
+      "trailheadId": "rQKXSjXerrmfQpTLAWbM",
+      "objectiveId": "Yfu5QdaOWeuxpSXiN5rK",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5519228-full.json",
+            "sha256": "877b67421497dfbed061682f91f44d35ee434170f8bdcbdb237a781cf7564376",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5519228/full.json",
+            "retrievedAt": "2026-10-13T05:07:09.145509+00:00"
+          }
+        ],
+        "relationId": 5519228,
+        "wayIds": [
+          57355613,
+          1001811806
+        ]
+      },
+      "startNodeId": 667476333,
+      "endNodeId": 11863318581,
+      "blockedReason": "Catalog objective Poo Poo Point is a summit; Chirico source stops at a launch/viewpoint about 31 m from the OSM peak and does not reach the summit within 5 m. No separately verified named viewpoint catalog row exists.",
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5519228",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5194384",
+      "name": "Tolmie Peak",
+      "aliases": [
+        "Tolmie Peak Trail"
+      ],
+      "kind": "summit",
+      "trailheadId": "9ofuJq1VreK93jZgCjcF",
+      "objectiveId": "htqW9lCp974x1tEWD8t7",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5194384-full.json",
+            "sha256": "c5571094e5671eaad48a131cf777ecc3fb95200c4ac656f735312f36affb30cf",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5194384/full.json",
+            "retrievedAt": "2026-10-13T05:07:09.456189+00:00"
+          }
+        ],
+        "relationId": 5194384,
+        "wayIds": [
+          129731620,
+          348455952,
+          348455954,
+          129536770
+        ]
+      },
+      "startNodeId": 1429005737,
+      "endNodeId": 348178753,
+      "access": {
+        "status": "closed",
+        "sourceUrl": "https://www.nps.gov/mora/planyourvisit/tolmie-peak.htm",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "NPS reports no usual road access to Mowich Lake via SR165 because the Fairfax Bridge is closed. Hiking access from other trailheads does not prove this named approach is open."
+      },
+      "attestedStats": [
+        {
+          "sourceUrl": "https://www.nps.gov/mora/planyourvisit/tolmie-peak.htm",
+          "distanceM": 10460.736,
+          "distanceBasis": "round_trip",
+          "gainM": 307.848,
+          "gainBasis": "unspecified"
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537775",
+      "name": "Mount Pilchuck",
+      "aliases": [
+        "Mount Pilchuck Trail"
+      ],
+      "kind": "summit",
+      "trailheadId": "E65jXwR5gzXhiQc4ak6l",
+      "objectiveId": "iAD3EhqmkKVKXBjJjprj",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-5537775-full.json",
+            "sha256": "4d209f4e2234b87e3652ba6888049b69430a892087330cb06e14e0b329affc6f",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5537775/full.json",
+            "retrievedAt": "2026-10-13T05:07:09.534530+00:00"
+          }
+        ],
+        "relationId": 5537775,
+        "wayIds": [
+          37583693
+        ]
+      },
+      "startNodeId": 9922203929,
+      "endNodeId": 2362708368,
+      "access": {
+        "status": "unknown",
+        "sourceUrl": "https://www.openstreetmap.org/relation/5537775",
+        "checkedAt": "2026-10-13T05:38:58.362112+00:00",
+        "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      }
+    }
+  ]
+}

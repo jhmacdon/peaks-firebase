@@ -1,0 +1,263 @@
+{
+  "generatedAt": "2026-10-13T05:38:58.362112+00:00",
+  "selectedGeometry": "osm only",
+  "licenseName": "Open Data Commons Open Database License (ODbL) 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "© OpenStreetMap contributors",
+  "snapshots": [
+    {
+      "path": "sources/usfs-eight-trails.json",
+      "sha256": "917a9fb7cf26bf75d7d53be2b143c8ac5857603e2c816d09a3b13749039c0298",
+      "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublishWithDataStatus_01/MapServer/0/query?f=json&where=UPPER%28trail_name%29+LIKE+%27%25SERENE%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25SNOW%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25INGALLS%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25COLCHUCK%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25STUART%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25ESMERALDA%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25ENCHANT%25%27&geometry=-122%2C47%2C-120.5%2C48.2&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&inSR=4326&outSR=4326&outFields=%2A&returnGeometry=true&resultRecordCount=1000",
+      "retrievedAt": "2026-10-13T04:51:11.283722+00:00"
+    },
+    {
+      "path": "sources/usfs-esmerelda-aasgard.json",
+      "sha256": "06ba2a9fc5cc346879ab67e9c485e3c9dcdd3bf50665181aac3757c47cf0900a",
+      "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublishWithDataStatus_01/MapServer/0/query?f=json&where=trail_no%3D%271394%27+OR+UPPER%28trail_name%29+LIKE+%27%25ESMERELDA%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25AASGARD%25%27&geometry=-122%2C47%2C-120.5%2C48.2&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&inSR=4326&outSR=4326&outFields=%2A&returnGeometry=true",
+      "retrievedAt": "2026-10-13T04:52:52.696939+00:00"
+    },
+    {
+      "path": "sources/usfs-serene-corridor.json",
+      "sha256": "e4104fd8670dfbd1c9a5bc89c6710e35b980c74126bf8ca82503f3f4d5768d13",
+      "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublishWithDataStatus_01/MapServer/0/query?f=json&where=1%3D1&geometry=-121.59%2C47.78%2C-121.55%2C47.82&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&inSR=4326&outSR=4326&outFields=%2A&returnGeometry=true",
+      "retrievedAt": "2026-10-13T04:53:52.398458+00:00"
+    },
+    {
+      "path": "sources/usfs-thirteen-named.json",
+      "sha256": "06d9ae67d5d2d1d1331c01e86065156c7b183f0c2435f601f07f4028abc833e4",
+      "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublishWithDataStatus_01/MapServer/0/query?where=%28UPPER%28trail_name%29+LIKE+%27%25BLANCA%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25TWENTY%25%27+OR+UPPER%28trail_name%29+LIKE+%27%2522%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25PILCHUCK%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25MAPLE%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25HEATHER%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25NACHES%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25TOLMIE%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25SKYLINE%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25MAILBOX%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25RATTLESNAKE%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25MOUNT+SI%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25LITTLE+SI%25%27%29&geometry=%7B%22xmin%22%3A+-122.2%2C+%22ymin%22%3A+46.7%2C+%22xmax%22%3A+-120.4%2C+%22ymax%22%3A+48.7%2C+%22spatialReference%22%3A+%7B%22wkid%22%3A+4326%7D%7D&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=%2A&outSR=4326&returnGeometry=true&f=json&resultRecordCount=200",
+      "retrievedAt": "2026-10-13T05:06:23.436594+00:00"
+    },
+    {
+      "path": "sources/osm-relation-4807642-full.json",
+      "sha256": "215f944089218ea2c66528d0b0865efbc30f6d6441c0039a00da49c63c7d4f62",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/4807642/full.json",
+      "retrievedAt": "2026-10-13T04:59:45.975720+00:00"
+    },
+    {
+      "path": "sources/osm-relation-4793517-full.json",
+      "sha256": "7885c3eb0df7a917c8ede2a18ebfad7f8704f7677fcf4e9f95fe3522bd57b986",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/4793517/full.json",
+      "retrievedAt": "2026-10-13T04:59:45.975960+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5626186-full.json",
+      "sha256": "ee132297bb0863feab4521c4b6262e8119481b1ac6bb6f1040a826fe4832e311",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5626186/full.json",
+      "retrievedAt": "2026-10-13T04:56:09.580128+00:00"
+    },
+    {
+      "path": "sources/osm-relation-4152031-full.json",
+      "sha256": "73a72c2f14a226c40ebb4cbc628a7282ea2d50541bd5bee14436379eea889d1c",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/4152031/full.json",
+      "retrievedAt": "2026-10-13T04:56:10.469196+00:00"
+    },
+    {
+      "path": "sources/osm-relation-4152034-full.json",
+      "sha256": "f36145d31fb0a883c767ed4c3be44371970e80c51f7d730992d8f72c949b596e",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/4152034/full.json",
+      "retrievedAt": "2026-10-13T04:56:10.449550+00:00"
+    },
+    {
+      "path": "sources/osm-relation-4829792-full.json",
+      "sha256": "c8cd6df3fc637b15d3c2acf37b013a5d95f72ca499463447523b70ca9edfe7e0",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/4829792/full.json",
+      "retrievedAt": "2026-10-13T04:56:11.689652+00:00"
+    },
+    {
+      "path": "sources/osm-relation-4152033-full.json",
+      "sha256": "f04cdc57400e247eee0d6b7c28cda86e278fb02c9f67fcd655a8d801401bfb74",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/4152033/full.json",
+      "retrievedAt": "2026-10-13T04:56:11.568952+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5626187-full.json",
+      "sha256": "75f4384108f8c2d64134cb0105c694fa06c154bb70fe85957f909c7f5733fbf8",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5626187/full.json",
+      "retrievedAt": "2026-10-13T04:56:09.637848+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5553769-full.json",
+      "sha256": "dd454818c2a7ce98b3d046f86eeecf386ed67c704a4c3f5135274b7f00c80082",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5553769/full.json",
+      "retrievedAt": "2026-10-13T05:07:06.779101+00:00"
+    },
+    {
+      "path": "sources/osm-relation-6106367-full.json",
+      "sha256": "0aa5ebba2ac06013f92d344a603d7b5c42a53070eb8b17dabea49e4413743b54",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/6106367/full.json",
+      "retrievedAt": "2026-10-13T05:07:06.779359+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5588030-full.json",
+      "sha256": "b2a86529bfda4a585b756c1842688f501065a0f86873579fc71bac9bf6c5d88f",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5588030/full.json",
+      "retrievedAt": "2026-10-13T05:07:06.779418+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5199914-full.json",
+      "sha256": "d3c06d5e8b257684cb2632dd2b6ad003c68f34baefca92d8fc07b5ef40b451aa",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5199914/full.json",
+      "retrievedAt": "2026-10-13T05:07:07.625745+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5194432-full.json",
+      "sha256": "2d74b2d8f972a8ea2750b309d38709881a2b475ea7a024c6aabc7dea1942f2bf",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5194432/full.json",
+      "retrievedAt": "2026-10-13T05:07:07.682567+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5426108-full.json",
+      "sha256": "bc1d25f576fa138f019eeec83c020bbee7cc78c5d8fe5201d7eaf15e12f5c232",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5426108/full.json",
+      "retrievedAt": "2026-10-13T05:07:07.694827+00:00"
+    },
+    {
+      "path": "sources/osm-relation-7147738-full.json",
+      "sha256": "ae2ae5c4e2c1e765acdf1d254ee2115aed3a48597d0b814b5a2338daca012729",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/7147738/full.json",
+      "retrievedAt": "2026-10-13T05:07:08.579373+00:00"
+    },
+    {
+      "path": "sources/osm-relation-6632394-full.json",
+      "sha256": "9ce812158c6fe6821125be55b42ab6f363726f55b0e8ab3494495319199d5c2a",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/6632394/full.json",
+      "retrievedAt": "2026-10-13T05:07:08.622697+00:00"
+    },
+    {
+      "path": "sources/osm-relation-4807643-full.json",
+      "sha256": "b2dfec921a1cd29bb4105b7c7bb25a26ce635b022a647085c62319f120aaee55",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/4807643/full.json",
+      "retrievedAt": "2026-10-13T05:08:45.828913+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5537770-full.json",
+      "sha256": "570956fac60648576367216e61d48da753ea57d263c69b36795b3392eaeecdca",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5537770/full.json",
+      "retrievedAt": "2026-10-13T05:07:08.655216+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5519228-full.json",
+      "sha256": "877b67421497dfbed061682f91f44d35ee434170f8bdcbdb237a781cf7564376",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5519228/full.json",
+      "retrievedAt": "2026-10-13T05:07:09.145509+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5194384-full.json",
+      "sha256": "c5571094e5671eaad48a131cf777ecc3fb95200c4ac656f735312f36affb30cf",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5194384/full.json",
+      "retrievedAt": "2026-10-13T05:07:09.456189+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5537775-full.json",
+      "sha256": "4d209f4e2234b87e3652ba6888049b69430a892087330cb06e14e0b329affc6f",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5537775/full.json",
+      "retrievedAt": "2026-10-13T05:07:09.534530+00:00"
+    },
+    {
+      "path": "sources/osm-blanca-corrected-map.json",
+      "sha256": "74ae6dda8b99a0dcd6d66eec23fdcb515ba548125113e152d870885edbb118ba",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.319,47.909,-121.306,47.922",
+      "retrievedAt": "2026-10-13T05:07:10.082348+00:00"
+    },
+    {
+      "path": "sources/osm-blanca-objective-map.json",
+      "sha256": "e76b6a7bd9b6300f7ddc2f6aed4d526653885b5071fe9bf8d550aea5b7feba01",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.349255,47.927605,-121.33525499999999,47.941604999999996",
+      "retrievedAt": "2026-10-13T05:08:47.145098+00:00"
+    },
+    {
+      "path": "sources/osm-lake22-objective-map.json",
+      "sha256": "42c4dfe26211a41273f54794451c0a224d69e6d98fd7d82505b5bb268c58dbcd",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.76947,48.06002,-121.75546999999999,48.07402",
+      "retrievedAt": "2026-10-13T05:08:46.915047+00:00"
+    },
+    {
+      "path": "sources/osm-little-si-map.json",
+      "sha256": "bdf1b9930f26c02f0d64ec75f4f163915358c5f125a2d27fddafdfde93132c8c",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.759,47.482,-121.747,47.494",
+      "retrievedAt": "2026-10-13T05:06:18.078938+00:00"
+    },
+    {
+      "path": "sources/osm-maple-pass-map.json",
+      "sha256": "a26b6deecc49d901350a067d4303681daec0055e8b86bfcaa1e6a639157e17e5",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-120.741,48.511,-120.729,48.523",
+      "retrievedAt": "2026-10-13T05:06:21.111109+00:00"
+    },
+    {
+      "path": "sources/osm-naches-map.json",
+      "sha256": "15652c04f51b5de25e37732e0b288d9910bd18c28ea6ecdc88d13ed18a5ffa11",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.524,46.863,-121.512,46.875",
+      "retrievedAt": "2026-10-13T05:06:19.579835+00:00"
+    },
+    {
+      "path": "sources/osm-pilchuck-objective-map.json",
+      "sha256": "8e875ddf8878ba418fe506f8185649c5a7296c9c22e48d9e277a8b21a8a19a7a",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.80474000000001,48.050920000000005,-121.79074,48.06492",
+      "retrievedAt": "2026-10-13T05:08:45.829168+00:00"
+    },
+    {
+      "path": "sources/osm-poo-poo-map.json",
+      "sha256": "e568a808f1811d9aad204e1db595f7a56538a66094a41cab762b932ab3b2b33b",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-122.028,47.493,-122.016,47.505",
+      "retrievedAt": "2026-10-13T05:06:22.077672+00:00"
+    },
+    {
+      "path": "sources/osm-poo-poo-objective-map.json",
+      "sha256": "87e7d149b0d59cd58e6d80e6fb076cb6160b4ea45049f61398698fd6835986ec",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-122.01538000000001,47.492200000000004,-122.00138,47.5062",
+      "retrievedAt": "2026-10-13T05:08:45.829234+00:00"
+    },
+    {
+      "path": "sources/osm-relation-5519227-full.json",
+      "sha256": "38f084d294f8ec64e3f582c9195f08f805bfa815dcf1b7574d52dc54d2b8b3b9",
+      "url": "https://api.openstreetmap.org/api/0.6/relation/5519227/full.json",
+      "retrievedAt": "2026-10-13T05:09:54.398030+00:00"
+    },
+    {
+      "path": "sources/osm-skyline-map.json",
+      "sha256": "e8c4a3781026c438c4a2d8101e0dea87a7745e8a6ad0bfc4149cfa8f31b50a82",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.741,46.781,-121.729,46.793",
+      "retrievedAt": "2026-10-13T05:06:19.523647+00:00"
+    },
+    {
+      "path": "sources/osm-tolmie-map.json",
+      "sha256": "9eb7ec6d36eb99290a0e7ecb7fe9b13dc6914b80d3dd51d269e2dc8429491611",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.87,46.927,-121.858,46.939",
+      "retrievedAt": "2026-10-13T05:06:22.276736+00:00"
+    },
+    {
+      "path": "sources/osm-esmeralda-start-map.json",
+      "sha256": "b381841e943653138e792b508e3c28723fbe7a7f3b3dbab0d938b92aada54c99",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-120.941,47.433,-120.932,47.440",
+      "retrievedAt": "2026-10-13T04:59:47.260551+00:00"
+    },
+    {
+      "path": "sources/osm-ingalls-summit-map.json",
+      "sha256": "02835d2c43132bb93ca8c2248f253ecd44c38350dee8a90638b7242524bc4775",
+      "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-120.952492,47.466487,-120.940492,47.478487",
+      "retrievedAt": "2026-10-13T05:06:23.316894+00:00"
+    },
+    {
+      "path": "sources/osm-ingalls-peak-node-ways.json",
+      "sha256": "e6e22adc8d5c12752f91d667f61e6142549d41652a2afedd9b3d1947a61ea9dd",
+      "url": "https://api.openstreetmap.org/api/0.6/node/356545306/ways.json",
+      "retrievedAt": "2026-10-13T05:07:10.303666+00:00"
+    }
+  ],
+  "catalogSnapshot": {
+    "path": "catalog-places-6bb7916bb071.json",
+    "sha256": "6bb7916bb071a10305e3b8a0a44f791f0c3cf0c7f343388184213df2a360f626",
+    "source": "Read-only bounded live Cloud SQL snapshot of all 32 catalog IDs bound by the reviewed 21-candidate manifest; no route/segment path reads or writes.",
+    "snapshotAt": "2026-10-13T06:48:37.356793+00:00",
+    "manifestSha256": "f5d01dacc488efe8bcf10a483a9afe515ba377daa2700009b00f31cf15ce10c5",
+    "queryPath": "docs/data-audits/trail-catalog-wa-2026-10-13/catalog-snapshot-preflight.sql",
+    "querySha256": "12f83dee30abeaec41b16d4e31a30de6ff2d2cb66985bb8eeda5d28e9ad5f079",
+    "rawCaptureSha256": "047bad2b294dbf60362ed4df395184df968518244b8cf4951db1ee81bf7a70ab"
+  },
+  "terrainReceipts": {
+    "path": "terrain-tile-receipts.json",
+    "sha256": "f261f3c4fd09419c34a331d46ee5a63d3a0e9756ece5b7cf13c7c599f029152e"
+  }
+}

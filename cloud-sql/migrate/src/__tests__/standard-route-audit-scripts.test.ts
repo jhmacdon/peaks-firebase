@@ -68,7 +68,7 @@ test("goal audit targets all and only Peaks-owned lists", () => {
   );
 });
 
-test("listed route-cover audit keeps every photo and route gap visible", () => {
+test("listed route-cover audit keeps every photo and route gap visible without requiring photos", () => {
   const result = run(COVER_GOAL_AUDIT, "--format", "summary", "--print-sql");
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /WHERE l\.owner = 'peaks'/);
@@ -90,10 +90,16 @@ test("listed route-cover audit keeps every photo and route gap visible", () => {
   assert.match(result.stdout, /listed_route_cover_complete/);
   assert.match(result.stdout, /COUNT\(\*\) > 0/);
   assert.match(result.stdout, /AS goal_complete/);
+  // Photos are optional: no cover column may decide completion.
+  assert.match(
+    result.stdout,
+    /listed\.summit_feature_valid\s+AND COALESCE\(evidence\.valid_active_peaks_routes, 0\) > 0\s+AS listed_route_cover_complete/
+  );
+  assert.doesNotMatch(result.stdout, /NOT EXISTS \(\s+SELECT 1 FROM active_peaks_routes WHERE NOT route_cover_complete/);
 });
 
 test(
-  "listed route-cover SQL fails closed and exposes an orphan route gap",
+  "listed route-cover SQL fails closed and reports an uncovered route without blocking",
   {
     skip: ROUTE_JOB_TEST_DATABASE_URL
       ? false
@@ -179,6 +185,7 @@ test(
         Number(orphanGapResult.rows[0].active_peaks_routes_missing_cover),
         1
       );
+      // An empty list still fails closed; the missing photo is only reported.
       assert.equal(orphanGapResult.rows[0].goal_complete, false);
 
       const detailSql = detail.stdout
@@ -187,7 +194,14 @@ test(
         .split(":'row_limit'")
         .join("'0'");
       const detailResult = await client.query(detailSql);
-      assert.deepEqual(detailResult.rows[0].detail_rows, [
+      assert.deepEqual(detailResult.rows[0].detail_rows, []);
+      const allDetailSql = detail.stdout
+        .split(":'incomplete_only'::boolean")
+        .join("false")
+        .split(":'row_limit'")
+        .join("'0'");
+      const allDetailResult = await client.query(allDetailSql);
+      assert.deepEqual(allDetailResult.rows[0].detail_rows, [
         {
           record_type: "active_peaks_route",
           destination_id: null,
@@ -210,7 +224,7 @@ test(
           active_peaks_routes_without_cover: null,
           route_ids_without_cover: [],
           route_cover_complete: false,
-          complete: false,
+          complete: true,
         },
       ]);
 
@@ -220,10 +234,7 @@ test(
         .split(":'row_limit'")
         .join("'0'");
       const tsvResult = await client.query(tsvSql);
-      assert.equal(tsvResult.rows.length, 1);
-      assert.equal(tsvResult.rows[0].record_type, "active_peaks_route");
-      assert.equal(tsvResult.rows[0].route_id, "orphan-route");
-      assert.equal(tsvResult.rows[0].complete, false);
+      assert.equal(tsvResult.rows.length, 0, "a route without a photo is not a gap");
     } finally {
       await client.query("ROLLBACK");
       client.release();

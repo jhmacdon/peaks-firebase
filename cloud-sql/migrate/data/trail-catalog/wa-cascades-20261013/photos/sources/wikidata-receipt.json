@@ -1,0 +1,5 @@
+{
+  "url": "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q24884203%7CQ124370643%7CQ20712220%7CQ21196808%7CQ111944228%7CQ3214751%7CQ49303905%7CQ7814451%7CQ6651911&props=claims%7Clabels%7Csitelinks&languages=en&format=json",
+  "retrievedAt": "2026-10-13T07:04:35.713116+00:00",
+  "sha256": "9474121f8d53ecc0f04b0fecb9d7959637a51439dadfaf647d74e8b5e711f23c"
+}

@@ -1,0 +1,226 @@
+import { createHash } from 'node:crypto';
+import { haversine, interpolate, length, lineIndex, nearest, pointDistance, samples, unique } from './geo';
+import { normalizeName, trailKey } from './names';
+import { refresh } from './topology';
+import { routeLine, projection } from './stretches';
+import { peaksLegacyProvenance, validSource } from './source-provenance';
+import { legacyWaypoints } from './summit-connectors';
+import type { TrailRouter, RouteStep } from './router';
+import type { ComposedRoute, DraftRoute, PeaksRoute, PeaksDestination } from './catalog-types';
+import type { Coord, Provenance, Segment } from './types';
+
+const digest = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+export interface LegacyRoute {
+  id: string; name: string; status: string; kind: ComposedRoute['kind'] | null; shape: ComposedRoute['shape'] | null;
+  distance: number; gain: number | null; objective_destination_id: string | null; trailhead_destination_id: string | null;
+  provenance_source: string | null; provenance?: Provenance; n_sessions: number; catalog_reviewed: boolean;
+  created_at?: string; trail_names?: string[];
+  factory_job: string | { state: string; lease_expires_at?: string | null } | null;
+  segments: { id: string; ordinal: number; direction: string; shared_by: number }[] | null; coords: Coord[];
+}
+export interface RebasePlan {
+  legacy: LegacyRoute; source_hash: string; status: 'ok' | 'review' | 'failed'; reasons: string[];
+  frozen: boolean; row: ComposedRoute; hausdorff_m: number | null; deviation_fraction: number | null;
+  tail_length_m: number; graph_length_m: number; plan_hash?: string;
+  median_spacing_m: number; sparse: boolean; mean_deviation_m: number | null; mapped_name_fraction: number;
+}
+export interface RebaseContext { trailNames?: string[]; summits?: {id:string;name:string;coord:Coord}[]; objectiveFeatures?: string[]; places?: PeaksDestination[] }
+export interface MergePlan {
+  seed_index: number; legacy_id: string; legacy_name: string; catalog_name: string; status: 'ok' | 'review';
+  reasons: string[]; shared_fraction: number; length_difference: number; same_endpoints: boolean; plan_hash: string;
+}
+export const legacyHash = (legacy: LegacyRoute): string => digest([legacy.id, legacy.name, legacy.status, legacy.coords, legacy.segments, legacy.objective_destination_id, legacy.trailhead_destination_id]);
+export function leased(legacy: LegacyRoute, now = Date.now()): boolean {
+  return !!legacy.factory_job && typeof legacy.factory_job === 'object' && !!legacy.factory_job.lease_expires_at && Date.parse(legacy.factory_job.lease_expires_at) >= now;
+}
+export function cutLine(coords: Coord[], from: number, to: number): Coord[] {
+  const points: Coord[] = []; let offset = 0;
+  for (let i = 1; i < coords.length; i++) {
+    const d = haversine(coords[i - 1], coords[i]), end = offset + d;
+    if (end >= from && offset <= to && d > 0) {
+      const a = interpolate(coords[i - 1], coords[i], Math.max(0, (from - offset) / d));
+      const b = interpolate(coords[i - 1], coords[i], Math.min(1, (to - offset) / d));
+      if (!points.length || haversine(points[points.length - 1], a) > 0.001) points.push(a);
+      if (haversine(points[points.length - 1], b) > 0.001) points.push(b);
+    }
+    offset = end; if (offset > to) break;
+  }
+  return points.length ? points : [coords[0]];
+}
+function distanceTo(index: ReturnType<typeof lineIndex>, p: Coord, radius = 500): number {
+  return Math.min(radius, ...index.near(p, radius).map(e => pointDistance(p, e.a, e.b)));
+}
+/** Symmetric sampled Hausdorff with <=10m spacing; trim each line's end 100m. */
+export function trimmedHausdorff(a: Coord[], b: Coord[], trim = 100): number {
+  const one = (x: Coord[], y: Coord[]) => {
+    const total = length(x), cut = Math.min(trim, total / 4), index = lineIndex([{ coords: y }]); let max = 0;
+    const part = cutLine(x, cut, total - cut);
+    for (const s of samples(part, 10)) max = Math.max(max, distanceTo(index, s.point));
+    for (const p of part) max = Math.max(max, distanceTo(index, p)); return max;
+  };
+  return Math.max(one(a, b), one(b, a));
+}
+export function medianSpacing(coords: Coord[]): number { const ds=coords.slice(1).map((p,i)=>haversine(coords[i],p)).sort((a,b)=>a-b);return ds.length? (ds[Math.floor((ds.length-1)/2)]+ds[Math.floor(ds.length/2)])/2:0; }
+export function deviationStats(a: Coord[],b: Coord[],trim=100):{mean:number;max:number} {
+  let weighted=0,metres=0,max=0;
+  for(const [x,y] of [[a,b],[b,a]]){const n=length(x),cut=Math.min(trim,n/4),index=lineIndex([{coords:y}]),part=cutLine(x,cut,n-cut);
+    for(const sample of samples(part,10)){const d=distanceTo(index,sample.point);weighted+=d*sample.weight;metres+=sample.weight;max=Math.max(max,d);}
+    for(const p of part)max=Math.max(max,distanceTo(index,p));
+  }return{mean:metres?weighted/metres:0,max};
+}
+export function preferredLegacySegment(s:Segment,names:string[]):boolean {
+  const keys=names.map(trailKey).filter(Boolean);return [...s.trail_names,...s.relation_names].map(trailKey).some(n=>keys.some(k=>n===k||(` ${n} `).includes(` ${k} `)||(` ${k} `).includes(` ${n} `)&&n.length>5));
+}
+function legacyRow(legacy: LegacyRoute, prior: PeaksRoute | undefined,context:RebaseContext): ComposedRoute {
+  const first = [...(prior?.destinations ?? [])].sort((a, b) => a.ordinal - b.ordinal)[0]?.id;
+  const last = [...(prior?.destinations ?? [])].sort((a, b) => b.ordinal - a.ordinal)[0]?.id;
+  const inferredKind=context.objectiveFeatures?.includes('summit')?'summit':context.objectiveFeatures?.includes('trailhead')?'traverse':context.objectiveFeatures?.length?'destination':'summit';
+  return { seed_index: -1, name: legacy.name, aliases: [], kind: legacy.kind ?? inferredKind, region: 'WA legacy', tier: 0,
+    trailhead: legacy.trailhead_destination_id || first ? { peaks_id: legacy.trailhead_destination_id ?? first } : null,
+    objective: legacy.objective_destination_id || last ? { peaks_id: legacy.objective_destination_id ?? last } : null,
+    segments: [], length_m: 0, shape: legacy.shape ?? 'out_and_back', waypoints: [], wta_url: null, requires_permit: null, season: '',
+    existing_route_match: null, existing_route_matches: [], name_duplicates: [], status: 'ok', reasons: [], expected_length_m: length(legacy.coords),
+    deviation_fraction: null, preferred_fraction: 1, road_fraction: 0, approx_roundtrip_mi: 0,
+    route_start: legacy.coords[0] ?? null, route_end: legacy.coords.at(-1) ?? null, segment_sources: [] };
+}
+export function rebaseDraft(legacy: LegacyRoute, router: TrailRouter, byId: Map<string, Segment>, prior?: PeaksRoute,context:RebaseContext={}): { plan: RebasePlan; draft: DraftRoute } {
+  legacy={...legacy,trail_names:unique([...(legacy.trail_names??[]),...(context.trailNames??[])])};
+  const row = legacyRow(legacy, prior,context), walk: RouteStep[] = [], source_hash = legacyHash(legacy),spacing=medianSpacing(legacy.coords);
+  row.waypoints = legacyWaypoints(context.places ?? [], row.trailhead, row.objective);
+  const plan: RebasePlan = { legacy, source_hash, status: 'ok', reasons: [], frozen: legacy.catalog_reviewed, row, hausdorff_m: null, deviation_fraction: null, tail_length_m: 0, graph_length_m: 0,median_spacing_m:spacing,sparse:spacing>50,mean_deviation_m:null,mapped_name_fraction:0 };
+  const finish = () => { row.status = plan.status === 'failed' ? 'failed' : plan.status; row.reasons = [...plan.reasons]; return { plan, draft: { row, walk } }; };
+  if (legacy.catalog_reviewed) { plan.status = 'review'; plan.reasons.push('catalog_reviewed: frozen'); return finish(); }
+  if (leased(legacy)) { plan.status = 'review'; plan.reasons.push('live factory lease: skip'); return finish(); }
+  if (legacy.coords.length < 2 || legacy.coords.some(p => !p.every(Number.isFinite))) { plan.status = 'failed'; plan.reasons.push('invalid legacy geometry'); return finish(); }
+  const originalLength = length(legacy.coords), index = lineIndex([{ coords: legacy.coords }]), penalties = new Map<string, number>();
+  // Preserve existing <=5m summit contacts even when an adjacent graph line is
+  // a few metres away. Missing intermediate contacts are filtered after matching;
+  // only the objective can authorize a short endpoint connector.
+  const protectedSpans:{from:number;to:number}[]=[];
+  for(const summit of context.summits??[]){const p=projection(summit.coord,legacy.coords);if(p.distance<=5)protectedSpans.push({from:Math.max(0,p.along-25),to:Math.min(originalLength,p.along+25)});}
+  const penalty = (s: Segment) => {
+    if (!penalties.has(s.id)) { let weight = 0, cost = 0;
+      for (const sample of samples(s.coords, 40)) { const d = distanceTo(index, sample.point, 200); weight += sample.weight; cost += sample.weight * (d > (plan.sparse?150:50) ? 10 : d > 25 ? 3 : 1); }
+      penalties.set(s.id, cost / (weight || 1)); }
+    return penalties.get(s.id)!;
+  };
+  const anchorSet=new Set([0,originalLength,...protectedSpans.flatMap(p=>[p.from,p.to])]);for(let m=400;m<originalLength;m+=400)anchorSet.add(m);
+  const hits = [...anchorSet].sort((a,b)=>a-b).map(m => { const p = cutLine(legacy.coords, m, m)[0]; return { m, p, hit: nearest(router.vertices, p, plan.sparse?150:40) }; });
+  const tailProvenance=legacy.provenance&&validSource(legacy.provenance)?legacy.provenance:peaksLegacyProvenance(legacy.created_at);
+  const tailPoints = (from: number, to: number, a?: typeof hits[number]['hit'], b?: typeof hits[number]['hit']) => {
+    let points = cutLine(legacy.coords, from, to);
+    if (a && haversine(a.value.coord, points[0]) > 0.001) points.unshift(a.value.coord);
+    if (b && haversine(b.value.coord, points.at(-1)!) > 0.001) points.push(b.value.coord);
+    points = points.filter((p, i) => !i || haversine(points[i - 1], p) > 0.001);
+    return points;
+  };
+  const tail = (from: number, to: number, a?: typeof hits[number]['hit'], b?: typeof hits[number]['hit']) => {
+    const points = tailPoints(from, to, a, b);
+    if (points.length < 2 || length(points) < 0.1) return;
+    const node_ids = points.map(p => `legacy-${digest([legacy.id, p]).slice(0, 20)}`); if (a) node_ids[0] = a.value.id; if (b) node_ids[node_ids.length - 1] = b.value.id;
+    const start = node_ids[0], s = refresh({ id: '', name: null, display_name: null, trail_names: [], kind: /glacier/i.test(legacy.name) ? 'glacier' : 'xc',
+      sac_scale: null, trail_visibility: null, osm_way_ids: [], relation_names: [], relations: [], start_node: '', end_node: '', coords: points, node_ids, osm_edge_way_ids: [], length_m: 0,
+      provenance: tailProvenance, alt_sources: [], legacy_tail: { route_id: legacy.id, source_hash, attachment_gap_m: Math.max(a?.distance ?? 0, b?.distance ?? 0) } });
+    s.provenance = tailProvenance;
+    s.id = `wa-legacy-tail-${digest([legacy.id, s.coords]).slice(0, 20)}`; byId.set(s.id, s);
+    const forward = s.node_ids[0] === start; walk.push({ segment_id: s.id, direction: forward ? 'forward' : 'reverse', start_vertex: forward ? 0 : s.coords.length - 1, end_vertex: forward ? s.coords.length - 1 : 0, length_m: s.length_m });
+    plan.tail_length_m += s.length_m;
+  };
+  const mappedLegs: { offset: number; count: number; from: number; to: number; a: typeof hits[number]['hit']; b: typeof hits[number]['hit']; graph_m: number; legacy_m: number }[] = [];
+  let previous = -1;
+  for (let i = 0; i < hits.length; i++) {
+    if (!hits[i].hit) continue;
+    if (previous < 0) { tail(0, hits[i].m, undefined, hits[i].hit); previous = i; continue; }
+    const a = hits[previous], b = hits[i];
+    if (i > previous + 1 || protectedSpans.some(p=>a.m<p.to-.001&&b.m>p.from+.001)) tail(a.m, b.m, a.hit, b.hit);
+    else try {
+      const routed = router.route(a.hit!.value.coord, b.hit!.value.coord, { preferNames: [legacy.name.replace(/^.*\bvia\s+/i, ''),...(legacy.trail_names??[])], includeFeatures: false, segmentPenalty: penalty });
+      const points = routed.segments.flatMap((step, j) => { const s = byId.get(step.segment_id)!, p = s.coords.slice(Math.min(step.start_vertex, step.end_vertex), Math.max(step.start_vertex, step.end_vertex) + 1); if (step.direction === 'reverse') p.reverse(); return j ? p.slice(1) : p; });
+      const limit=plan.sparse?150:50;
+      if (!points.length || trimmedHausdorff(cutLine(legacy.coords, a.m, b.m), points, 0) > limit) {
+        tail(a.m, b.m, a.hit, b.hit);
+        if (b.m === originalLength) plan.reasons.push(`legacy end approach retained at ${Math.round(a.m)} m`);
+        else plan.reasons.push(`legacy span retained at ${Math.round(a.m)} m (graph candidate exceeds ${limit} m)`);
+      } else {
+        mappedLegs.push({ offset: walk.length, count: routed.segments.length, from: a.m, to: b.m, a: a.hit, b: b.hit, graph_m: routed.total_length_m, legacy_m: length(tailPoints(a.m, b.m, a.hit, b.hit)) });
+        walk.push(...routed.segments); plan.graph_length_m += routed.total_length_m;
+      }
+    } catch (e) { tail(a.m, b.m, a.hit, b.hit); if (b.m === originalLength) plan.reasons.push(`legacy end approach retained at ${Math.round(a.m)} m`); else plan.reasons.push(`legacy span retained at graph gap ${Math.round(a.m)} m: ${(e as Error).message}`); }
+    previous = i;
+  }
+  if (previous >= 0) tail(hits[previous].m, originalLength, hits[previous].hit); else tail(0, originalLength);
+  // Dense corner-cutting legacy lines can follow the same corridor yet lose
+  // length when snapped to a different nearby path. Preserve only the original
+  // spans needed to meet the unchanged 7% gate, with at most 80% legacy geometry.
+  if (!plan.sparse) {
+    let total = walk.reduce((n, s) => n + s.length_m, 0), retained = plan.tail_length_m;
+    const selected: typeof mappedLegs = [];
+    while (Math.abs(total / originalLength - 1) > .07) {
+      const choices = mappedLegs.filter(leg => !selected.includes(leg)).map(leg => {
+        const next = total + leg.legacy_m - leg.graph_m, benefit = Math.abs(total - originalLength) - Math.abs(next - originalLength);
+        return { leg, next, benefit, share: (retained + leg.legacy_m) / next };
+      }).filter(c => c.benefit > .01 && c.share <= .8).sort((a, b) => b.benefit / b.leg.legacy_m - a.benefit / a.leg.legacy_m || a.leg.from - b.leg.from);
+      const choice = choices[0]; if (!choice) break;
+      selected.push(choice.leg); total = choice.next; retained += choice.leg.legacy_m;
+    }
+    for (const leg of selected.sort((a, b) => b.offset - a.offset || b.from - a.from)) {
+      const at = walk.length; tail(leg.from, leg.to, leg.a, leg.b); const replacement = walk.splice(at);
+      walk.splice(leg.offset, leg.count, ...replacement); plan.graph_length_m -= leg.graph_m;
+      plan.reasons.push(`legacy span retained for mapped length distortion at ${Math.round(leg.from)} m`);
+    }
+  }
+  // A via on an interior vertex must not create a segment boundary on its own.
+  for (let i = walk.length - 1; i > 0; i--) { const a = walk[i - 1], b = walk[i]; if (a.segment_id === b.segment_id && a.direction === b.direction && a.end_vertex === b.start_vertex) { a.end_vertex = b.end_vertex; a.length_m += b.length_m; walk.splice(i, 1); } }
+  row.length_m = walk.reduce((n, s) => n + s.length_m, 0);
+  if (!plan.graph_length_m) { plan.status = 'failed'; plan.reasons.push('no legacy stretch could be mapped onto the graph'); }
+  else if (plan.tail_length_m > row.length_m * .8) { plan.status = 'review'; plan.reasons.push('more than 80% remains legacy geometry'); }
+  return finish();
+}
+export function finalizeRebases(plans: RebasePlan[], segments: Segment[]): void {
+  const byId = new Map(segments.map(s => [s.id, s]));
+  for (const p of plans) {
+    if (p.row.status === 'review' && p.status === 'ok') { p.status = 'review'; p.reasons = unique([...p.reasons, ...p.row.reasons]); }
+    if (!p.row.segments.length) continue;
+    if (p.row.status === 'review' && p.status === 'ok') { p.status = 'review'; p.reasons = unique([...p.reasons, ...p.row.reasons]); }
+    const line = routeLine(p.row, byId), oldLength = length(p.legacy.coords);
+    const stats=deviationStats(p.legacy.coords,line);p.hausdorff_m=stats.max;p.mean_deviation_m=stats.mean;p.deviation_fraction=Math.abs(length(line)/oldLength-1);p.row.length_m=length(line);
+    let mapped=0,preferred=0;for(const ref of p.row.segments){const s=byId.get(ref.id)!;if(!s.legacy_tail && !s.summit_connector){mapped+=s.length_m;if(preferredLegacySegment(s,[p.legacy.name,...(p.legacy.trail_names??[])]))preferred+=s.length_m;}}p.mapped_name_fraction=mapped?preferred/mapped:0;
+    if(p.status==='failed'){p.row.status='failed';p.plan_hash=rebasePlanHash(p);continue;}
+    const limit=p.sparse?150:50;
+    if(p.hausdorff_m>limit){p.status='review';p.reasons.push(`max deviation ${p.hausdorff_m.toFixed(1)} m >${limit} m`);}
+    if(p.sparse){if(p.mean_deviation_m>40){p.status='review';p.reasons.push(`mean deviation ${p.mean_deviation_m.toFixed(1)} m >40 m`);}if(p.mapped_name_fraction<.8){p.status='review';p.reasons.push(`mapped preferred-name length ${(p.mapped_name_fraction*100).toFixed(1)}% <80%`);}}
+    else if (p.deviation_fraction > .07) { p.status = 'review'; p.reasons.push(`length difference ${(p.deviation_fraction * 100).toFixed(1)}% >7%`); }
+    const last = byId.get(p.row.segments.at(-1)!.id)!, connector = last.summit_connector;
+    const endValid = connector && p.row.kind === 'summit' && connector.destination_id === p.row.objective?.peaks_id
+      && connector.gap_m > 5 && connector.gap_m <= 75 && haversine(connector.from, p.legacy.coords.at(-1)!) <= .1
+      ? haversine(line.at(-1)!, connector.destination_coord) <= .1 : haversine(line.at(-1)!, p.legacy.coords.at(-1)!) <= .1;
+    if (haversine(line[0], p.legacy.coords[0]) > .1 || !endValid) { p.status = 'failed'; p.reasons.push('legacy endpoints changed without an authorized summit connector'); }
+    p.reasons = unique(p.reasons); p.row.status = p.status === 'failed' ? 'failed' : p.status;
+    p.plan_hash = rebasePlanHash(p);
+  }
+}
+export const rebasePlanHash = (p: RebasePlan): string => digest({ ...p, plan_hash: undefined });
+export function mergePlans(rows: ComposedRoute[], rebases: RebasePlan[], segments: Segment[]): MergePlan[] {
+  const byId = new Map(segments.map(s => [s.id, s])), candidates: Omit<MergePlan, 'plan_hash'>[] = [];
+  const weights = (r: ComposedRoute) => { const m = new Map<string, number>(); for (const ref of r.segments) m.set(ref.id, (m.get(ref.id) ?? 0) + byId.get(ref.id)!.length_m); return m; };
+  for (const r of rows.filter(r => r.segments.length)) for (const p of rebases.filter(p => !p.frozen && p.row.segments.length)) {
+    if (/\bold\b/i.test(r.name) !== /\bold\b/i.test(p.legacy.name)) continue;
+    const a = weights(r), b = weights(p.row); let shared = 0; for (const [id, metres] of a) shared += Math.min(metres, b.get(id) ?? 0);
+    const fraction = Math.min(shared, r.length_m, p.row.length_m) / Math.max(r.length_m, p.row.length_m), delta = Math.abs(r.length_m / p.row.length_m - 1);
+    const endpoints = !!r.trailhead?.peaks_id && r.trailhead.peaks_id === p.row.trailhead?.peaks_id && !!r.objective?.peaks_id && r.objective.peaks_id === p.row.objective?.peaks_id;
+    if (fraction < .9 && !(endpoints && delta <= .05)) continue;
+    const reasons: string[] = []; if (p.status !== 'ok') reasons.push(`rebase ${p.status}: ${p.reasons.join('; ')}`); if (r.status !== 'ok') reasons.push(`composer ${r.status}`);
+    if (normalizeName(r.name) !== normalizeName(p.legacy.name)) reasons.push(`keep legacy name ${JSON.stringify(p.legacy.name)}; composer suggests ${JSON.stringify(r.name)}`);
+    candidates.push({ seed_index: r.seed_index, legacy_id: p.legacy.id, legacy_name: p.legacy.name, catalog_name: r.name, status: p.status === 'ok' && r.status === 'ok' ? 'ok' : 'review', reasons, shared_fraction: fraction, length_difference: delta, same_endpoints: endpoints });
+  }
+  const seeds = new Set<number>(), ids = new Set<string>(), result: MergePlan[] = [];
+  for (const c of candidates.sort((a, b) => Number(b.status === 'ok') - Number(a.status === 'ok') || b.shared_fraction - a.shared_fraction || a.length_difference - b.length_difference || a.legacy_id.localeCompare(b.legacy_id))) {
+    if (seeds.has(c.seed_index) || ids.has(c.legacy_id)) continue; seeds.add(c.seed_index); ids.add(c.legacy_id); result.push({ ...c, plan_hash: digest(c) });
+  }
+  // Competing seed aliases must not fall back to creating duplicate routes.
+  for (const c of candidates) if (!seeds.has(c.seed_index)) {
+    seeds.add(c.seed_index); const blocked = { ...c, status: 'review' as const, reasons: [...c.reasons, 'legacy ID already assigned to another catalog row; suppress duplicate creation'] };
+    result.push({ ...blocked, plan_hash: digest(blocked) });
+  }
+  return result.sort((a, b) => a.seed_index - b.seed_index);
+}

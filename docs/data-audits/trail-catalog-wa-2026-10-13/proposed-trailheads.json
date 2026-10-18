@@ -1,0 +1,178 @@
+{
+  "generatedAt": "2026-10-13T05:53:41.405Z",
+  "scope": "review_only_no_database_access",
+  "schemaReference": "cloud-sql/migrations/20260730_standard_route_trailheads.sql",
+  "proposals": [
+    {
+      "status": "proposed_only_not_inserted",
+      "requiredBeforeInsert": [
+        "live_catalog_source_id_and_name_match_review",
+        "operator_review"
+      ],
+      "idDerivation": "First 20 uppercase SHA-256 hex characters of openstreetmap:node:<node ID>; proposed ID only, verify no catalog collision before insert.",
+      "destination": {
+        "id": "C21AD354B7FEA99C277F",
+        "name": "Skyline Trailhead",
+        "search_name": "skyline trailhead",
+        "elevation": 1654.41796875,
+        "prominence": null,
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            -121.7364531,
+            46.7864184,
+            1654.41796875
+          ],
+          "srid": 4326
+        },
+        "geohash": null,
+        "type": "point",
+        "activities": [
+          "outdoor-trek"
+        ],
+        "features": [
+          "trailhead"
+        ],
+        "owner": "peaks",
+        "country_code": "US",
+        "state_code": "WA",
+        "external_ids": {
+          "osm": "13122759855"
+        },
+        "metadata": {
+          "source": "openstreetmap",
+          "source_url": "https://www.openstreetmap.org/node/13122759855",
+          "source_way_url": "https://www.openstreetmap.org/way/439627173",
+          "source_license": "ODbL 1.0",
+          "source_license_url": "https://opendatacommons.org/licenses/odbl/1-0/",
+          "source_attribution": "© OpenStreetMap contributors",
+          "source_snapshot": {
+            "path": "sources/osm-skyline-map.json",
+            "sha256": "e8c4a3781026c438c4a2d8101e0dea87a7745e8a6ad0bfc4149cfa8f31b50a82",
+            "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.741,46.781,-121.729,46.793",
+            "retrievedAt": "2026-10-13T05:06:19.523647+00:00"
+          },
+          "route_source_url": "https://www.nps.gov/mora/planyourvisit/skyline-trail.htm",
+          "catalog_audit": "trail-catalog-wa-2026-10-13",
+          "elevation_source": "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",
+          "elevation_source_url": "https://registry.opendata.aws/terrain-tiles/",
+          "elevation_license_url": "https://github.com/tilezen/joerd/blob/master/docs/attribution.md",
+          "elevation_attribution": "* ArcticDEM terrain data DEM(s) were created from DigitalGlobe, Inc., imagery and\n  funded under National Science Foundation awards 1043681, 1559691, and 1542736;\n* Australia terrain data © Commonwealth of Australia (Geoscience Australia) 2017;\n* Austria terrain data © offene Daten Österreichs – Digitales Geländemodell (DGM)\n  Österreich;\n* Canada terrain data contains information licensed under the Open Government\n  Licence – Canada;\n* Europe terrain data produced using Copernicus data and information funded by the\n  European Union - EU-DEM layers;\n* Global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration\n* Mexico terrain data source: INEGI, Continental relief, 2016;\n* New Zealand terrain data Copyright 2011 Crown copyright (c) Land Information New\n  Zealand and the New Zealand Government (All rights reserved);\n* Norway terrain data © Kartverket;\n* United Kingdom terrain data © Environment Agency copyright and/or database right\n  2015. All rights reserved;\n* United States 3DEP (formerly NED) and global GMTED2010 and SRTM terrain data\n  courtesy of the U.S. Geological Survey.",
+          "elevation_retrieved_at": "2026-10-13T05:53:41.405Z",
+          "elevation_profile": "terrain",
+          "region_source_url": "https://www.nps.gov/mora/planyourvisit/skyline-trail.htm",
+          "region_basis": "Named trailhead in Mount Rainier National Park, Washington, United States; reviewed from the official NPS route page."
+        },
+        "created_at": null,
+        "updated_at": null
+      },
+      "timestampsPolicy": "Use the insertion transaction time only after approval; these nulls are not SQL insert values.",
+      "existingNearbyCatalog": {
+        "id": "xaMGyHut8CoGCSkCPKh6",
+        "name": "Paradise"
+      },
+      "reason": "The named Skyline trail entrance is a distinct source point from the broad Paradise catalog row. The current saved catalog binding is about 150 m away. A live source-ID/name search must confirm no Skyline row already exists.",
+      "remainingRouteGates": [
+        "exact source graph and current access",
+        "credited trailhead cover",
+        "route stats and terrain review",
+        "publication checks"
+      ]
+    },
+    {
+      "status": "proposed_only_not_inserted",
+      "requiredBeforeInsert": [
+        "live_catalog_source_id_and_name_match_review",
+        "operator_review"
+      ],
+      "idDerivation": "First 20 uppercase SHA-256 hex characters of openstreetmap:node:<node ID>; proposed ID only, verify no catalog collision before insert.",
+      "destination": {
+        "id": "6D0E779FF39C5B648D6B",
+        "name": "Tipsoo Lake Trailhead",
+        "search_name": "tipsoo lake trailhead",
+        "elevation": 1616.5078125,
+        "prominence": null,
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            -121.519389,
+            46.8698645,
+            1616.5078125
+          ],
+          "srid": 4326
+        },
+        "geohash": null,
+        "type": "point",
+        "activities": [
+          "outdoor-trek"
+        ],
+        "features": [
+          "trailhead"
+        ],
+        "owner": "peaks",
+        "country_code": "US",
+        "state_code": "WA",
+        "external_ids": {
+          "osm": "2431576647"
+        },
+        "metadata": {
+          "source": "openstreetmap",
+          "source_url": "https://www.openstreetmap.org/node/2431576647",
+          "source_way_url": "https://www.openstreetmap.org/way/235057030",
+          "source_license": "ODbL 1.0",
+          "source_license_url": "https://opendatacommons.org/licenses/odbl/1-0/",
+          "source_attribution": "© OpenStreetMap contributors",
+          "source_snapshot": {
+            "path": "sources/osm-relation-5194432-full.json",
+            "sha256": "2d74b2d8f972a8ea2750b309d38709881a2b475ea7a024c6aabc7dea1942f2bf",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/5194432/full.json",
+            "retrievedAt": "2026-10-13T05:07:07.682567+00:00"
+          },
+          "route_source_url": "https://www.nps.gov/mora/planyourvisit/natches-peak-loop.htm",
+          "catalog_audit": "trail-catalog-wa-2026-10-13",
+          "elevation_source": "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",
+          "elevation_source_url": "https://registry.opendata.aws/terrain-tiles/",
+          "elevation_license_url": "https://github.com/tilezen/joerd/blob/master/docs/attribution.md",
+          "elevation_attribution": "* ArcticDEM terrain data DEM(s) were created from DigitalGlobe, Inc., imagery and\n  funded under National Science Foundation awards 1043681, 1559691, and 1542736;\n* Australia terrain data © Commonwealth of Australia (Geoscience Australia) 2017;\n* Austria terrain data © offene Daten Österreichs – Digitales Geländemodell (DGM)\n  Österreich;\n* Canada terrain data contains information licensed under the Open Government\n  Licence – Canada;\n* Europe terrain data produced using Copernicus data and information funded by the\n  European Union - EU-DEM layers;\n* Global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration\n* Mexico terrain data source: INEGI, Continental relief, 2016;\n* New Zealand terrain data Copyright 2011 Crown copyright (c) Land Information New\n  Zealand and the New Zealand Government (All rights reserved);\n* Norway terrain data © Kartverket;\n* United Kingdom terrain data © Environment Agency copyright and/or database right\n  2015. All rights reserved;\n* United States 3DEP (formerly NED) and global GMTED2010 and SRTM terrain data\n  courtesy of the U.S. Geological Survey.",
+          "elevation_retrieved_at": "2026-10-13T05:53:41.405Z",
+          "elevation_profile": "terrain",
+          "region_source_url": "https://www.nps.gov/mora/planyourvisit/natches-peak-loop.htm",
+          "region_basis": "Named trailhead in Mount Rainier National Park, Washington, United States; reviewed from the official NPS route page."
+        },
+        "created_at": null,
+        "updated_at": null
+      },
+      "timestampsPolicy": "Use the insertion transaction time only after approval; these nulls are not SQL insert values.",
+      "existingNearbyCatalog": {
+        "id": "ZELAKQAzdxPhff3TZmTS",
+        "name": "American Lake Trailhead"
+      },
+      "reason": "The nearby catalog name identifies American Lake, not Tipsoo Lake. A live source-ID/name search must confirm no Tipsoo row already exists.",
+      "remainingRouteGates": [
+        "exact source graph and current access",
+        "credited trailhead cover",
+        "route stats and terrain review",
+        "publication checks"
+      ]
+    }
+  ],
+  "terrainTiles": [
+    {
+      "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/14/2661/5771.png",
+      "retrievedAt": "2026-10-13T05:53:41.395Z",
+      "sha256": "0309d8e3dfe1a1638a62ba1f943d4cfc5fdd770dfb321fb2d2579b201ae30ced",
+      "bytes": 115748
+    },
+    {
+      "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/14/2651/5776.png",
+      "retrievedAt": "2026-10-13T05:53:41.402Z",
+      "sha256": "adfae66e99aeb7f3a281a3c6a66f8579f163ccae7857dcf718854b6749e732c5",
+      "bytes": 115977
+    }
+  ],
+  "excludedDuplicate": {
+    "name": "Rainy Pass Trailhead",
+    "catalogId": "b5keGEdwDwFwkodbuwaq",
+    "reason": "Existing same-identity trailhead is about 175 m from the mapped route start. Repair the existing location from reviewed evidence; do not create a duplicate."
+  }
+}

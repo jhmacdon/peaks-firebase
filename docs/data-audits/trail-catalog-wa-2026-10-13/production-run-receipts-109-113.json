@@ -1,0 +1,57 @@
+[
+    {
+        "id": 109,
+        "source": "trail-catalog-pilot",
+        "status": "dry_run",
+        "rows_in": 11,
+        "run_kind": "import",
+        "started_at": "2026-10-13T07:08:35.006563+00:00",
+        "finished_at": "2026-10-13T07:08:35.509189+00:00",
+        "rows_matched": 3,
+        "rows_written": 0
+    },
+    {
+        "id": 110,
+        "source": "trail-catalog-pilot",
+        "status": "dry_run",
+        "rows_in": 21,
+        "run_kind": "import",
+        "started_at": "2026-10-13T07:10:03.400388+00:00",
+        "finished_at": "2026-10-13T07:10:05.680134+00:00",
+        "rows_matched": 9,
+        "rows_written": 0
+    },
+    {
+        "id": 111,
+        "source": "trail-catalog-pilot",
+        "status": "dry_run",
+        "rows_in": 11,
+        "run_kind": "import",
+        "started_at": "2026-10-13T07:13:03.800179+00:00",
+        "finished_at": "2026-10-13T07:13:04.248371+00:00",
+        "rows_matched": 3,
+        "rows_written": 0
+    },
+    {
+        "id": 112,
+        "source": "trail-catalog-factory-login-setup",
+        "status": "dry_run",
+        "rows_in": 1,
+        "run_kind": "import",
+        "started_at": "2026-10-13T07:14:37.0943+00:00",
+        "finished_at": "2026-10-13T07:14:39.904819+00:00",
+        "rows_matched": 1,
+        "rows_written": 0
+    },
+    {
+        "id": 113,
+        "source": "trail-catalog-pilot",
+        "status": "dry_run",
+        "rows_in": 11,
+        "run_kind": "import",
+        "started_at": "2026-10-13T07:17:35.383072+00:00",
+        "finished_at": "2026-10-13T07:17:35.829128+00:00",
+        "rows_matched": 4,
+        "rows_written": 0
+    }
+]

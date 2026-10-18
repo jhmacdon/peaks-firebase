@@ -1,0 +1,11 @@
+{
+  "commit": "0af5488cbfc0590377a0a92074fc1ae4838a11cf",
+  "pullRequest": "https://github.com/jhmacdon/peaks-firebase/pull/225",
+  "deploymentRun": "https://github.com/jhmacdon/peaks-firebase/actions/runs/38412633826",
+  "deploymentStatus": "success",
+  "revision": "peaks-api-00268-64x",
+  "trafficPercent": 100,
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app",
+  "health": { "status": "ok" },
+  "goldenSetPassing": false
+}

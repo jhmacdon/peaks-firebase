@@ -7,6 +7,7 @@ import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
 import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/catalog-limits";
+import { hasColumn } from "../lib/schema-features";
 
 const router = Router();
 
@@ -284,7 +285,28 @@ router.get("/viewport", asyncRoute(async (req, res: Response) => {
   res.json(result.rows);
 }));
 
-export function buildDestinationDetailQuery(id: string, publicOnly = false): { text: string; values: unknown[] } {
+/**
+ * SQL for a destination's hero origin: 'admin' for a cover an admin set
+ * through /api/admin, 'reviewed' for any other credited hero, null for none.
+ * Needs 20261015_route_covers.sql; callers pass `heroSource: false` until it
+ * is applied.
+ */
+export function destinationHeroOriginSql(alias = "d"): string {
+  return `CASE WHEN NULLIF(btrim(${alias}.hero_image), '') IS NULL
+                 OR NULLIF(btrim(${alias}.hero_image_attribution), '') IS NULL
+                 OR NULLIF(btrim(${alias}.hero_image_attribution_url), '') IS NULL THEN NULL
+               WHEN ${alias}.hero_image_source = 'admin' THEN 'admin'
+               ELSE 'reviewed' END`;
+}
+
+export function buildDestinationDetailQuery(
+  id: string,
+  options: { heroSource?: boolean; publicOnly?: boolean } = {}
+): { text: string; values: unknown[] } {
+  const publicOnly = options.publicOnly === true;
+  const heroOrigin = options.heroSource === false
+    ? "NULL::text"
+    : destinationHeroOriginSql("d");
   return {
     text: `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
             d.activities, d.features, d.owner,
@@ -293,6 +315,7 @@ export function buildDestinationDetailQuery(id: string, publicOnly = false): { t
             d.external_ids, d.external_links, d.amenities,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
             d.hero_image_focal_x, d.hero_image_focal_y,
+            ${heroOrigin} AS hero_image_origin,
             d.averages, d.averages_offset, d.explicitly_saved, d.recency,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
@@ -300,7 +323,7 @@ export function buildDestinationDetailQuery(id: string, publicOnly = false): { t
             d.description, d.description_source_name,
             d.description_source_url, d.description_source_license,
             CASE WHEN d.boundary IS NOT NULL
-                 THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
+                 THEN ST_AsGeoJSON(COALESCE(d.boundary_display, d.boundary), 6)::json END AS boundary,
             CASE WHEN d.massif_boundary IS NOT NULL
                  THEN ST_AsGeoJSON(d.massif_boundary)::json END AS massif_boundary,
             d.bbox_min_lat, d.bbox_max_lat, d.bbox_min_lng, d.bbox_max_lng,
@@ -409,6 +432,9 @@ export function mapDestinationDetailRow(row: any): any {
     row.hero_image_focal_x = 50;
     row.hero_image_focal_y = 50;
   }
+  row.hero_image_origin = row.hero_image
+    ? (row.hero_image_origin === "admin" ? "admin" : "reviewed")
+    : null;
 
   row.massif_boundary = row.massif_boundary ?? null;
   return row;
@@ -417,7 +443,10 @@ export function mapDestinationDetailRow(row: any): any {
 // GET /api/destinations/:id
 router.get("/:id", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
-  const query = buildDestinationDetailQuery(id, !getUid(req));
+  const query = buildDestinationDetailQuery(id, {
+    heroSource: await hasColumn("destinations", "hero_image_source"),
+    publicOnly: !getUid(req),
+  });
   const result = await db.query(query.text, query.values);
   if (result.rows.length === 0) {
     res.status(404).json({ error: "Destination not found" });
@@ -437,6 +466,11 @@ export function buildDestinationRoutesQuery(
             r.elevation_attribution, r.elevation_license_url,
             r.elevation_retrieved_at,
             r.external_links, r.provenance, r.completion,
+            r.shape, r.kind, r.slug, r.aliases,
+            r.difficulty, r.est_moving_seconds, r.state_code, r.country_code,
+            r.objective_destination_id, r.trailhead_destination_id, r.popularity,
+            r.description, r.description_source_name,
+            r.description_source_url, r.description_source_license,
             ${routeCoverSelectSql()},
             COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
@@ -471,7 +505,7 @@ export function buildDestinationRoutesQuery(
        AND ${buildRouteAccessSql("r", "$2")}
        AND EXISTS (SELECT 1 FROM destinations d WHERE d.id = rd.destination_id
          AND ${publicCatalogSql("d", !uid)})
-     ORDER BY r.name`,
+     ORDER BY r.popularity DESC, r.name`,
     values: [id, uid],
   };
 }

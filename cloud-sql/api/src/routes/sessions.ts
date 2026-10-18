@@ -85,42 +85,18 @@ export async function assertSessionRoutesAccessible(
 }
 
 /**
- * Replace only the routes the client owns.
- *
- * `processSession` owns rows whose source is `auto`. iOS sends its local
- * `routes` array on ordinary session updates, and that list does not include
- * partial server matches. Deleting every row here used to erase those matches
- * after processing had stored them. This mirrors destination reconciliation:
- * client writes may replace manual rows, but they must not clobber backend
- * results.
+ * Old iOS builds echo every server route on save (SessionRepo.apiBody).
+ * iOS origin/master has plan route selection, but no saved-session route claim
+ * editor. Keep accepting the field; processing owns session_routes. In
+ * particular, an id that a later rematch dropped must not return as manual.
  */
 export async function replaceSessionRoutes(
-  client: PoolClient,
-  sessionId: string,
-  uid: string,
-  routeIds: string[]
+  _client: PoolClient,
+  _sessionId: string,
+  _uid: string,
+  _routeIds: string[]
 ): Promise<void> {
-  await assertSessionRoutesAccessible(client, uid, routeIds);
-  await client.query(
-    `DELETE FROM session_routes WHERE session_id = $1 AND source = 'manual'`,
-    [sessionId]
-  );
-  for (const routeId of routeIds) {
-    const linked = await client.query(
-      `WITH allowed AS (
-         SELECT r.id FROM routes r
-         WHERE r.id = $2 AND (r.owner = 'peaks' OR r.owner = $3)
-       ), inserted AS (
-         INSERT INTO session_routes (session_id, route_id, source)
-         SELECT $1, id, 'manual' FROM allowed
-         ON CONFLICT (session_id, route_id) DO NOTHING
-         RETURNING route_id
-       )
-       SELECT id AS route_id FROM allowed`,
-      [sessionId, routeId, uid]
-    );
-    if (linked.rows.length !== 1) throw new InaccessibleSessionRouteError();
-  }
+  // Compatibility no-op for POST and PUT callers.
 }
 
 // Per-user in-flight cap on the heavy write/process endpoints (create session,
@@ -144,7 +120,7 @@ const DESTINATIONS_REACHED_SQL = `COALESCE(
     'lat', ST_Y(d.location::geometry),
     'lng', ST_X(d.location::geometry),
     'boundary', CASE WHEN d.boundary IS NOT NULL
-                     THEN ST_AsGeoJSON(d.boundary)::json END,
+                     THEN ST_AsGeoJSON(COALESCE(d.boundary_display, d.boundary), 6)::json END,
     'source', sd.source
   ) ORDER BY d.name, d.id)
   FROM session_destinations sd
@@ -160,7 +136,7 @@ const DESTINATION_GOALS_SQL = `COALESCE(
     'lat', ST_Y(d.location::geometry),
     'lng', ST_X(d.location::geometry),
     'boundary', CASE WHEN d.boundary IS NOT NULL
-                     THEN ST_AsGeoJSON(d.boundary)::json END,
+                     THEN ST_AsGeoJSON(COALESCE(d.boundary_display, d.boundary), 6)::json END,
     'source', sd.source
   ) ORDER BY d.name, d.id)
   FROM session_destinations sd
@@ -176,8 +152,9 @@ export const SESSION_ROUTES_SQL = `COALESCE(
     'provenance', r.provenance,
     'is_catalog', r.owner = 'peaks',
     'source', sr.source, 'coverage', sr.coverage,
+    'is_primary', sr.is_primary, 'covered_m', sr.covered_m,
     ${routeCoverJsonFieldsSql()}
-  ) ORDER BY r.name, r.id)
+  ) ORDER BY sr.is_primary DESC, r.name, r.id)
   FROM session_routes sr
   JOIN routes r ON r.id = sr.route_id
   ${routeCoverJoinSql()}
@@ -187,6 +164,45 @@ export const SESSION_ROUTES_SQL = `COALESCE(
     AND (r.owner = 'peaks' OR r.owner = s.user_id)),
   '[]'::json
 )`;
+
+/**
+ * Segment visits of the session's PRIMARY route only, in time order. Visits are
+ * stored for every candidate route's segments, but other routes' segments (a
+ * dropped Camp Muir Route, a rebased tail) do not belong on this timeline.
+ * No primary route means []. route_ordinal pairs the k-th pass in one direction
+ * with the k-th link of that segment in the same direction, so a lollipop stem
+ * walked up and down maps to its outbound and return ordinals; a pass with no
+ * matching link takes the segment's first ordinal.
+ */
+export const SESSION_SEGMENTS_SQL = `COALESCE((
+  WITH primary_route AS (
+    SELECT sr.route_id FROM session_routes sr WHERE sr.session_id = s.id AND sr.is_primary LIMIT 1
+  ), links AS (
+    SELECT rs.segment_id, rs.ordinal, rs.direction,
+      row_number() OVER (PARTITION BY rs.segment_id, rs.direction ORDER BY rs.ordinal) AS dir_rank,
+      min(rs.ordinal) OVER (PARTITION BY rs.segment_id) AS first_ordinal
+    FROM route_segments rs JOIN primary_route pr ON pr.route_id = rs.route_id
+  ), visits AS (
+    SELECT ss.*, row_number() OVER (PARTITION BY ss.segment_id, ss.direction
+      ORDER BY ss.entered_at NULLS LAST, ss.pass_index) AS dir_rank
+    FROM session_segments ss
+    WHERE ss.session_id = s.id AND ss.segment_id IN (SELECT segment_id FROM links)
+  ), placed AS (
+    SELECT v.*, COALESCE(
+      (SELECT l.ordinal FROM links l WHERE l.segment_id = v.segment_id
+        AND l.direction = v.direction AND l.dir_rank = v.dir_rank),
+      (SELECT min(l.first_ordinal) FROM links l WHERE l.segment_id = v.segment_id)
+    ) AS route_ordinal FROM visits v
+  )
+  SELECT json_agg(json_build_object(
+    'segment_id', seg.id, 'display_name', seg.display_name,
+    'trail_names', seg.trail_names, 'kind', seg.kind,
+    'pass_index', p.pass_index, 'route_ordinal', p.route_ordinal,
+    'covered_fraction', p.covered_fraction, 'entered_at', p.entered_at,
+    'exited_at', p.exited_at, 'direction', p.direction
+  ) ORDER BY p.entered_at NULLS LAST, p.route_ordinal, seg.id, p.pass_index)
+  FROM placed p JOIN segments seg ON seg.id = p.segment_id
+), '[]'::json)`;
 
 /** Inline protected areas crossed by one saved session track. */
 export const SESSION_AREAS_SQL = `COALESCE(
@@ -259,6 +275,7 @@ export function buildSessionDetailQuery(
             ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
             ${DESTINATION_GOALS_SQL} AS destination_goals,
             ${SESSION_ROUTES_SQL} AS routes,
+            ${SESSION_SEGMENTS_SQL} AS segments,
             ${SESSION_AREAS_SQL} AS areas
      FROM tracking_sessions s
      WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
@@ -499,15 +516,31 @@ export async function reconcileClientDestinations(
   sessionId: string,
   reached: string[] | undefined,
   goals: string[] | undefined
-): Promise<void> {
+): Promise<boolean> {
+  // Change only the rows that differ. The app resends its whole list on every
+  // PUT, and each written row bumps the session's sync timestamp through
+  // trg_session_destinations_touch_session, so rewriting an unchanged list
+  // made the next sync download the session again (2026-10-09: 100+ sessions,
+  // 15 MB, per app launch). Returns whether any row changed.
+  let changed = false;
+
   if (Array.isArray(reached)) {
-    await client.query(
-      `DELETE FROM session_destinations
-       WHERE session_id = $1 AND source = 'manual' AND relation = 'reached'`,
-      [sessionId]
+    const ids = cleanDestinationIds(reached);
+    const removed = await client.query(
+      `DELETE FROM session_destinations sd
+       WHERE sd.session_id = $1 AND sd.source = 'manual' AND sd.relation = 'reached'
+         AND (
+           NOT (sd.destination_id = ANY($2::text[]))
+           OR EXISTS (
+             SELECT 1 FROM session_destination_rejections r
+             WHERE r.session_id = sd.session_id AND r.destination_id = sd.destination_id
+           )
+         )`,
+      [sessionId, ids]
     );
-    for (const destId of cleanDestinationIds(reached)) {
-      await client.query(
+    changed = changed || (removed.rowCount ?? 0) > 0;
+    for (const destId of ids) {
+      const added = await client.query(
         `INSERT INTO session_destinations (session_id, destination_id, relation, source)
          SELECT $1, $2, 'reached', 'manual'
          WHERE NOT EXISTS (
@@ -517,23 +550,30 @@ export async function reconcileClientDestinations(
          ON CONFLICT DO NOTHING`,
         [sessionId, destId]
       );
+      changed = changed || (added.rowCount ?? 0) > 0;
     }
   }
 
   if (Array.isArray(goals)) {
-    await client.query(
+    const ids = cleanDestinationIds(goals);
+    const removed = await client.query(
       `DELETE FROM session_destinations
-       WHERE session_id = $1 AND source = 'manual' AND relation = 'goal'`,
-      [sessionId]
+       WHERE session_id = $1 AND source = 'manual' AND relation = 'goal'
+         AND NOT (destination_id = ANY($2::text[]))`,
+      [sessionId, ids]
     );
-    for (const destId of cleanDestinationIds(goals)) {
-      await client.query(
+    changed = changed || (removed.rowCount ?? 0) > 0;
+    for (const destId of ids) {
+      const added = await client.query(
         `INSERT INTO session_destinations (session_id, destination_id, relation, source)
          VALUES ($1, $2, 'goal', 'manual') ON CONFLICT DO NOTHING`,
         [sessionId, destId]
       );
+      changed = changed || (added.rowCount ?? 0) > 0;
     }
   }
+
+  return changed;
 }
 
 /**
@@ -711,6 +751,21 @@ function buildPointInsertQuery(sessionId: string, points: any[]) {
   return { values, placeholders };
 }
 
+/**
+ * Whether the caller asked to leave heart-rate and calorie series out of a
+ * session list (`?omit=health_data`). They are most of the payload (up to
+ * 1 MB per session; 14 MB of a 14.7 MB sync page on 2026-10-09) and only the
+ * session detail screen shows them, which reads GET /api/sessions/:id. The
+ * key is left out entirely rather than sent as null, so a client keeps its
+ * local copy. Clients that do not ask keep getting the series.
+ */
+export function omitsHealthData(value: unknown): boolean {
+  const values = Array.isArray(value) ? value : [value];
+  return values.some((v) =>
+    typeof v === "string" && v.split(",").map((s) => s.trim()).includes("health_data")
+  );
+}
+
 // GET /api/sessions — current user's sessions with inline destinations
 router.get("/", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
@@ -730,7 +785,7 @@ router.get("/", asyncRoute(async (req, res: Response) => {
             s.distance, s.total_time, s.pace, s.gain, s.highest_point,
             s.ascent_time, s.descent_time, s.still_time,
             s.activity_type, s.source, s.external_id,
-            s.health_data, s.source_contributions,
+            ${omitsHealthData(req.query.omit) ? "" : "s.health_data,"} s.source_contributions,
             s.group_id, s.attempt_group_id,
             s.processed_at, s.processing_state, s.processing_error,
             s.ended, s.is_public,
@@ -769,6 +824,7 @@ router.get("/changes", asyncRoute(async (req, res: Response) => {
     res.status(400).json({ error: "after_id requires updated_since" });
     return;
   }
+  const omitHealth = omitsHealthData(req.query.omit);
 
   const result = await db.query(
     `WITH changed_sessions AS (
@@ -794,7 +850,7 @@ router.get("/changes", asyncRoute(async (req, res: Response) => {
             'activity_type', s.activity_type,
             'source', s.source,
             'external_id', s.external_id,
-            'health_data', s.health_data,
+            ${omitHealth ? "" : "'health_data', s.health_data,"}
             'source_contributions', s.source_contributions,
             'group_id', s.group_id,
             'attempt_group_id', s.attempt_group_id,
@@ -1041,7 +1097,7 @@ router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             CASE WHEN d.boundary IS NOT NULL
-                 THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
+                 THEN ST_AsGeoJSON(COALESCE(d.boundary_display, d.boundary), 6)::json END AS boundary,
             sd.relation, sd.source
      FROM destinations d
      JOIN session_destinations sd ON sd.destination_id = d.id
@@ -1061,7 +1117,7 @@ export function buildSessionRoutesQuery(
     text: `SELECT r.id, r.name, r.polyline6,
             r.distance, r.gain, r.gain_loss, r.provenance,
             (r.owner = 'peaks') AS is_catalog,
-            sr.source, sr.coverage,
+            sr.source, sr.coverage, sr.is_primary, sr.covered_m,
             ${routeCoverSelectSql()}
      FROM routes r
      JOIN session_routes sr ON sr.route_id = r.id
@@ -1734,11 +1790,13 @@ router.post("/", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
     // nothing at all.
     if (destinations_reached || destination_goals) {
       const priorReached = await reachedDestinationIds(client, id);
-      await reconcileClientDestinations(client, id, destinations_reached, destination_goals);
-      await recomputeDestinationAverages(
-        client,
-        Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
-      );
+      // An unchanged list moves no bucket; skip the recompute.
+      if (await reconcileClientDestinations(client, id, destinations_reached, destination_goals)) {
+        await recomputeDestinationAverages(
+          client,
+          Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
+        );
+      }
     }
 
     // Set routes
@@ -1865,11 +1923,13 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
     // will ever recompute. See the same block in the POST upsert above.
     if (destinations_reached || destination_goals) {
       const priorReached = await reachedDestinationIds(client, id);
-      await reconcileClientDestinations(client, id, destinations_reached, destination_goals);
-      await recomputeDestinationAverages(
-        client,
-        Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
-      );
+      // An unchanged list moves no bucket; skip the recompute.
+      if (await reconcileClientDestinations(client, id, destinations_reached, destination_goals)) {
+        await recomputeDestinationAverages(
+          client,
+          Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
+        );
+      }
     }
 
     // Update routes if provided

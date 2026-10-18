@@ -14,9 +14,10 @@ import plans from "./routes/plans";
 import search from "./routes/search";
 import tripReports, { drainTripReportPhotoDeletions } from "./routes/trip-reports";
 import account from "./routes/account";
+import adminRoutes from "./routes/admin";
 import publicAirQuality from "./routes/public-air-quality";
 import pool, { processingPool } from "./db";
-import { sweepStuckSessions } from "./processing";
+import { drainSessionRematchQueue, sweepStuckSessions } from "./processing";
 import { refreshDestinationWeather } from "./weather-refresh";
 
 export const app = express();
@@ -90,6 +91,9 @@ app.post("/internal/sweep", asyncRoute(async (req, res) => {
   isSweeping = true;
   try {
     await sweepStuckSessions(processingPool);
+    // Catalog changes (destination moved/retyped, route added/changed) queue
+    // the sessions near them; re-match a batch each sweep.
+    await drainSessionRematchQueue(processingPool);
     await drainTripReportPhotoDeletions(processingPool);
     res.json({ status: "ok" });
   } catch (err) {
@@ -172,6 +176,8 @@ app.use("/api/plans", plans);
 app.use("/api/search", search);
 app.use("/api/trip-reports", tripReports);
 app.use("/api/account", account);
+// requireAdmin runs inside the router: the Firebase `admin` custom claim.
+app.use("/api/admin", adminRoutes);
 
 // A rejected handler promise lands here via asyncRoute (lib/async-route.ts).
 // Express 4 ignores the promise an async handler returns, so without that

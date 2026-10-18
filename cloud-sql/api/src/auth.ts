@@ -37,9 +37,13 @@ async function authenticate(req: Request, res: Response, next: NextFunction, opt
     const testUid = req.headers["x-test-user"];
     if (typeof testUid === "string" && testUid.length > 0) {
       (req as AuthRequest).uid = testUid;
+      const testName = req.headers["x-test-name"];
       (req as AuthRequest).authToken = {
         uid: testUid,
         firebase: { sign_in_provider: "password", identities: {} },
+        // Lets admin-route tests stand in for the Firebase `admin` custom claim.
+        ...(req.headers["x-test-admin"] === "true" ? { admin: true } : {}),
+        ...(typeof testName === "string" && testName ? { name: testName } : {}),
       } as DecodedIdToken;
       next();
       return;
@@ -80,4 +84,22 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 /** Catalog reads accept no token, but never accept a bad token. */
 export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
   return authenticate(req, res, next, true);
+}
+
+/**
+ * Middleware for /api/admin/*: the verified ID token must carry the Firebase
+ * custom claim `admin: true`, the same admin source of truth the web app uses
+ * (web/src/lib/auth-actions.ts). Mount after requireAuth. Returns 403 for a
+ * signed-in user without the claim.
+ *
+ * The claim lives in the ID token, so a newly granted admin must refresh the
+ * token (sign out and in, or force a token refresh) before this passes.
+ */
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const token = (req as Partial<AuthRequest>).authToken;
+  if (!token || token.admin !== true) {
+    res.status(403).json({ error: "Admin access required" });
+    return;
+  }
+  next();
 }

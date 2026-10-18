@@ -148,13 +148,15 @@ export async function migrateSessions() {
         ]
       );
 
-      // session_destinations: reached
+      // session_destinations: reached. Firestore's list came from the old
+      // app's looser detection, so tag it 'auto': processSession re-checks
+      // 'auto' rows against today's match radius, but never touches 'manual'.
       const reached: string[] = d.destinationsReached || [];
       for (const destId of reached) {
         try {
           await db.query(
-            `INSERT INTO session_destinations (session_id, destination_id, relation)
-             VALUES ($1, $2, 'reached')
+            `INSERT INTO session_destinations (session_id, destination_id, relation, source)
+             VALUES ($1, $2, 'reached', 'auto')
              ON CONFLICT (session_id, destination_id) DO UPDATE SET relation = 'reached'`,
             [id, destId]
           );

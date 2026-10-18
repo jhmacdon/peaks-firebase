@@ -109,17 +109,24 @@ test("mixed search and destination routes apply catalog filters only when signed
       queries.length = 0;
       const response = await appRequest(app, "GET", `/api/search/all?${params}`, headers);
       assert.equal(response.status, 200);
-      assert.deepEqual(response.body, {
-        destinations: [{ id: "public" }], routes: [{ id: "public" }], areas: [{ id: "public" }],
-      });
-      assert.equal(queries.length, 3);
-      const [destinations, routes, areas] = queries;
+      assert.deepEqual(
+        { destinations: response.body.destinations, routes: response.body.routes,
+          areas: response.body.areas, lists: response.body.lists },
+        { destinations: [{ id: "public" }], routes: [{ id: "public" }],
+          areas: [{ id: "public" }], lists: [{ id: "public" }] },
+      );
+      assert.equal(queries.length, 4);
+      const [destinations, routes, areas, lists] = queries;
+      assertVisibility(lists.text, /\bl\.owner = 'peaks'\n/);
+      assert.equal(lists.values?.at(-1), uid);
+      assert.match(lists.text, /\$4 <> '' AND l\.owner = \$4/);
       assertVisibility(destinations.text, /destinations\.owner = 'peaks'/);
       // Private linked destination names must not affect discovery or ranking.
       assertVisibility(routes.text, /candidate_d\.owner = 'peaks'/);
       assertVisibility(routes.text, /\bd\.owner = 'peaks'/);
       assertVisibility(routes.text, /cover_destination\.owner = 'peaks'/);
-      assert.equal(routes.values?.at(-1), uid);
+      // The uid stays $5; geo searches append lat/lng after it.
+      assert.equal(routes.values?.[4], uid);
       assert.match(routes.text, /\$\d <> '' AND r\.owner = \$\d/);
       for (const sql of [destinations.text, routes.text, areas.text]) {
         assertVisibility(sql, /a\.source = 'padus' OR a\.owner = 'peaks'/);

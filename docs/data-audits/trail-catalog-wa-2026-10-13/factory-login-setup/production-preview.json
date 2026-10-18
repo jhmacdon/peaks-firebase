@@ -1,0 +1,9 @@
+{
+  "mode": "preview",
+  "checks": "passed",
+  "audit_id": 112,
+  "login_committed": false,
+  "keychain_written": false,
+  "commit": "c59bda3",
+  "permanent_apply": "awaiting_explicit_user_approval"
+}

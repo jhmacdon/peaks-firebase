@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored Petrics client: copied from the petrics repo, built by its own tsconfig.
+    "vendor/**",
   ]),
 ]);
 

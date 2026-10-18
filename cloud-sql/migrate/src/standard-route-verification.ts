@@ -26,6 +26,7 @@ export interface StandardRouteVerification {
     segments: boolean;
     provenance: boolean;
     summit_contact: boolean;
+    objective_contact: boolean;
     elevation_profile: boolean;
     public_http: boolean;
   };
@@ -38,6 +39,11 @@ type RouteRow = PersistedElevationLineage & Record<string, unknown> & {
   owner: string;
   status: string;
   provenance_valid: boolean;
+  kind: "summit" | "destination" | "loop" | "traverse" | null;
+  objective_destination_id: string | null;
+  trailhead_destination_id: string | null;
+  kind_contact_valid: boolean;
+  source_coverage_valid: boolean;
   point_count: number;
   elevation_string: string | null;
   profile_count: number;
@@ -143,6 +149,11 @@ export async function verifyStandardRoute(
             r.owner,
             r.status,
             r.shape::text AS shape,
+            r.kind,
+            r.objective_destination_id,
+            r.trailhead_destination_id,
+            peaks_route_kind_passes_contact(r.id) AS kind_contact_valid,
+            route_segments_cover_provenance(r.id) AS source_coverage_valid,
             is_valid_route_provenance(r.provenance) AS provenance_valid,
             ST_NPoints(r.path::geometry)::int AS point_count,
             r.elevation_string,
@@ -178,7 +189,7 @@ export async function verifyStandardRoute(
               JOIN segments s ON s.id = rs.segment_id
               WHERE rs.route_id = r.id
                 AND s.path IS NOT NULL
-                AND s.provenance IS NOT DISTINCT FROM r.provenance
+                AND route_segment_provenance_compatible(s.provenance, r.provenance)
             ) AS matching_segment_count,
             (
               SELECT COUNT(*)::int
@@ -296,12 +307,19 @@ export async function verifyStandardRoute(
   const destinationIds = route?.destination_ids ?? [];
   const features = route?.destination_features ?? [];
   const requiredDestinationIndex = destinationIds.indexOf(input.destinationId);
+  const kind = route?.kind ?? "summit";
+  const requiredKindMatches = kind === "summit"
+    ? requiredDestinationIndex > 0 && features[requiredDestinationIndex]?.includes("summit")
+    : kind === "loop"
+      ? requiredDestinationIndex >= 0 && (route?.objective_destination_id == null
+        || route.objective_destination_id === input.destinationId)
+      : requiredDestinationIndex > 0 && route?.objective_destination_id === input.destinationId;
   const destinationOrder =
-    destinationIds.length >= 2 &&
+    destinationIds.length >= (kind === "loop" ? 1 : 2) &&
     destinationIds[0] === input.trailheadId &&
     features[0]?.includes("trailhead") &&
-    requiredDestinationIndex > 0 &&
-    features[requiredDestinationIndex]?.includes("summit");
+    (route?.kind == null || route.trailhead_destination_id === input.trailheadId) &&
+    requiredKindMatches;
   const segments =
     (route?.segment_count ?? 0) >= 1 &&
     route?.matching_segment_count === route?.segment_count &&
@@ -312,15 +330,18 @@ export async function verifyStandardRoute(
     route?.matching_assembly_point_count === route?.point_count &&
     route?.publish_integrity_valid === true &&
     (route?.point_count ?? 0) >= 5;
-  const summitContact =
-    (route?.summit_count ?? 0) >= 1 &&
-    route?.summit_fault_count === 0 &&
-    route?.summit_max_gap_meters !== null &&
-    (route?.summit_max_gap_meters ?? Number.POSITIVE_INFINITY) <= 5 &&
-    (route?.shape !== "out_and_back" && route?.shape !== "point_to_point" ||
-      Boolean(route?.final_destination_features?.includes("summit")) &&
-      route?.endpoint_gap_meters !== null &&
-      (route?.endpoint_gap_meters ?? Number.POSITIVE_INFINITY) <= 5);
+  const summitContact = kind === "summit"
+    ? (route?.summit_count ?? 0) >= 1 &&
+      route?.summit_fault_count === 0 &&
+      route?.summit_max_gap_meters !== null &&
+      (route?.summit_max_gap_meters ?? Number.POSITIVE_INFINITY) <= 5 &&
+      (route?.shape !== "out_and_back" && route?.shape !== "point_to_point" ||
+        Boolean(route?.final_destination_features?.includes("summit")) &&
+        route?.endpoint_gap_meters !== null &&
+        (route?.endpoint_gap_meters ?? Number.POSITIVE_INFINITY) <= 5)
+    : route?.summit_fault_count === 0 && (route?.summit_count === 0 ||
+      (route?.summit_max_gap_meters ?? Number.POSITIVE_INFINITY) <= 5);
+  const objectiveContact = route?.kind_contact_valid === true;
   const elevationProfile =
     typeof route?.elevation_string === "string" &&
     route.elevation_string.length > 0 &&
@@ -368,6 +389,11 @@ export async function verifyStandardRoute(
     publicPayload.owner === "peaks" &&
     publicPayload.status === "active" &&
     publicPayload.provenance_valid === true &&
+    publicPayload.kind === route.kind &&
+    publicPayload.objective_destination_id === route.objective_destination_id &&
+    publicPayload.trailhead_destination_id === route.trailhead_destination_id &&
+    publicPayload.kind_contact_valid === true &&
+    publicPayload.source_coverage_valid === true &&
     publicPayload.point_count === route?.point_count &&
     publicPayload.segment_count === route?.segment_count &&
     publicPayload.matching_segment_count === route?.matching_segment_count &&
@@ -405,8 +431,9 @@ export async function verifyStandardRoute(
     active: route?.status === "active",
     destination_order: destinationOrder,
     segments,
-    provenance: route?.provenance_valid === true,
+    provenance: route?.provenance_valid === true && route?.source_coverage_valid === true,
     summit_contact: summitContact,
+    objective_contact: objectiveContact,
     elevation_profile: elevationProfile,
     public_http: publicMatches,
   };

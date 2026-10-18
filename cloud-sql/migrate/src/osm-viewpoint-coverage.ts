@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { expandNameAbbreviations } from "./lib/place-names";
 
 export type OsmViewpointElementType = "node" | "way" | "relation";
 
@@ -192,7 +193,7 @@ export function parseOsmViewpointElement(value: unknown): OsmViewpointCandidate 
   const access = tags.access?.trim().toLowerCase();
   if (access === "no" || access === "private") return null;
 
-  const name = tags["name:en"]?.trim() || tags.name?.trim() || "";
+  const name = expandNameAbbreviations(tags["name:en"]?.trim() || tags.name?.trim() || "");
   const normalizedName = normalizeViewpointName(name);
   if (!name || !normalizedName) return null;
 

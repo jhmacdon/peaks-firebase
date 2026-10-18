@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Archivo, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { absoluteUrl, siteConfig } from "../lib/seo";
+import { PetricsPageViews } from "../components/petrics-page-views";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,6 +72,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${archivo.variable} bg-page text-ink font-sans antialiased`}
       >
+        <PetricsPageViews />
         {children}
       </body>
     </html>

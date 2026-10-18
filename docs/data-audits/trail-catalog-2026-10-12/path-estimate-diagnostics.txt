@@ -1,0 +1,19 @@
+          id          |                         name                         | dimensions | points | bad_count | vertical_jumps 
+----------------------+------------------------------------------------------+------------+--------+-----------+----------------
+ 1LZT1kDgrLW9pDwrf8zT | Cerro Las Minas via Celaque                          |          3 |    200 |         0 |              1
+ 3Aitt1ERk5KyJPuq9Mou | Denali via West Buttress                             |          3 |    241 |         0 |              1
+ 3Qu7jUpuf2s8Rppie5xY | Aconcagua via the Normal Route                       |          3 |   1004 |         0 |              1
+ 6ecb9lItJZFoUvnLgdrM | Diamond Peak via East Ridge                          |          3 |    158 |         0 |              1
+ 9eZAzBxuftciiNHgebgF | Pico da Bandeira via Tronqueira                      |          3 |   2396 |         0 |              1
+ 9mf0SZW7vTEnbwiRbeSD | Marmolejo via West Slope                             |          3 |    142 |         0 |              1
+ ECoZC4aNYJuYAnlxyYis | Mount Kosciuszko via Summit Walk                     |          3 |    183 |         0 |              1
+ heKA3OjpBv1DHw95Q5s7 | Gannett Peak via Glacier Trail and Gooseneck Glacier |          3 |   1764 |         0 |              1
+ M0u52NOjI9qfOcr9v6Md | Wheeler Peak via Summit Trail                        |          3 |    269 |         0 |              1
+ PHtpA6ChUirkEE3dQavK | Mount Elbrus via the South Route                     |          3 |    154 |         0 |              1
+ qLWVNWfLqYcZwG95AT11 | Bashful Peak via West Ridge                          |          3 |    283 |         0 |              1
+ SRszsmv5DNY3u4B9Ggkg | Borah Peak via Southwest Ridge                       |          3 |    591 |         0 |              1
+ Te2d51z8LaVTt41S19Ub | Sacajawea Peak via Hurricane Creek                   |          3 |    463 |         0 |              1
+ wH0piwu9SEQnVCuAFQGX | Mount Arvon via Summit Trail                         |          3 |      8 |         0 |              1
+ YTiaxb3yLlJyiumhC5at | Star Peak via Eldorado Canyon Road                   |          3 |    940 |         0 |              1
+(15 rows)
+

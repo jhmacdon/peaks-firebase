@@ -1,0 +1,31 @@
+Pager usage is off.
+BEGIN
+SET
+SET
+SET
+SET
+SET
+DO
+SELECT 4
+          id
+----------------------
+ 5Z3MCMBjAQxs1K9yKbwc
+ fw-ML4vsorEL5j7sl4im
+ NtXYecChVsFWyawb22Q0
+ ZPP7hf-AtZYGdOlc7iNn
+(4 rows)
+
+          id
+----------------------
+ 1755CBB232F3FCC6A437
+ 7F9130E5AAEC9213E123
+ C21AD354B7FEA99C277F
+ FF006293EBCD1BBDA398
+(4 rows)
+
+psql:docs/data-audits/trail-catalog-wa-2026-10-13/photos/approval-preview/rollback-preview.sql:38: ERROR:  operator does not exist: boolean -> unknown
+LINE 1: NOT(to_jsonb(c) @> expected->'candidate')
+                                   ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+QUERY:  NOT(to_jsonb(c) @> expected->'candidate')
+CONTEXT:  PL/pgSQL function inline_code_block line 6 at IF

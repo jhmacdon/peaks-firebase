@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-10-13T06:00:54.159Z",
+  "mode": "read-only-shared-matcher-plan",
+  "reviewHash": "6d61400918f8933999db3a955df3e116b109e552abe186a504ba2d53babe9f97",
+  "rows": [
+    {
+      "sourceKey": "wa:osm-relation:4807642",
+      "name": "Lake Serene Trail",
+      "outcome": "rejected",
+      "reason": "canceling statement due to statement timeout"
+    },
+    {
+      "sourceKey": "wa:osm-relation:4793517",
+      "name": "Snow Lake Trail (Alpental)",
+      "outcome": "rejected",
+      "reason": "current transaction is aborted, commands ignored until end of transaction block"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186",
+      "name": "Ingalls Lake via Ingalls Way",
+      "outcome": "rejected",
+      "reason": "current transaction is aborted, commands ignored until end of transaction block"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537770",
+      "name": "Lake 22",
+      "outcome": "rejected",
+      "reason": "current transaction is aborted, commands ignored until end of transaction block"
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+Pager usage is off.
+BEGIN
+SET
+SET
+SET
+SET
+DO
+CREATE TABLE
+INSERT 0 15477
+INSERT 0 181
+INSERT 0 193
+INSERT 0 22968
+SELECT 3
+DO
+CREATE TABLE
+DO
+CREATE TABLE
+CREATE INDEX
+GRANT
+GRANT
+SET
+SET
+CREATE FUNCTION
+SET
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+GRANT
+CREATE FUNCTION
+GRANT
+SET
+SET
+
+SELECT 2
+DO
+SET
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+SET
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+COMMENT
+SET
+SET
+REVOKE
+REVOKE
+GRANT
+REVOKE
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+SET
+CREATE TABLE
+INSERT 0 15477
+INSERT 0 181
+INSERT 0 193
+INSERT 0 22968
+DO
+{"checks": "passed", "commit": "36e0b3465ee18052b6a7b84a3a47e3c0450c2dbc", "routes": 15477, "segments": 181, "trailhead_ids": ["C21AD354B7FEA99C277F", "6D0E779FF39C5B648D6B"], "candidate_jobs": 0, "route_rows_unchanged": true}
+ROLLBACK
+NOTICE:  Washington trailheads checked: 2; inserted: 2; audit: 100
+NOTICE:  trigger "trg_guard_trail_catalog_candidate_job" for relation "trail_catalog_candidate_jobs" does not exist, skipping
+NOTICE:  trigger "trg_check_trail_catalog_candidate_job_final" for relation "trail_catalog_candidate_jobs" does not exist, skipping
+NOTICE:  trigger "trg_guard_trail_catalog_pending_only" for relation "routes" does not exist, skipping
+NOTICE:  trigger "trg_guard_trail_catalog_receipt_delete" for relation "trail_catalog_candidate_jobs" does not exist, skipping
+NOTICE:  trigger "trg_guard_trail_catalog_receipt_truncate" for relation "trail_catalog_candidate_jobs" does not exist, skipping

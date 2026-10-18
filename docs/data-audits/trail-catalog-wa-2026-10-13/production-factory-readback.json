@@ -1,0 +1,155 @@
+{
+    "audits": [
+        {
+            "id": 119,
+            "rowsIn": 1,
+            "source": "trail-catalog-factory-login-setup",
+            "status": "dry_run",
+            "finishedAt": "2026-10-13T14:26:13.526251+00:00",
+            "rowsMatched": 1,
+            "rowsWritten": 0
+        },
+        {
+            "id": 120,
+            "rowsIn": 1,
+            "source": "trail-catalog-factory-login-setup",
+            "status": "success",
+            "finishedAt": "2026-10-13T14:31:56.281882+00:00",
+            "rowsMatched": 1,
+            "rowsWritten": 1
+        },
+        {
+            "id": 121,
+            "rowsIn": 21,
+            "source": "trail-catalog-pilot",
+            "status": "dry_run",
+            "finishedAt": "2026-10-13T15:05:39.552065+00:00",
+            "rowsMatched": 9,
+            "rowsWritten": 0
+        },
+        {
+            "id": 122,
+            "rowsIn": 21,
+            "source": "trail-catalog-pilot",
+            "status": "partial",
+            "finishedAt": "2026-10-13T15:14:20.424304+00:00",
+            "rowsMatched": 9,
+            "rowsWritten": 4
+        }
+    ],
+    "routes": [
+        {
+            "kind": "destination",
+            "name": "Lake Serene Trail",
+            "gainM": 826.84765625,
+            "status": "pending",
+            "routeId": "trail-f39e1eac-83f9-4ce7-b870-e10c04f396b0",
+            "distanceM": 5723.426036489508,
+            "sourceKey": "wa:osm-relation:4807642",
+            "difficulty": "strenuous",
+            "segmentIds": [
+                "trail-seg-7fc8373a-c7e1-44fb-84da-63c1c9f70757",
+                "trail-seg-ef237a62-d46e-4f40-a4d5-ec8198e1b192",
+                "trail-seg-199e6d6e-3643-4dd9-a5fc-597b45b65c31",
+                "trail-seg-22a65112-2d9e-4699-80de-1177bc2c777c",
+                "trail-seg-7331cd0c-98ab-4442-83c4-206c4756b917",
+                "trail-seg-c9cc9dec-30e9-4a45-b6db-51e2ab2ed864",
+                "trail-seg-08ae1e78-53cb-433f-a521-61a2c7cff147",
+                "trail-seg-21a20b5e-b31b-437e-bd48-13a3c44b6bd1",
+                "trail-seg-7d38d6c8-82fa-4b8e-9416-0a3b5beb0f62",
+                "trail-seg-965c8d7d-9b56-4c57-af4c-49be2c3ba34e",
+                "trail-seg-5d9ce60b-9c1b-4c98-9a66-2bfacbc50153",
+                "trail-seg-05d17367-b2e5-4b0d-8e7a-7682a08e869d",
+                "trail-seg-0b9479e8-3212-4f55-981f-5e5a25370ccb"
+            ],
+            "objectiveId": "1755CBB232F3FCC6A437",
+            "trailheadId": "DiZjSucepuEsfCtfKw6F",
+            "estMovingSeconds": 17016,
+            "publishIntegrity": true,
+            "pendingBindingValid": true
+        },
+        {
+            "kind": "loop",
+            "name": "Skyline Loop (Paradise)",
+            "gainM": 567.94921875,
+            "status": "pending",
+            "routeId": "trail-6dfd43dc-8f23-4791-ab00-570049a1c39b",
+            "distanceM": 9167.62653621158,
+            "sourceKey": "wa:osm-relation:5199914",
+            "difficulty": "hard",
+            "segmentIds": [
+                "trail-seg-1de9a488-28ec-4864-ba94-c2ae31f03829",
+                "trail-seg-b6484da7-20c5-455d-8555-aa76337f53b8",
+                "trail-seg-52025722-dc90-43f4-93e3-9a8b2627b199",
+                "trail-seg-7909ca8e-90b5-47c0-aec8-5947fe6af152",
+                "trail-seg-59cbbe73-663a-4f46-a9e3-ed69deaf8ad0",
+                "trail-seg-50c3d210-f442-4dd7-a626-39b5f77c0b4c",
+                "trail-seg-f0dbbc92-ee22-42e1-85bc-e1f5315cb4aa",
+                "trail-seg-a5f7ea64-b25a-4e70-9b24-51fd51adb187",
+                "trail-seg-836dd5c9-e169-45bf-b7ab-59cb1d0caac9",
+                "trail-seg-9b7dae61-c7a7-4b21-b3fe-2c9f2fa67e2e",
+                "trail-seg-f1caafef-2b8d-472c-9ac0-b9d4b92a44b5",
+                "trail-seg-83ace3a2-d0e1-4675-bcc8-ff68fed52f3f",
+                "trail-seg-d5f5738a-434c-4c8d-b8a4-39590b543354",
+                "trail-seg-0f5fd7df-0d6c-4bbf-8ad7-1efd746a3dd9",
+                "trail-seg-c40dfd2e-0fc4-49a6-b99c-e37e9e10ca55",
+                "trail-seg-b84cb751-3c43-432b-a318-8453c50e0a62",
+                "trail-seg-d43420e2-3b9d-48b4-9ca6-6bbdfd6e5c58",
+                "trail-seg-cc19f256-62a0-4df6-bbde-b79992440403",
+                "trail-seg-a3a7e16d-6473-492d-88d3-d6a36eb624b1",
+                "trail-seg-258841ae-c8aa-4dbe-8f09-885027106e02"
+            ],
+            "objectiveId": null,
+            "trailheadId": "C21AD354B7FEA99C277F",
+            "estMovingSeconds": 9945,
+            "publishIntegrity": true,
+            "pendingBindingValid": true
+        },
+        {
+            "kind": "destination",
+            "name": "Lake Twentytwo via Lake Twenty Two Trail",
+            "gainM": 503.7109375,
+            "status": "pending",
+            "routeId": "trail-6391bc0f-8687-4bc8-b465-a2add6d99d58",
+            "distanceM": 4036.5662629371045,
+            "sourceKey": "wa:osm-relation:5537770",
+            "difficulty": "hard",
+            "segmentIds": [
+                "trail-seg-7960b9f8-27d0-423b-b00b-300e7511d7fc",
+                "trail-seg-74b88c5f-f582-497a-97b9-2491019b1efa",
+                "trail-seg-7f22e94c-b841-46c0-a922-224eb5ced8f6",
+                "trail-seg-af2ec9be-4e71-4baf-b58e-a25905673812"
+            ],
+            "objectiveId": "FF006293EBCD1BBDA398",
+            "trailheadId": "oXomNSntgwhCMyHqrFMA",
+            "estMovingSeconds": 9651,
+            "publishIntegrity": true,
+            "pendingBindingValid": true
+        },
+        {
+            "kind": "destination",
+            "name": "Rattlesnake Ledge via Rattlesnake Ledge Trail",
+            "gainM": 410.3671875,
+            "status": "pending",
+            "routeId": "trail-e7e610fd-b4be-4b67-94c5-bc7646cfb346",
+            "distanceM": 3164.5994145907584,
+            "sourceKey": "wa:osm-relation:5588030",
+            "difficulty": "moderate",
+            "segmentIds": [
+                "trail-seg-f0b01591-c8bb-4d01-9305-995082d8d8da",
+                "trail-seg-b1a5a7ff-d91d-407a-8220-d83b063d4539",
+                "trail-seg-79d02f0f-0372-4270-aa85-d41446d825ad"
+            ],
+            "objectiveId": "7F9130E5AAEC9213E123",
+            "trailheadId": "oPjIYQZRJoeTSxvofmZj",
+            "estMovingSeconds": 7467,
+            "publishIntegrity": true,
+            "pendingBindingValid": true
+        }
+    ],
+    "checkedAt": "2026-10-13T15:20:14.547145+00:00",
+    "jobStates": {
+        "pending": 4,
+        "rejected": 17
+    }
+}

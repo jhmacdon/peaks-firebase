@@ -1,0 +1,4 @@
+{
+  "retrievedAt": "2026-10-13T04:51:11.283722+00:00",
+  "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublishWithDataStatus_01/MapServer/0/query?f=json&where=UPPER%28trail_name%29+LIKE+%27%25SERENE%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25SNOW%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25INGALLS%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25COLCHUCK%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25STUART%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25ESMERALDA%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25ENCHANT%25%27&geometry=-122%2C47%2C-120.5%2C48.2&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&inSR=4326&outSR=4326&outFields=%2A&returnGeometry=true&resultRecordCount=1000"
+}

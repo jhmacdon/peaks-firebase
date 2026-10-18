@@ -1,0 +1,7 @@
+{
+  "sha256": {
+    "setup.sql": "c2a40909fce9880bfe2afb502986e8ed5f9868a71711490fbac5a4f251cb9317",
+    "verify.sql": "b7eda3b229cb66ec275e4b8b1ab5ed0b0a6441c0b41af5ef50441a65f27f46c6",
+    "keychain.py": "b8beb2d33cb6153b1793a7e32aa691edca5e3b02245cf32087a901ce64dfbee3"
+  }
+}

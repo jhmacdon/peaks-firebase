@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "private_names_omitted": true,
+  "names": {
+    "dry_run_counts": {
+      "candidates": 505,
+      "ready": 505,
+      "rejected": 0,
+      "applied": 0,
+      "already_applied": 0
+    },
+    "apply_counts": {
+      "candidates": 505,
+      "ready": 0,
+      "rejected": 0,
+      "applied": 505,
+      "already_applied": 0
+    },
+    "dry_run_sha256": "896124f32599b685c3bbe7d9b7540a18855efe30c6093eacf3fcafc7b2249ab2",
+    "apply_sha256": "d75f84afa3775dc817f82c17b867e9d51532a5d43d90b82436849009ba0161fc",
+    "apply_generated_at": "2026-10-13T05:20:35.906Z"
+  },
+  "schema_ddl": "applied",
+  "refresh_jobs_ddl": "applied",
+  "indexes": {
+    "created": 16,
+    "valid": 16,
+    "ready": 16
+  },
+  "constraints": {
+    "validated": 6
+  },
+  "metadata": {
+    "dry_run_counts": {
+      "candidates": 287,
+      "ready": 97,
+      "rejected": 190,
+      "applied": 0,
+      "already_applied": 0
+    },
+    "dry_run_sha256": "25e26b600b4ad7c7d247753b3fe5db6441c94b529d9bb0951186bfb5e9242d28",
+    "selected_apply_count": 97,
+    "apply_status": "success",
+    "apply_counts": {
+      "candidates": 97,
+      "ready": 0,
+      "rejected": 0,
+      "applied": 97,
+      "already_applied": 0
+    },
+    "apply_sha256": "588325776d09d7b4c582aa591d5723e977010eedf4278ac8158b820f5f563a9a",
+    "replay": {
+      "candidates": 1,
+      "already_applied": 1,
+      "rows_written": 0,
+      "sha256": "d8d8bca6d9b3242e39a6c3ef12a257d07f5ae1c185d1e126c41875eb102819bc"
+    },
+    "followup_repairs": [
+      {
+        "source": "Census TIGERweb States",
+        "evidence": "census-region-repair-20261013/production-receipts.json",
+        "destination_rows_applied": 4,
+        "route_metadata_applied": 2,
+        "replay_already_applied": 2,
+        "remaining_current_rejections": 188
+      }
+    ],
+    "total_current_routes_applied": 99,
+    "total_current_routes_rejected": 188,
+    "superseded_routes_excluded": 14972
+  },
+  "api_deploy": {
+    "status": "deployed",
+    "revision": "peaks-api-00267-z6s",
+    "traffic_percent": 100,
+    "commit": "8ee392d7d9a64188858dcab8084b449ea6f5f79a",
+    "deployment_run": "https://github.com/jhmacdon/peaks-firebase/actions/runs/38355212688",
+    "final_http_checks": {
+      "total": 25,
+      "success": 25,
+      "scope": "23 catalog queries and 2 geographic destination-search variants",
+      "evidence": "../trail-catalog-wa-2026-10-13/production-search.json"
+    },
+    "golden_set_pass": false
+  },
+  "api_grants_verified": true,
+  "data_source_run_ids": {
+    "names_dry_run": 93,
+    "names_apply": 94,
+    "metadata_dry_run": 95,
+    "metadata_apply": 96,
+    "metadata_replay": 97,
+    "region_preview": 103,
+    "region_apply": 104,
+    "repaired_metadata_dry_run": 105,
+    "region_replay": 106,
+    "repaired_metadata_apply": 107,
+    "repaired_metadata_replay": 108
+  }
+}

@@ -54,6 +54,7 @@ migrate/            # One-time Firestore → PostGIS backfill
 - **Segment direction**: `route_segments.direction` is `forward` or `reverse` (CHECK constraint, not enum)
 - **Areas are separate from destinations**: official protected-area and land-management units live in `areas` with `geometry(MultiPolygon, 4326)` boundaries; `destination_areas` links summits to every containing area.
 - **Session areas come from track segments**: `session_areas` stores protected areas crossed by each saved tracking-point segment. `area_boundary_parts` keeps exact, indexed polygon subdivisions so matching stays within the session-processing budget. A changed PAD-US import refreshes existing PostGIS session links in small batches.
+- **Destination boundaries match through pieces**: `destination_boundary_parts` holds each boundary split into indexed pieces of at most 256 points (trigger-maintained). Session and plan matching and both session triggers check the pieces, never the whole polygon: a Great Lakes outline holds up to 475k points, and one whole-polygon check cost a 16-point session over 150 s (2026-10-08). A track reaches an outline within `destination_boundary_match_radius()`: 50 m for lakes, whose shores a hiker stops at rather than enters, and 10 m for other outlines. The API serves `COALESCE(boundary_display, boundary)`; `boundary_display` is a simplified copy kept for outlines over 2,000 points (Lake Huron: 475k points to 5,371, 120 kB of GeoJSON).
 - **Text IDs**: all PKs are `TEXT` (20-char alphanumeric, matching Firebase document ID style)
 - **`search_name`**: lowercased/normalized copy of `name` for trigram search (indexed with `gin_trgm_ops`)
 - **`updated_at` triggers**: automatic on destinations, areas, lists, routes, tracking_sessions
@@ -99,6 +100,21 @@ All schema objects (tables, indexes, functions, triggers) **must be owned by `po
 
 This convention exists because Cloud SQL's `postgres` is `cloudsqlsuperuser`, not a true superuser, so it cannot bypass the "must be owner of object" rule for `CREATE OR REPLACE FUNCTION` or `ALTER FUNCTION`. If a function gets accidentally created as `peaks-api` (this happened once during initial bootstrap with `link_sessions_on_destination_insert`), every subsequent migration touching it must `SET ROLE peaks-api` first or the apply fails with `must be owner of function`. Fix the ownership instead — see `cloud-sql/migrations/20260503_fix_trigger_function_owner.sql` for the three-step ownership-transfer dance (Cloud SQL forbids both directions of cross-role membership at once, so direct connection as the current owner is required, not `SET ROLE`).
 
+### Querying production data
+
+Agents can read and change production data with `cloud-sql/scripts/peaks-psql`. It
+connects as `peaks-api`, reads the password from Secret Manager (`peaks-db-password`,
+the secret Cloud Run uses), and starts the Auth Proxy if needed. Extra arguments go to
+`psql`:
+
+```bash
+cloud-sql/scripts/peaks-psql -c "SELECT count(*) FROM tracking_sessions"
+```
+
+Do not copy the password into `.env` files; stored copies go stale. Take an on-demand backup
+(`gcloud sql backups create --instance=peaks-db --project donner-a8608`) before bulk
+writes. Schema changes still need `postgres`.
+
 ## Testing (do not regress)
 
 The DB-backed suites in `api/src/__tests__/` write to fifteen tables. They must
@@ -116,7 +132,7 @@ never reach production. Full detail in `test-db/README.md`; the rules:
   database instead.
 - **`schema.sql` is a baseline, not the current schema.** It is missing
   everything later migrations added and never folded back —
-  `link_sessions_on_destination_update`, `areas_refresh_boundary_display`,
+  the destination and route re-match queue triggers, `areas_refresh_boundary_display`,
   destination place-copy and hero-credit columns, `areas.parent_area_id`, the
   destination search vector — and it carries no `GRANT`s. Provisioning applies
   `schema.sql` + `migrations/` + `grants.sql`, which together reproduce live
@@ -171,6 +187,9 @@ that token and sets `req.uid` and `req.authToken`. `optionalAuth` does the same
 when a token is present; no token means a signed-out request, and a bad token
 still returns 401. In local test mode, both use `X-Test-User`; only optional
 reads accept a missing header. The shim refuses to run in Cloud Run.
+`/api/admin/*` adds `requireAdmin`: the verified token must carry the Firebase
+custom claim `admin: true` (the same source of truth as the web app), else 403.
+Admin paths are never on the signed-out allowlist.
 
 Only these catalog GETs use `optionalAuth` (paths are under `/api`):
 
@@ -259,6 +278,8 @@ refreshed after deletion. The merge's completed claim allows that retry.
 | GET | `/api/sessions/:id/comparisons` | "Your Efforts": prior overlapping sessions + shared-segment stats (owner-only) |
 | GET | `/api/sessions/:id/comparisons/:otherId` | Effort curves for the race chart (owner-only) |
 | GET | `/api/lists/...` | List queries |
+| PUT/DELETE | `/api/admin/routes/:id/cover` | Admin only (`admin` custom claim, `requireAdmin`): set or clear a route's own cover from an upload under `covers/routes/{id}/` |
+| PUT/DELETE | `/api/admin/destinations/:id/cover` | Admin only: set a destination's hero cover from an upload under `covers/destinations/{id}/`, or remove it and restore the reviewed hero it replaced. Contract: `docs/trails/admin-cover-api.md` in the `peaks` checkout |
 
 ## Migration
 
@@ -288,6 +309,24 @@ npm run migrate:points
 # CAI hut import
 npm run import:cai-huts
 ```
+
+## Place names: never abbreviated
+
+Catalog names spell out "Mount", "Mountain" and "Peak". CHECK constraints
+(`migrations/20261014_expand_name_abbreviations.sql`) reject "Mt", "Mt.", "Mtn"
+and "Pk" in Peaks-owned destinations, all areas, and current Peaks routes;
+user-owned destinations and personal routes keep what their owner typed, and
+superseded routes stay as published. "St" is allowed: it is the official form
+in many names ("Mount St. Helens", "St Sunday Crag").
+
+Importers spell names out before writing with `expandNameAbbreviations` in
+`migrate/src/lib/place-names.ts`: "Mt" before a name is "Mount", "Mt" after a
+name and before a generic word is "Mountain" ("Chimney Mt Trail"). PAD-US
+publishes "Mt. Hood National Forest"; the importer stores "Mount Hood National
+Forest". A new importer that skips the helper fails on the constraint rather
+than publishing an abbreviation. Search drops periods before expanding
+abbreviations, so "mt. baker" and "mt baker" both find "Mount Baker", and a
+campsite or trailhead never outranks a summit or lake with the identical name.
 
 ## Peakbagger list audit/import
 
@@ -429,13 +468,13 @@ and its reviewed job pre-state. It also snapshots counts and hashes for linked
 sessions, explicit rejections, destination-area links, nearby tracking
 sessions, and their points.
 
-Before data apply, deploy
-`20260810_session_link_update_xy_guard.sql`. It patches the old destination
-update function only when its body matches the reviewed production function,
-keeps the rejection anti-join, and marks the new XY-only guard. It refuses
-unknown drift. A PointZ change in Z alone must not rerun historical session
-matching. The guarded data command checks the function body, marker, and exact
-enabled trigger before its first update.
+Before data apply, deploy `20261004_session_rematch_queue.sql`. It replaces
+the old destination update function (and with it the reviewed
+`20260810_session_link_update_xy_guard.sql` patch) with a trigger that only
+queues sessions, and only for an XY, boundary, feature or owner change. A
+PointZ change in Z alone must not rerun historical session matching. The
+guarded data command checks the function body, marker, and exact enabled
+trigger before its first update.
 
 Apply requires `--apply` plus exact database, Cloud SQL instance, and
 instance-named Unix socket flags. It takes one serializable transaction and an
@@ -1170,6 +1209,299 @@ A route whose materialized geometry is recomputed leaves stale intervals
 behind, so `rematerializeRoute` (web admin route builder) queues that route's
 `auto`-matched recordings back to `pending` and the existing Cloud Scheduler
 sweep rematches them. No timer, no new service.
+
+## Trail catalog metadata and search
+
+A catalog trail is a Peaks-owned row in `routes`. Physical trail remains in
+`segments`, shared through `route_segments`. Do not add a parallel trails table
+or a second segment matcher. The catalog fields and `list_routes` join live in
+`migrations/20261012_trail_catalog_metadata.sql`.
+
+`kind` is `summit`, `destination`, `loop`, or `traverse`. A NULL kind means the
+legacy row still needs review. `objective_destination_id` and
+`trailhead_destination_id` must come from checked destination links, never a
+name guess. Slugs keep an ID-derived suffix and remain stable on name edits;
+the unique index also covers routes without a state. Name normalization follows
+destination search. Aliases and `segments.trail_names` feed route search.
+
+`GET /api/search/all` keeps `destinations`, `routes`, and `areas`, and adds
+`lists` plus one ranked `results` array. Each result has `type`, `id`, `score`,
+and `data`: a small summary of its bucket row (`name`, `type`, `kind`,
+`features`, `state_code`, `country_code`, `elevation` when present). It keeps a
+destination's geographic `type` without repeating the row; the full row,
+geometry included, stays in its bucket. Clients join a result to its row by
+`type` and `id`. Route-query errors fail the request. The route candidate
+queries use names, aliases, objective names, linked destination names, and
+segment trail names. All types use the same text-score weights: 0.45 trigram
+similarity, 0.20 word similarity, 0.15 when the query starts any word of the
+name, 0.10 exact; bounded popularity adds up to 0.10 and proximity up to 0.05.
+Word similarity keeps "Mount Pilchuck" above a campsite named "Pilchuck"; whole
+similarity keeps "Ingalls Peak" above "Ingalls Peak-South Peak". A campsite or
+trailhead whose whole name is the exact one-word query ("Pilchuck") loses 0.35,
+since it is usually a namesake of the place people mean; "Camp Muir",
+"Heybrook Trailhead", and partial typing keep their normal score. Destination
+candidates stay on the trigram/prefix index clauses: adding `$1 <% search_name`
+grew "mount" to ~5k candidates and took it from 1.8 s to 8 s on prod. The summit-over-its-route rule also fires when the query starts any
+word of the summit name ("rainier" keeps Mount Rainier above its routes). A destination hike ranks just above its matching objective. An exact
+summit-name query keeps that summit above its own route.
+
+### Difficulty and moving time
+
+Difficulty is a Peaks estimate, not a copied rating or a technical climbing
+grade. `peaks_route_difficulty` computes:
+
+```
+effort = full walking distance in km + full ascent in metres / 100
+         + 20 * maximum absolute grade
+easy: effort < 8; moderate: < 16; hard: < 28; strenuous: >= 28
+```
+
+For an out-and-back, walking distance is twice stored distance and ascent is
+`gain + gain_loss`. Other shapes use stored distance and gain. Maximum grade
+uses elevation sampled every 100 m along geodesic distance; a final interval
+shorter than 50 m joins the preceding interval. A route shorter than 100 m uses
+its full length. This avoids treating dense vertex noise as the steepest grade.
+
+`peaks_route_est_moving_seconds` sums each directed edge's horizontal distance
+divided by `max(0.5, 6 * exp(-3.5 * abs(grade + 0.05)))` km/h, then rounds up
+to seconds. The base formula comes from [Tobler (1993), Figure II](https://escholarship.org/uc/item/05r820mz).
+The 0.5 km/h floor is a Peaks choice. Out-and-back estimates add the return
+using each edge's opposite grade. Neither estimate includes breaks, snow,
+climbing, or delays. Missing shapes, bad stats, non-finite elevations, and
+vertical jumps with no horizontal distance yield NULL rather than a fake
+estimate. A route trigger refreshes search names and estimates when their
+inputs change. It leaves route names, status, and geometry alone.
+
+### Preflight and publication
+
+Run the read-only preflight before any catalog metadata backfill:
+
+```bash
+cd cloud-sql/migrate
+npm run audit:trail-catalog -- \
+  --report=../../docs/data-audits/trail-catalog-preflight.json
+```
+
+It queries only scalar metadata and joins. Exit 2 means rejected routes; exit 1
+means the audit itself failed. The JSON summary and JSONL rejection file must
+account for every Peaks-owned row, including superseded rows. Empty input fails.
+This diagnostic has no apply mode and makes no `data_source_runs` write.
+
+Apply `20261012_trail_catalog_metadata.sql` and
+`20261012_trail_catalog_refresh_jobs.sql` first. These short transactions add
+the schema without scanning or backfilling routes. Then plan a name/slug refresh:
+
+```bash
+cd cloud-sql/migrate
+npm run refresh:trail-catalog -- --mode names --report=/tmp/trail-names-dry.json
+```
+
+Names mode covers all active routes plus pending Peaks routes, so personal
+routes remain searchable. It reads no path and grants no catalog classification.
+Review and apply that report with `--mode names` and the same review flags shown
+below. Then apply `20261012_trail_catalog_search_indexes.sql` with `psql -f`,
+outside a transaction: each index builds concurrently. Confirm every index is
+valid before retrying a failed build. Apply
+`20261012_trail_catalog_validate_constraints.sql` to validate the new constraints
+without holding the schema transaction's exclusive lock.
+
+Next, plan a full metadata refresh of current active/pending Peaks routes:
+
+```bash
+npm run refresh:trail-catalog -- --report=/tmp/trail-metadata-dry.json
+```
+
+This command records each run in `data_source_runs`, including dry runs, but
+does not change routes or jobs without `--apply`. It reports every rejected
+row. Apply requires the saved report and its SHA-256; when that report contains
+rejected rows, select the reviewed ready subset with repeated `--route-id`:
+
+```bash
+npm run refresh:trail-catalog -- --apply \
+  --review-report=/tmp/trail-metadata-dry.json \
+  --expected-report-sha256=<printed-sha256> \
+  --route-id=<reviewed-ready-id> --report=/tmp/trail-metadata-apply.json
+```
+
+Use a new report path for each run. Durable per-route leases prevent concurrent
+writes. Apply checks the selected rows before writing, then rechecks each row
+under transaction locks. It saves the metadata and completion receipt together.
+An unchanged replay does not rewrite routes. Superseded rows stay outside this
+refresh; include them separately in the preflight report. Popularity counts
+completed route matches through `routeDoneCoverageSql`, the objective's ascent
+offset, and published trip reports.
+
+The metadata migration does not backfill rows. Checked names mode fills search
+names and stable slugs; checked metadata mode adds classification and estimates.
+Neither mode classifies incomplete old rows or runs a catalog-wide geometry scan.
+Never describe the metadata backfill as complete while rejected rows remain.
+
+The publish checks use kind-specific contact rules. Legacy and summit routes
+still require summit contact within 5 m. Destination routes must reach the
+named objective within 250 m; polygon objectives use their boundary. Traverses
+must reach their second trailhead, and loops must close. Shared segments must
+carry their exact contributing source IDs, and their union must cover the
+route's source IDs. Source kind, rights, credit, and elevation lineage must
+agree. Josiah approved these rules; they do not waive independent source
+review or permit unmapped connectors.
+Source rights, independent source checks, exact segment assembly, and
+elevation checks must remain. Photos are optional since
+`20261015_route_covers.sql`: `credited_cover` is reported as a measurement, not
+a gate, and no trigger blocks activating a route without one. A photo that is
+shown must carry full credit. OSM (with ODbL credit) and
+`usfs-nfs-trails` may supply new pilot geometry; NPS/USGS are validation only for
+this pilot. Leave descriptions empty without reusable text and all three
+description source fields. Activate at most 500 routes per batch and verify
+that `/internal/sweep` drains the rematch queue before the next batch.
+
+### Washington graph catalog loader
+
+The local graph loader uses `20261016_wa_catalog_activation.sql` and
+[`LOAD-CATALOG.md`](migrate/src/trail-graph/LOAD-CATALOG.md). Josiah chose one
+owned activation function with canonical publish-integrity/elevation checks,
+composer-ok eligibility, no per-route reviewer lane, and batches of at most 50
+with a rematch-queue drain between batches. The cover activation trigger must
+be absent. The candidate pilot below keeps its separate source-review workflow.
+
+### Washington candidate pilot
+
+Independent review and activation use the new supervised
+[`trail_catalog_review.sh`](../.agents/skills/peaks-route-factory/scripts/trail_catalog_review.sh)
+entrypoint and [operator guide](migrate/docs/trail-catalog-review.md), after
+`20261014_trail_catalog_review_activation.sql`. Dry runs come first; apply binds
+the exact reviewed hash and the authenticated lane. A separate fresh-context
+Sol reviewer sees only the filtered packet and its hash-bound map image. Missing
+visual/source/access/statistics evidence blocks approval. A photo is optional;
+a missing credited cover is reported, not blocking. Current source, XYZ, contact,
+all linked 5 m summit, elevation, reuse and five-point checks remain.
+The runner activates one route at a time through the owned SQL function and
+stops until the existing rematch queue drains and canonical public route/search
+verification passes. Default input size is one; the explicit cap is 500. Durable
+leases, immutable receipts and the publication barrier survive crashes. Unknown
+mutation outcomes stay unknown in audits. No repair, requeue, gate override,
+alternate public endpoint or new recurring infrastructure is provided.
+
+First enumerate a bounded area from catalog trailheads and immutable source
+bundles. The discovery command reads catalog places and writes a manifest plus
+a JSONL row for every admitted or rejected attempt. It creates only an audit
+receipt in the database:
+
+```bash
+npm run routes:discover -- \
+  --config data/trail-catalog/wa-cascades-20261013/discovery-lake-serene-reviewed.json \
+  --manifest /tmp/lake-serene-candidates.json \
+  --report /tmp/lake-serene-discovery.jsonl
+```
+
+Outputs must be new files. Split an area when its place, source, cycle, or
+attempt bound is reached; an incomplete inventory produces no importable
+manifest. Discovery follows mapped `path`, `footway`, `track`, and `steps`
+edges; Josiah approved mapped pedestrian steps while retaining every other
+gate. It enumerates named objectives, hiking relations, and exact source
+cycles, then applies the same naming and prefix rules as the pilot. A common
+destination needs explicit evidence to survive prefix pruning. An objective
+without a checked DEM profile remains blocked at the next stage.
+Every candidate's checked DEM gain must stay at or below 2,000 metres, including
+named OSM relations. USFS discovery aliases come only from contributing trail
+features.
+Objective shortest-path searches enforce a 20 km path bound. The request also
+admits explicit named OSM hiking relations near a trailhead, including longer
+loops and traverses; these keep the separate 100 km source-route cap and every
+gain, access, source, and review check. A relation name does not raise the
+20 km bound on the objective search itself.
+
+This command does not fetch a complete regional source network. An operator
+must save and hash each bounded OSM/USFS bundle first. Raw OSM trailheads remain
+source-bound proposals until their catalog identities and metadata are reviewed;
+the command does not insert them or enumerate raw USFS trailheads. The current
+pilot reports these limits and does not claim full regional coverage.
+
+The pilot uses the same matcher as the web route editor through
+`web/src/lib/segment-matcher-core.ts`. It accepts attributed OSM paths and
+the registered `usfs-nfs-trails` layer. Each segment credits only the source
+edges it follows; the independent checker fetches those sources again.
+Its reviewed manifest binds source snapshots and DEM samples by SHA-256,
+plus exact catalog place IDs. It records
+every candidate in JSONL, including rejected inputs and unresolved source
+gaps. Empty input fails. Run from `cloud-sql/migrate` with the documented
+production connection, using a new report path each time:
+
+```bash
+npm run routes:pilot -- \
+  --manifest data/trail-catalog/wa-cascades-20261013/manifest.json \
+  --report /tmp/wa-trail-pilot-dry.jsonl
+```
+
+Dry runs record `data_source_runs` but do not write routes or jobs. Before a
+candidate becomes pending-ready, the dry planner runs the shared exact matcher,
+source-overlap checks, and existing-segment reuse proof. The writer repeats
+these checks under its lease and locks. Review the
+report before applying its printed `reviewHash` under the `peaks-route-factory`
+database role:
+
+```bash
+npm run routes:pilot -- \
+  --manifest data/trail-catalog/wa-cascades-20261013/manifest.json \
+  --report /tmp/wa-trail-pilot-apply.jsonl \
+  --apply --review-hash <reviewed-sha256>
+```
+
+The apply path holds a durable source-key lease, locks the bound places, and
+writes pending routes with exact segment intervals. Manual web split writers also refuse any attributed segment or segment linked to a Peaks route until each child has independent proof of its exact contributing sources. Personal, unattributed segment splits still work. The database checks the
+lease, immutable input, route path, source spans, links, and completion receipt.
+Replays verify the saved route before reusing a receipt. Failed rows remain
+visible, including an interrupted apply whose receipt still needs checking.
+API logins can read candidate receipts but cannot change or remove them.
+Candidate route IDs stay fixed. This command cannot activate routes.
+
+Selection keeps one candidate per trailhead and objective, with the reviewed
+old and new Mailbox trails as distinct variants. It drops a strict prefix
+unless a source attests that its objective is a common hiking destination.
+Distinct trailheads remain separate approaches. Names and aliases retain
+attested names; dropping a "via" suffix requires a complete reviewed region
+and objective inventory, which the golden manifest alone does not provide.
+
+The runner refuses existing catalog matches, physical splits of existing
+segments, source overlaps whose XYZ samples differ, and nearby OSM/USFS
+geometry that needs a shared-source review. Those cases need reviewed repairs; never
+insert duplicate geometry or silently omit a shared segment. The Washington
+report records these limits and blocks scale-up until all golden routes pass.
+
+Cost: about $0/month added fixed cost. This uses the existing database and
+sweep. Index storage and bounded queries add variable work; there is no new
+service, timer, CPU allocation, or minimum instance.
+
+## Catalog changes re-match sessions
+
+`processSession` is the one definition of what a session reached and which
+routes it did. Catalog changes reach old sessions through it, never through
+their own matching SQL (`migrations/20261004_session_rematch_queue.sql`):
+
+- **New destination**: `trg_destination_link_sessions` tags old sessions at
+  once, owner-scoped, with the rejection veto.
+- **Destination moved, retyped, or re-owned**: `trg_destination_queue_rematch`
+  queues the sessions within 200 m (50 m of a boundary) of the old and the new
+  place. An elevation-only edit queues nothing.
+- **Route added, activated, reshaped, re-owned, or retired**:
+  `trg_route_queue_rematch_insert` / `_update` queue the sessions within 600 m
+  of the old and the new path, whenever either side is `active`.
+
+A bulk writer can switch all of these triggers off for one transaction with
+`SET LOCAL peaks.defer_rematch = 'on'` (`rematch_deferred()`,
+`migrations/20261015_segment_model_v2.sql`). The writer then owns enqueueing:
+run `rematch-all-sessions.ts` afterwards, or call `queue_matching_routes()`
+for the routes it changed (the queue helpers ignore the setting). The WA
+catalog loader needs it: each single-row `route_segments` insert otherwise
+rescans every session near the whole route, about 40 s per row on the
+db-f1-micro.
+
+Queued sessions sit in `session_rematch_queue`. Each `/internal/sweep` re-runs
+`processSession(force)` on up to 25 of them within 90 s
+(`drainSessionRematchQueue`), which adds new matches and drops stale `auto`
+rows. Rows are claimed one at a time with `DELETE … FOR UPDATE SKIP LOCKED`,
+never under a held lock connection: the processing pool has two connections and
+`processSession` needs both. An edit during a re-run queues the session again.
+No new service or schedule.
 
 Historical rows are filled by `npm run backfill:route-coverage` in
 `cloud-sql/api` — dry-run by default, batched, resumable, never run as part of

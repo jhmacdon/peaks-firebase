@@ -44,6 +44,11 @@ if [[ "${ROUTE_WORKER_TEST_LOGINS_AVAILABLE:-0}" == "1" ]]; then
       "${ROUTE_REVIEWER_TEST_DB_ROLE:-peaks-route-reviewer-test}" \
       "${ROUTE_REVIEWER_TEST_DB_PASSWORD:-peaks_route_reviewer_test}"
   )}"
+  export ROUTE_JOB_API_TEST_DATABASE_URL="${ROUTE_JOB_API_TEST_DATABASE_URL:-$(
+    route_worker_test_url \
+      "${ROUTE_API_TEST_DB_ROLE:-peaks-api-test}" \
+      "${ROUTE_API_TEST_DB_PASSWORD:-peaks_api_test}"
+  )}"
 fi
 export ROUTE_AUDIT_JOB_TEST_DATABASE_URL="${ROUTE_AUDIT_JOB_TEST_DATABASE_URL:-$TEST_DATABASE_URL}"
 export ROUTE_ELEVATION_JOB_TEST_DATABASE_URL="${ROUTE_ELEVATION_JOB_TEST_DATABASE_URL:-$TEST_DATABASE_URL}"

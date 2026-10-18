@@ -1,0 +1,41 @@
+Pager usage is off.
+BEGIN
+SET
+SET
+SET
+SET
+SET
+DO
+SELECT 4
+          id
+----------------------
+ 5Z3MCMBjAQxs1K9yKbwc
+ fw-ML4vsorEL5j7sl4im
+ NtXYecChVsFWyawb22Q0
+ ZPP7hf-AtZYGdOlc7iNn
+(4 rows)
+
+          id
+----------------------
+ 1755CBB232F3FCC6A437
+ 7F9130E5AAEC9213E123
+ C21AD354B7FEA99C277F
+ FF006293EBCD1BBDA398
+(4 rows)
+
+DO
+SELECT 4
+SELECT 4
+SELECT 1
+SELECT 1
+DO
+SET CONSTRAINTS
+SELECT 1
+DO
+                                                          validation_result
+-------------------------------------------------------------------------------------------------------------------------------------
+ {"inside_preview": "passed", "storage_tested": false, "routes_activated": 0, "preview_hero_updates": 4, "preview_queue_updates": 4}
+(1 row)
+
+ROLLBACK
+psql:docs/data-audits/trail-catalog-wa-2026-10-13/photos/approval-preview/rollback-preview.sql:128: ERROR:  canceling statement due to statement timeout

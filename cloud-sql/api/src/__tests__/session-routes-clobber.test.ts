@@ -1,6 +1,5 @@
 // Regression tests for the disappearing partial-route bug. Backend processing
-// owns `source = 'auto'` rows. A client session update may replace its manual
-// route list, but must never erase those measured rows.
+// owns route facts. Ordinary client saves must not change them.
 
 import { strict as assert } from "node:assert";
 import { after, before, describe, test } from "node:test";
@@ -77,7 +76,7 @@ describe("client route lists do not clobber backend matches", { skip: skipReason
     }]);
   });
 
-  test("manual reconciliation removes old manual rows and keeps auto rows", async () => {
+  test("an ordinary save preserves existing route facts until processing runs", async () => {
     const sessionId = `${prefix}-manual`;
     await createSession(sessionId);
     await db.query(
@@ -99,6 +98,8 @@ describe("client route lists do not clobber backend matches", { skip: skipReason
       source: "auto",
       coverage: 0.0002,
       covered_intervals: [[0.9439, 0.9441]],
+    }, {
+      route_id: manualRoute, source: "manual", coverage: null, covered_intervals: null,
     }]);
   });
 
@@ -125,4 +126,15 @@ describe("client route lists do not clobber backend matches", { skip: skipReason
       covered_intervals: [[0.9439, 0.9441]],
     }]);
   });
+  test("a stale echo cannot resurrect a route removed by rematching", async () => {
+    const sessionId = `${prefix}-stale`;
+    await createSession(sessionId);
+    for (const method of ["put", "post"] as const) {
+      const response = await request(app)[method](method === "put" ? `/api/sessions/${sessionId}` : "/api/sessions")
+        .set("X-Test-User", user).send({ id: sessionId, start_date: "2026-07-23T07:18:27Z", ended: true, routes: [autoRoute] });
+      assert.equal(response.status, method === "put" ? 200 : 201);
+      assert.deepEqual(await routeRows(sessionId), []);
+    }
+  });
+
 });

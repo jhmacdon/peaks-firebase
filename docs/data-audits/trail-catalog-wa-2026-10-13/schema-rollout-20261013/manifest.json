@@ -1,0 +1,25 @@
+{
+  "commit": "36e0b3465ee18052b6a7b84a3a47e3c0450c2dbc",
+  "migrationOrder": [
+    "cloud-sql/migrations/20261013_trail_catalog_candidate_jobs.sql",
+    "cloud-sql/migrations/20261013_trail_catalog_operator_destination_guard.sql",
+    "cloud-sql/migrations/20261013_trail_catalog_publish_integrity.sql",
+    "cloud-sql/migrations/20261013_trail_catalog_wa_trailheads.sql",
+    "cloud-sql/migrations/20261013_trail_catalog_worker_bindings.sql",
+    "cloud-sql/migrations/20261013_trail_catalog_z_usfs_source_coverage.sql",
+    "cloud-sql/migrations/20261013_trail_catalog_zz_receipt_permissions.sql"
+  ],
+  "migrationSha256": {
+    "cloud-sql/migrations/20261013_trail_catalog_candidate_jobs.sql": "5dd0ef6fae492184906a0b2dbdecf31fd710451891e9e03d273d06ec9181399f",
+    "cloud-sql/migrations/20261013_trail_catalog_operator_destination_guard.sql": "95c4326bd0f2c655b79944453955c77eb65ae3e51a6349740127e5a4aca763cc",
+    "cloud-sql/migrations/20261013_trail_catalog_publish_integrity.sql": "d343d3c3d3efc9f517d1b1e5e74ab50eb6e14bafe169d58b4cadc61890e7c8ed",
+    "cloud-sql/migrations/20261013_trail_catalog_wa_trailheads.sql": "0519fe52704d8989ca6524a5b8fd3ac6e659b57392a5873c01c918b31ec151a7",
+    "cloud-sql/migrations/20261013_trail_catalog_worker_bindings.sql": "5ac7ebc0692ac4ca7a35a8a1d57b6419a233e811e4827f16b656adac8b1239ce",
+    "cloud-sql/migrations/20261013_trail_catalog_z_usfs_source_coverage.sql": "23d4f8134c0bed9e1d9bc3a0711e46e2667cbcab89cf2859966671596f13ff24",
+    "cloud-sql/migrations/20261013_trail_catalog_zz_receipt_permissions.sql": "6bca8d851b79168c77e820e6e05d57297261ec3f3212ca47eea97de0845127ca"
+  },
+  "sharedBodySha256": "a5506b245968cc0642af2b39436a9c0f22b0565abf5c1831d4746772895cd83d",
+  "preflightSha256": "d4de0cbc1c9a4c8cdc1eca60b4d1839309767e886dfba27ad6f89eb593a72688",
+  "applySha256": "b099ac73f6fb62da94b5888e763a7cb373f5672e6e43785d1dcf03873c6ef462",
+  "inspectSha256": "3ddfd14bf3989ff7f213fe8ad8497f722519a2a8016b2eb792164db17d939fb5"
+}

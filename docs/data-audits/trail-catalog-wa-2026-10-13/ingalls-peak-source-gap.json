@@ -1,0 +1,36 @@
+{
+  "status": "blocked_source_geometry_gap",
+  "geometrySource": "OSM",
+  "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-ingalls-summit-map.json",
+  "summitMembershipFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-ingalls-peak-node-ways.json",
+  "liveApproachWay": 1213228739,
+  "liveApproachEndpoint": [
+    -120.9470796,
+    47.4714962
+  ],
+  "oldCandidateLastSourcePoint": [
+    -120.9470796,
+    47.4714962
+  ],
+  "oldCandidateAppendedFinalPoint": [
+    -120.946492,
+    47.472487
+  ],
+  "appendedConnectorMeters": 118.695,
+  "mappedPeakNode": 356545306,
+  "mappedPeakCoordinates": [
+    -120.946341,
+    47.4723371
+  ],
+  "sourceEndpointToMappedPeakMeters": 108.742,
+  "mappedPeakMemberships": [
+    {
+      "type": "way",
+      "id": 956219096,
+      "natural": "mountain_range",
+      "name": "Wenatchee Mountains"
+    }
+  ],
+  "finding": "No highway=path|footway|track or climbing way reaches summit in fetched local OSM map. Existing candidate adds a straight connector after the last live source vertex. This does not meet the 5 m source endpoint gate; scalar metadata readiness cannot validate geometry.",
+  "productionWrites": false
+}

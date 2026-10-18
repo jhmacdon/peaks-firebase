@@ -33,10 +33,11 @@ function lineWkt(fromM: number, toM: number, steps: number): string {
 }
 
 async function makeRoute(id: string, lengthM: number, steps: number): Promise<void> {
+  await db.query(`UPDATE routes SET status = 'pending' WHERE owner = $1`, [user]);
   await db.query(
-    `INSERT INTO routes (id, name, status, path)
-     VALUES ($1, $2, 'active', ST_GeogFromText($3))`,
-    [id, id, lineWkt(0, lengthM, steps)]
+    `INSERT INTO routes (id, name, status, path, owner)
+     VALUES ($1, $2, 'active', ST_GeogFromText($3), $4)`,
+    [id, id, lineWkt(0, lengthM, steps), user]
   );
 }
 
@@ -88,20 +89,20 @@ describe("route write gate", { skip: skipReason ?? undefined }, () => {
     assert.equal(await storedRow(session, route), null, "200 m must not earn a row");
   });
 
-  test("a 500 m partial writes a row with the covered stretch", async () => {
+  test("a 3 km partial writes a row with the covered stretch", async () => {
     const route = `${prefix}-partial-route`;
     const session = `${prefix}-partial`;
     await makeRoute(route, 10_000, 100);
-    await makeSession(session, 0, 1_500, 60);     // 1.5 km of a 10 km route
+    await makeSession(session, 0, 3_000, 60);     // 3 km of a 10 km route
     await processSession(session, user);
     const row = await storedRow(session, route);
-    assert.ok(row, "1.5 km of a 10 km route must earn a row");
+    assert.ok(row, "3 km of a 10 km route must earn a row");
     assert.ok(row.coverage < 0.7, `expected a partial coverage, got ${row.coverage}`);
     assert.equal(row.covered_intervals.length, 1);
     assert.equal(row.covered_intervals[0][0], 0);
     assert.ok(
-      row.covered_intervals[0][1] > 0.12 && row.covered_intervals[0][1] < 0.18,
-      `expected the first ~15% of the route, got ${JSON.stringify(row.covered_intervals)}`
+      row.covered_intervals[0][1] > 0.28 && row.covered_intervals[0][1] < 0.32,
+      `expected the first ~30% of the route, got ${JSON.stringify(row.covered_intervals)}`
     );
   });
 
@@ -122,6 +123,7 @@ describe("route write gate", { skip: skipReason ?? undefined }, () => {
     const route = `${prefix}-partial-route`;
     const first = await storedRow(session, route);
     assert.ok(first, "the partial test above must have run first");
+    await db.query(`UPDATE routes SET status = CASE WHEN id = $2 THEN 'active' ELSE 'pending' END WHERE owner = $1`, [user, route]);
     await processSession(session, user, { force: true });
     assert.deepEqual(await storedRow(session, route), first);
   });

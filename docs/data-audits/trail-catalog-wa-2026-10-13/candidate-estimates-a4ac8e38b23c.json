@@ -1,0 +1,74 @@
+[
+    {
+        "shape": "out_and_back",
+        "max_grade": 0.32729185582695436,
+        "difficulty": "hard",
+        "source_key": "wa:osm-relation:4152031",
+        "path_estimable": true,
+        "est_moving_seconds": 13322
+    },
+    {
+        "shape": "out_and_back",
+        "max_grade": 0.32164412608205567,
+        "difficulty": "hard",
+        "source_key": "wa:osm-relation:4152034",
+        "path_estimable": true,
+        "est_moving_seconds": 12619
+    },
+    {
+        "shape": "out_and_back",
+        "max_grade": 0.2713018857235943,
+        "difficulty": "hard",
+        "source_key": "wa:osm-relation:4793517",
+        "path_estimable": true,
+        "est_moving_seconds": 14835
+    },
+    {
+        "shape": "out_and_back",
+        "max_grade": 0.5219760819438022,
+        "difficulty": "strenuous",
+        "source_key": "wa:osm-relation:4807642",
+        "path_estimable": true,
+        "est_moving_seconds": 17016
+    },
+    {
+        "shape": "loop",
+        "max_grade": 0.19308668803317233,
+        "difficulty": "moderate",
+        "source_key": "wa:osm-relation:5194432",
+        "path_estimable": true,
+        "est_moving_seconds": 6109
+    },
+    {
+        "shape": "loop",
+        "max_grade": 0.23658820611422926,
+        "difficulty": "hard",
+        "source_key": "wa:osm-relation:5199914",
+        "path_estimable": true,
+        "est_moving_seconds": 9945
+    },
+    {
+        "shape": "out_and_back",
+        "max_grade": 0.2779065947051504,
+        "difficulty": "hard",
+        "source_key": "wa:osm-relation:5537770",
+        "path_estimable": true,
+        "est_moving_seconds": 9651
+    },
+    {
+        "shape": "out_and_back",
+        "max_grade": 0.18995365312109697,
+        "difficulty": "moderate",
+        "source_key": "wa:osm-relation:5588030",
+        "path_estimable": true,
+        "est_moving_seconds": 7467
+    },
+    {
+        "shape": "out_and_back",
+        "max_grade": 0.3339667490128727,
+        "difficulty": "strenuous",
+        "source_key": "wa:osm-relation:5626186",
+        "path_estimable": true,
+        "est_moving_seconds": 23221
+    }
+]

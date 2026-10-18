@@ -1,0 +1,1162 @@
+{
+  "generatedAt": "2026-10-13T05:11:31.696736+00:00",
+  "scope": "Remaining 13 golden routes. No production writes or route imports. Exact OSM source geometry, USFS feature access review, and primary-page validation.",
+  "rawEvidenceDirectory": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources",
+  "usfsEvidenceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/usfs-thirteen-named.json",
+  "primaryValidation": [
+    {
+      "url": "https://www.nps.gov/mora/planyourvisit/skyline-trail.htm",
+      "name": "Skyline Trail",
+      "roundTripMiles": 5.5,
+      "gainFeet": 1700,
+      "geometryUse": "validation only"
+    },
+    {
+      "url": "https://www.nps.gov/mora/planyourvisit/natches-peak-loop.htm",
+      "name": "Naches Peak Loop",
+      "roundTripMiles": 3.5,
+      "gainFeet": 500,
+      "geometryUse": "validation only"
+    },
+    {
+      "url": "https://www.nps.gov/mora/planyourvisit/tolmie-peak.htm",
+      "name": "Tolmie Peak",
+      "roundTripMiles": 6.5,
+      "gainFeet": 1010,
+      "accessFinding": "No public road access to Carbon River and Mowich Lake from SR165 due Fairfax Bridge closure; Wonderland hiking access possible.",
+      "geometryUse": "validation only"
+    },
+    {
+      "url": "https://www.seattle.gov/documents/Departments/SPU/EnvironmentConservation/StrollingtheRattlesnakeLakeRecreationArea.pdf",
+      "name": "Rattlesnake Ledge",
+      "oneWayMiles": 2,
+      "geometryUse": "validation only"
+    },
+    {
+      "url": "https://www.dnr.wa.gov/MiddleForkSnoqualmie",
+      "name": "Mailbox Peak",
+      "use": "land-manager name and trailhead identity only"
+    },
+    {
+      "url": "https://www.fs.usda.gov/r06/mbs/recreation/skykomish-ranger-district",
+      "name": "Blanca Lake Trail 1052",
+      "use": "official trail identity"
+    }
+  ],
+  "routes": [
+    {
+      "name": "Mount Si Trail",
+      "kindCandidate": "summit",
+      "osmRelation": {
+        "id": 5553769,
+        "name": "Mount Si Trail",
+        "url": "https://www.openstreetmap.org/relation/5553769",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5553769-full.json",
+        "wayIds": [
+          42636914,
+          42636915,
+          1087178168,
+          1087178167,
+          1087178166,
+          946181464,
+          946181461,
+          946181463,
+          946181462,
+          1393070463,
+          1393070464,
+          42730595,
+          479966018,
+          162157943
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 6316.9,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 532712300,
+            "name": "Mount Si Trailhead",
+            "url": "https://www.openstreetmap.org/node/532712300",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5553769-full.json",
+            "lat": 47.4880076,
+            "lon": -121.7231554,
+            "highway": "trailhead"
+          },
+          {
+            "type": "node",
+            "id": 356546426,
+            "name": "Mount Si / q̓əlbc̓",
+            "url": "https://www.openstreetmap.org/node/356546426",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5553769-full.json",
+            "lat": 47.5068935,
+            "lon": -121.739022,
+            "gnis:feature_id": "1525731",
+            "natural": "peak",
+            "alt_name": "q̓əlbc̓",
+            "name:en": "Mount Si"
+          }
+        ],
+        "endpointGapM": 2414.7,
+        "terrainOrAccessFlags": [
+          {
+            "wayId": 162157943,
+            "name": "Mount Si Haystack Scramble",
+            "sac_scale": "alpine_hiking"
+          }
+        ]
+      },
+      "objective": {
+        "type": "node",
+        "id": 356546426,
+        "name": "Mount Si / q̓əlbc̓",
+        "url": "https://www.openstreetmap.org/node/356546426",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5553769-full.json",
+        "lat": 47.5068935,
+        "lon": -121.739022,
+        "gnis:feature_id": "1525731",
+        "natural": "peak",
+        "alt_name": "q̓əlbc̓",
+        "name:en": "Mount Si"
+      },
+      "trailhead": {
+        "type": "node",
+        "id": 532712300,
+        "name": "Mount Si Trailhead",
+        "url": "https://www.openstreetmap.org/node/532712300",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5553769-full.json",
+        "lat": 47.4880076,
+        "lon": -121.7231554,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [],
+      "usfsDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "notes": "Continuous source to summit includes Mount Si Haystack Scramble way 162157943, sac_scale=alpine_hiking. Common hiking objective at Haystack base differs from summit; do not hide scramble or alter existing summit name.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked",
+      "nearestRelationEndpointToObjectiveM": 0.0
+    },
+    {
+      "name": "Little Si",
+      "kindCandidate": "summit",
+      "osmRelation": {
+        "id": 6106367,
+        "name": "Little Si",
+        "url": "https://www.openstreetmap.org/relation/6106367",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-6106367-full.json",
+        "wayIds": [
+          40413381,
+          479966020
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 3165.0,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 4729927256,
+            "name": "Little Si Trailhead",
+            "url": "https://www.openstreetmap.org/node/4729927256",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-little-si-map.json",
+            "lat": 47.4867934,
+            "lon": -121.7534319,
+            "highway": "trailhead"
+          },
+          {
+            "type": "node",
+            "id": 356545680,
+            "name": "Little Si",
+            "url": "https://www.openstreetmap.org/node/356545680",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-little-si-map.json",
+            "lat": 47.4986861,
+            "lon": -121.7560032,
+            "gnis:feature_id": "1522302",
+            "natural": "peak",
+            "tourism": "viewpoint"
+          }
+        ],
+        "endpointGapM": 1336.4,
+        "terrainOrAccessFlags": []
+      },
+      "objective": {
+        "type": "node",
+        "id": 356545680,
+        "name": "Little Si",
+        "url": "https://www.openstreetmap.org/node/356545680",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-little-si-map.json",
+        "lat": 47.4986861,
+        "lon": -121.7560032,
+        "gnis:feature_id": "1522302",
+        "natural": "peak",
+        "tourism": "viewpoint"
+      },
+      "trailhead": {
+        "type": "node",
+        "id": 4729927256,
+        "name": "Little Si Trailhead",
+        "url": "https://www.openstreetmap.org/node/4729927256",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-little-si-map.json",
+        "lat": 47.4867934,
+        "lon": -121.7534319,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [],
+      "usfsDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "notes": "Continuous named relation reaches exact mapped peak node.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked",
+      "nearestRelationEndpointToObjectiveM": 0.0
+    },
+    {
+      "name": "Rattlesnake Ledge",
+      "kindCandidate": "destination",
+      "osmRelation": {
+        "id": 5588030,
+        "name": "Rattlesnake Ledge Trail",
+        "url": "https://www.openstreetmap.org/relation/5588030",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5588030-full.json",
+        "wayIds": [
+          43529800,
+          1024988821,
+          1024988820
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 3092.7,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 549500300,
+            "name": "Rattlesnake Ledge Trailhead",
+            "url": "https://www.openstreetmap.org/node/549500300",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5588030-full.json",
+            "lat": 47.4356363,
+            "lon": -121.771648,
+            "highway": "trailhead"
+          },
+          {
+            "type": "node",
+            "id": 534472312,
+            "name": "Rattlesnake Ledge",
+            "url": "https://www.openstreetmap.org/node/534472312",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5588030-full.json",
+            "lat": 47.4360417,
+            "lon": -121.7785009,
+            "tourism": "viewpoint"
+          }
+        ],
+        "endpointGapM": 517.4,
+        "terrainOrAccessFlags": []
+      },
+      "objective": {
+        "type": "node",
+        "id": 534472312,
+        "name": "Rattlesnake Ledge",
+        "url": "https://www.openstreetmap.org/node/534472312",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5588030-full.json",
+        "lat": 47.4360417,
+        "lon": -121.7785009,
+        "tourism": "viewpoint"
+      },
+      "trailhead": {
+        "type": "node",
+        "id": 549500300,
+        "name": "Rattlesnake Ledge Trailhead",
+        "url": "https://www.openstreetmap.org/node/549500300",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5588030-full.json",
+        "lat": 47.4356363,
+        "lon": -121.771648,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [],
+      "usfsDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "notes": "Continuous named relation reaches exact mapped viewpoint.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked",
+      "nearestRelationEndpointToObjectiveM": 0.0
+    },
+    {
+      "name": "Skyline Loop (Paradise)",
+      "kindCandidate": "loop",
+      "osmRelation": {
+        "id": 5199914,
+        "name": "Skyline Trail",
+        "url": "https://www.openstreetmap.org/relation/5199914",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5199914-full.json",
+        "wayIds": [
+          1216082470,
+          1216082471,
+          348842091,
+          514662032,
+          235057029,
+          439627178,
+          1216080551,
+          1216080552,
+          439627177,
+          1216080546,
+          1216080545,
+          1216080544,
+          1216080543,
+          1216080541,
+          1216080540,
+          286202120,
+          1314055304,
+          286202121,
+          1314055303,
+          178755821
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 9012.2,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [],
+        "endpointGapM": 0,
+        "terrainOrAccessFlags": []
+      },
+      "objective": null,
+      "trailhead": {
+        "type": "node",
+        "id": 13122759855,
+        "name": "Skyline Trailhead",
+        "url": "https://www.openstreetmap.org/node/13122759855",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-skyline-map.json",
+        "lat": 46.7864184,
+        "lon": -121.7364531,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [],
+      "usfsDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "notes": "One closed source loop. NPS geometry is validation only; this source is OSM. Review High Skyline choice and all current conditions before activation.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked"
+    },
+    {
+      "name": "Naches Peak Loop",
+      "kindCandidate": "loop",
+      "osmRelation": {
+        "id": 5194432,
+        "name": "Naches Peak Loop Trail",
+        "url": "https://www.openstreetmap.org/relation/5194432",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5194432-full.json",
+        "wayIds": [
+          232482239,
+          920595653,
+          348487956,
+          86477430,
+          86477887,
+          232595237,
+          235057030,
+          232595119,
+          699285217,
+          699285216,
+          232595238,
+          364714558
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 5634.0,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [],
+        "endpointGapM": 0,
+        "terrainOrAccessFlags": []
+      },
+      "objective": null,
+      "trailhead": {
+        "type": "node",
+        "id": 2431576647,
+        "name": "Tipsoo Lake Trailhead",
+        "url": "https://www.openstreetmap.org/node/2431576647",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-naches-map.json",
+        "lat": 46.8698645,
+        "lon": -121.519389,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [],
+      "usfsDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "notes": "One closed source loop from Tipsoo Lake. NPS validation only. USFS PCT:Naches Central exists but Centerline/N/A fails gate and alone is not the loop.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked"
+    },
+    {
+      "name": "Mailbox Peak (new trail)",
+      "kindCandidate": "summit",
+      "osmRelation": {
+        "id": 5426108,
+        "name": "Mailbox Peak Trail",
+        "url": "https://www.openstreetmap.org/relation/5426108",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+        "wayIds": [
+          485762910,
+          348441237,
+          348441239,
+          348441238,
+          348441236,
+          1314051685,
+          1314051686,
+          485762908,
+          866130465,
+          1248929672,
+          866130466,
+          160893250
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 8133.5,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 53207063,
+            "name": "Mailbox Peak Trailhead",
+            "url": "https://www.openstreetmap.org/node/53207063",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+            "lat": 47.4671809,
+            "lon": -121.672516,
+            "highway": "trailhead"
+          },
+          {
+            "type": "node",
+            "id": 285408190,
+            "name": "Mailbox Peak",
+            "url": "https://www.openstreetmap.org/node/285408190",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+            "lat": 47.4624091,
+            "lon": -121.6392795,
+            "natural": "peak"
+          }
+        ],
+        "endpointGapM": 2554.2,
+        "terrainOrAccessFlags": []
+      },
+      "objective": {
+        "type": "node",
+        "id": 285408190,
+        "name": "Mailbox Peak",
+        "url": "https://www.openstreetmap.org/node/285408190",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+        "lat": 47.4624091,
+        "lon": -121.6392795,
+        "natural": "peak"
+      },
+      "trailhead": {
+        "type": "node",
+        "id": 53207063,
+        "name": "Mailbox Peak Trailhead",
+        "url": "https://www.openstreetmap.org/node/53207063",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+        "lat": 47.4671809,
+        "lon": -121.672516,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [],
+      "usfsDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "notes": "Continuous named relation to peak. Both Mailbox routes share trailhead/objective and some mapped ways; keep variants as explicitly requested.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked",
+      "nearestRelationEndpointToObjectiveM": 0.0,
+      "sharedOsmWaysWithOtherMailboxTrail": [
+        160893250,
+        485762910,
+        866130466,
+        1248929672
+      ]
+    },
+    {
+      "name": "Mailbox Peak (old trail)",
+      "kindCandidate": "summit",
+      "osmRelation": {
+        "id": 7147738,
+        "name": "Mailbox Peak Old Trail",
+        "url": "https://www.openstreetmap.org/relation/7147738",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-7147738-full.json",
+        "wayIds": [
+          485762910,
+          485762909,
+          312552541,
+          769791465,
+          1248929672,
+          866130466,
+          160893250
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 3917.1,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 53207063,
+            "name": "Mailbox Peak Trailhead",
+            "url": "https://www.openstreetmap.org/node/53207063",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+            "lat": 47.4671809,
+            "lon": -121.672516,
+            "highway": "trailhead"
+          },
+          {
+            "type": "node",
+            "id": 285408190,
+            "name": "Mailbox Peak",
+            "url": "https://www.openstreetmap.org/node/285408190",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+            "lat": 47.4624091,
+            "lon": -121.6392795,
+            "natural": "peak"
+          }
+        ],
+        "endpointGapM": 2554.2,
+        "terrainOrAccessFlags": [
+          {
+            "wayId": 312552541,
+            "name": "Mailbox Peak Old Trail",
+            "foot": "designated",
+            "sac_scale": "demanding_mountain_hiking",
+            "trail_visibility": "intermediate"
+          },
+          {
+            "wayId": 769791465,
+            "name": "Mailbox Peak Old Trail",
+            "foot": "designated",
+            "sac_scale": "demanding_mountain_hiking",
+            "trail_visibility": "intermediate"
+          }
+        ]
+      },
+      "objective": {
+        "type": "node",
+        "id": 285408190,
+        "name": "Mailbox Peak",
+        "url": "https://www.openstreetmap.org/node/285408190",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+        "lat": 47.4624091,
+        "lon": -121.6392795,
+        "natural": "peak"
+      },
+      "trailhead": {
+        "type": "node",
+        "id": 53207063,
+        "name": "Mailbox Peak Trailhead",
+        "url": "https://www.openstreetmap.org/node/53207063",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+        "lat": 47.4671809,
+        "lon": -121.672516,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [],
+      "usfsDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "notes": "Continuous named relation; old trail ways have demanding_mountain_hiking. Exclude nearby Mailbox south trail way 160893464 (access=no, foot=discouraged).",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked",
+      "nearestRelationEndpointToObjectiveM": 0.0,
+      "sharedOsmWaysWithOtherMailboxTrail": [
+        160893250,
+        485762910,
+        866130466,
+        1248929672
+      ]
+    },
+    {
+      "name": "Heather–Maple Pass Loop",
+      "kindCandidate": "loop",
+      "osmRelation": {
+        "id": 6632394,
+        "name": "Maple Pass Loop Trail",
+        "url": "https://www.openstreetmap.org/relation/6632394",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-6632394-full.json",
+        "wayIds": [
+          446198653,
+          347774425,
+          5836788,
+          347774424
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 10804.3,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 2045824265,
+            "name": null,
+            "url": "https://www.openstreetmap.org/node/2045824265",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-maple-pass-map.json",
+            "lat": 48.5151794,
+            "lon": -120.7358582
+          },
+          {
+            "type": "node",
+            "id": 5751012388,
+            "name": "Rainy Pass Trailhead",
+            "url": "https://www.openstreetmap.org/node/5751012388",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-maple-pass-map.json",
+            "lat": 48.5152487,
+            "lon": -120.7357846,
+            "highway": "trailhead"
+          }
+        ],
+        "endpointGapM": 9.4,
+        "terrainOrAccessFlags": []
+      },
+      "objective": null,
+      "trailhead": {
+        "type": "node",
+        "id": 5751012388,
+        "name": "Rainy Pass Trailhead",
+        "url": "https://www.openstreetmap.org/node/5751012388",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-maple-pass-map.json",
+        "lat": 48.5152487,
+        "lon": -120.7357846,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [
+        {
+          "globalid": "{70391B82-AADA-4F2B-8EF9-A9795FB27D76}",
+          "objectid": 9801977,
+          "name": "MAPLE PASS",
+          "trailNumber": "740",
+          "eligibleByReviewedAccess": false,
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_restricted": "N/A",
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A"
+          },
+          "endpoints": [
+            [
+              [
+                -120.73576366900457,
+                48.51521596499109
+              ],
+              [
+                -120.73472073863663,
+                48.51050346484832
+              ]
+            ]
+          ]
+        }
+      ],
+      "usfsDisposition": "matching features below",
+      "notes": "Source nearly closes at Rainy Pass trailhead; endpoint gap is recorded. USFS Centerline/N/A fails access gate.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked"
+    },
+    {
+      "name": "Blanca Lake",
+      "kindCandidate": "destination",
+      "osmRelation": {
+        "id": 4807643,
+        "name": "Blanca Lake Trail",
+        "url": "https://www.openstreetmap.org/relation/4807643",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-4807643-full.json",
+        "wayIds": [
+          109044256,
+          1307290574,
+          174254527
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 6157.0,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 1249568914,
+            "name": "Blanca Lake Trailhead",
+            "url": "https://www.openstreetmap.org/node/1249568914",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-blanca-corrected-map.json",
+            "lat": 47.9152825,
+            "lon": -121.3124939,
+            "highway": "trailhead"
+          },
+          {
+            "type": "node",
+            "id": 1249568900,
+            "name": null,
+            "url": "https://www.openstreetmap.org/node/1249568900",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-blanca-objective-map.json",
+            "lat": 47.9346385,
+            "lon": -121.3423842
+          }
+        ],
+        "endpointGapM": 3097.2,
+        "terrainOrAccessFlags": []
+      },
+      "objective": {
+        "type": "relation",
+        "id": 13049031,
+        "name": "Blanca Lake",
+        "url": "https://www.openstreetmap.org/relation/13049031",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-blanca-objective-map.json",
+        "gnis:feature_id": "1516642",
+        "natural": "water"
+      },
+      "trailhead": {
+        "type": "node",
+        "id": 1249568914,
+        "name": "Blanca Lake Trailhead",
+        "url": "https://www.openstreetmap.org/node/1249568914",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-blanca-corrected-map.json",
+        "lat": 47.9152825,
+        "lon": -121.3124939,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [
+        {
+          "globalid": "{F343E4C8-D2CD-4F36-9532-83179DD59BA0}",
+          "objectid": 9803701,
+          "name": "BLANCA LAKE",
+          "trailNumber": "1052",
+          "eligibleByReviewedAccess": true,
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_restricted": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null
+          },
+          "endpoints": [
+            [
+              [
+                -121.31253999962009,
+                47.915460000169
+              ],
+              [
+                -121.33989334982346,
+                47.93045508098436
+              ]
+            ]
+          ]
+        },
+        {
+          "globalid": "{9F28164D-CBA8-4F08-9B4A-1BC1CDB93D9B}",
+          "objectid": 9804516,
+          "name": "BLANCA LAKE",
+          "trailNumber": "1052",
+          "eligibleByReviewedAccess": true,
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_restricted": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null
+          },
+          "endpoints": [
+            [
+              [
+                -121.33989334982346,
+                47.93045508098436
+              ],
+              [
+                -121.34225500022734,
+                47.93460499995206
+              ]
+            ]
+          ]
+        }
+      ],
+      "usfsDisposition": "matching features below",
+      "notes": "Continuous source to lake. Two eligible USFS features also join exactly. Use lake boundary contact for objective check, not lake center.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked"
+    },
+    {
+      "name": "Lake 22",
+      "kindCandidate": "destination",
+      "osmRelation": {
+        "id": 5537770,
+        "name": "Lake Twenty Two Trail",
+        "url": "https://www.openstreetmap.org/relation/5537770",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5537770-full.json",
+        "wayIds": [
+          55055545,
+          55055544,
+          55055543,
+          891132731,
+          891132730
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 5803.7,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 692525449,
+            "name": null,
+            "url": "https://www.openstreetmap.org/node/692525449",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-lake22-objective-map.json",
+            "lat": 48.0670219,
+            "lon": -121.7624717
+          },
+          {
+            "type": "node",
+            "id": 692525327,
+            "name": null,
+            "url": "https://www.openstreetmap.org/node/692525327",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5537770-full.json",
+            "lat": 48.0769024,
+            "lon": -121.7458891
+          }
+        ],
+        "endpointGapM": 1650.8,
+        "terrainOrAccessFlags": []
+      },
+      "objective": {
+        "type": "relation",
+        "id": 14862342,
+        "name": "Lake Twentytwo",
+        "url": "https://www.openstreetmap.org/relation/14862342",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-lake22-objective-map.json",
+        "gnis:feature_id": "1527515",
+        "natural": "water"
+      },
+      "trailhead": {
+        "type": "node",
+        "id": 12614940360,
+        "name": "Lake Twenty Two Trailhead",
+        "url": "https://www.openstreetmap.org/node/12614940360",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5537770-full.json",
+        "lat": 48.0768514,
+        "lon": -121.7459165,
+        "highway": "trailhead",
+        "alt_name": "Lake 22 Trailhead"
+      },
+      "officialFeatures": [
+        {
+          "globalid": "{EA8B01A6-108A-4433-BEB5-7741E04D3A06}",
+          "objectid": 9804376,
+          "name": "LAKE 22",
+          "trailNumber": "702",
+          "eligibleByReviewedAccess": true,
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_restricted": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null
+          },
+          "endpoints": [
+            [
+              [
+                -121.76384595634946,
+                48.07493130695936
+              ],
+              [
+                -121.76240442115139,
+                48.06698121669802
+              ]
+            ]
+          ]
+        },
+        {
+          "globalid": "{9F51B5F0-46F3-4692-9E4A-8CC9CED65162}",
+          "objectid": 9816445,
+          "name": "LAKE 22",
+          "trailNumber": "702",
+          "eligibleByReviewedAccess": true,
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_restricted": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null
+          },
+          "endpoints": [
+            [
+              [
+                -121.74603342491795,
+                48.07694275803996
+              ],
+              [
+                -121.76384595634946,
+                48.07493130695936
+              ]
+            ]
+          ]
+        }
+      ],
+      "usfsDisposition": "matching features below",
+      "notes": "Relation includes shoreline loop attached to approach at an interior way node; full node graph is connected. Lake name is Lake Twentytwo in OSM. Two eligible USFS features cover approach; they do not encode whole OSM lake loop.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked"
+    },
+    {
+      "name": "Poo Poo Point (Chirico Trail candidate)",
+      "kindCandidate": "destination",
+      "osmRelation": {
+        "id": 5519228,
+        "name": "Chirico Trail",
+        "url": "https://www.openstreetmap.org/relation/5519228",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5519228-full.json",
+        "wayIds": [
+          57355613,
+          1001811806
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 3215.7,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 667476333,
+            "name": null,
+            "url": "https://www.openstreetmap.org/node/667476333",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-poo-poo-map.json",
+            "lat": 47.500572,
+            "lon": -122.022171
+          },
+          {
+            "type": "node",
+            "id": 11863318581,
+            "name": null,
+            "url": "https://www.openstreetmap.org/node/11863318581",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5519227-full.json",
+            "lat": 47.4992007,
+            "lon": -122.0083849
+          }
+        ],
+        "endpointGapM": 1046.8,
+        "terrainOrAccessFlags": []
+      },
+      "objective": {
+        "type": "node",
+        "id": 2353644455,
+        "name": "Poo Poo Point",
+        "url": "https://www.openstreetmap.org/node/2353644455",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-poo-poo-objective-map.json",
+        "lat": 47.4994236,
+        "lon": -122.008131,
+        "natural": "peak"
+      },
+      "trailhead": {
+        "type": "way",
+        "id": 52524610,
+        "name": "Poo Poo Trailhead",
+        "url": "https://www.openstreetmap.org/way/52524610",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-poo-poo-map.json",
+        "sourceAccessPoint": {
+          "type": "node",
+          "id": 667476333,
+          "name": null,
+          "url": "https://www.openstreetmap.org/node/667476333",
+          "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-poo-poo-map.json",
+          "lat": 47.500572,
+          "lon": -122.022171
+        }
+      },
+      "officialFeatures": [],
+      "usfsDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "notes": "Common Chirico approach ends at launch/viewpoint about 30 m from tagged peak. No way references the peak node. Alternate Poo Poo Point Trail relation 5519227 is also saved; choose intended trailhead or retain both named approaches. Do not silently snap to peak.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked",
+      "nearestRelationEndpointToObjectiveM": 31.3,
+      "alternateOsmRelation": {
+        "id": 5519227,
+        "name": "Poo Poo Point Trail",
+        "url": "https://www.openstreetmap.org/relation/5519227",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5519227-full.json",
+        "wayIds": [
+          231406307,
+          73156446,
+          73156447,
+          390548369,
+          390548370,
+          390548368,
+          390548367,
+          949737489,
+          1315875380,
+          57355610
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 5284.9,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 9602115378,
+            "name": null,
+            "url": "https://www.openstreetmap.org/node/9602115378",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5519227-full.json",
+            "lat": 47.5193471,
+            "lon": -122.0297605
+          },
+          {
+            "type": "node",
+            "id": 712835265,
+            "name": null,
+            "url": "https://www.openstreetmap.org/node/712835265",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5519227-full.json",
+            "lat": 47.4994075,
+            "lon": -122.0085018
+          }
+        ],
+        "endpointGapM": 2732.3,
+        "terrainOrAccessFlags": []
+      }
+    },
+    {
+      "name": "Tolmie Peak",
+      "kindCandidate": "summit",
+      "osmRelation": {
+        "id": 5194384,
+        "name": "Tolmie Peak Trail",
+        "url": "https://www.openstreetmap.org/relation/5194384",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5194384-full.json",
+        "wayIds": [
+          129731620,
+          348455952,
+          348455954,
+          129536770
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 5050.6,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 1429005737,
+            "name": "Mowich Lake Trailhead",
+            "url": "https://www.openstreetmap.org/node/1429005737",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-tolmie-map.json",
+            "lat": 46.9332678,
+            "lon": -121.864831,
+            "highway": "trailhead"
+          },
+          {
+            "type": "node",
+            "id": 348178753,
+            "name": "Tolmie Peak",
+            "url": "https://www.openstreetmap.org/node/348178753",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5194384-full.json",
+            "lat": 46.958141,
+            "lon": -121.8773099,
+            "gnis:feature_id": "1527284",
+            "natural": "peak"
+          }
+        ],
+        "endpointGapM": 2923.5,
+        "terrainOrAccessFlags": []
+      },
+      "objective": {
+        "type": "node",
+        "id": 348178753,
+        "name": "Tolmie Peak",
+        "url": "https://www.openstreetmap.org/node/348178753",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5194384-full.json",
+        "lat": 46.958141,
+        "lon": -121.8773099,
+        "gnis:feature_id": "1527284",
+        "natural": "peak"
+      },
+      "trailhead": {
+        "type": "node",
+        "id": 1429005737,
+        "name": "Mowich Lake Trailhead",
+        "url": "https://www.openstreetmap.org/node/1429005737",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-tolmie-map.json",
+        "lat": 46.9332678,
+        "lon": -121.864831,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [],
+      "usfsDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "notes": "Continuous relation to mapped Tolmie Peak. NPS says public road access to Mowich/Carbon River is blocked by SR165 Fairfax Bridge closure; long-distance Wonderland access remains. Usual road access publication needs access review.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked",
+      "nearestRelationEndpointToObjectiveM": 0.0
+    },
+    {
+      "name": "Mount Pilchuck",
+      "kindCandidate": "summit",
+      "osmRelation": {
+        "id": 5537775,
+        "name": "Mount Pilchuck Trail",
+        "url": "https://www.openstreetmap.org/relation/5537775",
+        "geometryFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5537775-full.json",
+        "wayIds": [
+          37583693
+        ],
+        "nodeGraphComponents": 1,
+        "memberLengthM": 4190.0,
+        "lengthMeaning": "Sum of source ways; no turnaround, DEM, or final route-distance approval yet.",
+        "memberEndpoints": [
+          {
+            "type": "node",
+            "id": 9922203929,
+            "name": "Mount Pilchuck Trailhead",
+            "url": "https://www.openstreetmap.org/node/9922203929",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-pilchuck-objective-map.json",
+            "lat": 48.0702887,
+            "lon": -121.8147445,
+            "highway": "trailhead"
+          },
+          {
+            "type": "node",
+            "id": 2362708368,
+            "name": null,
+            "url": "https://www.openstreetmap.org/node/2362708368",
+            "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-pilchuck-objective-map.json",
+            "lat": 48.0579214,
+            "lon": -121.7977398
+          }
+        ],
+        "endpointGapM": 1867.6,
+        "terrainOrAccessFlags": []
+      },
+      "objective": {
+        "type": "node",
+        "id": 348999742,
+        "name": "Mount Pilchuck",
+        "url": "https://www.openstreetmap.org/node/348999742",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-pilchuck-objective-map.json",
+        "lat": 48.0579162,
+        "lon": -121.7977487,
+        "gnis:feature_id": "1524420",
+        "natural": "peak"
+      },
+      "trailhead": {
+        "type": "node",
+        "id": 9922203929,
+        "name": "Mount Pilchuck Trailhead",
+        "url": "https://www.openstreetmap.org/node/9922203929",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-pilchuck-objective-map.json",
+        "lat": 48.0702887,
+        "lon": -121.8147445,
+        "highway": "trailhead"
+      },
+      "officialFeatures": [
+        {
+          "globalid": "{C2D39946-7E5B-4C46-BD95-3FE97D3951D4}",
+          "objectid": 9784374,
+          "name": "PILCHUCK LOOKOUT",
+          "trailNumber": "700",
+          "eligibleByReviewedAccess": true,
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_restricted": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null
+          },
+          "endpoints": [
+            [
+              [
+                -121.81480750153892,
+                48.07016048705862
+              ],
+              [
+                -121.79764492470132,
+                48.05790939331327
+              ]
+            ]
+          ]
+        }
+      ],
+      "usfsDisposition": "matching features below",
+      "notes": "Continuous relation reaches lookout within 1 m of mapped summit. Eligible USFS feature available; compare its end to current catalog summit before gate pass.",
+      "publicationApproved": false,
+      "creditedCoverStatus": "not checked",
+      "nearestRelationEndpointToObjectiveM": 0.9
+    }
+  ],
+  "remainingChecks": [
+    "Current access/closures for every candidate",
+    "Join catalog objective and trailhead IDs, use lake polygon contact when present",
+    "Final shape/orientation, trailhead/objective gate and DEM statistics",
+    "15 percent source distance/gain validation",
+    "Shared segment matcher and credited cover gate"
+  ]
+}

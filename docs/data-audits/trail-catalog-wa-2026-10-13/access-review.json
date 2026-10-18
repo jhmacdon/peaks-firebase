@@ -1,0 +1,80 @@
+{
+  "checkedAt": "2026-10-13",
+  "scope": "Official access evidence checked after the initial production dry run. No activation approval.",
+  "routes": [
+    {
+      "name": "Lake Serene",
+      "status": "open_at_trailhead",
+      "sources": [
+        {
+          "url": "https://www.fs.usda.gov/r06/mbs/recreation/lake-serene-trailhead",
+          "pageUpdated": "2026-09-23",
+          "finding": "USFS marks the trailhead Site Open and links trail 1068."
+        },
+        {
+          "url": "https://www.fs.usda.gov/r06/mbs/alerts",
+          "finding": "Current alert index checked; no Lake Serene closure listed."
+        }
+      ],
+      "remaining": "Independent review must check full route conditions and all source edges."
+    },
+    {
+      "name": "Snow Lake",
+      "status": "unresolved",
+      "sources": [
+        {
+          "url": "https://www.fs.usda.gov/r06/mbs/alerts",
+          "finding": "Index lists trail 1013 maintenance closure September 14\u201325, 2026. That stated interval has ended."
+        },
+        {
+          "url": "https://www.fs.usda.gov/r06/mbs/recreation/snow-lake-trailhead",
+          "fetchStatus": "timeout"
+        },
+        {
+          "url": "https://www.fs.usda.gov/r06/mbs/alerts/snow-lake-trail-temporary-closure",
+          "fetchStatus": "403"
+        }
+      ],
+      "remaining": "Read the full order and current trailhead page before declaring open."
+    },
+    {
+      "name": "Ingalls Lake and Ingalls Peak",
+      "status": "unresolved_prior_closure",
+      "sources": [
+        {
+          "url": "https://www.fs.usda.gov/sites/nfs/files/r06/okanogan-wenatchee/publication/alerts/Labor%20Mtn%20Fire%204%20Closure%20Order%2006-17-07-25-36_Updated%202025-09-30.pdf",
+          "finding": "Search extraction lists Ingalls Way 1390 and part of Esmeralda Basin 1394 in a 2025 fire closure. Direct PDF fetch returned403."
+        },
+        {
+          "url": "https://www.fs.usda.gov/r06/okanogan-wenatchee/alerts",
+          "fetchStatus": "403"
+        },
+        {
+          "url": "https://www.fs.usda.gov/r06/okanogan-wenatchee/recreation/esmeralda-trailhead",
+          "fetchStatus": "403"
+        }
+      ],
+      "remaining": "A current land-manager order or reopening record is needed; an old closure alone does not prove current closure or reopening."
+    },
+    {
+      "name": "Lake 22",
+      "status": "open_at_trailhead",
+      "sources": [
+        {
+          "url": "https://www.fs.usda.gov/r06/mbs/recreation/lake-twenty-two-trailhead",
+          "pageUpdated": "2026-07-06",
+          "finding": "USFS marks the trailhead Site Open and links trail702."
+        },
+        {
+          "url": "https://www.fs.usda.gov/sites/nfs/files/r06/mbs/publication/alerts/20250401_06-05-25-04_Lake22_NEPA_CRIA.pdf",
+          "finding": "2025 weekday maintenance closure had a stated end of October31,2025."
+        },
+        {
+          "url": "https://www.fs.usda.gov/Internet/FSE_DOCUMENTS/fseprd530006.pdf",
+          "finding": "Search extraction of the official Mountain Loop brochure reports2.7miles and elevation/gain1000/1500feet. Direct fetch timed out; exact distance/gain basis still needs the table header."
+        }
+      ],
+      "remaining": "Independent review and official statistic basis remain unresolved."
+    }
+  ]
+}

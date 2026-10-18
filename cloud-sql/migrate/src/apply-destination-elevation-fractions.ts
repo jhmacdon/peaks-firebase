@@ -21,10 +21,12 @@ export const REVIEWED_DESTINATION_COUNT = 41_320;
 export const MAX_REPORT_BYTES = 128 * 1024 * 1024;
 export const ADVISORY_LOCK_NAME = "destination-elevation-fraction-repair-v1";
 export const REPAIR_METADATA_KEY = "elevation_fraction_repair";
+// The destination UPDATE trigger since migrations/20261004_session_rematch_queue.sql:
+// it only queues nearby sessions for processSession, and ignores Z-only edits.
 export const DESTINATION_UPDATE_TRIGGER_SAFE_COMMENT =
-  "peaks:destination-session-link-update:xy-only-with-rejection-v1";
+  "peaks:destination-rematch-queue:xy-only-v1";
 export const DESTINATION_UPDATE_TRIGGER_SAFE_BODY_MARKER =
-  "peaks_destination_session_link_xy_guard_v1";
+  "peaks_destination_rematch_xy_guard_v1";
 export const REVIEWED_CATALOG_DESTINATION_COUNT = 115;
 export const REVIEWED_CATALOG_DESTINATION_IDS: readonly string[] = [
   "0gOgdFeUjdmcX2czFRJA",
@@ -416,7 +418,7 @@ export interface DestinationUpdateTriggerGuard {
   safeComment: boolean;
   safeBodyMarker: boolean;
   xyOnlyPredicate: boolean;
-  rejectionAntiJoin: boolean;
+  noDirectSessionWrites: boolean;
   exactEnabledTrigger: boolean;
 }
 
@@ -1344,7 +1346,7 @@ ORDER BY incoming.destination_id`;
 
 export const DESTINATION_UPDATE_TRIGGER_GUARD_SQL = `
 WITH target AS (
-  SELECT to_regprocedure('public.link_sessions_on_destination_update()') AS function_oid
+  SELECT to_regprocedure('public.queue_rematch_on_destination_change()') AS function_oid
 ), function_state AS (
   SELECT target.function_oid,
          p.oid IS NOT NULL AS function_exists,
@@ -1360,7 +1362,7 @@ WITH target AS (
   CROSS JOIN function_state fn_state
   WHERE NOT trg.tgisinternal
     AND trg.tgrelid = to_regclass('public.destinations')
-    AND trg.tgname = 'trg_destination_update_link_sessions'
+    AND trg.tgname = 'trg_destination_queue_rematch'
     AND trg.tgfoid = fn_state.function_oid
 )
 SELECT fn_state.function_exists,
@@ -2084,24 +2086,26 @@ export function destinationUpdateTriggerGuard(
       "ST_Y(OLD.location::geometry) IS DISTINCT FROM ST_Y(NEW.location::geometry)"
     ) &&
     !definition.includes("OLD.location != NEW.location");
-  const rejectionAntiJoin =
-    definition.split("FROM session_destination_rejections r").length - 1 === 2 &&
-    definition.includes("r.session_id = tp.session_id") &&
-    definition.includes("r.destination_id = NEW.id");
+  // It queues; processSession re-matches later with the rejection veto.
+  const noDirectSessionWrites =
+    !definition.includes("session_destinations") &&
+    definition.includes("queue_sessions_near(");
   const exactEnabledTrigger =
     number(row.trigger_count) === 1 &&
     number(row.enabled_trigger_count) === 1 &&
-    triggerDefinition.includes("AFTER UPDATE OF boundary, location ON public.destinations") &&
-    triggerDefinition.includes("EXECUTE FUNCTION link_sessions_on_destination_update()");
+    triggerDefinition.includes(
+      "AFTER UPDATE OF location, boundary, features, owner ON public.destinations"
+    ) &&
+    triggerDefinition.includes("EXECUTE FUNCTION queue_rematch_on_destination_change()");
   const guard = {
     safe: row.function_exists && safeComment && safeBodyMarker && xyOnlyPredicate &&
-      rejectionAntiJoin && exactEnabledTrigger,
+      noDirectSessionWrites && exactEnabledTrigger,
     functionExists: row.function_exists,
     functionDefinitionMd5: row.function_definition_md5,
     safeComment,
     safeBodyMarker,
     xyOnlyPredicate,
-    rejectionAntiJoin,
+    noDirectSessionWrites,
     exactEnabledTrigger,
   };
   return guard;
@@ -2112,7 +2116,7 @@ export function assertDestinationUpdateTriggerGuard(
 ): void {
   if (!guard.safe) {
     throw new Error(
-      "destination session-link update trigger lacks the reviewed XY-only/rejection guard"
+      "destination rematch-queue update trigger lacks the reviewed XY-only guard"
     );
   }
 }

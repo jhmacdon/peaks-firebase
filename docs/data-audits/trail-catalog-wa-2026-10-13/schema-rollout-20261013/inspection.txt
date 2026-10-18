@@ -1,0 +1,67 @@
+Pager usage is off.
+BEGIN
+SET
+SET
+ database |  login   |       candidate_table        
+----------+----------+------------------------------
+ peaks    | postgres | trail_catalog_candidate_jobs
+(1 row)
+
+          id          |         name          |      external_ids      | state_code | country_code |          updated_at           
+----------------------+-----------------------+------------------------+------------+--------------+-------------------------------
+ 6D0E779FF39C5B648D6B | Tipsoo Lake Trailhead | {"osm": "2431576647"}  | WA         | US           | 2026-10-13 06:44:42.712597+00
+ C21AD354B7FEA99C277F | Skyline Trailhead     | {"osm": "13122759855"} | WA         | US           | 2026-10-13 06:44:42.712597+00
+(2 rows)
+
+                            function_signature                             |  owner   | security_definer |                  settings                   |         definition_hash          
+---------------------------------------------------------------------------+----------+------------------+---------------------------------------------+----------------------------------
+ begin_trail_catalog_source_run(text)                                      | postgres | t                | {"search_path=pg_catalog, public, pg_temp"} | 25306c088b9634fe1f5568ff7000eadc
+ check_standard_route_factory_link_final()                                 | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 0289bd3be33ec9053547f97904d098be
+ check_standard_route_factory_route_final()                                | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 81fd61dd93e574b49e5b65b806e9b8f2
+ check_standard_route_factory_segment_final()                              | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | ffa844b206d147ef774448cce3363105
+ check_trail_catalog_candidate_job_final()                                 | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 47a9d19231e34b3913a8c833b5caf019
+ finish_trail_catalog_source_run(bigint,text,integer,integer,integer,text) | postgres | t                | {"search_path=pg_catalog, public, pg_temp"} | 7485084b6952c24168f7c828747a8a2e
+ guard_standard_route_factory_route()                                      | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | c7fef708df6a53f8263f03e4fd324080
+ guard_standard_route_factory_route_link()                                 | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | c93fd77f6f6138920382392fc0985bc5
+ guard_standard_route_factory_segment()                                    | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 27fea110e42baa30995af8072824e0d8
+ guard_standard_route_worker_destination_write()                           | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 81a4cfb76b070bf876b1d55de51d1ea8
+ guard_trail_catalog_candidate_job()                                       | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 0246f8855df6876ee9022f1cb3db9195
+ guard_trail_catalog_pending_only()                                        | postgres | t                | {"search_path=pg_catalog, public, pg_temp"} | 4d3295133361ee6920b3a85ef3feeef6
+ guard_trail_catalog_receipt_removal()                                     | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | d12ebafe48a177e24c518d7a7551e2ec
+ peaks_route_kind_passes_contact(text,text)                                | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 252b88889de3d309836356980dc00c70
+ peaks_route_objective_contact(geography,text,double precision)            | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 776e00b6380962d40e90593c71601154
+ peaks_route_passes_publish_integrity(text,text,text)                      | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 03a4ffbc934eaf01489f4f4ee764f9b6
+ route_segment_provenance_compatible(jsonb,jsonb)                          | postgres | f                |                                             | e7450ba6476511c3ec468eba36597a99
+ route_segments_cover_provenance(text)                                     | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | e25718a4df50a3372824a9f0db938fcf
+ trail_catalog_artifact_path(jsonb,integer,integer)                        | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 77ea80fdfa6951eb9b43a8256897a8d6
+ trail_catalog_form_decode(text)                                           | postgres | f                |                                             | dc7a4a7db614e0e879b54fa15561cd16
+ trail_catalog_form_encode(text)                                           | postgres | f                |                                             | 29227f7aabda1cd936c5d20b2d4e10e5
+ trail_catalog_live_context()                                              | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 67e376a00c2f96a2c42680b4b2185cb0
+ trail_catalog_locked_places()                                             | postgres | t                | {"search_path=pg_catalog, public, pg_temp"} | 2cb2482d692779958e77345393925bf9
+ trail_catalog_pending_binding_valid(text)                                 | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 8c601ee0ecc86ace0949979dd1ba239c
+ trail_catalog_route_matches(routes,jsonb)                                 | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 4b192fe799150604e26da79c450bf09a
+ trail_catalog_span_matches(geography,jsonb,jsonb,integer,integer,boolean) | postgres | f                | {"search_path=pg_catalog, public, pg_temp"} | 24f75a574eddb62d98fd600196279799
+ trail_catalog_usfs_feature_ids(text)                                      | postgres | f                |                                             | ebc9885fe7012b4f66d6c1224411281f
+ trail_catalog_usfs_source_url(text[])                                     | postgres | f                |                                             | 10c7942fddcacf80788fd3f74dea6b69
+(28 rows)
+
+ job_table_owner |                                                               grants                                                                
+-----------------+-------------------------------------------------------------------------------------------------------------------------------------
+ postgres        | {postgres=arwdDxt/postgres,"\"peaks-route-factory\"=arw/postgres","\"peaks-route-reviewer\"=r/postgres","\"peaks-api\"=r/postgres"}
+(1 row)
+
+                   tgname                    | tgenabled | tgdeferrable | tginitdeferred |                                                                                                                definition                                                                                                                 
+---------------------------------------------+-----------+--------------+----------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ trg_check_trail_catalog_candidate_job_final | O         | t            | t              | CREATE CONSTRAINT TRIGGER trg_check_trail_catalog_candidate_job_final AFTER INSERT OR UPDATE ON public.trail_catalog_candidate_jobs DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION check_trail_catalog_candidate_job_final()
+ trg_guard_trail_catalog_candidate_job       | O         | f            | f              | CREATE TRIGGER trg_guard_trail_catalog_candidate_job BEFORE INSERT OR UPDATE ON public.trail_catalog_candidate_jobs FOR EACH ROW EXECUTE FUNCTION guard_trail_catalog_candidate_job()
+ trg_guard_trail_catalog_pending_only        | O         | f            | f              | CREATE TRIGGER trg_guard_trail_catalog_pending_only BEFORE INSERT OR UPDATE OF id, status ON public.routes FOR EACH ROW EXECUTE FUNCTION guard_trail_catalog_pending_only()
+ trg_guard_trail_catalog_receipt_delete      | O         | f            | f              | CREATE TRIGGER trg_guard_trail_catalog_receipt_delete BEFORE DELETE ON public.trail_catalog_candidate_jobs FOR EACH ROW EXECUTE FUNCTION guard_trail_catalog_receipt_removal()
+ trg_guard_trail_catalog_receipt_truncate    | O         | f            | f              | CREATE TRIGGER trg_guard_trail_catalog_receipt_truncate BEFORE TRUNCATE ON public.trail_catalog_candidate_jobs FOR EACH STATEMENT EXECUTE FUNCTION guard_trail_catalog_receipt_removal()
+(5 rows)
+
+ id  |           source            | status  | rows_in | rows_matched | rows_written |          started_at           |          finished_at          
+-----+-----------------------------+---------+---------+--------------+--------------+-------------------------------+-------------------------------
+ 102 | trail-catalog-wa-trailheads | success |       2 |            2 |            2 | 2026-10-13 06:44:42.712597+00 | 2026-10-13 06:44:42.712597+00
+(1 row)
+
+COMMIT

@@ -1,0 +1,3365 @@
+{
+  "initial_probe": {
+    "generated_at": "2026-10-13T05:59:50.663Z",
+    "api_url": "https://peaks-api-qownl77soa-uc.a.run.app",
+    "queries": [
+      {
+        "query": "mount si",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "nSf6z4vL0zjdG2sXibBM",
+            "type": "destination",
+            "name": "Mount Si",
+            "score": 0.8818034819228886
+          },
+          {
+            "rank": 2,
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "score": 0.8808034819228886
+          },
+          {
+            "rank": 3,
+            "id": "whvKZyztqB1ncVabFFtR",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 4,
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 20,
+            "id": "FLFBZ7rDLOFHPlUn9TMI",
+            "type": "destination",
+            "name": "Mount Si Trailhead",
+            "score": 0.46052632182836534
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "distance": 6171,
+            "gain": 1126.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "whvKZyztqB1ncVabFFtR",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "distance": 5163.555900799526,
+            "gain": 1143.046875,
+            "difficulty": null
+          },
+          {
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "distance": 5189.568846402607,
+            "gain": 522.70703125,
+            "difficulty": null
+          },
+          {
+            "id": "0qZ9BEDqp9GFC83ul8n4",
+            "owner": "peaks",
+            "name": "Mount Rainier via Emmons Glacier",
+            "kind": "summit",
+            "distance": 12753,
+            "gain": 3200.6999999999994,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "1RPwjUehpoFOJrn7y1VS",
+            "owner": "peaks",
+            "name": "Mount Whitney via Mount Whitney Trail",
+            "kind": "summit",
+            "distance": 17024,
+            "gain": 2527.4999999999995,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "YnPSmAcjI5depNfbhvSl",
+            "owner": "peaks",
+            "name": "Avalanche Gulch Route",
+            "kind": null,
+            "distance": 8399.222022095568,
+            "gain": 2211.69140625,
+            "difficulty": null
+          },
+          {
+            "id": "3dFRIqoC3X4TxdzL4FJX",
+            "owner": "peaks",
+            "name": "Casaval Ridge Route",
+            "kind": null,
+            "distance": 8369.978158477172,
+            "gain": 2240.49609375,
+            "difficulty": null
+          },
+          {
+            "id": "F3BEVgZxLiTuVeOFe9mX",
+            "owner": "peaks",
+            "name": "Clear Creek Route",
+            "kind": null,
+            "distance": 9206.899928962515,
+            "gain": 0,
+            "difficulty": null
+          },
+          {
+            "id": "PlrSkPA9MbXsSMCxyar4",
+            "owner": "peaks",
+            "name": "Hotlum Bolam Route",
+            "kind": null,
+            "distance": 9654.26677256299,
+            "gain": 2196.765625,
+            "difficulty": null
+          },
+          {
+            "id": "wCtFia9bHjfOnGeXeyEQ",
+            "owner": "peaks",
+            "name": "Mount Stuart via Cascadian Couloir",
+            "kind": "summit",
+            "distance": 8927,
+            "gain": 1953.3,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "T6Z7E2LK5tvkI7d4BxBF",
+            "owner": "peaks",
+            "name": "West Face Gully Route",
+            "kind": null,
+            "distance": 9170.015825641109,
+            "gain": 2231.1796875,
+            "difficulty": null
+          },
+          {
+            "id": "wliEOmF55aYTx3RIGd9m",
+            "owner": "peaks",
+            "name": "Mount Meru via Momella Route",
+            "kind": null,
+            "distance": 16904,
+            "gain": 3334.699999999999,
+            "difficulty": null
+          },
+          {
+            "id": "qDTw77gRBuVYGtr563td",
+            "owner": "peaks",
+            "name": "Angel of Shavano",
+            "kind": null,
+            "distance": 5456.1592432310645,
+            "gain": 1352.04296875,
+            "difficulty": null
+          },
+          {
+            "id": "zmOynqSip5YHIBJG1DdK",
+            "owner": "peaks",
+            "name": "East Slopes",
+            "kind": null,
+            "distance": 6655.562618488988,
+            "gain": 1370.3515625,
+            "difficulty": null
+          },
+          {
+            "id": "SqsZA07zm6JRpb4mkiLp",
+            "owner": "peaks",
+            "name": "Fisher Chimneys",
+            "kind": null,
+            "distance": 11737.474417195297,
+            "gain": 1783.390625,
+            "difficulty": null
+          },
+          {
+            "id": "XU9ezB5l8LcoNtYliMK1",
+            "owner": "peaks",
+            "name": "Mount Sherman via Southwest Ridge",
+            "kind": "summit",
+            "distance": 3708,
+            "gain": 656.4000000000001,
+            "difficulty": "hard"
+          },
+          {
+            "id": "c4sdMzSqAhK7evZvOTSQ",
+            "owner": "peaks",
+            "name": "Mount Stanley via the Central Circuit",
+            "kind": null,
+            "distance": 23394,
+            "gain": 4202.800000000002,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "ingalls",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "8gW9WZ6tngvhNn0TIDpc",
+            "type": "destination",
+            "name": "Ingalls Peak",
+            "score": 0.5384615510702133
+          },
+          {
+            "rank": 2,
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "score": 0.5374615510702133
+          },
+          {
+            "rank": 7,
+            "id": "4F56621F3FF823F6A480",
+            "type": "destination",
+            "name": "Lake Ingalls",
+            "score": 0.33846155107021336
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "distance": 7398,
+            "gain": 1119.9,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "ingalls way",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "score": 0.26885641188211873
+          },
+          {
+            "rank": 2,
+            "id": "8gW9WZ6tngvhNn0TIDpc",
+            "type": "destination",
+            "name": "Ingalls Peak",
+            "score": 0.2588235303759575
+          },
+          {
+            "rank": 3,
+            "id": "4F56621F3FF823F6A480",
+            "type": "destination",
+            "name": "Lake Ingalls",
+            "score": 0.2588235303759575
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "distance": 7398,
+            "gain": 1119.9,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "lake serene",
+        "status": 500,
+        "results": [],
+        "route_bucket": [],
+        "error": "Search failed"
+      },
+      {
+        "query": "Mount Si Trail",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "score": 0.6315912523271522
+          },
+          {
+            "rank": 3,
+            "id": "FLFBZ7rDLOFHPlUn9TMI",
+            "type": "destination",
+            "name": "Mount Si Trailhead",
+            "score": 0.5849999934434891
+          },
+          {
+            "rank": 4,
+            "id": "whvKZyztqB1ncVabFFtR",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "score": 0.434210541844368
+          },
+          {
+            "rank": 5,
+            "id": "nSf6z4vL0zjdG2sXibBM",
+            "type": "destination",
+            "name": "Mount Si",
+            "score": 0.36180349503591047
+          },
+          {
+            "rank": 6,
+            "id": "1RPwjUehpoFOJrn7y1VS",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Whitney via Mount Whitney Trail",
+            "kind": "summit",
+            "score": 0.3444444462656975
+          },
+          {
+            "rank": 7,
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "score": 0.33000001311302185
+          },
+          {
+            "rank": 10,
+            "id": "t7GxkDEDF0HYXsyYwm99",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Pilchuck Trail",
+            "kind": null,
+            "score": 0.275
+          },
+          {
+            "rank": 11,
+            "id": "Q4tbKTNo2sNe6Dz3SDr9",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Teneriffe Trail",
+            "kind": null,
+            "score": 0.275
+          },
+          {
+            "rank": 13,
+            "id": "0qZ9BEDqp9GFC83ul8n4",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Rainier via Emmons Glacier",
+            "kind": "summit",
+            "score": 0.2749999970197678
+          },
+          {
+            "rank": 14,
+            "id": "Z3d05cJB4w5iWQoUrZFJ",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Elbert South Mount Elbert Trail",
+            "kind": null,
+            "score": 0.2648148208856583
+          },
+          {
+            "rank": 15,
+            "id": "INRBmN9IOw444hd4A4OD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Washington Trail",
+            "kind": null,
+            "score": 0.25384615510702135
+          },
+          {
+            "rank": 19,
+            "id": "DpSKJSuIBiyhMehRTw5w",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Granite Mountain Trail",
+            "kind": "summit",
+            "score": 0.2441398346580591
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "distance": 6171,
+            "gain": 1126.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "whvKZyztqB1ncVabFFtR",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "distance": 5163.555900799526,
+            "gain": 1143.046875,
+            "difficulty": null
+          },
+          {
+            "id": "1RPwjUehpoFOJrn7y1VS",
+            "owner": "peaks",
+            "name": "Mount Whitney via Mount Whitney Trail",
+            "kind": "summit",
+            "distance": 17024,
+            "gain": 2527.4999999999995,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "distance": 5189.568846402607,
+            "gain": 522.70703125,
+            "difficulty": null
+          },
+          {
+            "id": "t7GxkDEDF0HYXsyYwm99",
+            "owner": "peaks",
+            "name": "Mount Pilchuck Trail",
+            "kind": null,
+            "distance": 4196.383179184767,
+            "gain": 714.12890625,
+            "difficulty": null
+          },
+          {
+            "id": "Q4tbKTNo2sNe6Dz3SDr9",
+            "owner": "peaks",
+            "name": "Mount Teneriffe Trail",
+            "kind": null,
+            "distance": 10333.124997623727,
+            "gain": 1362.66015625,
+            "difficulty": null
+          },
+          {
+            "id": "0qZ9BEDqp9GFC83ul8n4",
+            "owner": "peaks",
+            "name": "Mount Rainier via Emmons Glacier",
+            "kind": "summit",
+            "distance": 12753,
+            "gain": 3200.6999999999994,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "Z3d05cJB4w5iWQoUrZFJ",
+            "owner": "peaks",
+            "name": "Mount Elbert South Mount Elbert Trail",
+            "kind": null,
+            "distance": 7882,
+            "gain": 1213.300000000003,
+            "difficulty": null
+          },
+          {
+            "id": "INRBmN9IOw444hd4A4OD",
+            "owner": "peaks",
+            "name": "Mount Washington Trail",
+            "kind": null,
+            "distance": 2478.227493308735,
+            "gain": 1036.62109375,
+            "difficulty": null
+          },
+          {
+            "id": "DpSKJSuIBiyhMehRTw5w",
+            "owner": "peaks",
+            "name": "Granite Mountain Trail",
+            "kind": "summit",
+            "distance": 5646,
+            "gain": 1159,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "78PrHiPheauIk0Phmcg5",
+            "owner": "peaks",
+            "name": "Mt. Pugh Trail",
+            "kind": null,
+            "distance": 8371.959927476377,
+            "gain": 1725.0703125,
+            "difficulty": null
+          },
+          {
+            "id": "83JDrvOqNcho7IIphbNU",
+            "owner": "peaks",
+            "name": "Mount Ellen from Bull Creek Pass",
+            "kind": "summit",
+            "distance": 2998,
+            "gain": 325.2999999999997,
+            "difficulty": "moderate"
+          },
+          {
+            "id": "wH0piwu9SEQnVCuAFQGX",
+            "owner": "peaks",
+            "name": "Mount Arvon via Summit Trail",
+            "kind": null,
+            "distance": 82,
+            "gain": 4.7000000000000455,
+            "difficulty": null
+          },
+          {
+            "id": "alnBkdLIQWoxpHrq3j0v",
+            "owner": "peaks",
+            "name": "East Slopes",
+            "kind": null,
+            "distance": 10697.988184436836,
+            "gain": 1381.140625,
+            "difficulty": null
+          },
+          {
+            "id": "jEE8nUHR4pLO1u9SXXIy",
+            "owner": "peaks",
+            "name": "Northeast Ridge",
+            "kind": null,
+            "distance": 6985.81951330569,
+            "gain": 1354.7265625,
+            "difficulty": null
+          },
+          {
+            "id": "vqUg8SLRsay3Cotb6zmk",
+            "owner": "peaks",
+            "name": "Kamikaze Trail",
+            "kind": null,
+            "distance": 5934.531933650894,
+            "gain": 1241.09375,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Little Si",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "xHaYBgzoxgfAZNLTfWid",
+            "type": "destination",
+            "name": "Little Si",
+            "score": 0.8600328815061612
+          },
+          {
+            "rank": 2,
+            "id": "YYQag1GLA2Q1lnu0aTsy",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Little Si",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 3,
+            "id": "7etiVGkvGugHxmFja3xK",
+            "type": "destination",
+            "name": "Little Si Trailhead",
+            "score": 0.47500000000000003
+          },
+          {
+            "rank": 5,
+            "id": "whvKZyztqB1ncVabFFtR",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "score": 0.47500000000000003
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "YYQag1GLA2Q1lnu0aTsy",
+            "owner": "peaks",
+            "name": "Little Si",
+            "kind": null,
+            "distance": 2965.155366334318,
+            "gain": 378.28515625,
+            "difficulty": null
+          },
+          {
+            "id": "whvKZyztqB1ncVabFFtR",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "distance": 5163.555900799526,
+            "gain": 1143.046875,
+            "difficulty": null
+          },
+          {
+            "id": "t5sFELKwD7vRjGaNrmOk",
+            "owner": "peaks",
+            "name": "Appalachian Trail - 13 NH",
+            "kind": null,
+            "distance": 233476.40450478924,
+            "gain": 10266.9375,
+            "difficulty": null
+          },
+          {
+            "id": "1bn9SqLxHJk7amo5AXiJ",
+            "owner": "peaks",
+            "name": "Little Annapurna via Aasgard Pass",
+            "kind": "summit",
+            "distance": 11992,
+            "gain": 1672.4,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "0iWVb0IMW9RaFCErmLqh",
+            "owner": "peaks",
+            "name": "Little Bear Peak via West Ridge and Hourglass",
+            "kind": "summit",
+            "distance": 11149,
+            "gain": 1835,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Rattlesnake Ledge",
+        "status": 200,
+        "results": [
+          {
+            "rank": 3,
+            "id": "7F9130E5AAEC9213E123",
+            "type": "destination",
+            "name": "Rattlesnake Ledge",
+            "score": 0.85
+          },
+          {
+            "rank": 4,
+            "id": "5Ne2w5fr0m6q4C3CUtie",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Rattlesnake Ledge Trail",
+            "kind": null,
+            "score": 0.85
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "5Ne2w5fr0m6q4C3CUtie",
+            "owner": "peaks",
+            "name": "Rattlesnake Ledge Trail",
+            "kind": null,
+            "distance": 3550.241987545129,
+            "gain": 395.234375,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Snow Lake",
+        "status": 200,
+        "results": [
+          {
+            "rank": 4,
+            "id": "4EDA7A56C36153040635",
+            "type": "destination",
+            "name": "Snow Lake",
+            "score": 0.85
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "TOI6GVr0RCXSvnadNV4G",
+            "owner": "peaks",
+            "name": "West Gully",
+            "kind": null,
+            "distance": 3882.252787051415,
+            "gain": 493.03125,
+            "difficulty": null
+          },
+          {
+            "id": "4qEvfKAzYWoVQLDN5GtS",
+            "owner": "peaks",
+            "name": "West Ridge from Summit Lake",
+            "kind": null,
+            "distance": 3987.153254034927,
+            "gain": 568.57421875,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Ingalls Lake via Ingalls Way",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "4F56621F3FF823F6A480",
+            "type": "destination",
+            "name": "Lake Ingalls",
+            "score": 0.34047620296478276
+          },
+          {
+            "rank": 4,
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "score": 0.21955669493265584
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "distance": 7398,
+            "gain": 1119.9,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Ingalls Peak",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "8gW9WZ6tngvhNn0TIDpc",
+            "type": "destination",
+            "name": "Ingalls Peak",
+            "score": 0.85
+          },
+          {
+            "rank": 2,
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "score": 0.849
+          },
+          {
+            "rank": 6,
+            "id": "4F56621F3FF823F6A480",
+            "type": "destination",
+            "name": "Lake Ingalls",
+            "score": 0.2444444462656975
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "distance": 7398,
+            "gain": 1119.9,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "YLrzveSmJdxuE8ooJfpT",
+            "owner": "peaks",
+            "name": "Kings Peak via Henry's Fork",
+            "kind": "summit",
+            "distance": 21791,
+            "gain": 1440.1999999999998,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Esmeralda Basin",
+        "status": 200,
+        "results": [
+          {
+            "rank": 2,
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "score": 0.22157134682722524
+          },
+          {
+            "rank": 3,
+            "id": "Vm0gOD6OdjW4lQmHn0Fj",
+            "type": "destination",
+            "name": "Esmeralda Trailhead",
+            "score": 0.21153846532106402
+          },
+          {
+            "rank": 4,
+            "id": "wCtFia9bHjfOnGeXeyEQ",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Stuart via Cascadian Couloir",
+            "kind": "summit",
+            "score": 0.21153846532106402
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "distance": 7398,
+            "gain": 1119.9,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "wCtFia9bHjfOnGeXeyEQ",
+            "owner": "peaks",
+            "name": "Mount Stuart via Cascadian Couloir",
+            "kind": "summit",
+            "distance": 8927,
+            "gain": 1953.3,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Colchuck Lake",
+        "status": 500,
+        "results": [],
+        "route_bucket": [],
+        "error": "Search failed"
+      },
+      {
+        "query": "Lake Stuart",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "3F941B9F4262007D704D",
+            "type": "destination",
+            "name": "Lake Stuart",
+            "score": 0.85
+          },
+          {
+            "rank": 11,
+            "id": "aX7LBoa1jYzmRRfFX7TT",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Dragontail Peak via Aasgard Pass and East Slopes",
+            "kind": "summit",
+            "score": 0.31003289044685794
+          },
+          {
+            "rank": 12,
+            "id": "1bn9SqLxHJk7amo5AXiJ",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Little Annapurna via Aasgard Pass",
+            "kind": "summit",
+            "score": 0.31003289044685794
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aX7LBoa1jYzmRRfFX7TT",
+            "owner": "peaks",
+            "name": "Dragontail Peak via Aasgard Pass and East Slopes",
+            "kind": "summit",
+            "distance": 9932,
+            "gain": 1680.4,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "1bn9SqLxHJk7amo5AXiJ",
+            "owner": "peaks",
+            "name": "Little Annapurna via Aasgard Pass",
+            "kind": "summit",
+            "distance": 11992,
+            "gain": 1672.4,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "wCtFia9bHjfOnGeXeyEQ",
+            "owner": "peaks",
+            "name": "Mount Stuart via Cascadian Couloir",
+            "kind": "summit",
+            "distance": 8927,
+            "gain": 1953.3,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Enchantment Lakes traverse",
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      },
+      {
+        "query": "Skyline Loop",
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      },
+      {
+        "query": "Naches Peak Loop",
+        "status": 200,
+        "results": [],
+        "route_bucket": [
+          {
+            "id": "GvvlRD5GY4QoPyDzunNd",
+            "owner": "peaks",
+            "name": "Navaho Peak Trail",
+            "kind": null,
+            "distance": 10289.333198528062,
+            "gain": 1291.046875,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Mailbox Peak",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "5hVnUW4tmqj3A6YbU0oB",
+            "type": "destination",
+            "name": "Mailbox Peak",
+            "score": 0.85
+          },
+          {
+            "rank": 2,
+            "id": "4gkUxiJyoPVyJWokOinE",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mailbox Peak Old Trail",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 3,
+            "id": "KG89JzIf3B07ppaWjLxm",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mailbox Peak Trail",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 5,
+            "id": "FO5rjIvYUcNDaiyoDsTb",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Dirtybox Peak via Mailbox Peak Old Trail",
+            "kind": "summit",
+            "score": 0.4724863477359695
+          },
+          {
+            "rank": 6,
+            "id": "GHg65nKUeQhQU3D9A7ie",
+            "type": "destination",
+            "name": "Mailbox Peak Trail Parking Lot",
+            "score": 0.44655172526836395
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "4gkUxiJyoPVyJWokOinE",
+            "owner": "peaks",
+            "name": "Mailbox Peak Old Trail",
+            "kind": null,
+            "distance": 4018.9009517120226,
+            "gain": 1208.75390625,
+            "difficulty": null
+          },
+          {
+            "id": "KG89JzIf3B07ppaWjLxm",
+            "owner": "peaks",
+            "name": "Mailbox Peak Trail",
+            "kind": null,
+            "distance": 8251.016019616058,
+            "gain": 1329.16015625,
+            "difficulty": null
+          },
+          {
+            "id": "FO5rjIvYUcNDaiyoDsTb",
+            "owner": "peaks",
+            "name": "Dirtybox Peak via Mailbox Peak Old Trail",
+            "kind": "summit",
+            "distance": 5846,
+            "gain": 1473.2000000000003,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "Mlt50cwbdUFdvzS1YyOY",
+            "owner": "peaks",
+            "name": "Maroon Peak Maroon Peak Trail",
+            "kind": null,
+            "distance": 3301,
+            "gain": 1237.3000000000025,
+            "difficulty": null
+          },
+          {
+            "id": "sqAWGByVi99NFtSshmZ4",
+            "owner": "peaks",
+            "name": "South Ridge",
+            "kind": null,
+            "distance": 9138.936871204709,
+            "gain": 1588.5234375,
+            "difficulty": null
+          },
+          {
+            "id": "s9dU4zerroFKqlaa366l",
+            "owner": "peaks",
+            "name": "Miller Peak Trail",
+            "kind": null,
+            "distance": 6617.092310827461,
+            "gain": 1015.29296875,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Heather Maple Pass Loop",
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      },
+      {
+        "query": "Blanca Lake",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "9B40DE76DC0878A92331",
+            "type": "destination",
+            "name": "Blanca Lake",
+            "score": 0.85
+          },
+          {
+            "rank": 3,
+            "id": "StXAAUitgEK1WrECejNX",
+            "type": "destination",
+            "name": "Blanca Lake Trailhead",
+            "score": 0.5000000089406967
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "K6JhVNOjOeKgmR4OadYM",
+            "owner": "peaks",
+            "name": "Blanca Peak via Northwest Ridge",
+            "kind": "summit",
+            "distance": 13144,
+            "gain": 1940,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Lake 22",
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      },
+      {
+        "query": "Poo Poo Point",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "Yfu5QdaOWeuxpSXiN5rK",
+            "type": "destination",
+            "name": "Poo Poo Point",
+            "score": 0.85
+          },
+          {
+            "rank": 2,
+            "id": "esOhCTEvfGNOCVOR73jg",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Chirico Trail",
+            "kind": null,
+            "score": 0.85
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "esOhCTEvfGNOCVOR73jg",
+            "owner": "peaks",
+            "name": "Chirico Trail",
+            "kind": null,
+            "distance": 2945.68756818613,
+            "gain": 516.56640625,
+            "difficulty": null
+          },
+          {
+            "id": "o8kLwn8clMQzwHQPWbUk",
+            "owner": "peaks",
+            "name": "Challenger Point via North Slope",
+            "kind": "summit",
+            "distance": 9846,
+            "gain": 1585.3,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "OHUG1HItlxWOM1xwL1ia",
+            "owner": "peaks",
+            "name": "Ellingwood Point via South Face",
+            "kind": "summit",
+            "distance": 13419,
+            "gain": 1865.1,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Tolmie Peak",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "htqW9lCp974x1tEWD8t7",
+            "type": "destination",
+            "name": "Tolmie Peak",
+            "score": 0.85
+          },
+          {
+            "rank": 2,
+            "id": "z2gHia5Sc7SJuq1Ub24G",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Tolmie Peak Trail",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 15,
+            "id": "fSHZk8ioXWIjUNPnTgMU",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Dead Dog Couloir",
+            "kind": null,
+            "score": 0.21388889253139498
+          },
+          {
+            "rank": 16,
+            "id": "hwSq44gVJUIavkKqPIzZ",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Grays and Torreys",
+            "kind": null,
+            "score": 0.21388889253139498
+          },
+          {
+            "rank": 17,
+            "id": "gCscJF593nTsMdp1Z6EE",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Kelso Ridge",
+            "kind": null,
+            "score": 0.21388889253139498
+          },
+          {
+            "rank": 18,
+            "id": "jHr2TQqtxvrwSzjUdoWN",
+            "type": "route",
+            "owner": "peaks",
+            "name": "South Slopes",
+            "kind": null,
+            "score": 0.21388889253139498
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "z2gHia5Sc7SJuq1Ub24G",
+            "owner": "peaks",
+            "name": "Tolmie Peak Trail",
+            "kind": null,
+            "distance": 5148.427187870381,
+            "gain": 454.51953125,
+            "difficulty": null
+          },
+          {
+            "id": "fSHZk8ioXWIjUNPnTgMU",
+            "owner": "peaks",
+            "name": "Dead Dog Couloir",
+            "kind": null,
+            "distance": 4363.3261454097255,
+            "gain": 915.37890625,
+            "difficulty": null
+          },
+          {
+            "id": "hwSq44gVJUIavkKqPIzZ",
+            "owner": "peaks",
+            "name": "Grays and Torreys",
+            "kind": null,
+            "distance": 6786.8552548265925,
+            "gain": 1104.19921875,
+            "difficulty": null
+          },
+          {
+            "id": "gCscJF593nTsMdp1Z6EE",
+            "owner": "peaks",
+            "name": "Kelso Ridge",
+            "kind": null,
+            "distance": 4545.151450287435,
+            "gain": 918.56640625,
+            "difficulty": null
+          },
+          {
+            "id": "jHr2TQqtxvrwSzjUdoWN",
+            "owner": "peaks",
+            "name": "South Slopes",
+            "kind": null,
+            "distance": 5515.454801271543,
+            "gain": 945.3515625,
+            "difficulty": null
+          },
+          {
+            "id": "qdn32HnzkeMaXkoNe9wN",
+            "owner": "peaks",
+            "name": "Standard Route",
+            "kind": null,
+            "distance": 12905.830897611131,
+            "gain": 1628.484375,
+            "difficulty": null
+          },
+          {
+            "id": "JCkyLyIdh7ncU9TJX7qS",
+            "owner": "peaks",
+            "name": "Upper Route",
+            "kind": null,
+            "distance": 13383.946138289339,
+            "gain": 1558.3984375,
+            "difficulty": null
+          },
+          {
+            "id": "ETQt5AEkpobrbyrTTcHU",
+            "owner": "peaks",
+            "name": "Fay Peak via Knapsack Pass and West Ridge",
+            "kind": "summit",
+            "distance": 2304,
+            "gain": 486.79999999999905,
+            "difficulty": "hard"
+          }
+        ]
+      },
+      {
+        "query": "Mount Pilchuck",
+        "status": 200,
+        "results": [
+          {
+            "rank": 2,
+            "id": "iAD3EhqmkKVKXBjJjprj",
+            "type": "destination",
+            "name": "Mount Pilchuck",
+            "score": 0.85
+          },
+          {
+            "rank": 3,
+            "id": "t7GxkDEDF0HYXsyYwm99",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Pilchuck Trail",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 5,
+            "id": "E65jXwR5gzXhiQc4ak6l",
+            "type": "destination",
+            "name": "Mount Pilchuck Trailhead",
+            "score": 0.5300000131130218
+          },
+          {
+            "rank": 13,
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "score": 0.22992459768075554
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "t7GxkDEDF0HYXsyYwm99",
+            "owner": "peaks",
+            "name": "Mount Pilchuck Trail",
+            "kind": null,
+            "distance": 4196.383179184767,
+            "gain": 714.12890625,
+            "difficulty": null
+          },
+          {
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "distance": 6171,
+            "gain": 1126.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "t5sFELKwD7vRjGaNrmOk",
+            "owner": "peaks",
+            "name": "Appalachian Trail - 13 NH",
+            "kind": null,
+            "distance": 233476.40450478924,
+            "gain": 10266.9375,
+            "difficulty": null
+          },
+          {
+            "id": "78PrHiPheauIk0Phmcg5",
+            "owner": "peaks",
+            "name": "Mt. Pugh Trail",
+            "kind": null,
+            "distance": 8371.959927476377,
+            "gain": 1725.0703125,
+            "difficulty": null
+          },
+          {
+            "id": "oAKLPbAbyWIDYbM1QH6L",
+            "owner": "peaks",
+            "name": "Mount Peale via La Sal Pass",
+            "kind": "summit",
+            "distance": 4115,
+            "gain": 820.4000000000005,
+            "difficulty": "hard"
+          },
+          {
+            "id": "nFsTYDYLL8NwOeM6p1wo",
+            "owner": "peaks",
+            "name": "Mount Phelps via Blackhawk Mine",
+            "kind": "summit",
+            "distance": 4130,
+            "gain": 1060.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "whvKZyztqB1ncVabFFtR",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "distance": 5163.555900799526,
+            "gain": 1143.046875,
+            "difficulty": null
+          },
+          {
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "distance": 5189.568846402607,
+            "gain": 522.70703125,
+            "difficulty": null
+          },
+          {
+            "id": "gZoKcidRFdBCNYMJC0xc",
+            "owner": "peaks",
+            "name": "Pumpelly Trail",
+            "kind": null,
+            "distance": 6275.222432825526,
+            "gain": 564.25390625,
+            "difficulty": null
+          },
+          {
+            "id": "iufwHEWy2ZrAe7IIUAdW",
+            "owner": "peaks",
+            "name": "White Dot Trail",
+            "kind": null,
+            "distance": 2772.794337361321,
+            "gain": 541.76171875,
+            "difficulty": null
+          },
+          {
+            "id": "wliEOmF55aYTx3RIGd9m",
+            "owner": "peaks",
+            "name": "Mount Meru via Momella Route",
+            "kind": null,
+            "distance": 16904,
+            "gain": 3334.699999999999,
+            "difficulty": null
+          },
+          {
+            "id": "Puao5A4TjowesY05CpSK",
+            "owner": "peaks",
+            "name": "Cathedral Ridge",
+            "kind": null,
+            "distance": 9113.780577931237,
+            "gain": 2264.57421875,
+            "difficulty": null
+          },
+          {
+            "id": "EiQIO3e5pExNCrMglg9D",
+            "owner": "peaks",
+            "name": "Coe Glacier",
+            "kind": null,
+            "distance": 6262.078111232863,
+            "gain": 1771.41796875,
+            "difficulty": null
+          },
+          {
+            "id": "FcUIKOWVkSyQsqTGDEGY",
+            "owner": "peaks",
+            "name": "Cooper Spur",
+            "kind": null,
+            "distance": 6689.357050983544,
+            "gain": 1705.30078125,
+            "difficulty": null
+          },
+          {
+            "id": "niODuNfcgkqSSFrspiMK",
+            "owner": "peaks",
+            "name": "East Ridge",
+            "kind": null,
+            "distance": 7627.114913457076,
+            "gain": 1500.5078125,
+            "difficulty": null
+          },
+          {
+            "id": "RVzkbi2H0IQpgb8V3iOS",
+            "owner": "peaks",
+            "name": "Leuthold Couloir",
+            "kind": null,
+            "distance": 6023.529411512803,
+            "gain": 1685.578125,
+            "difficulty": null
+          },
+          {
+            "id": "1qMRPdxMVuFEBsajvJP7",
+            "owner": "peaks",
+            "name": "Mount Eddy via Deadfall Lakes Trail",
+            "kind": "summit",
+            "distance": 6383,
+            "gain": 800.300000000002,
+            "difficulty": "hard"
+          },
+          {
+            "id": "7fQPvW8jGOSslUQ0hs9G",
+            "owner": "peaks",
+            "name": "Mount Maude via Leroy Creek and South Ridge",
+            "kind": "summit",
+            "distance": 12306,
+            "gain": 1740.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "QxyRzQDN8WOYAKGbeQii",
+            "owner": "peaks",
+            "name": "Mount Nebo via North Ridge",
+            "kind": "summit",
+            "distance": 7065,
+            "gain": 1117.8000000000002,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "9hwfh3TJNKqvKFH5zcmv",
+            "owner": "peaks",
+            "name": "Newton Clark Headwall",
+            "kind": null,
+            "distance": 5861.553085005785,
+            "gain": 1631.8359375,
+            "difficulty": null
+          }
+        ]
+      }
+    ],
+    "privacy": "Only Peaks-owned routes and pilot-bound public destinations included; original ranks retained.",
+    "api_revision": "peaks-api-00266-7w2"
+  },
+  "repeat_slow_queries": {
+    "generated_at": "2026-10-13T06:06:16.930Z",
+    "api_url": "https://peaks-api-qownl77soa-uc.a.run.app",
+    "queries": [
+      {
+        "query": "lake serene",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "1755CBB232F3FCC6A437",
+            "type": "destination",
+            "name": "Lake Serene",
+            "score": 0.85
+          },
+          {
+            "rank": 8,
+            "id": "DiZjSucepuEsfCtfKw6F",
+            "type": "destination",
+            "name": "Lake Serene Trailhead",
+            "score": 0.5000000089406967
+          }
+        ],
+        "route_bucket": []
+      },
+      {
+        "query": "Colchuck Lake",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "RedSHjLLfieFAySd8gFZ",
+            "type": "destination",
+            "name": "Colchuck Lake",
+            "score": 0.85
+          }
+        ],
+        "route_bucket": []
+      },
+      {
+        "query": "Snow Lake",
+        "status": 200,
+        "results": [
+          {
+            "rank": 4,
+            "id": "4EDA7A56C36153040635",
+            "type": "destination",
+            "name": "Snow Lake",
+            "score": 0.85
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "TOI6GVr0RCXSvnadNV4G",
+            "owner": "peaks",
+            "name": "West Gully",
+            "kind": null,
+            "distance": 3882.252787051415,
+            "gain": 493.03125,
+            "difficulty": null
+          },
+          {
+            "id": "4qEvfKAzYWoVQLDN5GtS",
+            "owner": "peaks",
+            "name": "West Ridge from Summit Lake",
+            "kind": null,
+            "distance": 3987.153254034927,
+            "gain": 568.57421875,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Lake 22",
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      },
+      {
+        "query": "Mount Si Trail",
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "score": 0.6315912523271522
+          },
+          {
+            "rank": 3,
+            "id": "FLFBZ7rDLOFHPlUn9TMI",
+            "type": "destination",
+            "name": "Mount Si Trailhead",
+            "score": 0.5849999934434891
+          },
+          {
+            "rank": 4,
+            "id": "whvKZyztqB1ncVabFFtR",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "score": 0.434210541844368
+          },
+          {
+            "rank": 5,
+            "id": "nSf6z4vL0zjdG2sXibBM",
+            "type": "destination",
+            "name": "Mount Si",
+            "score": 0.36180349503591047
+          },
+          {
+            "rank": 6,
+            "id": "1RPwjUehpoFOJrn7y1VS",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Whitney via Mount Whitney Trail",
+            "kind": "summit",
+            "score": 0.3444444462656975
+          },
+          {
+            "rank": 7,
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "score": 0.33000001311302185
+          },
+          {
+            "rank": 10,
+            "id": "t7GxkDEDF0HYXsyYwm99",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Pilchuck Trail",
+            "kind": null,
+            "score": 0.275
+          },
+          {
+            "rank": 11,
+            "id": "Q4tbKTNo2sNe6Dz3SDr9",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Teneriffe Trail",
+            "kind": null,
+            "score": 0.275
+          },
+          {
+            "rank": 13,
+            "id": "0qZ9BEDqp9GFC83ul8n4",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Rainier via Emmons Glacier",
+            "kind": "summit",
+            "score": 0.2749999970197678
+          },
+          {
+            "rank": 14,
+            "id": "Z3d05cJB4w5iWQoUrZFJ",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Elbert South Mount Elbert Trail",
+            "kind": null,
+            "score": 0.2648148208856583
+          },
+          {
+            "rank": 15,
+            "id": "INRBmN9IOw444hd4A4OD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Washington Trail",
+            "kind": null,
+            "score": 0.25384615510702135
+          },
+          {
+            "rank": 19,
+            "id": "DpSKJSuIBiyhMehRTw5w",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Granite Mountain Trail",
+            "kind": "summit",
+            "score": 0.2441398346580591
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "distance": 6171,
+            "gain": 1126.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "whvKZyztqB1ncVabFFtR",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "distance": 5163.555900799526,
+            "gain": 1143.046875,
+            "difficulty": null
+          },
+          {
+            "id": "1RPwjUehpoFOJrn7y1VS",
+            "owner": "peaks",
+            "name": "Mount Whitney via Mount Whitney Trail",
+            "kind": "summit",
+            "distance": 17024,
+            "gain": 2527.4999999999995,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "distance": 5189.568846402607,
+            "gain": 522.70703125,
+            "difficulty": null
+          },
+          {
+            "id": "t7GxkDEDF0HYXsyYwm99",
+            "owner": "peaks",
+            "name": "Mount Pilchuck Trail",
+            "kind": null,
+            "distance": 4196.383179184767,
+            "gain": 714.12890625,
+            "difficulty": null
+          },
+          {
+            "id": "Q4tbKTNo2sNe6Dz3SDr9",
+            "owner": "peaks",
+            "name": "Mount Teneriffe Trail",
+            "kind": null,
+            "distance": 10333.124997623727,
+            "gain": 1362.66015625,
+            "difficulty": null
+          },
+          {
+            "id": "0qZ9BEDqp9GFC83ul8n4",
+            "owner": "peaks",
+            "name": "Mount Rainier via Emmons Glacier",
+            "kind": "summit",
+            "distance": 12753,
+            "gain": 3200.6999999999994,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "Z3d05cJB4w5iWQoUrZFJ",
+            "owner": "peaks",
+            "name": "Mount Elbert South Mount Elbert Trail",
+            "kind": null,
+            "distance": 7882,
+            "gain": 1213.300000000003,
+            "difficulty": null
+          },
+          {
+            "id": "INRBmN9IOw444hd4A4OD",
+            "owner": "peaks",
+            "name": "Mount Washington Trail",
+            "kind": null,
+            "distance": 2478.227493308735,
+            "gain": 1036.62109375,
+            "difficulty": null
+          },
+          {
+            "id": "DpSKJSuIBiyhMehRTw5w",
+            "owner": "peaks",
+            "name": "Granite Mountain Trail",
+            "kind": "summit",
+            "distance": 5646,
+            "gain": 1159,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "78PrHiPheauIk0Phmcg5",
+            "owner": "peaks",
+            "name": "Mt. Pugh Trail",
+            "kind": null,
+            "distance": 8371.959927476377,
+            "gain": 1725.0703125,
+            "difficulty": null
+          },
+          {
+            "id": "83JDrvOqNcho7IIphbNU",
+            "owner": "peaks",
+            "name": "Mount Ellen from Bull Creek Pass",
+            "kind": "summit",
+            "distance": 2998,
+            "gain": 325.2999999999997,
+            "difficulty": "moderate"
+          },
+          {
+            "id": "wH0piwu9SEQnVCuAFQGX",
+            "owner": "peaks",
+            "name": "Mount Arvon via Summit Trail",
+            "kind": null,
+            "distance": 82,
+            "gain": 4.7000000000000455,
+            "difficulty": null
+          },
+          {
+            "id": "alnBkdLIQWoxpHrq3j0v",
+            "owner": "peaks",
+            "name": "East Slopes",
+            "kind": null,
+            "distance": 10697.988184436836,
+            "gain": 1381.140625,
+            "difficulty": null
+          },
+          {
+            "id": "jEE8nUHR4pLO1u9SXXIy",
+            "owner": "peaks",
+            "name": "Northeast Ridge",
+            "kind": null,
+            "distance": 6985.81951330569,
+            "gain": 1354.7265625,
+            "difficulty": null
+          },
+          {
+            "id": "vqUg8SLRsay3Cotb6zmk",
+            "owner": "peaks",
+            "name": "Kamikaze Trail",
+            "kind": null,
+            "distance": 5934.531933650894,
+            "gain": 1241.09375,
+            "difficulty": null
+          }
+        ]
+      }
+    ],
+    "privacy": "Only Peaks-owned routes and pilot-bound public destinations included; original ranks retained.",
+    "api_revision": "peaks-api-00266-7w2"
+  },
+  "golden_set_passes": false,
+  "routes_activated": 0,
+  "note": "Two initial query timeouts are retained. Five slow queries passed on repeat after the concurrent matcher scan ended. Missing golden routes remain missing.",
+  "final_probe": {
+    "generated_at": "2026-10-13T06:16:06.056Z",
+    "api_url": "https://peaks-api-qownl77soa-uc.a.run.app",
+    "queries": [
+      {
+        "query": "mount si",
+        "elapsedMs": 6260,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "nSf6z4vL0zjdG2sXibBM",
+            "type": "destination",
+            "name": "Mount Si",
+            "score": 0.8818034819228886
+          },
+          {
+            "rank": 2,
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "score": 0.8808034819228886
+          },
+          {
+            "rank": 3,
+            "id": "whvKZyztqB1ncVabFFtR",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 4,
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 20,
+            "id": "FLFBZ7rDLOFHPlUn9TMI",
+            "type": "destination",
+            "name": "Mount Si Trailhead",
+            "score": 0.46052632182836534
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "distance": 6171,
+            "gain": 1126.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "whvKZyztqB1ncVabFFtR",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "distance": 5163.555900799526,
+            "gain": 1143.046875,
+            "difficulty": null
+          },
+          {
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "distance": 5189.568846402607,
+            "gain": 522.70703125,
+            "difficulty": null
+          },
+          {
+            "id": "0qZ9BEDqp9GFC83ul8n4",
+            "owner": "peaks",
+            "name": "Mount Rainier via Emmons Glacier",
+            "kind": "summit",
+            "distance": 12753,
+            "gain": 3200.6999999999994,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "1RPwjUehpoFOJrn7y1VS",
+            "owner": "peaks",
+            "name": "Mount Whitney via Mount Whitney Trail",
+            "kind": "summit",
+            "distance": 17024,
+            "gain": 2527.4999999999995,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "YnPSmAcjI5depNfbhvSl",
+            "owner": "peaks",
+            "name": "Avalanche Gulch Route",
+            "kind": null,
+            "distance": 8399.222022095568,
+            "gain": 2211.69140625,
+            "difficulty": null
+          },
+          {
+            "id": "3dFRIqoC3X4TxdzL4FJX",
+            "owner": "peaks",
+            "name": "Casaval Ridge Route",
+            "kind": null,
+            "distance": 8369.978158477172,
+            "gain": 2240.49609375,
+            "difficulty": null
+          },
+          {
+            "id": "F3BEVgZxLiTuVeOFe9mX",
+            "owner": "peaks",
+            "name": "Clear Creek Route",
+            "kind": null,
+            "distance": 9206.899928962515,
+            "gain": 0,
+            "difficulty": null
+          },
+          {
+            "id": "PlrSkPA9MbXsSMCxyar4",
+            "owner": "peaks",
+            "name": "Hotlum Bolam Route",
+            "kind": null,
+            "distance": 9654.26677256299,
+            "gain": 2196.765625,
+            "difficulty": null
+          },
+          {
+            "id": "wCtFia9bHjfOnGeXeyEQ",
+            "owner": "peaks",
+            "name": "Mount Stuart via Cascadian Couloir",
+            "kind": "summit",
+            "distance": 8927,
+            "gain": 1953.3,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "T6Z7E2LK5tvkI7d4BxBF",
+            "owner": "peaks",
+            "name": "West Face Gully Route",
+            "kind": null,
+            "distance": 9170.015825641109,
+            "gain": 2231.1796875,
+            "difficulty": null
+          },
+          {
+            "id": "wliEOmF55aYTx3RIGd9m",
+            "owner": "peaks",
+            "name": "Mount Meru via Momella Route",
+            "kind": null,
+            "distance": 16904,
+            "gain": 3334.699999999999,
+            "difficulty": null
+          },
+          {
+            "id": "qDTw77gRBuVYGtr563td",
+            "owner": "peaks",
+            "name": "Angel of Shavano",
+            "kind": null,
+            "distance": 5456.1592432310645,
+            "gain": 1352.04296875,
+            "difficulty": null
+          },
+          {
+            "id": "zmOynqSip5YHIBJG1DdK",
+            "owner": "peaks",
+            "name": "East Slopes",
+            "kind": null,
+            "distance": 6655.562618488988,
+            "gain": 1370.3515625,
+            "difficulty": null
+          },
+          {
+            "id": "SqsZA07zm6JRpb4mkiLp",
+            "owner": "peaks",
+            "name": "Fisher Chimneys",
+            "kind": null,
+            "distance": 11737.474417195297,
+            "gain": 1783.390625,
+            "difficulty": null
+          },
+          {
+            "id": "XU9ezB5l8LcoNtYliMK1",
+            "owner": "peaks",
+            "name": "Mount Sherman via Southwest Ridge",
+            "kind": "summit",
+            "distance": 3708,
+            "gain": 656.4000000000001,
+            "difficulty": "hard"
+          },
+          {
+            "id": "c4sdMzSqAhK7evZvOTSQ",
+            "owner": "peaks",
+            "name": "Mount Stanley via the Central Circuit",
+            "kind": null,
+            "distance": 23394,
+            "gain": 4202.800000000002,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "ingalls",
+        "elapsedMs": 1327,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "8gW9WZ6tngvhNn0TIDpc",
+            "type": "destination",
+            "name": "Ingalls Peak",
+            "score": 0.5384615510702133
+          },
+          {
+            "rank": 2,
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "score": 0.5374615510702133
+          },
+          {
+            "rank": 7,
+            "id": "4F56621F3FF823F6A480",
+            "type": "destination",
+            "name": "Lake Ingalls",
+            "score": 0.33846155107021336
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "distance": 7398,
+            "gain": 1119.9,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "ingalls way",
+        "elapsedMs": 536,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "score": 0.26885641188211873
+          },
+          {
+            "rank": 2,
+            "id": "8gW9WZ6tngvhNn0TIDpc",
+            "type": "destination",
+            "name": "Ingalls Peak",
+            "score": 0.2588235303759575
+          },
+          {
+            "rank": 3,
+            "id": "4F56621F3FF823F6A480",
+            "type": "destination",
+            "name": "Lake Ingalls",
+            "score": 0.2588235303759575
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "distance": 7398,
+            "gain": 1119.9,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "lake serene",
+        "elapsedMs": 19239,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "1755CBB232F3FCC6A437",
+            "type": "destination",
+            "name": "Lake Serene",
+            "score": 0.85
+          },
+          {
+            "rank": 8,
+            "id": "DiZjSucepuEsfCtfKw6F",
+            "type": "destination",
+            "name": "Lake Serene Trailhead",
+            "score": 0.5000000089406967
+          }
+        ],
+        "route_bucket": []
+      },
+      {
+        "query": "Mount Si Trail",
+        "elapsedMs": 4218,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "score": 0.6315912523271522
+          },
+          {
+            "rank": 3,
+            "id": "FLFBZ7rDLOFHPlUn9TMI",
+            "type": "destination",
+            "name": "Mount Si Trailhead",
+            "score": 0.5849999934434891
+          },
+          {
+            "rank": 4,
+            "id": "whvKZyztqB1ncVabFFtR",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "score": 0.434210541844368
+          },
+          {
+            "rank": 5,
+            "id": "nSf6z4vL0zjdG2sXibBM",
+            "type": "destination",
+            "name": "Mount Si",
+            "score": 0.36180349503591047
+          },
+          {
+            "rank": 6,
+            "id": "1RPwjUehpoFOJrn7y1VS",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Whitney via Mount Whitney Trail",
+            "kind": "summit",
+            "score": 0.3444444462656975
+          },
+          {
+            "rank": 7,
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "score": 0.33000001311302185
+          },
+          {
+            "rank": 10,
+            "id": "t7GxkDEDF0HYXsyYwm99",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Pilchuck Trail",
+            "kind": null,
+            "score": 0.275
+          },
+          {
+            "rank": 11,
+            "id": "Q4tbKTNo2sNe6Dz3SDr9",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Teneriffe Trail",
+            "kind": null,
+            "score": 0.275
+          },
+          {
+            "rank": 13,
+            "id": "0qZ9BEDqp9GFC83ul8n4",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Rainier via Emmons Glacier",
+            "kind": "summit",
+            "score": 0.2749999970197678
+          },
+          {
+            "rank": 14,
+            "id": "Z3d05cJB4w5iWQoUrZFJ",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Elbert South Mount Elbert Trail",
+            "kind": null,
+            "score": 0.2648148208856583
+          },
+          {
+            "rank": 15,
+            "id": "INRBmN9IOw444hd4A4OD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Washington Trail",
+            "kind": null,
+            "score": 0.25384615510702135
+          },
+          {
+            "rank": 19,
+            "id": "DpSKJSuIBiyhMehRTw5w",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Granite Mountain Trail",
+            "kind": "summit",
+            "score": 0.2441398346580591
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "distance": 6171,
+            "gain": 1126.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "whvKZyztqB1ncVabFFtR",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "distance": 5163.555900799526,
+            "gain": 1143.046875,
+            "difficulty": null
+          },
+          {
+            "id": "1RPwjUehpoFOJrn7y1VS",
+            "owner": "peaks",
+            "name": "Mount Whitney via Mount Whitney Trail",
+            "kind": "summit",
+            "distance": 17024,
+            "gain": 2527.4999999999995,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "distance": 5189.568846402607,
+            "gain": 522.70703125,
+            "difficulty": null
+          },
+          {
+            "id": "t7GxkDEDF0HYXsyYwm99",
+            "owner": "peaks",
+            "name": "Mount Pilchuck Trail",
+            "kind": null,
+            "distance": 4196.383179184767,
+            "gain": 714.12890625,
+            "difficulty": null
+          },
+          {
+            "id": "Q4tbKTNo2sNe6Dz3SDr9",
+            "owner": "peaks",
+            "name": "Mount Teneriffe Trail",
+            "kind": null,
+            "distance": 10333.124997623727,
+            "gain": 1362.66015625,
+            "difficulty": null
+          },
+          {
+            "id": "0qZ9BEDqp9GFC83ul8n4",
+            "owner": "peaks",
+            "name": "Mount Rainier via Emmons Glacier",
+            "kind": "summit",
+            "distance": 12753,
+            "gain": 3200.6999999999994,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "Z3d05cJB4w5iWQoUrZFJ",
+            "owner": "peaks",
+            "name": "Mount Elbert South Mount Elbert Trail",
+            "kind": null,
+            "distance": 7882,
+            "gain": 1213.300000000003,
+            "difficulty": null
+          },
+          {
+            "id": "INRBmN9IOw444hd4A4OD",
+            "owner": "peaks",
+            "name": "Mount Washington Trail",
+            "kind": null,
+            "distance": 2478.227493308735,
+            "gain": 1036.62109375,
+            "difficulty": null
+          },
+          {
+            "id": "DpSKJSuIBiyhMehRTw5w",
+            "owner": "peaks",
+            "name": "Granite Mountain Trail",
+            "kind": "summit",
+            "distance": 5646,
+            "gain": 1159,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "78PrHiPheauIk0Phmcg5",
+            "owner": "peaks",
+            "name": "Mt. Pugh Trail",
+            "kind": null,
+            "distance": 8371.959927476377,
+            "gain": 1725.0703125,
+            "difficulty": null
+          },
+          {
+            "id": "83JDrvOqNcho7IIphbNU",
+            "owner": "peaks",
+            "name": "Mount Ellen from Bull Creek Pass",
+            "kind": "summit",
+            "distance": 2998,
+            "gain": 325.2999999999997,
+            "difficulty": "moderate"
+          },
+          {
+            "id": "wH0piwu9SEQnVCuAFQGX",
+            "owner": "peaks",
+            "name": "Mount Arvon via Summit Trail",
+            "kind": null,
+            "distance": 82,
+            "gain": 4.7000000000000455,
+            "difficulty": null
+          },
+          {
+            "id": "alnBkdLIQWoxpHrq3j0v",
+            "owner": "peaks",
+            "name": "East Slopes",
+            "kind": null,
+            "distance": 10697.988184436836,
+            "gain": 1381.140625,
+            "difficulty": null
+          },
+          {
+            "id": "jEE8nUHR4pLO1u9SXXIy",
+            "owner": "peaks",
+            "name": "Northeast Ridge",
+            "kind": null,
+            "distance": 6985.81951330569,
+            "gain": 1354.7265625,
+            "difficulty": null
+          },
+          {
+            "id": "vqUg8SLRsay3Cotb6zmk",
+            "owner": "peaks",
+            "name": "Kamikaze Trail",
+            "kind": null,
+            "distance": 5934.531933650894,
+            "gain": 1241.09375,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Little Si",
+        "elapsedMs": 1506,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "xHaYBgzoxgfAZNLTfWid",
+            "type": "destination",
+            "name": "Little Si",
+            "score": 0.8600328815061612
+          },
+          {
+            "rank": 2,
+            "id": "YYQag1GLA2Q1lnu0aTsy",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Little Si",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 3,
+            "id": "7etiVGkvGugHxmFja3xK",
+            "type": "destination",
+            "name": "Little Si Trailhead",
+            "score": 0.47500000000000003
+          },
+          {
+            "rank": 5,
+            "id": "whvKZyztqB1ncVabFFtR",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "score": 0.47500000000000003
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "YYQag1GLA2Q1lnu0aTsy",
+            "owner": "peaks",
+            "name": "Little Si",
+            "kind": null,
+            "distance": 2965.155366334318,
+            "gain": 378.28515625,
+            "difficulty": null
+          },
+          {
+            "id": "whvKZyztqB1ncVabFFtR",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "distance": 5163.555900799526,
+            "gain": 1143.046875,
+            "difficulty": null
+          },
+          {
+            "id": "t5sFELKwD7vRjGaNrmOk",
+            "owner": "peaks",
+            "name": "Appalachian Trail - 13 NH",
+            "kind": null,
+            "distance": 233476.40450478924,
+            "gain": 10266.9375,
+            "difficulty": null
+          },
+          {
+            "id": "1bn9SqLxHJk7amo5AXiJ",
+            "owner": "peaks",
+            "name": "Little Annapurna via Aasgard Pass",
+            "kind": "summit",
+            "distance": 11992,
+            "gain": 1672.4,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "0iWVb0IMW9RaFCErmLqh",
+            "owner": "peaks",
+            "name": "Little Bear Peak via West Ridge and Hourglass",
+            "kind": "summit",
+            "distance": 11149,
+            "gain": 1835,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Rattlesnake Ledge",
+        "elapsedMs": 1477,
+        "status": 200,
+        "results": [
+          {
+            "rank": 3,
+            "id": "7F9130E5AAEC9213E123",
+            "type": "destination",
+            "name": "Rattlesnake Ledge",
+            "score": 0.85
+          },
+          {
+            "rank": 4,
+            "id": "5Ne2w5fr0m6q4C3CUtie",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Rattlesnake Ledge Trail",
+            "kind": null,
+            "score": 0.85
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "5Ne2w5fr0m6q4C3CUtie",
+            "owner": "peaks",
+            "name": "Rattlesnake Ledge Trail",
+            "kind": null,
+            "distance": 3550.241987545129,
+            "gain": 395.234375,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Snow Lake",
+        "elapsedMs": 10067,
+        "status": 200,
+        "results": [
+          {
+            "rank": 4,
+            "id": "4EDA7A56C36153040635",
+            "type": "destination",
+            "name": "Snow Lake",
+            "score": 0.85
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "TOI6GVr0RCXSvnadNV4G",
+            "owner": "peaks",
+            "name": "West Gully",
+            "kind": null,
+            "distance": 3882.252787051415,
+            "gain": 493.03125,
+            "difficulty": null
+          },
+          {
+            "id": "4qEvfKAzYWoVQLDN5GtS",
+            "owner": "peaks",
+            "name": "West Ridge from Summit Lake",
+            "kind": null,
+            "distance": 3987.153254034927,
+            "gain": 568.57421875,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Ingalls Lake via Ingalls Way",
+        "elapsedMs": 1281,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "4F56621F3FF823F6A480",
+            "type": "destination",
+            "name": "Lake Ingalls",
+            "score": 0.34047620296478276
+          },
+          {
+            "rank": 4,
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "score": 0.21955669493265584
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "distance": 7398,
+            "gain": 1119.9,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Ingalls Peak",
+        "elapsedMs": 1204,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "8gW9WZ6tngvhNn0TIDpc",
+            "type": "destination",
+            "name": "Ingalls Peak",
+            "score": 0.85
+          },
+          {
+            "rank": 2,
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "score": 0.849
+          },
+          {
+            "rank": 6,
+            "id": "4F56621F3FF823F6A480",
+            "type": "destination",
+            "name": "Lake Ingalls",
+            "score": 0.2444444462656975
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "distance": 7398,
+            "gain": 1119.9,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "YLrzveSmJdxuE8ooJfpT",
+            "owner": "peaks",
+            "name": "Kings Peak via Henry's Fork",
+            "kind": "summit",
+            "distance": 21791,
+            "gain": 1440.1999999999998,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Esmeralda Basin",
+        "elapsedMs": 519,
+        "status": 200,
+        "results": [
+          {
+            "rank": 2,
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "score": 0.22157134682722524
+          },
+          {
+            "rank": 3,
+            "id": "Vm0gOD6OdjW4lQmHn0Fj",
+            "type": "destination",
+            "name": "Esmeralda Trailhead",
+            "score": 0.21153846532106402
+          },
+          {
+            "rank": 4,
+            "id": "wCtFia9bHjfOnGeXeyEQ",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Stuart via Cascadian Couloir",
+            "kind": "summit",
+            "score": 0.21153846532106402
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aXEHeJetvshw8lnmHEZD",
+            "owner": "peaks",
+            "name": "Ingalls Peak via Ingalls Way and South Ridge",
+            "kind": "summit",
+            "distance": 7398,
+            "gain": 1119.9,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "wCtFia9bHjfOnGeXeyEQ",
+            "owner": "peaks",
+            "name": "Mount Stuart via Cascadian Couloir",
+            "kind": "summit",
+            "distance": 8927,
+            "gain": 1953.3,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Colchuck Lake",
+        "elapsedMs": 3962,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "RedSHjLLfieFAySd8gFZ",
+            "type": "destination",
+            "name": "Colchuck Lake",
+            "score": 0.85
+          }
+        ],
+        "route_bucket": []
+      },
+      {
+        "query": "Lake Stuart",
+        "elapsedMs": 7033,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "3F941B9F4262007D704D",
+            "type": "destination",
+            "name": "Lake Stuart",
+            "score": 0.85
+          },
+          {
+            "rank": 11,
+            "id": "aX7LBoa1jYzmRRfFX7TT",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Dragontail Peak via Aasgard Pass and East Slopes",
+            "kind": "summit",
+            "score": 0.31003289044685794
+          },
+          {
+            "rank": 12,
+            "id": "1bn9SqLxHJk7amo5AXiJ",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Little Annapurna via Aasgard Pass",
+            "kind": "summit",
+            "score": 0.31003289044685794
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "aX7LBoa1jYzmRRfFX7TT",
+            "owner": "peaks",
+            "name": "Dragontail Peak via Aasgard Pass and East Slopes",
+            "kind": "summit",
+            "distance": 9932,
+            "gain": 1680.4,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "1bn9SqLxHJk7amo5AXiJ",
+            "owner": "peaks",
+            "name": "Little Annapurna via Aasgard Pass",
+            "kind": "summit",
+            "distance": 11992,
+            "gain": 1672.4,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "wCtFia9bHjfOnGeXeyEQ",
+            "owner": "peaks",
+            "name": "Mount Stuart via Cascadian Couloir",
+            "kind": "summit",
+            "distance": 8927,
+            "gain": 1953.3,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Enchantment Lakes traverse",
+        "elapsedMs": 1971,
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      },
+      {
+        "query": "Skyline Loop",
+        "elapsedMs": 713,
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      },
+      {
+        "query": "Naches Peak Loop",
+        "elapsedMs": 591,
+        "status": 200,
+        "results": [],
+        "route_bucket": [
+          {
+            "id": "GvvlRD5GY4QoPyDzunNd",
+            "owner": "peaks",
+            "name": "Navaho Peak Trail",
+            "kind": null,
+            "distance": 10289.333198528062,
+            "gain": 1291.046875,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Mailbox Peak",
+        "elapsedMs": 1472,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "5hVnUW4tmqj3A6YbU0oB",
+            "type": "destination",
+            "name": "Mailbox Peak",
+            "score": 0.85
+          },
+          {
+            "rank": 2,
+            "id": "4gkUxiJyoPVyJWokOinE",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mailbox Peak Old Trail",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 3,
+            "id": "KG89JzIf3B07ppaWjLxm",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mailbox Peak Trail",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 5,
+            "id": "FO5rjIvYUcNDaiyoDsTb",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Dirtybox Peak via Mailbox Peak Old Trail",
+            "kind": "summit",
+            "score": 0.4724863477359695
+          },
+          {
+            "rank": 6,
+            "id": "GHg65nKUeQhQU3D9A7ie",
+            "type": "destination",
+            "name": "Mailbox Peak Trail Parking Lot",
+            "score": 0.44655172526836395
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "4gkUxiJyoPVyJWokOinE",
+            "owner": "peaks",
+            "name": "Mailbox Peak Old Trail",
+            "kind": null,
+            "distance": 4018.9009517120226,
+            "gain": 1208.75390625,
+            "difficulty": null
+          },
+          {
+            "id": "KG89JzIf3B07ppaWjLxm",
+            "owner": "peaks",
+            "name": "Mailbox Peak Trail",
+            "kind": null,
+            "distance": 8251.016019616058,
+            "gain": 1329.16015625,
+            "difficulty": null
+          },
+          {
+            "id": "FO5rjIvYUcNDaiyoDsTb",
+            "owner": "peaks",
+            "name": "Dirtybox Peak via Mailbox Peak Old Trail",
+            "kind": "summit",
+            "distance": 5846,
+            "gain": 1473.2000000000003,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "Mlt50cwbdUFdvzS1YyOY",
+            "owner": "peaks",
+            "name": "Maroon Peak Maroon Peak Trail",
+            "kind": null,
+            "distance": 3301,
+            "gain": 1237.3000000000025,
+            "difficulty": null
+          },
+          {
+            "id": "sqAWGByVi99NFtSshmZ4",
+            "owner": "peaks",
+            "name": "South Ridge",
+            "kind": null,
+            "distance": 9138.936871204709,
+            "gain": 1588.5234375,
+            "difficulty": null
+          },
+          {
+            "id": "s9dU4zerroFKqlaa366l",
+            "owner": "peaks",
+            "name": "Miller Peak Trail",
+            "kind": null,
+            "distance": 6617.092310827461,
+            "gain": 1015.29296875,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "Heather Maple Pass Loop",
+        "elapsedMs": 965,
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      },
+      {
+        "query": "Blanca Lake",
+        "elapsedMs": 3516,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "9B40DE76DC0878A92331",
+            "type": "destination",
+            "name": "Blanca Lake",
+            "score": 0.85
+          },
+          {
+            "rank": 3,
+            "id": "StXAAUitgEK1WrECejNX",
+            "type": "destination",
+            "name": "Blanca Lake Trailhead",
+            "score": 0.5000000089406967
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "K6JhVNOjOeKgmR4OadYM",
+            "owner": "peaks",
+            "name": "Blanca Peak via Northwest Ridge",
+            "kind": "summit",
+            "distance": 13144,
+            "gain": 1940,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Lake 22",
+        "elapsedMs": 4980,
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      },
+      {
+        "query": "Poo Poo Point",
+        "elapsedMs": 1056,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "Yfu5QdaOWeuxpSXiN5rK",
+            "type": "destination",
+            "name": "Poo Poo Point",
+            "score": 0.85
+          },
+          {
+            "rank": 2,
+            "id": "esOhCTEvfGNOCVOR73jg",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Chirico Trail",
+            "kind": null,
+            "score": 0.85
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "esOhCTEvfGNOCVOR73jg",
+            "owner": "peaks",
+            "name": "Chirico Trail",
+            "kind": null,
+            "distance": 2945.68756818613,
+            "gain": 516.56640625,
+            "difficulty": null
+          },
+          {
+            "id": "o8kLwn8clMQzwHQPWbUk",
+            "owner": "peaks",
+            "name": "Challenger Point via North Slope",
+            "kind": "summit",
+            "distance": 9846,
+            "gain": 1585.3,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "OHUG1HItlxWOM1xwL1ia",
+            "owner": "peaks",
+            "name": "Ellingwood Point via South Face",
+            "kind": "summit",
+            "distance": 13419,
+            "gain": 1865.1,
+            "difficulty": "strenuous"
+          }
+        ]
+      },
+      {
+        "query": "Tolmie Peak",
+        "elapsedMs": 1015,
+        "status": 200,
+        "results": [
+          {
+            "rank": 1,
+            "id": "htqW9lCp974x1tEWD8t7",
+            "type": "destination",
+            "name": "Tolmie Peak",
+            "score": 0.85
+          },
+          {
+            "rank": 2,
+            "id": "z2gHia5Sc7SJuq1Ub24G",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Tolmie Peak Trail",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 15,
+            "id": "fSHZk8ioXWIjUNPnTgMU",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Dead Dog Couloir",
+            "kind": null,
+            "score": 0.21388889253139498
+          },
+          {
+            "rank": 16,
+            "id": "hwSq44gVJUIavkKqPIzZ",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Grays and Torreys",
+            "kind": null,
+            "score": 0.21388889253139498
+          },
+          {
+            "rank": 17,
+            "id": "gCscJF593nTsMdp1Z6EE",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Kelso Ridge",
+            "kind": null,
+            "score": 0.21388889253139498
+          },
+          {
+            "rank": 18,
+            "id": "jHr2TQqtxvrwSzjUdoWN",
+            "type": "route",
+            "owner": "peaks",
+            "name": "South Slopes",
+            "kind": null,
+            "score": 0.21388889253139498
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "z2gHia5Sc7SJuq1Ub24G",
+            "owner": "peaks",
+            "name": "Tolmie Peak Trail",
+            "kind": null,
+            "distance": 5148.427187870381,
+            "gain": 454.51953125,
+            "difficulty": null
+          },
+          {
+            "id": "fSHZk8ioXWIjUNPnTgMU",
+            "owner": "peaks",
+            "name": "Dead Dog Couloir",
+            "kind": null,
+            "distance": 4363.3261454097255,
+            "gain": 915.37890625,
+            "difficulty": null
+          },
+          {
+            "id": "hwSq44gVJUIavkKqPIzZ",
+            "owner": "peaks",
+            "name": "Grays and Torreys",
+            "kind": null,
+            "distance": 6786.8552548265925,
+            "gain": 1104.19921875,
+            "difficulty": null
+          },
+          {
+            "id": "gCscJF593nTsMdp1Z6EE",
+            "owner": "peaks",
+            "name": "Kelso Ridge",
+            "kind": null,
+            "distance": 4545.151450287435,
+            "gain": 918.56640625,
+            "difficulty": null
+          },
+          {
+            "id": "jHr2TQqtxvrwSzjUdoWN",
+            "owner": "peaks",
+            "name": "South Slopes",
+            "kind": null,
+            "distance": 5515.454801271543,
+            "gain": 945.3515625,
+            "difficulty": null
+          },
+          {
+            "id": "qdn32HnzkeMaXkoNe9wN",
+            "owner": "peaks",
+            "name": "Standard Route",
+            "kind": null,
+            "distance": 12905.830897611131,
+            "gain": 1628.484375,
+            "difficulty": null
+          },
+          {
+            "id": "JCkyLyIdh7ncU9TJX7qS",
+            "owner": "peaks",
+            "name": "Upper Route",
+            "kind": null,
+            "distance": 13383.946138289339,
+            "gain": 1558.3984375,
+            "difficulty": null
+          },
+          {
+            "id": "ETQt5AEkpobrbyrTTcHU",
+            "owner": "peaks",
+            "name": "Fay Peak via Knapsack Pass and West Ridge",
+            "kind": "summit",
+            "distance": 2304,
+            "gain": 486.79999999999905,
+            "difficulty": "hard"
+          }
+        ]
+      },
+      {
+        "query": "Mount Pilchuck",
+        "elapsedMs": 2471,
+        "status": 200,
+        "results": [
+          {
+            "rank": 2,
+            "id": "iAD3EhqmkKVKXBjJjprj",
+            "type": "destination",
+            "name": "Mount Pilchuck",
+            "score": 0.85
+          },
+          {
+            "rank": 3,
+            "id": "t7GxkDEDF0HYXsyYwm99",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Pilchuck Trail",
+            "kind": null,
+            "score": 0.85
+          },
+          {
+            "rank": 5,
+            "id": "E65jXwR5gzXhiQc4ak6l",
+            "type": "destination",
+            "name": "Mount Pilchuck Trailhead",
+            "score": 0.5300000131130218
+          },
+          {
+            "rank": 13,
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "type": "route",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "score": 0.22992459768075554
+          }
+        ],
+        "route_bucket": [
+          {
+            "id": "t7GxkDEDF0HYXsyYwm99",
+            "owner": "peaks",
+            "name": "Mount Pilchuck Trail",
+            "kind": null,
+            "distance": 4196.383179184767,
+            "gain": 714.12890625,
+            "difficulty": null
+          },
+          {
+            "id": "40oJLRsV6f8hgVLXqkB7",
+            "owner": "peaks",
+            "name": "Mount Si via Mount Si Trail",
+            "kind": "summit",
+            "distance": 6171,
+            "gain": 1126.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "t5sFELKwD7vRjGaNrmOk",
+            "owner": "peaks",
+            "name": "Appalachian Trail - 13 NH",
+            "kind": null,
+            "distance": 233476.40450478924,
+            "gain": 10266.9375,
+            "difficulty": null
+          },
+          {
+            "id": "78PrHiPheauIk0Phmcg5",
+            "owner": "peaks",
+            "name": "Mt. Pugh Trail",
+            "kind": null,
+            "distance": 8371.959927476377,
+            "gain": 1725.0703125,
+            "difficulty": null
+          },
+          {
+            "id": "oAKLPbAbyWIDYbM1QH6L",
+            "owner": "peaks",
+            "name": "Mount Peale via La Sal Pass",
+            "kind": "summit",
+            "distance": 4115,
+            "gain": 820.4000000000005,
+            "difficulty": "hard"
+          },
+          {
+            "id": "nFsTYDYLL8NwOeM6p1wo",
+            "owner": "peaks",
+            "name": "Mount Phelps via Blackhawk Mine",
+            "kind": "summit",
+            "distance": 4130,
+            "gain": 1060.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "whvKZyztqB1ncVabFFtR",
+            "owner": "peaks",
+            "name": "Mount Si Old Trail",
+            "kind": null,
+            "distance": 5163.555900799526,
+            "gain": 1143.046875,
+            "difficulty": null
+          },
+          {
+            "id": "qugwKJ8fnh7aypkLzmV2",
+            "owner": "peaks",
+            "name": "Mount Si Teneriffe Connector",
+            "kind": null,
+            "distance": 5189.568846402607,
+            "gain": 522.70703125,
+            "difficulty": null
+          },
+          {
+            "id": "gZoKcidRFdBCNYMJC0xc",
+            "owner": "peaks",
+            "name": "Pumpelly Trail",
+            "kind": null,
+            "distance": 6275.222432825526,
+            "gain": 564.25390625,
+            "difficulty": null
+          },
+          {
+            "id": "iufwHEWy2ZrAe7IIUAdW",
+            "owner": "peaks",
+            "name": "White Dot Trail",
+            "kind": null,
+            "distance": 2772.794337361321,
+            "gain": 541.76171875,
+            "difficulty": null
+          },
+          {
+            "id": "wliEOmF55aYTx3RIGd9m",
+            "owner": "peaks",
+            "name": "Mount Meru via Momella Route",
+            "kind": null,
+            "distance": 16904,
+            "gain": 3334.699999999999,
+            "difficulty": null
+          },
+          {
+            "id": "Puao5A4TjowesY05CpSK",
+            "owner": "peaks",
+            "name": "Cathedral Ridge",
+            "kind": null,
+            "distance": 9113.780577931237,
+            "gain": 2264.57421875,
+            "difficulty": null
+          },
+          {
+            "id": "EiQIO3e5pExNCrMglg9D",
+            "owner": "peaks",
+            "name": "Coe Glacier",
+            "kind": null,
+            "distance": 6262.078111232863,
+            "gain": 1771.41796875,
+            "difficulty": null
+          },
+          {
+            "id": "FcUIKOWVkSyQsqTGDEGY",
+            "owner": "peaks",
+            "name": "Cooper Spur",
+            "kind": null,
+            "distance": 6689.357050983544,
+            "gain": 1705.30078125,
+            "difficulty": null
+          },
+          {
+            "id": "niODuNfcgkqSSFrspiMK",
+            "owner": "peaks",
+            "name": "East Ridge",
+            "kind": null,
+            "distance": 7627.114913457076,
+            "gain": 1500.5078125,
+            "difficulty": null
+          },
+          {
+            "id": "RVzkbi2H0IQpgb8V3iOS",
+            "owner": "peaks",
+            "name": "Leuthold Couloir",
+            "kind": null,
+            "distance": 6023.529411512803,
+            "gain": 1685.578125,
+            "difficulty": null
+          },
+          {
+            "id": "1qMRPdxMVuFEBsajvJP7",
+            "owner": "peaks",
+            "name": "Mount Eddy via Deadfall Lakes Trail",
+            "kind": "summit",
+            "distance": 6383,
+            "gain": 800.300000000002,
+            "difficulty": "hard"
+          },
+          {
+            "id": "7fQPvW8jGOSslUQ0hs9G",
+            "owner": "peaks",
+            "name": "Mount Maude via Leroy Creek and South Ridge",
+            "kind": "summit",
+            "distance": 12306,
+            "gain": 1740.5,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "QxyRzQDN8WOYAKGbeQii",
+            "owner": "peaks",
+            "name": "Mount Nebo via North Ridge",
+            "kind": "summit",
+            "distance": 7065,
+            "gain": 1117.8000000000002,
+            "difficulty": "strenuous"
+          },
+          {
+            "id": "9hwfh3TJNKqvKFH5zcmv",
+            "owner": "peaks",
+            "name": "Newton Clark Headwall",
+            "kind": null,
+            "distance": 5861.553085005785,
+            "gain": 1631.8359375,
+            "difficulty": null
+          }
+        ]
+      },
+      {
+        "query": "__geo_short",
+        "elapsedMs": 438,
+        "legacyResultCount": 10,
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      },
+      {
+        "query": "__geo_normal",
+        "elapsedMs": 1235,
+        "legacyResultCount": 20,
+        "status": 200,
+        "results": [],
+        "route_bucket": []
+      }
+    ],
+    "privacy": "Only Peaks-owned routes and pilot-bound public destinations included; original ranks retained.",
+    "api_revision": "peaks-api-00267-z6s"
+  }
+}

@@ -37,6 +37,7 @@ by hand (with plain `npm test`) switches only its suites on.
 | `DESTINATION_SESSION_LINK_TEST_DATABASE_URL` | destination-session-link-update (falls back to `ROUTE_ELEVATION_JOB_TEST_DATABASE_URL`) |
 | `AREAS_LINKING_TEST_DATABASE_URL` | protected-areas-linking, route-areas-linking |
 | `PHOTO_CANDIDATE_TEST_DATABASE_URL` | listed-destination-photo-candidates |
+| `BULK_LOAD_TEST_DATABASE_URL` | trail-graph-bulk-load.db (migration operator, not `peaks_test`; never set by `test:db`) |
 
 The DB-backed files run serially by default: several suites run global
 job-seed commands against shared tables, so concurrent test files collide.
@@ -66,19 +67,19 @@ Peaks-owned list and every active Peaks-owned route:
 
 Use `--format tsv --incomplete-only` or `--format json --incomplete-only` for
 the exact gaps. Detail rows identify either a `listed_destination` or an
-`active_peaks_route`, so an orphan or unlisted route cannot disappear from the
-report. The final cutover check adds `--require-complete`; it exits 1
-until every listed destination is a summit with a fully credited cover, every
-listed destination has a publish-valid active standard route with a derived
-cover, and no active Peaks-owned route lacks a cover. The command uses operator
+`active_peaks_route`. The final cutover check adds `--require-complete`; it
+exits 1 until every listed destination is a summit with a publish-valid active
+standard route. Photos are optional (`20261015_route_covers.sql`): destination
+and route cover gaps stay in the counts and detail columns but never block the
+goal. A cover that is shown must still carry full credit. The command uses operator
 database access; route-factory, route-repair, and route-review checkouts reject
 it.
 
 The audit forces read-only database transactions. It adds no service or stored
 copy and has a fixed cost of $0/month.
 
-Apply `20260831_route_cover_activation_gate.sql` after the route-cover view.
-Its deferred trigger stops a pending Peaks-owned route from becoming active
-unless one linked destination supplies an image, named credit, and credit link.
-The final zero-gap audit still checks old active routes and later photo changes.
-The trigger adds no service and has a fixed cost of $0/month.
+`20260831_route_cover_activation_gate.sql` once stopped a pending Peaks-owned
+route from becoming active without a credited linked-destination cover.
+`20261015_route_covers.sql` drops that trigger: photos are optional, and a
+route may now carry its own credited cover, which `route_cover_photos` prefers
+over its linked places.

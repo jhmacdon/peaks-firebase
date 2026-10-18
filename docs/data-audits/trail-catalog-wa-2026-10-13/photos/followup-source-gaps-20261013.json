@@ -1,0 +1,44 @@
+{
+  "outcome": "no_new_admissible_photo",
+  "proposalsWritten": 0,
+  "coversApproved": 0,
+  "places": [
+    {
+      "place": "Rainy Pass trailhead for Heather–Maple Pass Loop",
+      "outcome": "blocked_license_and_original_file_unverified",
+      "leads": [
+        {
+          "url": "https://www.flickr.com/photos/bikejr/20217695595",
+          "title": "Lake Ann/Maple Pass trailhead parking",
+          "identity": "Title identifies the intended trailhead parking.",
+          "blocker": "Direct page unavailable; reusable license and original dimensions remain unverified."
+        },
+        {
+          "url": "https://www.flickr.com/photos/7388553@N07/54834527993",
+          "blocker": "Reusable license and exact depicted-place identity remain unverified."
+        }
+      ]
+    },
+    {
+      "place": "Stuart Lake trailhead for Enchantment Lakes traverse",
+      "outcome": "blocked_rights",
+      "leads": [
+        {
+          "url": "https://www.flickr.com/photos/11349439@N04/53009902353/",
+          "title": "Stuart Lake Trailhead",
+          "blocker": "All rights reserved; no reusable license found."
+        },
+        {
+          "url": "https://wenatcheeoutdoors.org/2019/08/12/changes-to-public-parking-on-eightmile-road/",
+          "blocker": "Press-photo credit does not establish reuse rights for the original agency parking image, its dimensions, or an exact image match."
+        }
+      ]
+    },
+    {
+      "place": "Northern Tipsoo Lake trailhead",
+      "destinationId": "6D0E779FF39C5B648D6B",
+      "outcome": "blocked_exact_place_identity",
+      "blocker": "Nearby lake and parking vistas do not establish the bound northern entrance. No inferred camera location or nearby-summit substitute was accepted."
+    }
+  ]
+}
