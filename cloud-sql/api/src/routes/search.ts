@@ -333,27 +333,31 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
   if (geo) values.push(input.lat, input.lng);
   if (short && tokenQuery) values.push(tokenQuery);
   const tokenParam = `$${values.length}`;
+  // Ranking reads destination_search_rows, a narrow trigger-maintained copy of
+  // each place's search fields; destinations rows average 2.8 KB, and
+  // rechecking thousands of trigram matches against them read tens of MB per
+  // search. Full rows load only for the final page.
+  const searchVector = "to_tsvector('simple', COALESCE(NULLIF(ds.search_name, ''), lower(ds.name)))";
   const candidateWhere = short
-    ? tokenQuery ? `${destinationSearchVector} @@ to_tsquery('simple', ${tokenParam})` : "false"
-    : "search_name % $1 OR search_name LIKE $2";
-  const distance = geo ? "ST_Distance(location, ST_MakePoint($5, $4)::geography)" : "NULL::double precision";
+    ? tokenQuery ? `${searchVector} @@ to_tsquery('simple', ${tokenParam})` : "false"
+    : "ds.search_name % $1 OR ds.search_name LIKE $2";
+  const distance = geo ? "ST_Distance(ds.location, ST_MakePoint($5, $4)::geography)" : "NULL::double precision";
   const proximity = geo ? `COALESCE(EXP(-1.0 * ${distance} / 500000.0) * 0.05, 0)` : "0";
 
   return {
     text: `WITH ranked_destinations AS MATERIALIZED (
-         SELECT id, name, elevation, prominence, type, activities, features,
-                country_code, state_code, location,
-                (search_name = $1) AS name_exact_match,
-                (search_name LIKE $2 OR search_name LIKE ('% ' || $1 || '%')) AS name_prefix_match,
+         SELECT ds.id,
+                (ds.search_name = $1) AS name_exact_match,
+                (ds.search_name LIKE $2 OR ds.search_name LIKE ('% ' || $1 || '%')) AS name_prefix_match,
                 ${distance} AS distance_m,
-                (${searchTextScoreSql("search_name", "$1", "$2")}
-                  + ${searchPopularityScoreSql("session_count_offset")}
+                (${searchTextScoreSql("ds.search_name", "$1", "$2")}
+                  + ${searchPopularityScoreSql("ds.session_count_offset")}
                   + ${proximity}
-                  - ${searchMinorPlacePenaltySql("features", "search_name", "$1")}) AS score
-         FROM destinations
+                  - ${searchMinorPlacePenaltySql("ds.features", "ds.search_name", "$1")}) AS score
+         FROM destination_search_rows ds
          WHERE (${candidateWhere})
-           AND ${publicCatalogSql("destinations", input.publicOnly)}
-         ORDER BY score DESC, name, id
+           AND ${publicCatalogSql("ds", input.publicOnly)}
+         ORDER BY score DESC, ds.name, ds.id
          LIMIT $3
        )
        SELECT destinations.id, destinations.name, destinations.elevation, destinations.prominence,
@@ -362,10 +366,12 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
               ${destinationAreaRowsSql},
               ST_Y(destinations.location::geometry) AS lat,
               ST_X(destinations.location::geometry) AS lng,
-              destinations.distance_m, destinations.name_exact_match, destinations.name_prefix_match, destinations.score
-       FROM ranked_destinations destinations
+              ranked.distance_m, ranked.name_exact_match, ranked.name_prefix_match, ranked.score
+       FROM ranked_destinations ranked
+       JOIN destinations ON destinations.id = ranked.id
        ${destinationAreaJoinSql(input.publicOnly)}
-       ORDER BY destinations.score DESC, destinations.name, destinations.id`,
+       WHERE ${publicCatalogSql("destinations", input.publicOnly)}
+       ORDER BY ranked.score DESC, destinations.name, destinations.id`,
     values,
   };
 }

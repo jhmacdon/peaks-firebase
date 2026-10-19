@@ -188,7 +188,7 @@ test("mixed search builds destination, route, area, and list queries", () => {
     limit: 20,
   });
 
-  assert.match(queries.destinations.text, /FROM destinations/);
+  assert.match(queries.destinations.text, /FROM destination_search_rows ds/);
   assert.match(queries.destinations.text, /COALESCE\(area_rows\.areas, '\[\]'::json\) AS areas/);
   assert.match(queries.routes.text, /JOIN routes r/);
   assert.match(queries.routes.text, /FROM route_search_terms t/);
@@ -198,6 +198,25 @@ test("mixed search builds destination, route, area, and list queries", () => {
   assert.match(queries.areas.text, /route_count/);
   assert.match(queries.lists.text, /FROM lists l/);
   assert.match(queries.lists.text, /FROM list_routes lr/);
+});
+
+test("mixed destination search scores narrow rows before loading destinations", () => {
+  for (const [normalizedQuery, publicOnly] of [["colchuck lake", true], ["mt", false]] as const) {
+    const sql = buildMixedSearchQueries({
+      normalizedQuery, rawQuery: normalizedQuery, lat: 47.64, lng: -122.35, limit: 20, publicOnly,
+    }).destinations.text;
+    const ranked = sql.slice(0, sql.indexOf("JOIN destinations ON destinations.id = ranked.id"));
+    assert.ok(ranked.length < sql.length, "full destination rows load after ranking");
+    assert.match(ranked, /FROM destination_search_rows ds/);
+    assert.doesNotMatch(ranked, /FROM destinations\b/, "ranking never reads destinations rows");
+    assert.match(ranked, /LIMIT \$3/);
+    if (publicOnly) {
+      assert.match(ranked, /ds\.owner = 'peaks'/);
+      assert.match(sql.slice(ranked.length), /destinations\.owner = 'peaks'/, "the full row is rechecked");
+    } else {
+      assert.doesNotMatch(sql, /owner = 'peaks'/);
+    }
+  }
 });
 
 test("mixed search keeps two-letter abbreviation input as a token prefix", () => {
@@ -363,7 +382,7 @@ test("mixed search route returns typed result buckets", async (t) => {
       if (/FROM ranked_routes r/.test(text)) {
         return { rows: [{ id: "disappointment-cleaver", name: "Disappointment Cleaver", areas: [], score: 0.5 }] };
       }
-      if (/FROM destinations/.test(text)) {
+      if (/FROM destination_search_rows ds/.test(text)) {
         return { rows: [{ id: "rainier", name: "Mount Rainier", areas: [], type: "point", score: 0.9 }] };
       }
       if (/FROM areas a/.test(text)) {

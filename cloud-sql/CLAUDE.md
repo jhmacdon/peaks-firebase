@@ -1245,7 +1245,15 @@ the best 200 accessible routes by text and popularity, then loads `routes`
 rows, rechecks status and access there, and adds proximity. Proximity and a
 route's `distance_m` measure to the path's start point (`anchor`), never the
 whole path. The table has no foreign key to `routes` (a statement trigger
-deletes rows), so renaming a segment or place never locks routes. Matching against fat route rows took 0.7 s
+deletes rows), so renaming a segment or place never locks routes.
+
+Mixed destination search ranks `destination_search_rows`
+(`migrations/20261019_destination_search_rows.sql`), a narrow copy of each
+place's name, search name, owner, features, ascent offset, and point. A row
+trigger on `destinations` copies them on every insert, update, and delete.
+Only the final page joins `destinations` (rows average 2.8 KB), where
+signed-out visibility is checked again. The legacy `/api/search` endpoint
+still reads `destinations` directly. Matching against fat route rows took 0.7 s
 warm and up to 60 s cold on the db-f1-micro (2026-10-18); the narrow table
 takes milliseconds. All types use the same text-score weights: 0.45 trigram
 similarity, 0.20 word similarity, 0.15 when the query starts any word of the
