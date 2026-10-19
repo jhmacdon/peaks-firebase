@@ -274,7 +274,7 @@ test("signed-out route search skips private destination names", () => {
   const query = buildMixedSearchQueries({ normalizedQuery: "hidden tarn", rawQuery: "hidden tarn", limit: 20, publicOnly: true }).routes;
   const scored = query.text.slice(query.text.indexOf("scored_routes"), query.text.indexOf("shortlist AS"));
   assert.match(scored, /AND t\.public/);
-  assert.match(scored, /\* t\.public_weight\) AS text_score/, "private sources never weigh a signed-out score");
+  assert.match(scored, /\* COALESCE\(t\.public_weight, 0\)\) AS text_score/, "private sources never weigh a signed-out score");
 });
 
 test("2-character route search uses token prefixes instead of trigram scans", () => {

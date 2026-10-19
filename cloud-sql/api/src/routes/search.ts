@@ -395,7 +395,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   // A name the route only borrows from a segment's trail weighs 0.8; its own
   // name, aliases, and linked places weigh 1. public_weight counts public
   // sources only.
-  const termWeight = input.publicOnly ? "t.public_weight" : "t.weight";
+  const termWeight = input.publicOnly ? "COALESCE(t.public_weight, 0)" : "t.weight";
   const shortlistSize = Math.min(500, Math.max(100, input.limit * 10));
   // Proximity measures to the route's start point, kept on each term row, so
   // ranking never reads a route's full path (about 13 ms per long path on the
