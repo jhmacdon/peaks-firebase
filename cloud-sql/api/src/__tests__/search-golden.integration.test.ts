@@ -90,6 +90,29 @@ test("golden trail queries execute against real PostgreSQL names, aliases, objec
       assert.deepEqual(results.slice(0, 3).map((r) => r.id), [id("lake-trail"), id("ingalls-peak"), id("ingalls-lake")]);
     });
 
+    await t.test("a route that only borrows a trail name ranks below the places that bear it", async () => {
+      // Mount Stuart's Cascadian Couloir route walks Ingalls Way from the
+      // Esmeralda trailhead; nothing in its own name or objective says Ingalls.
+      await client.query(
+        `INSERT INTO destinations (id, name, search_name, features, state_code, country_code)
+         VALUES ($1, 'Mount Stuart', 'mount stuart', ARRAY['summit'::destination_feature], 'WA', 'US')`, [id("stuart")]);
+      await client.query(
+        `INSERT INTO routes (id, name, owner, status, kind, objective_destination_id, popularity)
+         VALUES ($1, 'Mount Stuart via Cascadian Couloir', $2, 'active', 'summit', $3, 0)`,
+        [id("stuart-trail"), user, id("stuart")]);
+      await client.query("INSERT INTO route_segments (route_id, segment_id) VALUES ($1, $2)", [id("stuart-trail"), id("ingalls-shared")]);
+      try {
+        const { results } = await search("ingalls");
+        const rank = (key: string) => results.findIndex((r) => r.id === id(key));
+        assert.ok(rank("stuart-trail") >= 0, "the trail name still finds the route");
+        assert.ok(rank("stuart-trail") > rank("ingalls-peak"), "below Ingalls Peak");
+        assert.ok(rank("stuart-trail") > rank("ingalls-lake"), "below Ingalls Lake");
+        assert.ok((await search("ingalls way")).buckets.routes.some((r) => r.id === id("stuart-trail")));
+      } finally {
+        await client.query("DELETE FROM routes WHERE id = $1", [id("stuart-trail")]);
+      }
+    });
+
     await t.test("ingalls way finds both routes through their one shared segment", async () => {
       const { buckets, results } = await search("ingalls way");
       assert.deepEqual(results.slice(0, 2).map((r) => r.id), [id("lake-trail"), id("peak-trail")]);

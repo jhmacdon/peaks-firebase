@@ -392,6 +392,10 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
     : "(t.term % $1 OR t.term %> $1 OR t.term LIKE $3)";
   // Signed-out callers never match or score a private place's name.
   const publicTerm = input.publicOnly ? "AND t.public" : "";
+  // A name the route only borrows from a segment's trail weighs 0.8; its own
+  // name, aliases, and linked places weigh 1. public_weight counts public
+  // sources only.
+  const termWeight = input.publicOnly ? "COALESCE(t.public_weight, 0)" : "t.weight";
   const shortlistSize = Math.min(500, Math.max(100, input.limit * 10));
   // Proximity measures to the route's start point, kept on each term row, so
   // ranking never reads a route's full path (about 13 ms per long path on the
@@ -402,7 +406,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   return {
     text: `WITH scored_routes AS MATERIALIZED (
          SELECT t.route_id AS id,
-                max(${searchTextScoreSql("t.term", "$1", "$2")}) AS text_score,
+                max(${searchTextScoreSql("t.term", "$1", "$2")} * ${termWeight}) AS text_score,
                 bool_or(t.term = $1) AS exact_match,
                 min(t.owner) AS owner,
                 max(t.popularity) AS popularity,

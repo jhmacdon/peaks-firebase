@@ -1245,7 +1245,11 @@ the best 200 accessible routes by text and popularity, then loads `routes`
 rows, rechecks status and access there, and adds proximity. Proximity and a
 route's `distance_m` measure to the path's start point (`anchor`), never the
 whole path. The table has no foreign key to `routes` (a statement trigger
-deletes rows), so renaming a segment or place never locks routes.
+deletes rows), so renaming a segment or place never locks routes. A term
+whose only source is a segment's trail name weighs 0.8 against 1 for the
+route's own name, aliases, and places (`weight`; `public_weight` counts public
+sources only). Mount Stuart via Cascadian Couloir walks Ingalls Way, so
+"ingalls" still finds it, below the places and hikes named Ingalls.
 
 Mixed destination search ranks `destination_search_rows`
 (`migrations/20261019_destination_search_rows.sql`), a narrow copy of each

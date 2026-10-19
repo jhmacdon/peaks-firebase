@@ -215,3 +215,39 @@ test("concurrent refreshes of one route do not fail the second writer", {
     await db.query("DELETE FROM destinations WHERE id = $1", [id("lake")]);
   }
 });
+
+// A name the route only borrows from a segment's trail counts for 0.8 of its
+// own name, alias, or place. Signed-out search weighs public sources only.
+test("route search terms weigh trail-only names below the route's own names", {
+  skip: dbSkipReason ?? undefined,
+}, async () => {
+  const client = await db.connect();
+  const prefix = `route-terms-weight-${randomUUID()}`;
+  const id = (key: string) => `${prefix}-${key}`;
+  await client.query("BEGIN");
+  try {
+    await client.query(
+      `INSERT INTO destinations (id, name, search_name, features, owner, state_code, country_code)
+       VALUES ($1, 'Hidden Basin', 'hidden basin', ARRAY['lake'::destination_feature], 'someone', 'WA', 'US')`, [id("basin")]);
+    await client.query(
+      `INSERT INTO routes (id, name, owner, status, objective_destination_id)
+       VALUES ($1, 'Ingalls Way', 'peaks', 'active', $2)`, [id("route"), id("basin")]);
+    await client.query(
+      "INSERT INTO segments (id, trail_names) VALUES ($1, ARRAY['Ingalls Way', 'Longs Pass Trail', 'Hidden Basin'])", [id("segment")]);
+    await client.query("INSERT INTO route_segments (route_id, segment_id, ordinal) VALUES ($1, $2, 0)", [id("route"), id("segment")]);
+    const rows = (await client.query(
+      `SELECT term, public, weight, public_weight FROM route_search_terms WHERE route_id = $1 ORDER BY term`,
+      [id("route")])).rows.map((row) => ({ ...row, weight: Number(row.weight),
+        public_weight: row.public_weight === null ? null : Number(row.public_weight) }));
+    assert.deepEqual(rows, [
+      // A private place's name and a trail: signed-out search sees the trail's weight.
+      { term: "hidden basin", public: true, weight: 1, public_weight: 0.8 },
+      // The route's own name wins over the same trail name.
+      { term: "ingalls way", public: true, weight: 1, public_weight: 1 },
+      { term: "longs pass trail", public: true, weight: 0.8, public_weight: 0.8 },
+    ]);
+  } finally {
+    await client.query("ROLLBACK");
+    client.release();
+  }
+});
