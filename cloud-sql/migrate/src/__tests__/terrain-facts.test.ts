@@ -219,3 +219,12 @@ test("a segment held by another review keeps its kind until a decision labels it
   const held = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: "start", to: "end", note: "held" }] });
   assert.deepEqual(held.holds.add, ["a", "b"]);
 });
+
+test("the held piece of a split segment is registered as held", () => {
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: 1500, to: "end", note: "held" }] });
+  const split = p.ops.find(o => o.op === "split");
+  assert.ok(split && split.op === "split");
+  if (split?.op !== "split") return;
+  const heldPiece = split.pieces.find(x => x.kind === "scramble")!;
+  assert.deepEqual(p.holds.add, [heldPiece.id]);
+});

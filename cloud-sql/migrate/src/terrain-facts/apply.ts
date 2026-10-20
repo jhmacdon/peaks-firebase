@@ -144,6 +144,8 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     const planned = pieces.map((c, k) => {
       const len = lineLength(c), mid = offset + len / 2; offset += len;
       const routeMid = p.row.direction === "reverse" ? p.end - mid : p.start + mid;
+      // A piece under a hold is registered as held under its new id.
+      if (at(routeMid)?.kind === "hold") add.push(id(k));
       return { id: id(k), kind: kindAt(routeMid, p.row.kind), display_name: at(routeMid)?.display_name ?? null, length_m: Math.round(len) };
     });
     // Pieces that would all read the same are not worth a split: relabel the segment whole.
