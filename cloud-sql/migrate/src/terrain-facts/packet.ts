@@ -97,16 +97,19 @@ export async function buildPacket(db: Queryable, routeId: string, now = new Date
     WHERE rs.route_id = $1 ORDER BY rs.ordinal`, [routeId])).rows.map(r => ({ id: r.id, name: r.name, length_m: Number(r.length_m) }));
   if (!segments.length) throw new Error(`route ${routeId} has no segments`);
 
-  // Named places on or near the line: linked places, and anything within 75 m.
+  // Named places on or near the line. The line goes in as a constant so the
+  // destinations location index can answer the 75 m search on a small database.
+  const line = JSON.stringify({ type: "LineString", coordinates: coords.map(c => [c[0], c[1]]) });
   const places = (await db.query(`
-    WITH r AS (SELECT path::geometry AS g FROM routes WHERE id = $1)
+    WITH g AS (SELECT ST_GeomFromGeoJSON($2)::geography AS line),
+    near AS (
+      SELECT d.id FROM destinations d, g WHERE d.owner = 'peaks' AND d.name IS NOT NULL AND ST_DWithin(d.location, g.line, 75)
+      UNION SELECT destination_id FROM route_destinations WHERE route_id = $1)
     SELECT d.id, d.name, d.features::text[] AS features, d.elevation,
-           ST_LineLocatePoint(ST_Force2D(r.g), d.location::geometry) AS fraction,
-           ST_Distance(d.location, r.g::geography) AS off_route_m
-    FROM destinations d, r
-    WHERE d.owner = 'peaks' AND d.name IS NOT NULL
-      AND (d.id IN (SELECT destination_id FROM route_destinations WHERE route_id = $1)
-           OR ST_DWithin(d.location, r.g::geography, 75))`, [routeId])).rows;
+           ST_LineLocatePoint(g.line::geometry, d.location::geometry) AS fraction,
+           ST_Distance(d.location, g.line) AS off_route_m
+    FROM near JOIN destinations d ON d.id = near.id, g
+    WHERE d.name IS NOT NULL`, [routeId, line])).rows;
   const total = along[along.length - 1];
   const waypoints = places
     .map(p => ({ destination_id: p.id, name: p.name, features: p.features ?? [], along_m: Math.round(Number(p.fraction) * total), elevation_ft: ft(p.elevation), off_route_m: Math.round(Number(p.off_route_m)) }))
