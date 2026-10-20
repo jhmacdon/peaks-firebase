@@ -41,8 +41,8 @@ export function glacierIndex(glaciers: Glacier[]): Grid<Glacier> {
 }
 export function classify(way: Way, point: Coord, glaciers: Grid<Glacier>): Kind {
   for (const g of glaciers.near(point, 0)) if (g.polygons.some(rings => insidePolygon(point, rings))) return /snowfield/i.test(g.name) ? 'snowfield' : 'glacier';
-  if (['alpine_hiking', 'demanding_alpine_hiking', 'difficult_alpine_hiking'].includes(way.tags.sac_scale)) return 'climb';
-  if (way.tags.sac_scale === 'demanding_mountain_hiking') return 'scramble';
+  // sac_scale never sets a kind: mappers grade a whole way by its hardest move and grade glacier
+  // routes by crevasse risk. It still splits segments (see the signature below) and feeds difficulty.
   if (way.tags.highway === 'track' && ['motor_vehicle', 'motorcar', 'vehicle', 'motorcycle'].some(k => ['yes', 'designated', 'permissive', 'destination'].includes(way.tags[k]))) return 'road';
   return 'trail';
 }

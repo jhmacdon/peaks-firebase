@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { DEFAULT_OUT, ndjson, option } from './io';
 import { loaderArgs } from './loader-cli';
 import { assertDisplayName, displayName } from './display-names';
-import type { Segment } from './types';
+import { KINDS, type Segment } from './types';
 import { DEFER_REMATCH_SQL } from './load-sql';
 import { parseState, type StateCode } from './state';
 
@@ -22,7 +22,7 @@ export const SEGMENT_CONFLICT = `SELECT
 export function segmentValues(s: Segment, state: StateCode = s.state_code ?? 'WA'): unknown[] {
   if (s.frozen_partial || s.frozen_catalog) throw new Error(`Frozen catalog geometry is not insertable: ${s.id}`);
   if (!s.id || !s.coords || s.coords.length < 2 || s.coords.some(c => !Number.isFinite(c[0]) || !Number.isFinite(c[1]) || Math.abs(c[0]) > 180 || Math.abs(c[1]) > 90) || !(s.length_m > 0)) throw new Error(`Invalid segment geometry: ${s.id}`);
-  if (!['trail', 'road', 'snowfield', 'glacier', 'scramble', 'climb', 'xc'].includes(s.kind)) throw new Error(`Invalid segment kind: ${s.kind}`);
+  if (!(KINDS as readonly string[]).includes(s.kind)) throw new Error(`Invalid segment kind: ${s.kind}`);
   const name = s.display_name === undefined ? displayName(s.trail_names[0] || s.relation_names[0] || null) : s.display_name;
   assertDisplayName(name);
   return [s.id, s.name, s.kind, s.trail_names, JSON.stringify({ type: 'LineString', coordinates: s.coords.map(c => [c[0], c[1], 0]) }), s.length_m, JSON.stringify(s.provenance), name, s.description ?? null, null, parseState(state), s.sac_scale ?? null];

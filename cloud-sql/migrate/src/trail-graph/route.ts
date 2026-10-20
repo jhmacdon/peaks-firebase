@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { args, DEFAULT_OUT, ndjson, option } from './io';
 import { TrailRouter } from './router';
-import type { Kind, NamedFeature, Segment } from './types';
+import { KINDS, type Kind, type NamedFeature, type Segment } from './types';
 
 export async function loadRouter(dir: string): Promise<TrailRouter> {
   const segments: Segment[] = [], features: NamedFeature[] = [];
@@ -14,7 +14,7 @@ async function main() {
   const from = option(options, 'from', ''), to = option(options, 'to', '');
   if (!from || !to) throw new Error('Usage: npm run trail-graph:route -- --from NAME_OR_LON,LAT --to NAME_OR_LON,LAT [--via NAME] [--prefer NAME] [--avoid KIND] [--out DIR]');
   const avoid = options.get('avoid') ?? [];
-  if (avoid.some(k => !['trail', 'road', 'snowfield', 'glacier', 'scramble', 'climb', 'xc'].includes(k))) throw new Error('Unknown --avoid kind');
+  if (avoid.some(k => !(KINDS as readonly string[]).includes(k))) throw new Error('Unknown --avoid kind');
   console.log(JSON.stringify(router.route(from, to, { via: options.get('via'), preferNames: options.get('prefer'), avoidKinds: avoid as Kind[] }), null, 2));
 }
 if (require.main === module) main().catch(e => { console.error(e.message); process.exitCode = 1; });

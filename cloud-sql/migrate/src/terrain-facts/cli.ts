@@ -8,6 +8,7 @@ import { buildPacket, packetSha256, type Packet } from "./packet";
 import { fetchPages } from "./fetch-pages";
 import { researchSchema, type Research } from "./schema";
 import { verify, type Verification } from "./verify";
+import { applyPlan, loadRoute, plan, sha, type Decision } from "./apply";
 
 /**
  * Route terrain facts, one route per run directory:
@@ -36,7 +37,7 @@ const readJson = async <T>(path: string): Promise<T> => JSON.parse(await readFil
 async function packetCommand() {
   const routeId = need("route"), dir = resolve(need("dir"));
   if (existsSync(join(dir, "packet.json"))) throw new Error(`${dir} already has a packet; use a new run directory`);
-  const db = new Pool({ host: process.env.DB_HOST || "127.0.0.1", port: Number(process.env.DB_PORT || 5432), database: process.env.DB_NAME || "peaks", user: process.env.DB_USER || "peaks-api", password: process.env.DB_PASS, max: 1 });
+  const db = pool();
   try {
     await db.query("SET default_transaction_read_only = on");
     const packet = await buildPacket(db, routeId);
@@ -120,7 +121,41 @@ export function reviewSheet(packet: Packet, research: Research, v: Verification)
   return lines.join("\n");
 }
 
-const commands: Record<string, () => Promise<void>> = { packet: packetCommand, research: researchCommand, verify: verifyCommand };
+function pool() {
+  return new Pool({ host: process.env.DB_HOST || "127.0.0.1", port: Number(process.env.DB_PORT || 5432), database: process.env.DB_NAME || "peaks", user: process.env.DB_USER || "peaks-api", password: process.env.DB_PASS, max: 1 });
+}
+
+/** Dry run prints the plan and its hash; `--apply --expected-plan <hash>` writes exactly that plan. */
+async function applyCommand() {
+  const dir = resolve(need("dir")), write = process.argv.includes("--apply");
+  const decision = await readJson<Decision & { reviewed_by: string; labels?: { basis: string[] }[]; reviewer_claims?: { id: string; source_url: string }[] }>(join(dir, "decision.json"));
+  if (!Array.isArray(decision.apply)) throw new Error("decision.json has no apply intervals");
+  const research = await readJson<Research>(join(dir, "research.json"));
+  const packet = await readJson<Packet>(join(dir, "packet.json"));
+  if (decision.packet_sha256 !== packetSha256(packet)) throw new Error("decision is for another packet");
+  const urls = new Map([...research.claims, ...(decision.reviewer_claims ?? [])].map(c => [c.id, c.source_url]));
+  const sources = [...new Set((decision.labels ?? []).flatMap(l => l.basis).map(id => urls.get(id)).filter((u): u is string => !!u))];
+  const db = pool();
+  try {
+    const { rows, sharedWith } = await loadRoute(db, decision.route_id);
+    const p = plan(decision.route_id, rows, decision, sharedWith), hash = sha(p);
+    await writeFile(join(dir, write ? "apply-plan.applied.json" : "apply-plan.json"), JSON.stringify({ hash, ...p }, null, 2) + "\n");
+    for (const op of p.ops) console.log(op.op === "kind" ? `kind   ${op.segment_id} ${op.from} -> ${op.to} (${op.route_m.join("-")} m)` : `split  ${op.segment_id} at ${op.cuts_m.join(", ")} m -> ${op.pieces.map(x => `${x.kind} ${x.length_m} m`).join(" | ")}`);
+    if (p.shared_with.length) console.log(`shared with ${p.shared_with.length} other routes: ${p.shared_with.join(", ")}`);
+    console.log(`plan ${hash}`);
+    if (!write) return;
+    if (arg("expected-plan") !== hash) throw new Error("--expected-plan does not match this plan; review the dry run first");
+    const client = await db.connect();
+    try {
+      await client.query("BEGIN");
+      const routes = await applyPlan(client, p, { plan_sha256: hash, reviewed_by: decision.reviewed_by, sources });
+      await client.query("COMMIT");
+      console.log(`applied; routes touched: ${routes.join(", ")}`);
+    } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+  } finally { await db.end(); }
+}
+
+const commands: Record<string, () => Promise<void>> = { packet: packetCommand, research: researchCommand, verify: verifyCommand, apply: applyCommand };
 const command = commands[process.argv[2] ?? ""];
-if (!command) { console.error("usage: terrain-facts <packet|research|verify> --dir <run dir> [--route <id>]"); process.exit(2); }
+if (!command) { console.error("usage: terrain-facts <packet|research|verify|apply> --dir <run dir> [--route <id>] [--apply --expected-plan <hash>]"); process.exit(2); }
 command().catch(error => { console.error(error instanceof Error ? error.message : error); process.exit(1); });

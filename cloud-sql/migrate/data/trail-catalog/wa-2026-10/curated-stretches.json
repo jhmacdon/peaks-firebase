@@ -11,12 +11,12 @@
         { "display_name": "Pebble Creek Trail", "kind": "trail", "segments": ["wa-osm-84cb566ed4045ccdcca0", "wa-osm-cb443d58465f5eb32ff8"] },
         { "display_name": "Muir Snowfield", "kind": "snowfield", "segments": ["wa-osm-7cbf3d50ecfd466749fa", "wa-osm-27432362d3ea4c1f1ea1", "wa-osm-6808b3a2056fe99efe8c"] },
         { "display_name": "Cowlitz Glacier", "kind": "glacier", "segments": ["wa-osm-0a302dd9f5be6ec011a1", "wa-osm-64fd7ac787956cc5a176"] },
-        { "display_name": "Cathedral Gap", "kind": "scramble", "segments": ["wa-osm-70a51b60cb5a0e9e5ace"] },
+        { "display_name": "Cathedral Gap", "kind": "climbers_route", "segments": ["wa-osm-70a51b60cb5a0e9e5ace"] },
         { "display_name": "Ingraham Glacier", "kind": "glacier", "segments": ["wa-osm-ddb7a4d05e9cac347c6f"], "split_at": "Ingraham Flats", "part": "before" },
         { "display_name": "The Bowling Alley", "kind": "glacier", "segments": ["wa-osm-ddb7a4d05e9cac347c6f"], "split_at": "Ingraham Flats", "part": "after", "description": "Rockfall-exposed traverse from Ingraham Flats to the base of the Cleaver; move through without stopping." },
-        { "display_name": "Disappointment Cleaver", "kind": "climb", "segments": ["wa-osm-bbdca09b0b95207c8601"] },
+        { "display_name": "Disappointment Cleaver", "kind": "climbers_route", "segments": ["wa-osm-bbdca09b0b95207c8601"] },
         { "display_name": "Upper mountain", "kind": "glacier", "segments": ["wa-osm-4da71a3fa0ca367ddf2f", "wa-osm-a7a48f78f46843ddba65", "wa-osm-fd5d08734564fe33222c"] },
-        { "display_name": "Crater rim", "kind": "climb", "segments": ["wa-osm-a825d3e5c2a9809f9999", "wa-osm-5a2ff02f7eeb35c07ac3", "wa-osm-5572a603d5fcbd6e9e0d"] }
+        { "display_name": "Crater rim", "kind": "climbers_route", "segments": ["wa-osm-a825d3e5c2a9809f9999", "wa-osm-5a2ff02f7eeb35c07ac3", "wa-osm-5572a603d5fcbd6e9e0d"] }
       ],
       "points": [
         { "name": "Skyline Trailhead", "feature": "trailhead", "match": "existing" },

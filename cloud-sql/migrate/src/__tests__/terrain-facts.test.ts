@@ -125,3 +125,54 @@ test("a class ceiling is not a rating", () => {
   const v = verify(packet, sha, r, new Map([...pages, [ceiling.url, ceiling]]));
   assert.ok(v.findings.some(f => f.path === "route.hardest_class" && f.problems.includes("quotes give only a ceiling, not a rating")));
 });
+
+// ---------- apply ----------
+import { cutLine, lineLength, plan, resolve, type SegmentRow } from "../terrain-facts/apply";
+
+// Two 1 km segments heading north, climbing 0 -> 100 -> 300 m; the second is stored reversed.
+const north = (lat0: number, km: number, z0: number, z1: number) => [0, 0.5, 1].map(f => [0, lat0 + f * km / 111.195, z0 + f * (z1 - z0)]);
+const rows: SegmentRow[] = [
+  { ordinal: 0, direction: "forward", id: "a", kind: "trail", coords: north(0, 1, 0, 100) },
+  { ordinal: 1, direction: "reverse", id: "b", kind: "scramble", coords: [...north(1 / 111.195, 1, 100, 300)].reverse() },
+];
+
+test("cutLine splits at distances and interpolates elevation", () => {
+  const [p1, p2] = cutLine(north(0, 1, 0, 100), [250]);
+  assert.ok(Math.abs(lineLength(p1) - 250) < 1 && Math.abs(lineLength(p2) - 750) < 1);
+  assert.ok(Math.abs(p1[p1.length - 1][2] - 25) < 0.5);
+});
+
+test("an elevation endpoint resolves along the walked route, across a reversed segment", () => {
+  assert.ok(Math.abs(resolve({ elevation_ft: 200 / 0.3048, crossing: "last" }, rows) - 1500) < 2);
+  assert.throws(() => resolve({ elevation_ft: 2000, crossing: "last" }, rows), /never climbs/);
+});
+
+test("plan splits a reversed segment where an interval starts, and resets unbacked scrambles", () => {
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "scramble", from: { elevation_ft: 200 / 0.3048, crossing: "last" }, to: "end", note: "" }] });
+  assert.equal(p.ops.length, 1);
+  const split = p.ops[0];
+  assert.equal(split.op, "split");
+  if (split.op !== "split") return;
+  // Stored reversed: the route's last 500 m is the first 500 m of the stored line.
+  assert.deepEqual(split.pieces.map(x => [x.kind, x.length_m]), [["scramble", 500], ["trail", 500]]);
+  const reset = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [] });
+  assert.deepEqual(reset.ops.map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "trail"]]);
+});
+
+test("plan snaps cuts near segment ends and refuses overlaps", () => {
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "climbers_route", from: 1005, to: "end", note: "" }] });
+  assert.deepEqual(p.ops.map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "climbers_route"]]);
+  assert.throws(() => plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "scramble", from: 0, to: 1200, note: "" }, { kind: "trail", from: 1100, to: "end", note: "" }] }), /overlap/);
+});
+
+test("a segment edge endpoint lands exactly on the boundary", () => {
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "climbers_route", from: { segment: "b", edge: "start" }, to: { segment: "b", edge: "end" }, note: "" }] });
+  assert.deepEqual(p.ops.map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "climbers_route"]]);
+});
+
+test("adjacent intervals share one cut", () => {
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [
+    { kind: "climbers_route", from: "start", to: 1500, note: "" }, { kind: "scramble", from: 1500, to: "end", note: "" }] });
+  const split = p.ops.find(o => o.op === "split");
+  assert.ok(split && split.op === "split" && split.pieces.length === 2);
+});

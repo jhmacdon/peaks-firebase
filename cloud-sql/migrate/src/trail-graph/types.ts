@@ -1,5 +1,9 @@
 export type Coord = [number, number];
-export type Kind = 'trail' | 'road' | 'snowfield' | 'glacier' | 'scramble' | 'climb' | 'xc';
+/** Segment kinds, matching `segments_kind_check`. A climbers route is a mountaineering route's
+ *  unbuilt ground (Disappointment Cleaver): no tread, no hands. A scramble needs hands; a climb
+ *  is technical. Only sourced review sets scramble, climbers_route or climb (terrain-facts). */
+export const KINDS = ['trail', 'road', 'snowfield', 'glacier', 'climbers_route', 'scramble', 'climb', 'xc'] as const;
+export type Kind = typeof KINDS[number];
 export type Tags = Record<string, string>;
 export interface Relation { id: number; name?: string; ref?: string; network?: string; route?: string; tags?: Tags }
 export interface Way { id: number; nodes: number[]; tags: Tags; relations: Relation[] }

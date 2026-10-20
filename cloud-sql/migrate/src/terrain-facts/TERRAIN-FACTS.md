@@ -61,6 +61,33 @@ npm run terrain:verify -- --dir $RUN
    questions. Researchers miss things on pages they opened; Kaleetan's "about
    160 vertical feet" came from the review, not the research.
 
+## Applying a decision
+
+`decision.json` carries `apply`: intervals along the route, each with a kind
+(`climbers_route`, `scramble`, `climb`, `trail`, ...). An endpoint is
+`"start"`, `"end"`, metres along the route, a segment edge
+(`{"segment": id, "edge": "start"}`), or an elevation crossing
+(`{"elevation_ft": 6100, "crossing": "last"}`, measured on the segments' own
+elevations).
+
+```bash
+npm run terrain:apply -- --dir $RUN                                   # plan + hash
+npm run terrain:apply -- --dir $RUN --apply --expected-plan <hash>    # write it
+```
+
+Segments wholly inside an interval take its kind. A segment an interval ends
+inside more than 15 m from its ends is split there, for every route that uses
+it; the pieces keep the parent's names, provenance and state, and get their
+own distance, gain and loss. A scramble or climb label the decision does not
+back goes back to trail. Apply runs in one transaction with rematch deferred,
+re-reads every segment and refuses on any drift, rebuilds the paths and
+derived stats of every touched route, and queues those routes' sessions to
+match again after a split. Each change is recorded in
+`segment_terrain_labels` with the plan hash, reviewer and source URLs.
+
+Kinds: `climbers_route` is a mountaineering route's unbuilt ground (the
+Cleaver, Cathedral Gap), `scramble` needs hands, `climb` is technical.
+
 ## Fetching rules
 
 HTTPS goes through the route factory's pinned-address fetcher. A site that

@@ -1,7 +1,7 @@
 {
   "name": "peaks-migrate",
   "version": "1.0.0",
-  "description": "Firestore → PostGIS backfill migration",
+  "description": "Firestore \u2192 PostGIS backfill migration",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -75,7 +75,8 @@
     "trail-graph:typecheck": "tsc -p tsconfig.trail-graph.json",
     "terrain:packet": "./scripts/run-tsx.sh src/terrain-facts/cli.ts packet",
     "terrain:research": "./scripts/run-tsx.sh src/terrain-facts/cli.ts research",
-    "terrain:verify": "./scripts/run-tsx.sh src/terrain-facts/cli.ts verify"
+    "terrain:verify": "./scripts/run-tsx.sh src/terrain-facts/cli.ts verify",
+    "terrain:apply": "./scripts/run-tsx.sh src/terrain-facts/cli.ts apply"
   },
   "dependencies": {
     "@duckdb/node-api": "^1.5.5-r.4",
