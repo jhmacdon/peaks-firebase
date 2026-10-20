@@ -85,8 +85,14 @@ derived stats of every touched route, and queues those routes' sessions to
 match again after a split. Each change is recorded in
 `segment_terrain_labels` with the plan hash, reviewer and source URLs.
 
-Kinds: `climbers_route` is a mountaineering route's unbuilt ground (the
-Cleaver, Cathedral Gap), `scramble` needs hands, `climb` is technical.
+Kinds:
+- `trail` for any hike, rough or not: boot paths, talus and steep rocky trail
+  stay trail.
+- `climbers_route` only for the non-glacier ground of a mountaineering route
+  whose research says it needs climbing gear or glacier travel (the Cleaver,
+  Cathedral Gap, Rainier's crater rim).
+- `scramble` needs hands (class 3+ or quotes about hands).
+- `climb` is technical.
 
 ## Fetching rules
 

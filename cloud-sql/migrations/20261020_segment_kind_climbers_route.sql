@@ -1,6 +1,6 @@
--- A climbers route is a mountaineering route's unbuilt ground: Disappointment
--- Cleaver, Cathedral Gap. Not a trail, not a scramble (hands), not a climb
--- (technical). The import no longer derives scramble or climb from OSM
+-- A climbers route is the non-glacier ground of a mountaineering route that
+-- needs climbing gear: Disappointment Cleaver, Cathedral Gap. Rough ground on
+-- a hike stays trail; a scramble needs hands; a climb is technical. The import no longer derives scramble or climb from OSM
 -- sac_scale; sourced terrain review sets them.
 --
 -- NOT VALID then VALIDATE keeps the exclusive lock to a catalog update; the
