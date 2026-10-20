@@ -66,7 +66,7 @@ test("route terrain floors use distinct geodesic lengths and reach every difficu
     const addSegment = async (id: string, metres: number, grade: string | null, copies = 1) => {
       await client.query(`INSERT INTO segments (id,path,osm_sac_scale)
         SELECT $1, ST_MakeLine(ST_SetSRID(ST_MakePoint(0,0,0),4326),
-          ST_Force3DZ(ST_Project('SRID=4326;POINT(0 0)'::geography,$2,pi()/2)::geometry,1000))::geography,$3`,
+          ST_Force3DZ(ST_Project('SRID=4326;POINT(0 0)'::geography,$2::float8,pi()/2)::geometry,1000))::geography,$3`,
       [id, metres, grade]);
       for (let i = 0; i < copies; i++) {
         await client.query("INSERT INTO route_segments VALUES ('route',$1,$2)", [id, ordinal++]);
