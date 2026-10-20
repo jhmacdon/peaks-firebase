@@ -149,7 +149,7 @@ test("route terrain floors use distinct geodesic lengths and reach every difficu
       INSERT INTO trail_catalog_review_jobs (route_id,state) VALUES ('route','approved');
       CREATE TABLE wa_catalog_activation_receipts (route_id text);
       CREATE TABLE session_routes (route_id text);
-      CREATE TABLE list_routes (route_id text);
+      CREATE TABLE IF NOT EXISTS list_routes (route_id text);
       CREATE TABLE plan_routes (route_id text);
       CREATE TABLE trip_report_routes (route_id text);
       CREATE FUNCTION retire_wa_catalog_pilot(text) RETURNS jsonb LANGUAGE SQL AS 'SELECT ''{}''::jsonb';
