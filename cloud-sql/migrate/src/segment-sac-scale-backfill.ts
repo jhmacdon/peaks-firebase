@@ -149,7 +149,7 @@ async function previewRouteChanges(client: PoolClient, grades: SegmentGrade[], r
   const result = await client.query<RouteChange>(`WITH proposed AS (
       SELECT * FROM unnest($1::text[], $2::text[]) AS p(segment_id, sac_scale)
     ), linked AS (
-      SELECT DISTINCT rs.route_id, s.id, ST_Length(s.path) AS length_m,
+      SELECT DISTINCT rs.route_id, s.id, ST_Length(ST_Force2D(s.path::geometry)::geography) AS length_m,
         COALESCE(p.sac_scale, s.osm_sac_scale) AS sac_scale
       FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
       LEFT JOIN proposed p ON p.segment_id = s.id
