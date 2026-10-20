@@ -208,3 +208,14 @@ test("a hold keeps a segment as it is and spares it the reset", () => {
   const onTrail = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: "start", to: "end", note: "held" }] });
   assert.deepEqual(onTrail.ops, [], "a hold never upgrades trail");
 });
+
+test("a segment held by another review keeps its kind until a decision labels it", () => {
+  const reset = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [] }, [], ["b"]);
+  assert.deepEqual(reset.ops, [], "no reset of a held scramble");
+  assert.deepEqual(reset.holds, { add: [], clear: [] });
+  const settled = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "trail", from: { segment: "b", edge: "start" }, to: "end", note: "settled" }] }, [], ["b"]);
+  assert.deepEqual(settled.ops.map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "trail"]]);
+  assert.deepEqual(settled.holds.clear, ["b"]);
+  const held = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: "start", to: "end", note: "held" }] });
+  assert.deepEqual(held.holds.add, ["a", "b"]);
+});

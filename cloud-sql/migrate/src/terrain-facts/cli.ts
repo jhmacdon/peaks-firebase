@@ -155,10 +155,11 @@ async function applyCommand() {
       } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
       return;
     }
-    const { rows, sharedWith } = await loadRoute(db, decision.route_id);
-    const p = plan(decision.route_id, rows, decision, sharedWith), hash = sha(p);
+    const { rows, sharedWith, held } = await loadRoute(db, decision.route_id);
+    const p = plan(decision.route_id, rows, decision, sharedWith, held), hash = sha(p);
     await writeFile(join(dir, write ? "apply-plan.applied.json" : "apply-plan.json"), JSON.stringify({ hash, ...p }, null, 2) + "\n");
     for (const op of p.ops) console.log(op.op === "kind" ? `kind   ${op.segment_id} ${op.from} -> ${op.to}${op.display_name ? ` "${op.display_name}"` : ""} (${op.route_m.join("-")} m)` : `split  ${op.segment_id} at ${op.cuts_m.join(", ")} m -> ${op.pieces.map(x => `${x.kind}${x.display_name ? ` "${x.display_name}"` : ""} ${x.length_m} m`).join(" | ")}`);
+    if (p.holds.add.length || p.holds.clear.length) console.log(`holds: +${p.holds.add.length} -${p.holds.clear.length}${p.holds.clear.length ? ` (settles ${p.holds.clear.join(", ")})` : ""}`);
     if (p.shared_with.length) console.log(`shared with ${p.shared_with.length} other routes: ${p.shared_with.join(", ")}`);
     console.log(`plan ${hash}`);
     if (!write) return;
@@ -166,7 +167,7 @@ async function applyCommand() {
     const client = await db.connect();
     try {
       await client.query("BEGIN");
-      const routes = await applyPlan(client, p, { plan_sha256: hash, reviewed_by: decision.reviewed_by, sources });
+      const routes = await applyPlan(client, p, { plan_sha256: hash, reviewed_by: decision.reviewed_by, sources, hold_question: (decision as any).open?.find((o: string) => o.startsWith("HOLD:")) });
       await client.query("COMMIT");
       console.log(`applied; routes touched: ${routes.join(", ")}`);
     } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }

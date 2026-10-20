@@ -28,7 +28,7 @@ export interface SegmentRow { ordinal: number; direction: "forward" | "reverse";
 
 export interface KindOp { op: "kind"; segment_id: string; from: Kind; to: Kind; display_name: string | null; route_m: [number, number] }
 export interface SplitOp { op: "split"; segment_id: string; coords_sha: string; cuts_m: number[]; pieces: { id: string; kind: Kind; display_name: string | null; length_m: number }[] }
-export interface Plan { route_id: string; length_m: number; summary: TerrainSummary | null; intervals: { kind: Kind | "hold"; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
+export interface Plan { route_id: string; length_m: number; summary: TerrainSummary | null; holds: { add: string[]; clear: string[] }; intervals: { kind: Kind | "hold"; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
 
 const SNAP_M = 15;
 const RESETTABLE: Kind[] = ["scramble", "climb"];
@@ -98,7 +98,8 @@ export function resolve(e: Endpoint, rows: SegmentRow[]): number {
   return e.crossing === "first" ? hits[0] : hits[hits.length - 1];
 }
 
-export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sharedWith: string[] = []): Plan {
+/** `held` lists segments another review held: they keep their kind unless this decision labels them. */
+export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sharedWith: string[] = [], held: string[] = []): Plan {
   if (decision.route_id !== routeId) throw new Error("decision is for another route");
   const { parts, total } = walk(rows);
   const intervals = decision.apply.map(i => {
@@ -117,15 +118,22 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     return i?.kind ?? (RESETTABLE.includes(fallback) ? "trail" : fallback);
   };
 
-  const ops: Plan["ops"] = [], seen = new Set<string>();
+  const ops: Plan["ops"] = [], seen = new Set<string>(), heldBefore = new Set(held), add: string[] = [], clear: string[] = [];
   for (const p of parts) {
     if (seen.has(p.row.id)) throw new Error(`segment ${p.row.id} appears twice on the route; split it by hand`);
     seen.add(p.row.id);
     // Route-order cut positions inside this segment, snapped away from its ends.
+    const mid = (p.start + p.end) / 2, covering = at(mid);
+    if (covering?.kind === "hold") { if (!heldBefore.has(p.row.id)) add.push(p.row.id); continue; }
+    if (heldBefore.has(p.row.id)) {
+      // Held elsewhere: only an explicit label on this segment settles it.
+      if (!covering) continue;
+      clear.push(p.row.id);
+    }
     const cuts = intervals.flatMap(i => [i.start_m, i.end_m]).filter(m => m > p.start + SNAP_M && m < p.end - SNAP_M)
       .sort((x, y) => x - y).filter((m, k, all) => k === 0 || m - all[k - 1] > 1);
     if (!cuts.length) {
-      const mid = (p.start + p.end) / 2, to = kindAt(mid, p.row.kind), name = at(mid)?.display_name ?? null;
+      const to = kindAt(mid, p.row.kind), name = covering?.display_name ?? null;
       if (to !== p.row.kind || (name && name !== p.row.display_name)) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, display_name: name, route_m: [Math.round(p.start), Math.round(p.end)] });
       continue;
     }
@@ -146,7 +154,7 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     }
     ops.push({ op: "split", segment_id: p.row.id, coords_sha: sha(p.row.coords), cuts_m: local.map(Math.round), pieces: planned });
   }
-  return { route_id: routeId, length_m: Math.round(total), summary: checkSummary(decision.summary), intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
+  return { route_id: routeId, length_m: Math.round(total), summary: checkSummary(decision.summary), holds: { add, clear }, intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
 }
 
 export function checkSummary(s: TerrainSummary | undefined): TerrainSummary | null {
@@ -159,7 +167,7 @@ export function checkSummary(s: TerrainSummary | undefined): TerrainSummary | nu
 
 export const sha = (v: unknown) => createHash("sha256").update(stableJson(v)).digest("hex");
 
-export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[] }> {
+export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[]; held: string[] }> {
   const rows = (await db.query(`
     SELECT rs.ordinal, rs.direction, s.id, s.kind, s.display_name, ST_AsGeoJSON(s.path::geometry, 9) AS geojson
     FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
@@ -169,10 +177,11 @@ export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows:
   const sharedWith = (await db.query(`
     SELECT DISTINCT rs.route_id FROM route_segments rs
     WHERE rs.segment_id = ANY($1) AND rs.route_id <> $2 ORDER BY 1`, [rows.map(r => r.id), routeId])).rows.map(r => r.route_id);
-  return { rows, sharedWith };
+  const held = (await db.query(`SELECT segment_id FROM segment_terrain_holds WHERE segment_id = ANY($1) ORDER BY 1`, [rows.map(r => r.id)])).rows.map(r => r.segment_id);
+  return { rows, sharedWith, held };
 }
 
-export interface Evidence { plan_sha256: string; reviewed_by: string; sources: string[] }
+export interface Evidence { plan_sha256: string; reviewed_by: string; sources: string[]; hold_question?: string }
 
 /** Writes a plan. The caller owns the transaction; this re-reads and refuses on any drift. */
 export async function applyPlan(db: Queryable, p: Plan, evidence: Evidence): Promise<string[]> {
@@ -225,6 +234,10 @@ export async function applyPlan(db: Queryable, p: Plan, evidence: Evidence): Pro
     // Splitting drops the parent's session visits; queue those sessions to match again.
     await db.query(`SELECT queue_matching_routes($1, 'terrain split')`, [routes]);
   }
+  for (const id of p.holds.add)
+    await db.query(`INSERT INTO segment_terrain_holds (segment_id, route_id, question, plan_sha256) VALUES ($1, $2, $3, $4) ON CONFLICT (segment_id) DO NOTHING`,
+      [id, p.route_id, evidence.hold_question ?? "held in terrain review", evidence.plan_sha256]);
+  if (p.holds.clear.length) await db.query(`DELETE FROM segment_terrain_holds WHERE segment_id = ANY($1)`, [p.holds.clear]);
   // Kinds set the route's terrain category and its difficulty floor.
   await db.query(`SELECT refresh_route_terrain($1)`, [routes]);
   // After the refresh: the reviewed-route guard accepts a summary only beside the current category.
