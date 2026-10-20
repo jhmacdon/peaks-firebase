@@ -4,8 +4,8 @@
  * spelled out: strict structured output has no optional keys.
  */
 
-export const TERRAINS = ["maintained_trail", "rough_trail", "talus_or_boulders", "scramble", "technical_climb", "snow", "glacier", "road", "unknown"] as const;
-export const FEATURE_TYPES = ["scramble", "technical_climb", "rough_trail", "talus_or_boulders", "glacier", "snowfield", "exposure", "fixed_aid", "other"] as const;
+export const TERRAINS = ["maintained_trail", "rough_trail", "unmaintained_path", "talus_or_boulders", "scramble", "technical_climb", "snow", "glacier", "road", "unknown"] as const;
+export const FEATURE_TYPES = ["scramble", "technical_climb", "rough_trail", "unmaintained_path", "talus_or_boulders", "glacier", "snowfield", "exposure", "fixed_aid", "other"] as const;
 export const YDS = ["1", "2", "3", "4", "5", "unknown"] as const;
 export const HANDS = ["required", "occasional", "not_needed", "unknown"] as const;
 export const ANCHORS = ["waypoint", "elevation_band", "stretch", "summit_block", "route_wide", "unknown"] as const;

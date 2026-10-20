@@ -73,6 +73,10 @@ knowledge of the mountain as evidence.
 - A ceiling is not a rating. "3rd or 4th class at most" or "no harder than
   class 3" bounds the route; report the class as `unknown`, quote the
   ceiling, and say so in `note`.
+- `maintained_trail` and `rough_trail` are built trails (rough means rocky,
+  steep or rooty but still a trail). `unmaintained_path` is a climbers' path,
+  boot path, way trail, or cairned or wanded route with no built trail, as
+  on many mountaineering routes. Say which only when a quote does.
 - Glacier and snow travel is not scrambling. Report it as `glacier` or
   `snowfield`.
 - `location` ties a feature to the packet:

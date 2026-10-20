@@ -97,6 +97,7 @@ const TYPE_WORDS: Partial<Record<Feature["type"], RegExp>> = {
   scramble: /\bscrambl/,
   technical_climb: /\b5\.\d|\bbelay|\brope[ds]?\b|\brappel|\btechnical\b|\bprotection\b|\bharness/,
   glacier: /\bglacier|\bcrevass/,
+  unmaintained_path: /\bboot ?path|\bclimbers'? (?:trail|path|route)|\bunmaintained|\bnot maintained|\bway ?trail|\bcairn|\bwand|\boff[- ]trail|\bcross[- ]country|\bprimitive|\bunofficial|\bfaint/,
   snowfield: /\bsnow/,
   talus_or_boulders: /\btalus|\bboulder|\bscree\b|\brock(?:y|s)?\b/,
   rough_trail: /\bsteep|\brough|\bscree\b|\bpumice|\brock(?:y|s)?\b|\broot|\bloose|\bboot ?path|\bclimbers'? (?:trail|path)|\bunmaintained/,
@@ -106,6 +107,7 @@ const TYPE_WORDS: Partial<Record<Feature["type"], RegExp>> = {
 const TERRAIN_WORDS: Partial<Record<Research["stretches"][number]["terrain"], RegExp>> = {
   maintained_trail: /\btrail\b|\bpath\b|\bswitchback/,
   rough_trail: TYPE_WORDS.rough_trail,
+  unmaintained_path: TYPE_WORDS.unmaintained_path,
   talus_or_boulders: TYPE_WORDS.talus_or_boulders,
   scramble: TYPE_WORDS.scramble,
   technical_climb: TYPE_WORDS.technical_climb,
