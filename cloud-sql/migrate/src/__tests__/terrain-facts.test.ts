@@ -189,3 +189,9 @@ test("a cut whose pieces would read the same is a relabel, not a split", () => {
     { kind: "trail", from: "start", to: 1500, note: "" }, { kind: "trail", from: 1500, to: "end", note: "" }] });
   assert.deepEqual(p.ops.map(o => o.op === "kind" ? [o.segment_id, o.to] : o.op), [["b", "trail"]]);
 });
+
+test("a climb needs a 5th-class rating", () => {
+  const r = research();
+  r.features[0] = { ...r.features[0], type: "technical_climb", yds_class: "4" };
+  assert.ok(verify(packet, sha, r, pages).findings.some(f => f.problems.includes("a climb needs a stated 5th-class rating")));
+});

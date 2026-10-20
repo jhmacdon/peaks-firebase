@@ -171,6 +171,9 @@ export function verify(packet: Packet, packetSha: string, research: Research, pa
     featureIds.add(f.id);
     if (!FEATURE_TYPES.includes(f.type) || !YDS.includes(f.yds_class) || !HANDS.includes(f.hands)) structural.push(`feature ${f.id} has a value outside the schema`);
     const strong = f.type === "scramble" || f.type === "technical_climb";
+    // A climb is 5th class: a roped technical rock climb. Rope, belay or "technical" alone is not a rating.
+    if (f.type === "technical_climb" && f.yds_class !== "5")
+      findings.push({ path: `features.${f.id}.type`, value: f.type, ok: false, problems: ["a climb needs a stated 5th-class rating"] });
     cite(`features.${f.id}.type`, f.type, f.claim_ids, { words: TYPE_WORDS[f.type], twoPublishers: strong });
     if (f.yds_class !== "unknown") cite(`features.${f.id}.yds_class`, f.yds_class, f.claim_ids, { words: CLASS_WORDS[f.yds_class], twoPublishers: Number(f.yds_class) >= 3, rating: true });
     if (f.hands === "required" || f.hands === "occasional") cite(`features.${f.id}.hands`, f.hands, f.claim_ids, { words: HAND_WORDS, twoPublishers: f.hands === "required" });

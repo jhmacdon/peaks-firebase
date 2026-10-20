@@ -1,7 +1,8 @@
 export type Coord = [number, number];
 /** Segment kinds, matching `segments_kind_check`. A climbers route is the non-glacier ground of a
  *  mountaineering route that needs climbing gear (Disappointment Cleaver); rough ground on a hike
- *  is still trail. A scramble needs hands; a climb is technical. Only sourced review sets
+ *  is still trail. A scramble needs hands; a climb is 5th class, a roped technical rock climb.
+ *  Only sourced review sets
  *  scramble, climbers_route or climb (terrain-facts). */
 export const KINDS = ['trail', 'road', 'snowfield', 'glacier', 'climbers_route', 'scramble', 'climb', 'xc'] as const;
 export type Kind = typeof KINDS[number];

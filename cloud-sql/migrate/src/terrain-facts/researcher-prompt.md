@@ -70,6 +70,9 @@ knowledge of the mountain as evidence.
 - "Scramble" in climbing prose often means any walk over rock. Report a
   `scramble` only when quotes give a class of 3 or higher or say hands are
   used. Otherwise it is `rough_trail` or `talus_or_boulders`.
+- A `technical_climb` is 5th class: a roped technical rock climb. Report it
+  only when quotes give a class 5 or 5.x rating. Class 4, rope for glacier
+  travel, or a hand line is not a technical climb.
 - A ceiling is not a rating. "3rd or 4th class at most" or "no harder than
   class 3" bounds the route; report the class as `unknown`, quote the
   ceiling, and say so in `note`.
