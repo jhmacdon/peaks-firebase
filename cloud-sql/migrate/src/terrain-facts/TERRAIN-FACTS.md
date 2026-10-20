@@ -90,7 +90,8 @@ Kinds:
   stay trail.
 - `climbers_route` only for the non-glacier ground of a mountaineering route
   whose research says it needs climbing gear or glacier travel (the Cleaver,
-  Cathedral Gap, Rainier's crater rim).
+  Cathedral Gap, Rainier's crater rim). Crampons needed in the route's season
+  count, even early season only (Stuart's Cascadian Couloir).
 - `scramble` needs hands (class 3+ or quotes about hands).
 - `climb` is 5th class: a roped technical rock climb, with a stated class 5
   or 5.x rating. Class 4 is a scramble.
