@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { haversine, stableJson, type Queryable } from "./packet";
+import { haversine, stableJson, steepestWindow, type Queryable } from "./packet";
 import { KINDS, type Kind } from "../trail-graph/types";
 
 /**
@@ -28,9 +28,13 @@ export interface SegmentRow { ordinal: number; direction: "forward" | "reverse";
 
 export interface KindOp { op: "kind"; segment_id: string; from: Kind; to: Kind; display_name: string | null; route_m: [number, number] }
 export interface SplitOp { op: "split"; segment_id: string; coords_sha: string; cuts_m: number[]; pieces: { id: string; kind: Kind; display_name: string | null; length_m: number }[] }
-export interface Plan { route_id: string; length_m: number; summary: TerrainSummary | null; holds: { add: string[]; clear: string[] }; intervals: { kind: Kind | "hold"; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
+export interface Plan { route_id: string; length_m: number; summary: TerrainSummary | null; holds: { add: string[]; clear: string[] };
+  /** DEM slope prompts for a second look; they never change a label. */
+  flags: string[]; intervals: { kind: Kind | "hold"; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
 
 const SNAP_M = 15;
+/** From reviewed WA/CA segments (2026-10-21): trails reach 70-116% over 50 m, scrambles 42-250%. */
+const SCRAMBLE_MIN_PCT = 25, TRAIL_LOOK_PCT = 90;
 const RESETTABLE: Kind[] = ["scramble", "climb"];
 
 export function lineLength(coords: number[][]): number {
@@ -90,11 +94,13 @@ export function resolve(e: Endpoint, rows: SegmentRow[]): number {
     let d = p.start;
     for (let i = 1; i < p.coords.length; i++) {
       const a = p.coords[i - 1], b = p.coords[i], step = haversine(a, b), za = a[2], zb = b[2];
-      if (Number.isFinite(za) && Number.isFinite(zb) && za < target && zb >= target) hits.push(d + step * (target - za) / (zb - za));
+      // Either direction: a traverse's descent crosses heights too.
+      if (Number.isFinite(za) && Number.isFinite(zb) && za !== zb && (za - target) * (zb - target) <= 0 && zb !== target)
+        hits.push(d + step * (target - za) / (zb - za));
       d += step;
     }
   }
-  if (!hits.length) throw new Error(`the route never climbs through ${e.elevation_ft} ft`);
+  if (!hits.length) throw new Error(`the route never crosses ${e.elevation_ft} ft`);
   return e.crossing === "first" ? hits[0] : hits[hits.length - 1];
 }
 
@@ -115,6 +121,8 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
   const kindAt = (m: number, fallback: Kind): Kind => {
     const i = at(m);
     if (i?.kind === "hold") return fallback;
+    // A climbers route is the ground between the ice; mapped glacier and snowfield stay.
+    if (i?.kind === "climbers_route" && (fallback === "glacier" || fallback === "snowfield")) return fallback;
     return i?.kind ?? (RESETTABLE.includes(fallback) ? "trail" : fallback);
   };
 
@@ -165,7 +173,19 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     }
     ops.push({ op: "split", segment_id: p.row.id, coords_sha: sha(p.row.coords), cuts_m: local.map(Math.round), pieces: planned });
   }
-  return { route_id: routeId, length_m: Math.round(total), summary: checkSummary(decision.summary), holds: { add, clear }, intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
+  // Slope prompts: a scramble on gentle ground is probably misplaced; trail on very steep ground deserves a look.
+  const line = parts.flatMap((p, k) => (k ? p.coords.slice(1) : p.coords)), along = [0];
+  for (let k = 1; k < line.length; k++) along.push(along[k - 1] + haversine(line[k - 1], line[k]));
+  const flags: string[] = [];
+  for (const i of intervals.filter(i => i.kind === "scramble")) {
+    const s = steepestWindow(line, along, i.start_m, i.end_m);
+    if (s && s.grade_pct < SCRAMBLE_MIN_PCT) flags.push(`scramble ${Math.round(i.start_m)}-${Math.round(i.end_m)} m is no steeper than ${s.grade_pct}% over 50 m: check placement`);
+  }
+  for (const op of ops) if (op.op === "kind" && op.to === "trail" && op.from !== "trail") {
+    const s = steepestWindow(line, along, op.route_m[0], op.route_m[1]);
+    if (s && s.grade_pct >= TRAIL_LOOK_PCT) flags.push(`${op.segment_id} becomes trail but reaches ${s.grade_pct}% over 50 m at ${s.at_m} m: second look`);
+  }
+  return { route_id: routeId, length_m: Math.round(total), summary: checkSummary(decision.summary), holds: { add, clear }, flags, intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
 }
 
 export function checkSummary(s: TerrainSummary | undefined): TerrainSummary | null {

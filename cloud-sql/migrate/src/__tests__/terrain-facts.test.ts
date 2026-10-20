@@ -144,7 +144,7 @@ test("cutLine splits at distances and interpolates elevation", () => {
 
 test("an elevation endpoint resolves along the walked route, across a reversed segment", () => {
   assert.ok(Math.abs(resolve({ elevation_ft: 200 / 0.3048, crossing: "last" }, rows) - 1500) < 2);
-  assert.throws(() => resolve({ elevation_ft: 2000, crossing: "last" }, rows), /never climbs/);
+  assert.throws(() => resolve({ elevation_ft: 2000, crossing: "last" }, rows), /never crosses/);
 });
 
 test("plan splits a reversed segment where an interval starts, and resets unbacked scrambles", () => {
@@ -234,4 +234,20 @@ test("a segment walked twice is fine when both passes agree", () => {
   const loop: SegmentRow[] = [rows[0], { ...rows[0], ordinal: 1, direction: "reverse" }];
   assert.doesNotThrow(() => plan("r", loop, { route_id: "r", packet_sha256: "", apply: [] }));
   assert.throws(() => plan("r", loop, { route_id: "r", packet_sha256: "", apply: [{ kind: "scramble", from: 0, to: 1000, note: "" }] }), /different answers/);
+});
+
+test("slope flags a scramble on gentle ground and never changes a label", () => {
+  // Segment b climbs 200 m in 1 km: 20% at most, under the 25% scramble prompt.
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "scramble", from: { segment: "b", edge: "start" }, to: "end", note: "" }] });
+  assert.ok(p.flags.some(f => /no steeper than 20% over 50 m/.test(f)));
+  assert.deepEqual(p.ops, [], "b is already scramble; the flag changes nothing");
+});
+
+test("elevation crossings count on the way down, and climbers routes keep mapped ice", () => {
+  // Up 0 -> 300 m, then down to 100 m: 200 m is crossed twice, the last time at 2,500 m.
+  const down: SegmentRow = { ordinal: 2, direction: "forward", id: "c", kind: "glacier", coords: north(2 / 111.195, 1, 300, 100) };
+  const traverse = [...rows, down];
+  assert.ok(Math.abs(resolve({ elevation_ft: 200 / 0.3048, crossing: "last" }, traverse) - 2500) < 2);
+  const p = plan("r", traverse, { route_id: "r", packet_sha256: "", apply: [{ kind: "climbers_route", from: { segment: "b", edge: "start" }, to: "end", note: "" }] });
+  assert.deepEqual(p.ops.map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "climbers_route"]], "c stays glacier");
 });
