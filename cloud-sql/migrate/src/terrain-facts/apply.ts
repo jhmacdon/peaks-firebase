@@ -124,12 +124,18 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     const local = cuts.map(m => p.row.direction === "reverse" ? p.end - m : m - p.start).sort((a, b) => a - b);
     const pieces = cutLine(p.row.coords, local), id = (k: number) => `${p.row.id}-t${createHash("sha256").update(`${p.row.id}:${local.map(Math.round).join(",")}`).digest("hex").slice(0, 6)}${k}`;
     let offset = 0;
-    ops.push({ op: "split", segment_id: p.row.id, coords_sha: sha(p.row.coords), cuts_m: local.map(Math.round),
-      pieces: pieces.map((c, k) => {
-        const len = lineLength(c), mid = offset + len / 2; offset += len;
-        const routeMid = p.row.direction === "reverse" ? p.end - mid : p.start + mid;
-        return { id: id(k), kind: kindAt(routeMid, p.row.kind), display_name: at(routeMid)?.display_name ?? null, length_m: Math.round(len) };
-      }) });
+    const planned = pieces.map((c, k) => {
+      const len = lineLength(c), mid = offset + len / 2; offset += len;
+      const routeMid = p.row.direction === "reverse" ? p.end - mid : p.start + mid;
+      return { id: id(k), kind: kindAt(routeMid, p.row.kind), display_name: at(routeMid)?.display_name ?? null, length_m: Math.round(len) };
+    });
+    // Pieces that would all read the same are not worth a split: relabel the segment whole.
+    if (planned.every(x => x.kind === planned[0].kind && x.display_name === planned[0].display_name)) {
+      const { kind: to, display_name: name } = planned[0];
+      if (to !== p.row.kind || name) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, display_name: name, route_m: [Math.round(p.start), Math.round(p.end)] });
+      continue;
+    }
+    ops.push({ op: "split", segment_id: p.row.id, coords_sha: sha(p.row.coords), cuts_m: local.map(Math.round), pieces: planned });
   }
   return { route_id: routeId, length_m: Math.round(total), intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
 }

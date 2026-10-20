@@ -183,3 +183,9 @@ test("an interval can rename the stretch it labels", () => {
   assert.ok(split && split.op === "split");
   if (split?.op === "split") assert.deepEqual(split.pieces.map(x => x.display_name), ["Summit gully", null]);
 });
+
+test("a cut whose pieces would read the same is a relabel, not a split", () => {
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [
+    { kind: "trail", from: "start", to: 1500, note: "" }, { kind: "trail", from: 1500, to: "end", note: "" }] });
+  assert.deepEqual(p.ops.map(o => o.op === "kind" ? [o.segment_id, o.to] : o.op), [["b", "trail"]]);
+});
