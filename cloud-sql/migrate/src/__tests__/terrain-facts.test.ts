@@ -251,3 +251,9 @@ test("elevation crossings count on the way down, and climbers routes keep mapped
   const p = plan("r", traverse, { route_id: "r", packet_sha256: "", apply: [{ kind: "climbers_route", from: { segment: "b", edge: "start" }, to: "end", note: "" }] });
   assert.deepEqual(p.ops.map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "climbers_route"]], "c stays glacier");
 });
+
+test("a hold never keeps an unproven climb", () => {
+  const climbing: SegmentRow[] = [rows[0], { ...rows[1], kind: "climb" }];
+  const p = plan("r", climbing, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: { segment: "b", edge: "start" }, to: "end", note: "held" }] });
+  assert.deepEqual(p.ops.map(o => o.op === "kind" && [o.segment_id, o.from, o.to]), [["b", "climb", "scramble"]]);
+});

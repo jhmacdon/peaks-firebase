@@ -120,7 +120,9 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
   const at = (m: number) => intervals.find(i => m >= i.start_m && m < i.end_m);
   const kindAt = (m: number, fallback: Kind): Kind => {
     const i = at(m);
-    if (i?.kind === "hold") return fallback;
+    // A hold keeps the segment, except an unproven climb: climb needs a stated 5th-class rating,
+    // so a held OSM climb reads as a scramble until a decision says otherwise.
+    if (i?.kind === "hold") return fallback === "climb" ? "scramble" : fallback;
     // A climbers route is the ground between the ice; mapped glacier and snowfield stay.
     if (i?.kind === "climbers_route" && (fallback === "glacier" || fallback === "snowfield")) return fallback;
     return i?.kind ?? (RESETTABLE.includes(fallback) ? "trail" : fallback);
@@ -141,10 +143,17 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     decided.set(p.row.id, at((p.start + p.end) / 2)?.kind ?? null);
     // Route-order cut positions inside this segment, snapped away from its ends.
     const mid = (p.start + p.end) / 2, covering = at(mid);
-    if (covering?.kind === "hold") { if (!heldBefore.has(p.row.id)) add.push(p.row.id); continue; }
+    if (covering?.kind === "hold") {
+      if (!heldBefore.has(p.row.id)) add.push(p.row.id);
+      if (p.row.kind === "climb") ops.push({ op: "kind", segment_id: p.row.id, from: "climb", to: "scramble", display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
+      continue;
+    }
     if (heldBefore.has(p.row.id)) {
       // Held elsewhere: only an explicit label on this segment settles it.
-      if (!covering) continue;
+      if (!covering) {
+        if (p.row.kind === "climb") ops.push({ op: "kind", segment_id: p.row.id, from: "climb", to: "scramble", display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
+        continue;
+      }
       clear.push(p.row.id);
     }
     const cuts = intervals.flatMap(i => [i.start_m, i.end_m]).filter(m => m > p.start + SNAP_M && m < p.end - SNAP_M)
