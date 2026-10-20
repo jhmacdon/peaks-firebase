@@ -12,6 +12,7 @@ import { activateBulkBatch, batches, buildBulkBatch, bulkId, bulkPreflightValues
 import { BULK_PREFLIGHT_SQL, readBulkPreflight, type BulkPreflight } from '../trail-graph/load-bulk-preflight';
 import { IMPORT_MARKER } from '../trail-graph/load-matching';
 import { loaderArgs, loaderMode } from '../trail-graph/loader-cli';
+import { segmentValues, UPSERT_SEGMENT } from '../trail-graph/load-segments';
 import { provenance, refresh } from '../trail-graph/topology';
 import type { CatalogInputs, ComposedRoute } from '../trail-graph/catalog-types';
 import type { Segment } from '../trail-graph/types';
@@ -51,6 +52,37 @@ function batchClient(batch: BulkBatch, options: { binding?: boolean; rebuild?: b
   } };
   return { calls, client: client as any };
 }
+
+test('segment grades enter each loader INSERT without becoming a legacy binding check', () => {
+  for (const grade of [null, 'demanding_mountain_hiking', 'alpine_hiking']) {
+    const { row, source } = setup();
+    for (const segment of source.values()) segment.sac_scale = grade;
+    row.segment_manifest_hash = segmentManifestHash(row.segments.map(s => s.id), source); rehash(row);
+    const segment = [...source.values()][0], direct = segmentValues(segment);
+    assert.equal(direct[11], grade);
+    assert.match(UPSERT_SEGMENT, /description_source_url,osm_sac_scale\)/);
+    assert.match(UPSERT_SEGMENT, /\$10,\$12\)/);
+    const catalog = planRoute(row, source);
+    assert.equal(catalog.skipped, undefined);
+    const catalogInsert = catalog.statements.find(s => s.kind === 'segment_insert')!;
+    assert.equal(catalogInsert.values[11], grade);
+    assert.match(catalogInsert.sql, /description_source_url,osm_sac_scale\)/);
+    const catalogGuard = catalog.statements.find(s => s.kind === 'binding_guard')!;
+    assert.doesNotMatch(catalogGuard.sql, /sac_scale/);
+    assert.ok(JSON.parse(catalogGuard.values[4] as string).every((s: Record<string, unknown>) => !('osm_sac_scale' in s) && !('sac_scale' in s)));
+
+    const bulkPlan = planBulkBatch([row], source, 'OR'), bulk = buildBulkBatch(bulkPlan, profiles(bulkPlan.segments));
+    assert.equal(bulkPlan.skipped.length, 0);
+    const bulkInsert = bulk.statements.find(s => s.kind === 'segment_insert')!;
+    assert.ok(JSON.parse(bulkInsert.values[0] as string).every((s: Record<string, unknown>) => s.osm_sac_scale === grade));
+    assert.match(bulkInsert.sql, /description_source_url,osm_sac_scale\)/);
+    assert.match(bulkInsert.sql, /NULL,s\.osm_sac_scale/);
+    assert.match(bulkInsert.sql, /osm_sac_scale text\)/);
+    const bulkGuard = bulk.statements.find(s => s.kind === 'binding_guard')!;
+    assert.doesNotMatch(bulkGuard.sql, /sac_scale/);
+    assert.ok(JSON.parse(bulkGuard.values[0] as string).every((s: Record<string, unknown>) => !('osm_sac_scale' in s) && !('sac_scale' in s)));
+  }
+});
 
 test('bulk plans keep five collection inserts and twelve transaction statements at one or 200 routes', () => {
   const { row, source } = setup();

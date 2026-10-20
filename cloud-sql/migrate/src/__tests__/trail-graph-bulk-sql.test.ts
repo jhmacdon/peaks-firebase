@@ -154,6 +154,18 @@ test('bulk refresh restores exactly the derived expressions and the profile owne
   assert.ok(refresh.indexOf('link_route_to_areas') < refresh.indexOf('UPDATE routes'));
 });
 
+test('terrain difficulty preserves the bulk refresh and wraps only its effort estimate', () => {
+  const terrainSql = readFileSync(resolve(migrationDir, '20261020_route_terrain_floor.sql'), 'utf8');
+  const refresh = definition(terrainSql, 'refresh_route_derivations');
+  assert.ok(refresh, 'terrain migration retains the bulk refresh');
+  const original = currentDefinition('refresh_route_derivations');
+  const effort = /difficulty = peaks_route_difficulty\(r\.distance, r\.gain, r\.gain_loss,\s*peaks_route_max_grade\(r\.path\), r\.shape\),/.exec(original);
+  const floor = /difficulty = peaks_harder_difficulty\(\s*peaks_route_difficulty\(r\.distance, r\.gain, r\.gain_loss,\s*peaks_route_max_grade\(r\.path\), r\.shape\),\s*peaks_route_terrain_floor\(r\.id\)\),/.exec(refresh);
+  assert.ok(effort); assert.ok(floor, 'floor combines with the same effort function after segment linking');
+  const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();
+  assert.equal(normalize(refresh.replace(floor[0], effort[0])), normalize(original));
+});
+
 test('bulk wrappers preserve independent route failure results and call existing guarded functions', () => {
   for (const [wrapper, primitive] of [['rebuild_route_paths', 'rebuild_route_path'], ['activate_wa_catalog_routes', 'activate_wa_catalog_route']]) {
     const body = currentDefinition(wrapper);
