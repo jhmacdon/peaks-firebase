@@ -8,7 +8,7 @@ import { buildPacket, packetSha256, type Packet } from "./packet";
 import { fetchPages } from "./fetch-pages";
 import { researchSchema, type Research } from "./schema";
 import { verify, type Verification } from "./verify";
-import { applyPlan, loadRoute, plan, sha, type Decision } from "./apply";
+import { applyPlan, checkSummary, loadRoute, plan, sha, type Decision } from "./apply";
 
 /**
  * Route terrain facts, one route per run directory:
@@ -137,6 +137,21 @@ async function applyCommand() {
   const sources = [...new Set((decision.labels ?? []).flatMap(l => l.basis).map(id => urls.get(id)).filter((u): u is string => !!u))];
   const db = pool();
   try {
+    // A decision whose split already ran names segments that are gone; its summary can still land alone.
+    if (process.argv.includes("--summary-only")) {
+      const summary = checkSummary(decision.summary);
+      if (!summary) throw new Error("decision has no summary");
+      if (!write) { console.log(`summary: ${summary.line}`); return; }
+      const client = await db.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query(`SELECT refresh_route_terrain($1)`, [[decision.route_id]]);
+        await client.query(`UPDATE routes SET terrain_summary = $2::jsonb WHERE id = $1`, [decision.route_id, JSON.stringify({ ...summary, reviewed_at: new Date().toISOString().slice(0, 10) })]);
+        await client.query("COMMIT");
+        console.log(`summary applied to ${decision.route_id}`);
+      } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+      return;
+    }
     const { rows, sharedWith } = await loadRoute(db, decision.route_id);
     const p = plan(decision.route_id, rows, decision, sharedWith), hash = sha(p);
     await writeFile(join(dir, write ? "apply-plan.applied.json" : "apply-plan.json"), JSON.stringify({ hash, ...p }, null, 2) + "\n");

@@ -22,7 +22,7 @@ export interface Interval { kind: Kind; from: Endpoint; to: Endpoint; note: stri
 /** The reviewed line on what the whole trip needs, shown on the route. */
 export interface TerrainSummary { line: string; gear: string[]; hardest_class: string | null; sources: { name: string; url: string }[] }
 export interface Decision { route_id: string; packet_sha256: string; apply: Interval[]; summary?: TerrainSummary }
-export interface SegmentRow { ordinal: number; direction: "forward" | "reverse"; id: string; kind: Kind; coords: number[][] }
+export interface SegmentRow { ordinal: number; direction: "forward" | "reverse"; id: string; kind: Kind; coords: number[][]; display_name?: string | null }
 
 export interface KindOp { op: "kind"; segment_id: string; from: Kind; to: Kind; display_name: string | null; route_m: [number, number] }
 export interface SplitOp { op: "split"; segment_id: string; coords_sha: string; cuts_m: number[]; pieces: { id: string; kind: Kind; display_name: string | null; length_m: number }[] }
@@ -119,7 +119,7 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
       .sort((x, y) => x - y).filter((m, k, all) => k === 0 || m - all[k - 1] > 1);
     if (!cuts.length) {
       const mid = (p.start + p.end) / 2, to = kindAt(mid, p.row.kind), name = at(mid)?.display_name ?? null;
-      if (to !== p.row.kind || name) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, display_name: name, route_m: [Math.round(p.start), Math.round(p.end)] });
+      if (to !== p.row.kind || (name && name !== p.row.display_name)) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, display_name: name, route_m: [Math.round(p.start), Math.round(p.end)] });
       continue;
     }
     // Cuts measured from the segment's first stored vertex.
@@ -134,7 +134,7 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     // Pieces that would all read the same are not worth a split: relabel the segment whole.
     if (planned.every(x => x.kind === planned[0].kind && x.display_name === planned[0].display_name)) {
       const { kind: to, display_name: name } = planned[0];
-      if (to !== p.row.kind || name) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, display_name: name, route_m: [Math.round(p.start), Math.round(p.end)] });
+      if (to !== p.row.kind || (name && name !== p.row.display_name)) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, display_name: name, route_m: [Math.round(p.start), Math.round(p.end)] });
       continue;
     }
     ops.push({ op: "split", segment_id: p.row.id, coords_sha: sha(p.row.coords), cuts_m: local.map(Math.round), pieces: planned });
@@ -154,10 +154,10 @@ export const sha = (v: unknown) => createHash("sha256").update(stableJson(v)).di
 
 export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[] }> {
   const rows = (await db.query(`
-    SELECT rs.ordinal, rs.direction, s.id, s.kind, ST_AsGeoJSON(s.path::geometry, 9) AS geojson
+    SELECT rs.ordinal, rs.direction, s.id, s.kind, s.display_name, ST_AsGeoJSON(s.path::geometry, 9) AS geojson
     FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
     WHERE rs.route_id = $1 ORDER BY rs.ordinal`, [routeId])).rows
-    .map(r => ({ ordinal: Number(r.ordinal), direction: r.direction, id: r.id, kind: r.kind, coords: JSON.parse(r.geojson).coordinates }));
+    .map(r => ({ ordinal: Number(r.ordinal), direction: r.direction, id: r.id, kind: r.kind, display_name: r.display_name, coords: JSON.parse(r.geojson).coordinates }));
   if (!rows.length) throw new Error(`route ${routeId} has no segments`);
   const sharedWith = (await db.query(`
     SELECT DISTINCT rs.route_id FROM route_segments rs
