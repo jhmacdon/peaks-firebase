@@ -118,10 +118,19 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     return i?.kind ?? (RESETTABLE.includes(fallback) ? "trail" : fallback);
   };
 
+  const decided = new Map<string, string | null>();
   const ops: Plan["ops"] = [], seen = new Set<string>(), heldBefore = new Set(held), add: string[] = [], clear: string[] = [];
   for (const p of parts) {
-    if (seen.has(p.row.id)) throw new Error(`segment ${p.row.id} appears twice on the route; split it by hand`);
+    // A loop or a stem walks a segment twice: fine when both passes give the same answer.
+    if (seen.has(p.row.id)) {
+      const mid2 = (p.start + p.end) / 2, again = at(mid2);
+      const first = decided.get(p.row.id)!;
+      const cutsHere = intervals.some(i => [i.start_m, i.end_m].some(m => m > p.start + SNAP_M && m < p.end - SNAP_M));
+      if (cutsHere || (again?.kind ?? null) !== first) throw new Error(`segment ${p.row.id} appears twice on the route with different answers; split it by hand`);
+      continue;
+    }
     seen.add(p.row.id);
+    decided.set(p.row.id, at((p.start + p.end) / 2)?.kind ?? null);
     // Route-order cut positions inside this segment, snapped away from its ends.
     const mid = (p.start + p.end) / 2, covering = at(mid);
     if (covering?.kind === "hold") { if (!heldBefore.has(p.row.id)) add.push(p.row.id); continue; }

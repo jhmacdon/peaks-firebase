@@ -229,3 +229,9 @@ test("the held piece of a split segment is registered as held", () => {
   const heldPiece = split.pieces.find(x => x.kind === "scramble")!;
   assert.deepEqual(p.holds.add, [heldPiece.id]);
 });
+
+test("a segment walked twice is fine when both passes agree", () => {
+  const loop: SegmentRow[] = [rows[0], { ...rows[0], ordinal: 1, direction: "reverse" }];
+  assert.doesNotThrow(() => plan("r", loop, { route_id: "r", packet_sha256: "", apply: [] }));
+  assert.throws(() => plan("r", loop, { route_id: "r", packet_sha256: "", apply: [{ kind: "scramble", from: 0, to: 1000, note: "" }] }), /different answers/);
+});
