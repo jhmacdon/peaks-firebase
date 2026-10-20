@@ -61,6 +61,15 @@ npm run terrain:verify -- --dir $RUN
    questions. Researchers miss things on pages they opened; Kaleetan's "about
    160 vertical feet" came from the review, not the research.
 
+## Round up
+
+Never let a route look easier than it is. When credible sources disagree,
+the harder rating stands. An easier claim can lower a label only when two
+publishers say so in plain words and none says harder; trip reports can raise
+a flag but never lower one. Rate the hardest conditions of the route's normal
+season. Unreviewed OSM labels stay until a review replaces them: resetting to
+trail without evidence would understate.
+
 ## Applying a decision
 
 `decision.json` carries `apply`: intervals along the route, each with a kind

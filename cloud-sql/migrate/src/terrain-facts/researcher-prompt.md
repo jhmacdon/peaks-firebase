@@ -53,7 +53,13 @@ knowledge of the mountain as evidence.
 - Trip reports describe one day. Use them for where the hard part is and what it
   is like, not as the only source for a class rating.
 - When sources disagree, keep both claims, set `conflicting: true` on the
-  feature, and add a line to `conflicts`. Do not pick a side.
+  feature, and add a line to `conflicts`. Do not pick a side. Look hardest for
+  statements that the route is **harder** than it seems: warnings, "experience
+  required", gear lists, rope, glacier travel. Missing one makes a route look
+  easier than it is, which is the worst mistake this research can make.
+- Record what the whole trip needs in `route`: `technical_gear` is `yes` when
+  sources require rope, crampons, an ice axe or a helmet in the route's normal
+  season, even early season only. Quote the requirement in its own claim.
 
 ## Rules for answers
 
