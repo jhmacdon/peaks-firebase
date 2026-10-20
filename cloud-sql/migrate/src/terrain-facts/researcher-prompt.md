@@ -28,7 +28,8 @@ knowledge of the mountain as evidence.
    pages.
 2. Your shell has no network and nothing to read; do not try to download
    files with it. Open pages and PDFs (agency route briefs are often PDFs)
-   through web search only. Open each page you cite and copy quotes from the page itself. Never cite a
+   through web search only. If a page or PDF is too large to open, say so in
+   `unknowns`. Open each page you cite and copy quotes from the page itself. Never cite a
    search-result snippet, a summary, or a page you did not open.
 3. Look for: the hardest class (YDS 1-5) or plain statements like "scramble",
    "use your hands", "no hands needed", "walk-up"; where the hard part is (a
@@ -66,6 +67,12 @@ knowledge of the mountain as evidence.
   plain words ("no hands", "walk-up", "non-technical trail"). Steep or rocky
   alone is not `not_needed` and not `required`; it is `rough_trail` or
   `talus_or_boulders` with `hands: unknown`.
+- "Scramble" in climbing prose often means any walk over rock. Report a
+  `scramble` only when quotes give a class of 3 or higher or say hands are
+  used. Otherwise it is `rough_trail` or `talus_or_boulders`.
+- A ceiling is not a rating. "3rd or 4th class at most" or "no harder than
+  class 3" bounds the route; report the class as `unknown`, quote the
+  ceiling, and say so in `note`.
 - Glacier and snow travel is not scrambling. Report it as `glacier` or
   `snowfield`.
 - `location` ties a feature to the packet:

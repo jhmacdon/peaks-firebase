@@ -41,6 +41,11 @@ npm run terrain:verify -- --dir $RUN
      scrambling; `not_needed` needs "no hands", "walk-up", "non-technical"...);
    - a scramble, a technical climb, class 3+, and `hands: required` rest on
      two publishers, and not only on trip reports or forums;
+   - a scramble states a class of 3+ or says hands are used: climbers write
+     "scramble" for any walk over rock (the Mountaineers' "scramble down into
+     the crater" on Rainier);
+   - a ceiling is not a rating: NPS's "3rd or 4th class at most" for the
+     Cleaver bounds it, so it cannot set a class;
    - every stretch appears once; every waypoint and stretch id exists;
      elevation bands use numbers stated in the placing quotes (or the catalog
      summit elevation when a quote says "summit", "final", "last" or "top"),
@@ -50,7 +55,11 @@ npm run terrain:verify -- --dir $RUN
    with the saved page text and decides, claim by claim, whether the quote is
    about this route and says what the researcher says it does. The checker
    proves a quote exists; only the reviewer can say it supports the claim.
-   The reviewer writes `decision.json` in the run directory.
+   The reviewer writes `decision.json` in the run directory: the labels it
+   accepts with their claim ids, any quotes it found itself (`reviewer_claims`,
+   which must pass the same page check), what it rejected and why, and open
+   questions. Researchers miss things on pages they opened; Kaleetan's "about
+   160 vertical feet" came from the review, not the research.
 
 ## Fetching rules
 

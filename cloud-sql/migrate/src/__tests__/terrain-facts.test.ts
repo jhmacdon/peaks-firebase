@@ -109,3 +109,19 @@ test("stretches group by name and scale to the route line", () => {
   const s = groupStretches([{ id: "a", name: "A", length_m: 900 }, { id: "b", name: "A", length_m: 100 }, { id: "c", name: "B", length_m: 1000 }], coords, along);
   assert.deepEqual(s.map(x => [x.id, x.segment_ids, x.start_m]), [["S1", ["a", "b"], 0], ["S2", ["c"], Math.round(along[2] / 2)]]);
 });
+
+test("the word scramble alone does not make a scramble", () => {
+  const r = research();
+  r.features[0] = { ...r.features[0], yds_class: "unknown", hands: "unknown" };
+  assert.ok(verify(packet, sha, r, pages).findings.some(f => f.path === "features.f1.type" && f.problems.some(p => p.includes("the word alone is not enough"))));
+});
+
+test("a class ceiling is not a rating", () => {
+  const ceiling: Page = { url: "https://c.example.gov/brief.pdf", status: "ok", http_status: 200, via: "https", error: null,
+    text: "The guides mark the route with wands and the main climbing route is 3rd or 4th class at most. If it is harder, you are off route." };
+  const r = research();
+  r.route.hardest_class = { value: "3", claim_ids: ["c9"] };
+  r.claims.push({ id: "c9", source_url: ceiling.url, publisher: "C", source_type: "official", quote: "the main climbing route is 3rd or 4th class at most.", establishes: "" });
+  const v = verify(packet, sha, r, new Map([...pages, [ceiling.url, ceiling]]));
+  assert.ok(v.findings.some(f => f.path === "route.hardest_class" && f.problems.includes("quotes give only a ceiling, not a rating")));
+});

@@ -99,7 +99,7 @@ const TYPE_WORDS: Partial<Record<Feature["type"], RegExp>> = {
   glacier: /\bglacier|\bcrevass/,
   snowfield: /\bsnow/,
   talus_or_boulders: /\btalus|\bboulder|\bscree\b|\brock(?:y|s)?\b/,
-  rough_trail: /\bsteep|\brough|\brock(?:y|s)?\b|\broot|\bloose|\bboot ?path|\bclimbers'? (?:trail|path)|\bunmaintained/,
+  rough_trail: /\bsteep|\brough|\bscree\b|\bpumice|\brock(?:y|s)?\b|\broot|\bloose|\bboot ?path|\bclimbers'? (?:trail|path)|\bunmaintained/,
   exposure: /\bexpos|\bdrop[- ]?offs?\b|\bcliff|\bsheer|\bfall\b/,
   fixed_aid: /\bcable|\bladder|\bchain|\bfixed (?:line|rope)|\brebar/,
 };
@@ -113,6 +113,9 @@ const TERRAIN_WORDS: Partial<Record<Research["stretches"][number]["terrain"], Re
   glacier: TYPE_WORDS.glacier,
   road: /\broad\b|\bgravel\b|\bpaved\b/,
 };
+
+/** "3rd or 4th class at most" bounds a route; it does not rate it. */
+const CEILING = /\bat most\b|\bno harder than\b|\bor easier\b|\bat the most\b|\bnot (?:more|harder) than\b|\bmaximum\b|\bup to (?:class|\d(?:st|nd|rd|th))/;
 
 function numbersIn(s: string): number[] {
   return [...normalize(s).matchAll(/\b\d{1,2},?\d{3}\b|\b\d{3,5}\b/g)].map(m => Number(m[0].replace(/,/g, "")));
@@ -136,12 +139,13 @@ export function verify(packet: Packet, packetSha: string, research: Research, pa
   const good = new Map(claims.filter(c => c.status === "verified" || c.status === "verified_loose").map(c => [c.id, research.claims.find(x => x.id === c.id)!]));
 
   const findings: FindingCheck[] = [];
-  const cite = (path: string, value: string, ids: string[], opts: { words?: RegExp; twoPublishers?: boolean; needed?: boolean } = {}) => {
+  const cite = (path: string, value: string, ids: string[], opts: { words?: RegExp; twoPublishers?: boolean; needed?: boolean; rating?: boolean } = {}) => {
     const problems: string[] = [];
     for (const id of ids) if (!claimIds.has(id)) problems.push(`cites unknown claim ${id}`);
     const usable = ids.map(id => good.get(id)).filter((c): c is Claim => !!c);
     if (opts.needed !== false && !usable.length) problems.push(ids.length ? "no cited claim passed the page check" : "no claims cited");
     if (opts.words && usable.length && !usable.some(c => opts.words!.test(normalize(c.quote)))) problems.push("no verified quote states it in words");
+    if (opts.rating && usable.length && opts.words && usable.filter(c => opts.words!.test(normalize(c.quote))).every(c => CEILING.test(normalize(c.quote)))) problems.push("quotes give only a ceiling, not a rating");
     if (opts.twoPublishers) {
       const pubs = new Set(usable.map(c => publisherOf(c.source_url)));
       if (pubs.size < 2) problems.push("rests on one publisher");
@@ -151,7 +155,7 @@ export function verify(packet: Packet, packetSha: string, research: Research, pa
   };
 
   const r = research.route;
-  if (r.hardest_class.value !== "unknown") cite("route.hardest_class", r.hardest_class.value, r.hardest_class.claim_ids, { words: CLASS_WORDS[r.hardest_class.value], twoPublishers: true });
+  if (r.hardest_class.value !== "unknown") cite("route.hardest_class", r.hardest_class.value, r.hardest_class.claim_ids, { words: CLASS_WORDS[r.hardest_class.value], twoPublishers: true, rating: true });
   if (r.hands_needed_anywhere.value === "yes") cite("route.hands_needed_anywhere", "yes", r.hands_needed_anywhere.claim_ids, { words: HAND_WORDS, twoPublishers: true });
   if (r.hands_needed_anywhere.value === "no") cite("route.hands_needed_anywhere", "no", r.hands_needed_anywhere.claim_ids, { words: NO_HAND_WORDS });
   if (r.glacier_travel.value === "yes") cite("route.glacier_travel", "yes", r.glacier_travel.claim_ids, { words: TYPE_WORDS.glacier });
@@ -166,9 +170,12 @@ export function verify(packet: Packet, packetSha: string, research: Research, pa
     if (!FEATURE_TYPES.includes(f.type) || !YDS.includes(f.yds_class) || !HANDS.includes(f.hands)) structural.push(`feature ${f.id} has a value outside the schema`);
     const strong = f.type === "scramble" || f.type === "technical_climb";
     cite(`features.${f.id}.type`, f.type, f.claim_ids, { words: TYPE_WORDS[f.type], twoPublishers: strong });
-    if (f.yds_class !== "unknown") cite(`features.${f.id}.yds_class`, f.yds_class, f.claim_ids, { words: CLASS_WORDS[f.yds_class], twoPublishers: Number(f.yds_class) >= 3 });
+    if (f.yds_class !== "unknown") cite(`features.${f.id}.yds_class`, f.yds_class, f.claim_ids, { words: CLASS_WORDS[f.yds_class], twoPublishers: Number(f.yds_class) >= 3, rating: true });
     if (f.hands === "required" || f.hands === "occasional") cite(`features.${f.id}.hands`, f.hands, f.claim_ids, { words: HAND_WORDS, twoPublishers: f.hands === "required" });
     if (f.hands === "not_needed") cite(`features.${f.id}.hands`, f.hands, f.claim_ids, { words: NO_HAND_WORDS });
+    // Climbers write "scramble" for any walk over rock. Without a class or a word about hands, it is rough ground.
+    if (f.type === "scramble" && !(Number(f.yds_class) >= 3) && f.hands !== "required" && f.hands !== "occasional")
+      findings.push({ path: `features.${f.id}.type`, value: f.type, ok: false, problems: ["a scramble needs a stated class 3+ or quotes about hands; the word alone is not enough"] });
     locations[f.id] = locate(f, packet, good, stretchIds, waypointIds, findings);
   }
 
