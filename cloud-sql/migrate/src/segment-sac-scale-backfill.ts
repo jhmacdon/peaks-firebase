@@ -187,7 +187,7 @@ async function transaction<T>(client: PoolClient, work: () => Promise<T>): Promi
 }
 
 const SEGMENT_BATCH = 100;
-const ROUTE_BATCH = 5;
+const ROUTE_BATCH = 1;
 
 async function applyGrades(client: PoolClient, grades: SegmentGrade[], report: BackfillReport, file: FileHandle): Promise<void> {
   const refreshed = new Set<string>();
@@ -215,7 +215,11 @@ async function applyGrades(client: PoolClient, grades: SegmentGrade[], report: B
     // 48 routes in one call passed 30 s on production, so refresh a few at a time.
     for (let routeOffset = 0; routeOffset < routeIds.length; routeOffset += ROUTE_BATCH) {
       const routeBatch = routeIds.slice(routeOffset, routeOffset + ROUTE_BATCH);
-      await transaction(client, () => client.query('SELECT refresh_route_derivations($1::text[])', [routeBatch]));
+      // Some California routes took over 30 s to refresh (areas, profile); one at a time, longer limit.
+      await transaction(client, async () => {
+        await client.query("SET LOCAL statement_timeout = '180s'");
+        return client.query('SELECT refresh_route_derivations($1::text[])', [routeBatch]);
+      });
       routeBatch.forEach(id => refreshed.add(id));
       report.refreshedRouteIds = [...refreshed].sort();
       report.pendingRouteIds = routeIds.slice(routeOffset + ROUTE_BATCH);
