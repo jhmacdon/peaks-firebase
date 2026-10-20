@@ -9,8 +9,8 @@ import { parseState, type StateCode } from './state';
 // Geometry and elevation are immutable here. A conflicting ID is inspected,
 // never reset to Z=0. XY changes require a new segment ID and explicit review.
 export const UPSERT_SEGMENT = `INSERT INTO segments
-  (id,name,display_name,kind,state_code,trail_names,path,distance,provenance,description,description_source_url)
-  VALUES($1,$2,$8,$3,$11,$4,ST_SetSRID(ST_GeomFromGeoJSON($5),4326)::geography,$6,$7::jsonb,$9,$10)
+  (id,name,display_name,kind,state_code,trail_names,path,distance,provenance,description,description_source_url,osm_sac_scale)
+  VALUES($1,$2,$8,$3,$11,$4,ST_SetSRID(ST_GeomFromGeoJSON($5),4326)::geography,$6,$7::jsonb,$9,$10,$12)
   ON CONFLICT(id) DO NOTHING RETURNING id`;
 export const SEGMENT_CONFLICT = `SELECT
   ST_OrderingEquals(ST_Force2D(path::geometry),ST_Force2D(ST_GeomFromGeoJSON($2))) AS same_xy,
@@ -25,7 +25,7 @@ export function segmentValues(s: Segment, state: StateCode = s.state_code ?? 'WA
   if (!['trail', 'road', 'snowfield', 'glacier', 'scramble', 'climb', 'xc'].includes(s.kind)) throw new Error(`Invalid segment kind: ${s.kind}`);
   const name = s.display_name === undefined ? displayName(s.trail_names[0] || s.relation_names[0] || null) : s.display_name;
   assertDisplayName(name);
-  return [s.id, s.name, s.kind, s.trail_names, JSON.stringify({ type: 'LineString', coordinates: s.coords.map(c => [c[0], c[1], 0]) }), s.length_m, JSON.stringify(s.provenance), name, s.description ?? null, null, parseState(state)];
+  return [s.id, s.name, s.kind, s.trail_names, JSON.stringify({ type: 'LineString', coordinates: s.coords.map(c => [c[0], c[1], 0]) }), s.length_m, JSON.stringify(s.provenance), name, s.description ?? null, null, parseState(state), s.sac_scale ?? null];
 }
 export async function loadSegments(path: string, apply = false): Promise<void> {
   const report = { mode: apply ? 'apply' : 'dry-run', validated: 0, upserted: 0, skipped_reviewed: 0, skipped_frozen: 0, existing_unchanged: 0, xy_conflicts: 0, reviewed_status: apply ? 'checked by SQL and trigger' : 'unknown; no database connection' };

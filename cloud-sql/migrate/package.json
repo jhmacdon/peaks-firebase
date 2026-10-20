@@ -21,6 +21,7 @@
     "migrate:trip-reports": "tsx src/migrate-trip-reports.ts",
     "normalize:search-names": "tsx src/normalize-search-names.ts",
     "backfill:elevations": "tsx src/backfill-elevations.ts",
+    "backfill:segment-sac-scale": "tsx src/segment-sac-scale-backfill.ts",
     "backfill:descriptions": "tsx src/backfill-destination-descriptions.ts",
     "import:14ers": "tsx src/import-14er-routes.ts",
     "import:triple-crown-trails": "tsx src/import-triple-crown-trails.ts",

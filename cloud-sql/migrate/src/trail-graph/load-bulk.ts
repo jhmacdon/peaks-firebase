@@ -107,7 +107,7 @@ export function buildBulkBatch(plan: BulkPlan, profiles?: Map<string, number[][]
       geometry: JSON.stringify({ type: 'LineString', coordinates: xyz }), provenance };
     checks.push({ ...record, geometry: JSON.stringify({ type: 'LineString', coordinates: s.frozen_catalog?.coords_xyz ?? s.coords }),
       frozen: !!s.frozen_catalog, old_path_hash: old?.path_hash ?? null, expected_source: withoutElevation(s.provenance) });
-    if (!old && !s.frozen_catalog) segments.push(record);
+    if (!old && !s.frozen_catalog) segments.push({ ...record, osm_sac_scale: s.sac_scale ?? null });
   }
   for (const route of plan.routes) {
     const insert = route.plan.statements.find(s => s.kind === 'route_insert')!, v = insert.values;
@@ -135,9 +135,9 @@ export function buildBulkBatch(plan: BulkPlan, profiles?: Map<string, number[][]
         CASE WHEN d.boundary IS NULL THEN NULL ELSE ST_SetSRID(ST_GeomFromGeoJSON(d.boundary),4326)::geography END
       FROM jsonb_to_recordset($1::jsonb) AS d(id text,name text,feature text,state_code text,lng float8,lat float8,z float8,elevation float8,metadata jsonb,external_ids jsonb,boundary text)
       ON CONFLICT(id) DO NOTHING`, [...places.values()]),
-    statement('segment_insert', `INSERT INTO segments(id,name,display_name,kind,state_code,trail_names,path,distance,gain,gain_loss,provenance,description,description_source_url)
-      SELECT s.id,s.name,s.display_name,s.kind,s.state_code,s.trail_names,p.path,s.distance,stats.gain,stats.loss,s.provenance,s.description,NULL
-      FROM jsonb_to_recordset($1::jsonb) AS s(id text,name text,display_name text,kind text,state_code text,trail_names text[],geometry text,distance float8,provenance jsonb,description text)
+    statement('segment_insert', `INSERT INTO segments(id,name,display_name,kind,state_code,trail_names,path,distance,gain,gain_loss,provenance,description,description_source_url,osm_sac_scale)
+      SELECT s.id,s.name,s.display_name,s.kind,s.state_code,s.trail_names,p.path,s.distance,stats.gain,stats.loss,s.provenance,s.description,NULL,s.osm_sac_scale
+      FROM jsonb_to_recordset($1::jsonb) AS s(id text,name text,display_name text,kind text,state_code text,trail_names text[],geometry text,distance float8,provenance jsonb,description text,osm_sac_scale text)
       CROSS JOIN LATERAL (SELECT ST_SetSRID(ST_GeomFromGeoJSON(s.geometry),4326)::geography AS path) p
       CROSS JOIN LATERAL route_elevation_stats(p.path) stats ON CONFLICT(id) DO NOTHING`, segments),
     statement('route_insert', `INSERT INTO routes(id,name,status,owner,kind,slug,search_name,aliases,state_code,country_code,external_links,provenance,shape,trailhead_destination_id,objective_destination_id,description,

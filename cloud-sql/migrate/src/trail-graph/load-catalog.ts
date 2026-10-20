@@ -117,8 +117,8 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   plan.segment_ids = [...new Set(refs.map(s => s.id))];
   for (const id of plan.segment_ids.filter(id => !binding.reused.includes(id))) {
     const segment = segments.get(id)!, values = segmentValues(segment, state); values[6] = JSON.stringify(importedProvenance(segment.provenance, segment.summit_connector ? { notes: ['summit connector'] } : {}));
-    add('segment_insert', `INSERT INTO segments(id,name,display_name,kind,state_code,trail_names,path,distance,provenance,description,description_source_url)
-      VALUES($1,$2,$8,$3,$11,$4,ST_SetSRID(ST_GeomFromGeoJSON($5),4326)::geography,$6,$7::jsonb,$9,$10) ON CONFLICT(id) DO NOTHING`, values);
+    add('segment_insert', `INSERT INTO segments(id,name,display_name,kind,state_code,trail_names,path,distance,provenance,description,description_source_url,osm_sac_scale)
+      VALUES($1,$2,$8,$3,$11,$4,ST_SetSRID(ST_GeomFromGeoJSON($5),4326)::geography,$6,$7::jsonb,$9,$10,$12) ON CONFLICT(id) DO NOTHING`, values);
   }
   const thId = placeId(th, state), objectiveId = goal ? placeId(goal, state) : null;
   const ordered = [...places.keys()].filter(id => id !== thId && id !== objectiveId); ordered.unshift(thId); if (objectiveId && objectiveId !== thId) ordered.push(objectiveId); plan.destination_ids = ordered;

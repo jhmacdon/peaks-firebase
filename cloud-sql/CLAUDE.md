@@ -1289,6 +1289,27 @@ uses elevation sampled every 100 m along geodesic distance; a final interval
 shorter than 50 m joins the preceding interval. A route shorter than 100 m uses
 its full length. This avoids treating dense vertex noise as the steepest grade.
 
+OSM `sac_scale` grades can raise this effort estimate. At least 50 m of
+`demanding_mountain_hiking` (T3) gives a floor of moderate. At least 50 m of
+`alpine_hiking`, `demanding_alpine_hiking`, or `difficult_alpine_hiking`
+(T4–T6, summed together) gives a floor of hard. Sum geodesic segment lengths
+and count each segment once per route, even on a return leg. Shorter totals
+do not count, so a short mistag cannot raise a route. Keep the harder of effort
+and floor; NULL effort stays NULL. OSM grades are mapper judgements: they
+raise route difficulty, never label terrain.
+
+Backfill saved OSM way grades after applying `20261020_route_terrain_floor.sql`:
+
+```bash
+cd cloud-sql/migrate
+npm run backfill:segment-sac-scale -- \
+  --extract /path/to/trails.opl --report /tmp/segment-sac-scale-dry.json
+```
+
+Use a new report path for each run. Review the dry run, then add `--apply`
+with another new report path to save grades and refresh linked routes. Both
+modes log a `data_source_runs` row; dry runs leave segments and routes unchanged.
+
 `peaks_route_est_moving_seconds` sums each directed edge's horizontal distance
 divided by `max(0.5, 6 * exp(-3.5 * abs(grade + 0.05)))` km/h, then rounds up
 to seconds. The base formula comes from [Tobler (1993), Figure II](https://escholarship.org/uc/item/05r820mz).
