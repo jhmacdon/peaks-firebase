@@ -201,3 +201,10 @@ test("a summary needs a short line and credited https sources", () => {
   assert.equal(ok.summary?.line, "Hike with an optional class 3 scramble");
   assert.throws(() => plan("r", rows, { route_id: "r", packet_sha256: "", apply: [], summary: { line: "x", gear: [], hardest_class: null, sources: [] } }), /sources/);
 });
+
+test("a hold keeps a segment as it is and spares it the reset", () => {
+  const held = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: { segment: "b", edge: "start" }, to: "end", note: "held" }] });
+  assert.deepEqual(held.ops, [], "b stays scramble; a stays trail");
+  const onTrail = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: "start", to: "end", note: "held" }] });
+  assert.deepEqual(onTrail.ops, [], "a hold never upgrades trail");
+});

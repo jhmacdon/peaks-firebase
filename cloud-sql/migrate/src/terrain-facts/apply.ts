@@ -17,8 +17,10 @@ import { KINDS, type Kind } from "../trail-graph/types";
  */
 
 export type Endpoint = number | "start" | "end" | { elevation_ft: number; crossing: "first" | "last" } | { segment: string; edge: "start" | "end" };
-/** `display_name` renames the stretch, e.g. a climbers' trail's last 160 ft as "Summit gully". */
-export interface Interval { kind: Kind; from: Endpoint; to: Endpoint; note: string; display_name?: string }
+/** `display_name` renames the stretch, e.g. a climbers' trail's last 160 ft as "Summit gully".
+ *  Kind `hold` keeps whatever the segment is now and exempts it from the reset: evidence of
+ *  hands that is below the scramble bar must never make a route read easier. */
+export interface Interval { kind: Kind | "hold"; from: Endpoint; to: Endpoint; note: string; display_name?: string }
 /** The reviewed line on what the whole trip needs, shown on the route. */
 export interface TerrainSummary { line: string; gear: string[]; hardest_class: string | null; sources: { name: string; url: string }[] }
 export interface Decision { route_id: string; packet_sha256: string; apply: Interval[]; summary?: TerrainSummary }
@@ -26,7 +28,7 @@ export interface SegmentRow { ordinal: number; direction: "forward" | "reverse";
 
 export interface KindOp { op: "kind"; segment_id: string; from: Kind; to: Kind; display_name: string | null; route_m: [number, number] }
 export interface SplitOp { op: "split"; segment_id: string; coords_sha: string; cuts_m: number[]; pieces: { id: string; kind: Kind; display_name: string | null; length_m: number }[] }
-export interface Plan { route_id: string; length_m: number; summary: TerrainSummary | null; intervals: { kind: Kind; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
+export interface Plan { route_id: string; length_m: number; summary: TerrainSummary | null; intervals: { kind: Kind | "hold"; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
 
 const SNAP_M = 15;
 const RESETTABLE: Kind[] = ["scramble", "climb"];
@@ -100,7 +102,8 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
   if (decision.route_id !== routeId) throw new Error("decision is for another route");
   const { parts, total } = walk(rows);
   const intervals = decision.apply.map(i => {
-    if (!(KINDS as readonly string[]).includes(i.kind)) throw new Error(`unknown kind ${i.kind}`);
+    if (i.kind !== "hold" && !(KINDS as readonly string[]).includes(i.kind)) throw new Error(`unknown kind ${i.kind}`);
+    if (i.kind === "hold" && i.display_name) throw new Error("a hold keeps the segment as it is; it cannot rename it");
     const start = resolve(i.from, rows), end = resolve(i.to, rows);
     if (!(end > start)) throw new Error(`interval ${JSON.stringify(i)} is empty`);
     if (i.display_name !== undefined && !i.display_name.trim()) throw new Error("display_name must not be blank");
@@ -108,7 +111,11 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
   }).sort((a, b) => a.start_m - b.start_m);
   for (let i = 1; i < intervals.length; i++) if (intervals[i].start_m < intervals[i - 1].end_m - 1) throw new Error("decision intervals overlap");
   const at = (m: number) => intervals.find(i => m >= i.start_m && m < i.end_m);
-  const kindAt = (m: number, fallback: Kind): Kind => at(m)?.kind ?? (RESETTABLE.includes(fallback) ? "trail" : fallback);
+  const kindAt = (m: number, fallback: Kind): Kind => {
+    const i = at(m);
+    if (i?.kind === "hold") return fallback;
+    return i?.kind ?? (RESETTABLE.includes(fallback) ? "trail" : fallback);
+  };
 
   const ops: Plan["ops"] = [], seen = new Set<string>();
   for (const p of parts) {
