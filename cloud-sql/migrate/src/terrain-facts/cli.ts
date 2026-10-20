@@ -51,7 +51,10 @@ async function researchCommand() {
   const dir = resolve(need("dir"));
   if (existsSync(join(dir, "research.json"))) throw new Error(`${dir} already has research; use a new run directory`);
   const packet = await readJson<Packet>(join(dir, "packet.json"));
+  // A focus run answers one open question from review: where hands are needed, or whether.
+  const focus = arg("focus");
   const prompt = (await readFile(join(__dirname, "researcher-prompt.md"), "utf8"))
+    + (focus ? `\n\n## Focus question\n\nA reviewer could not settle this from a first round of research. Answer it above all else, with the same rules for quotes. Look especially for guidebooks, land-agency pages and route pages, which count for more than trip reports. If nothing settles it, say so in \`unknowns\`.\n\n${focus}\n` : "")
     + `\n\n<packet sha256="${packetSha256(packet)}">\n${JSON.stringify(packet, null, 1)}\n</packet>\n`;
   await writeFile(join(dir, "prompt.md"), prompt);
   await writeFile(join(dir, "research-schema.json"), JSON.stringify(researchSchema, null, 2));
@@ -172,5 +175,5 @@ async function applyCommand() {
 
 const commands: Record<string, () => Promise<void>> = { packet: packetCommand, research: researchCommand, verify: verifyCommand, apply: applyCommand };
 const command = commands[process.argv[2] ?? ""];
-if (!command) { console.error("usage: terrain-facts <packet|research|verify|apply> --dir <run dir> [--route <id>] [--apply --expected-plan <hash>]"); process.exit(2); }
+if (!command) { console.error("usage: terrain-facts <packet|research|verify|apply> --dir <run dir> [--route <id>] [--focus <question>] [--apply --expected-plan <hash>] [--summary-only]"); process.exit(2); }
 command().catch(error => { console.error(error instanceof Error ? error.message : error); process.exit(1); });
