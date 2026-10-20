@@ -57,9 +57,9 @@ test('glacier polygons, including holes, split kind at source vertices', () => {
   const nodes = new Map<number, Coord>([[1, [-121.02, 47]], [2, [-121.01, 47]], [3, [-121, 47]], [4, [-120.99, 47]]]);
   const way: Way = { id: 1, nodes: [1, 2, 3, 4], tags: { highway: 'path', name: 'Climb', sac_scale: 'alpine_hiking' }, relations: [] };
   const graph = buildTopology([way], nodes, [{ name: 'Muir Snowfield', polygons: [[[[-121.011, 46.99], [-120.999, 46.99], [-120.999, 47.01], [-121.011, 47.01], [-121.011, 46.99]]]] }], time);
-  assert.deepEqual(graph.map(s => s.kind), ['climb', 'snowfield', 'climb']);
+  assert.deepEqual(graph.map(s => s.kind), ['trail', 'snowfield', 'trail']);
   const holes = buildTopology([way], nodes, [{ name: 'Ice', polygons: [[[[-121.011, 46.99], [-120.999, 46.99], [-120.999, 47.01], [-121.011, 47.01], [-121.011, 46.99]], [[-121.009, 46.999], [-121.001, 46.999], [-121.001, 47.001], [-121.009, 47.001], [-121.009, 46.999]]]] }], time);
-  assert.deepEqual(holes.map(s => s.kind), ['climb']);
+  assert.deepEqual(holes.map(s => s.kind), ['trail']);
 });
 test('feature sequence deduplicates areas, keeps unnamed glacier footprints and snaps points/shore', async () => {
   const source = await readFeatures(join(__dirname, 'fixtures/trail-graph-features.geojsonseq'));

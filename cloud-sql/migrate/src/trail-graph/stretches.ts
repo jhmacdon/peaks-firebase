@@ -3,7 +3,7 @@ import { hash, haversine, interpolate, length, pointDistance, samples, unique } 
 import { featureCompatible, placeKey } from './names';
 import { refresh } from './topology';
 import type { ComposedRoute, PeaksDestination, Waypoint } from './catalog-types';
-import type { Coord, Kind, NamedFeature, Segment } from './types';
+import { KINDS, type Coord, type Kind, type NamedFeature, type Segment } from './types';
 
 export interface CuratedStretch { display_name: string; kind: Kind; description?: string; segments: string[]; split_at?: string; part?: 'before' | 'after' }
 export interface CuratedPoint { name: string; feature: string; match: 'existing' | 'new'; place_at?: string; note?: string }
@@ -126,7 +126,7 @@ export function applyCuration(rows: ComposedRoute[], segments: Segment[], curati
       audit.splits.push({ parent: parent.id, parts: split.refs.map(r => r.id), waypoint: stretch.split_at!, gap_m: split.gap });
     }
     for (const stretch of rule.stretches) {
-      if (!['trail', 'road', 'snowfield', 'glacier', 'scramble', 'climb', 'xc'].includes(stretch.kind)) throw new Error(`Invalid curated kind ${stretch.kind}`);
+      if (!(KINDS as readonly string[]).includes(stretch.kind)) throw new Error(`Invalid curated kind ${stretch.kind}`);
       const ids = stretch.split_at ? splitRefs.get(`${stretch.segments.join(',')}@${stretch.split_at}`)![stretch.part ?? 'before'] : stretch.segments.flatMap(resolve);
       for (const id of ids) {
         const s = byId.get(id); if (!s) throw new Error(`Overlapping split assignment ${id}`);

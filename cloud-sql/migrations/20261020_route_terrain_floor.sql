@@ -28,12 +28,15 @@ ALTER FUNCTION peaks_harder_difficulty(TEXT, TEXT) OWNER TO postgres;
 CREATE OR REPLACE FUNCTION peaks_route_terrain_floor(route_id TEXT)
 RETURNS TEXT LANGUAGE SQL STABLE AS $$
   SELECT CASE
-    WHEN sum(ST_Length(s.path)) FILTER (WHERE s.osm_sac_scale IN
-      ('alpine_hiking', 'demanding_alpine_hiking', 'difficult_alpine_hiking')) >= 50 THEN 'hard'
-    WHEN sum(ST_Length(s.path)) FILTER
-      (WHERE s.osm_sac_scale = 'demanding_mountain_hiking') >= 50 THEN 'moderate'
+    -- Millimetres: projection and length disagree past that, and 50 m must count.
+    WHEN round((sum(horizontal_m) FILTER (WHERE s.osm_sac_scale IN
+      ('alpine_hiking', 'demanding_alpine_hiking', 'difficult_alpine_hiking')))::numeric, 3) >= 50 THEN 'hard'
+    WHEN round((sum(horizontal_m) FILTER
+      (WHERE s.osm_sac_scale = 'demanding_mountain_hiking'))::numeric, 3) >= 50 THEN 'moderate'
     ELSE NULL END
   FROM segments s
+  -- Horizontal length: ST_Length on a 3D geography counts the climb too.
+  CROSS JOIN LATERAL (SELECT ST_Length(ST_Force2D(s.path::geometry)::geography) AS horizontal_m) l
   WHERE s.id IN (SELECT rs.segment_id FROM route_segments rs WHERE rs.route_id = $1)
     AND s.osm_sac_scale IN ('demanding_mountain_hiking', 'alpine_hiking',
                             'demanding_alpine_hiking', 'difficult_alpine_hiking');

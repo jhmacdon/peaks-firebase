@@ -431,7 +431,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
                 r.external_links, r.provenance, r.completion, r.shape,
                 r.description, r.description_source_name, r.description_source_url, r.description_source_license,
                 r.kind, r.slug, r.aliases, r.objective_destination_id, r.trailhead_destination_id,
-                r.difficulty, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
+                r.difficulty, r.terrain_category, r.terrain_summary, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
                 (r.search_name = $1) AS name_exact_match,
                 s.exact_match AS term_exact_match,
                 ${distance} AS distance_m,
@@ -450,7 +450,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
               r.external_links, r.provenance, r.completion, r.shape,
               r.description, r.description_source_name, r.description_source_url, r.description_source_license,
               r.kind, r.slug, r.aliases, r.objective_destination_id, r.trailhead_destination_id,
-              r.difficulty, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
+              r.difficulty, r.terrain_category, r.terrain_summary, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
               ${routeCoverSelectSql()},
               ${routeAreaRowsSql}, r.distance_m, r.name_exact_match, r.term_exact_match, r.score
        FROM ranked_routes r
