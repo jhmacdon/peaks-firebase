@@ -186,12 +186,18 @@ async function transaction<T>(client: PoolClient, work: () => Promise<T>): Promi
   }
 }
 
+const SEGMENT_BATCH = 100;
+const ROUTE_BATCH = 5;
+
 async function applyGrades(client: PoolClient, grades: SegmentGrade[], report: BackfillReport, file: FileHandle): Promise<void> {
   const refreshed = new Set<string>();
   // Refresh after each segment batch so a later failure leaves a bounded set
   // of routes to repair. The report keeps that set through each commit.
-  for (let offset = 0; offset < grades.length; offset += 500) {
-    const batch = grades.slice(offset, offset + 500);
+  // 100 rows keeps each update inside the 30 s statement limit on the
+  // db-f1-micro: the segment guard triggers cost ~12 ms a row, and a 500-row
+  // batch timed out on the first production run.
+  for (let offset = 0; offset < grades.length; offset += SEGMENT_BATCH) {
+    const batch = grades.slice(offset, offset + SEGMENT_BATCH);
     const routeIds = await transaction(client, async () => {
       const changed = await client.query<{ id: string }>(`UPDATE segments s SET osm_sac_scale = p.sac_scale
         FROM unnest($1::text[], $2::text[], $3::jsonb[]) AS p(segment_id, sac_scale, way_ids)
@@ -205,12 +211,14 @@ async function applyGrades(client: PoolClient, grades: SegmentGrade[], report: B
     report.updatedSegmentIds.push(...batch.map(segment => segment.id));
     report.pendingRouteIds = routeIds;
     await saveReport(file, report);
-    for (let routeOffset = 0; routeOffset < routeIds.length; routeOffset += 50) {
-      const routeBatch = routeIds.slice(routeOffset, routeOffset + 50);
+    // refresh_route_derivations also relinks areas and rebuilds profiles:
+    // 48 routes in one call passed 30 s on production, so refresh a few at a time.
+    for (let routeOffset = 0; routeOffset < routeIds.length; routeOffset += ROUTE_BATCH) {
+      const routeBatch = routeIds.slice(routeOffset, routeOffset + ROUTE_BATCH);
       await transaction(client, () => client.query('SELECT refresh_route_derivations($1::text[])', [routeBatch]));
       routeBatch.forEach(id => refreshed.add(id));
       report.refreshedRouteIds = [...refreshed].sort();
-      report.pendingRouteIds = routeIds.slice(routeOffset + 50);
+      report.pendingRouteIds = routeIds.slice(routeOffset + ROUTE_BATCH);
       await saveReport(file, report);
     }
   }
