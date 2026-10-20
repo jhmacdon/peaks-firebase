@@ -140,7 +140,7 @@ async function applyCommand() {
     const { rows, sharedWith } = await loadRoute(db, decision.route_id);
     const p = plan(decision.route_id, rows, decision, sharedWith), hash = sha(p);
     await writeFile(join(dir, write ? "apply-plan.applied.json" : "apply-plan.json"), JSON.stringify({ hash, ...p }, null, 2) + "\n");
-    for (const op of p.ops) console.log(op.op === "kind" ? `kind   ${op.segment_id} ${op.from} -> ${op.to} (${op.route_m.join("-")} m)` : `split  ${op.segment_id} at ${op.cuts_m.join(", ")} m -> ${op.pieces.map(x => `${x.kind} ${x.length_m} m`).join(" | ")}`);
+    for (const op of p.ops) console.log(op.op === "kind" ? `kind   ${op.segment_id} ${op.from} -> ${op.to}${op.display_name ? ` "${op.display_name}"` : ""} (${op.route_m.join("-")} m)` : `split  ${op.segment_id} at ${op.cuts_m.join(", ")} m -> ${op.pieces.map(x => `${x.kind}${x.display_name ? ` "${x.display_name}"` : ""} ${x.length_m} m`).join(" | ")}`);
     if (p.shared_with.length) console.log(`shared with ${p.shared_with.length} other routes: ${p.shared_with.join(", ")}`);
     console.log(`plan ${hash}`);
     if (!write) return;

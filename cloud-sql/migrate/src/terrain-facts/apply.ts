@@ -17,13 +17,14 @@ import { KINDS, type Kind } from "../trail-graph/types";
  */
 
 export type Endpoint = number | "start" | "end" | { elevation_ft: number; crossing: "first" | "last" } | { segment: string; edge: "start" | "end" };
-export interface Interval { kind: Kind; from: Endpoint; to: Endpoint; note: string }
+/** `display_name` renames the stretch, e.g. a climbers' trail's last 160 ft as "Summit gully". */
+export interface Interval { kind: Kind; from: Endpoint; to: Endpoint; note: string; display_name?: string }
 export interface Decision { route_id: string; packet_sha256: string; apply: Interval[] }
 export interface SegmentRow { ordinal: number; direction: "forward" | "reverse"; id: string; kind: Kind; coords: number[][] }
 
-export interface KindOp { op: "kind"; segment_id: string; from: Kind; to: Kind; route_m: [number, number] }
-export interface SplitOp { op: "split"; segment_id: string; coords_sha: string; cuts_m: number[]; pieces: { id: string; kind: Kind; length_m: number }[] }
-export interface Plan { route_id: string; length_m: number; intervals: { kind: Kind; start_m: number; end_m: number; note: string }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
+export interface KindOp { op: "kind"; segment_id: string; from: Kind; to: Kind; display_name: string | null; route_m: [number, number] }
+export interface SplitOp { op: "split"; segment_id: string; coords_sha: string; cuts_m: number[]; pieces: { id: string; kind: Kind; display_name: string | null; length_m: number }[] }
+export interface Plan { route_id: string; length_m: number; intervals: { kind: Kind; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
 
 const SNAP_M = 15;
 const RESETTABLE: Kind[] = ["scramble", "climb"];
@@ -100,10 +101,12 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     if (!(KINDS as readonly string[]).includes(i.kind)) throw new Error(`unknown kind ${i.kind}`);
     const start = resolve(i.from, rows), end = resolve(i.to, rows);
     if (!(end > start)) throw new Error(`interval ${JSON.stringify(i)} is empty`);
-    return { kind: i.kind, start_m: start, end_m: end, note: i.note };
+    if (i.display_name !== undefined && !i.display_name.trim()) throw new Error("display_name must not be blank");
+    return { kind: i.kind, start_m: start, end_m: end, note: i.note, display_name: i.display_name?.trim() ?? null };
   }).sort((a, b) => a.start_m - b.start_m);
   for (let i = 1; i < intervals.length; i++) if (intervals[i].start_m < intervals[i - 1].end_m - 1) throw new Error("decision intervals overlap");
-  const kindAt = (m: number, fallback: Kind): Kind => intervals.find(i => m >= i.start_m && m < i.end_m)?.kind ?? (RESETTABLE.includes(fallback) ? "trail" : fallback);
+  const at = (m: number) => intervals.find(i => m >= i.start_m && m < i.end_m);
+  const kindAt = (m: number, fallback: Kind): Kind => at(m)?.kind ?? (RESETTABLE.includes(fallback) ? "trail" : fallback);
 
   const ops: Plan["ops"] = [], seen = new Set<string>();
   for (const p of parts) {
@@ -113,8 +116,8 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     const cuts = intervals.flatMap(i => [i.start_m, i.end_m]).filter(m => m > p.start + SNAP_M && m < p.end - SNAP_M)
       .sort((x, y) => x - y).filter((m, k, all) => k === 0 || m - all[k - 1] > 1);
     if (!cuts.length) {
-      const to = kindAt((p.start + p.end) / 2, p.row.kind);
-      if (to !== p.row.kind) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, route_m: [Math.round(p.start), Math.round(p.end)] });
+      const mid = (p.start + p.end) / 2, to = kindAt(mid, p.row.kind), name = at(mid)?.display_name ?? null;
+      if (to !== p.row.kind || name) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, display_name: name, route_m: [Math.round(p.start), Math.round(p.end)] });
       continue;
     }
     // Cuts measured from the segment's first stored vertex.
@@ -125,7 +128,7 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
       pieces: pieces.map((c, k) => {
         const len = lineLength(c), mid = offset + len / 2; offset += len;
         const routeMid = p.row.direction === "reverse" ? p.end - mid : p.start + mid;
-        return { id: id(k), kind: kindAt(routeMid, p.row.kind), length_m: Math.round(len) };
+        return { id: id(k), kind: kindAt(routeMid, p.row.kind), display_name: at(routeMid)?.display_name ?? null, length_m: Math.round(len) };
       }) });
   }
   return { route_id: routeId, length_m: Math.round(total), intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
@@ -162,7 +165,7 @@ export async function applyPlan(db: Queryable, p: Plan, evidence: Evidence): Pro
     for (const r of (await db.query(`SELECT DISTINCT route_id FROM route_segments WHERE segment_id = $1`, [op.segment_id])).rows) touched.add(r.route_id);
     if (op.op === "kind") {
       if (current.kind !== op.from) throw new Error(`segment ${op.segment_id} is ${current.kind}, planned from ${op.from}`);
-      await db.query(`UPDATE segments SET kind = $2, updated_at = now() WHERE id = $1`, [op.segment_id, op.to]);
+      await db.query(`UPDATE segments SET kind = $2, display_name = coalesce($3, display_name), updated_at = now() WHERE id = $1`, [op.segment_id, op.to, op.display_name]);
       await record(op.segment_id, null, op.from, op.to);
       continue;
     }
@@ -175,9 +178,9 @@ export async function applyPlan(db: Queryable, p: Plan, evidence: Evidence): Pro
       await db.query(`
         INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss, provenance, trail_names, kind, display_name, description, description_source_url, state_code)
         SELECT $2, name, ST_GeomFromText($3, 4326)::geography, NULL, $4, $5, $6, provenance,
-               trail_names, $7, display_name, description, description_source_url, state_code
+               trail_names, $7, coalesce($8, display_name), description, description_source_url, state_code
         FROM segments WHERE id = $1`,
-        [op.segment_id, op.pieces[k].id, wkt, Math.round(lineLength(c)), Math.round(gain), Math.round(loss), op.pieces[k].kind]);
+        [op.segment_id, op.pieces[k].id, wkt, Math.round(lineLength(c)), Math.round(gain), Math.round(loss), op.pieces[k].kind, op.pieces[k].display_name]);
       await record(op.pieces[k].id, op.segment_id, current.kind, op.pieces[k].kind);
     }
     const ids = op.pieces.map(x => x.id);

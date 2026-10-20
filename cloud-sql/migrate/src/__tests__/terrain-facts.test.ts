@@ -176,3 +176,10 @@ test("adjacent intervals share one cut", () => {
   const split = p.ops.find(o => o.op === "split");
   assert.ok(split && split.op === "split" && split.pieces.length === 2);
 });
+
+test("an interval can rename the stretch it labels", () => {
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "scramble", from: 1500, to: "end", note: "", display_name: "Summit gully" }] });
+  const split = p.ops.find(o => o.op === "split");
+  assert.ok(split && split.op === "split");
+  if (split?.op === "split") assert.deepEqual(split.pieces.map(x => x.display_name), ["Summit gully", null]);
+});
