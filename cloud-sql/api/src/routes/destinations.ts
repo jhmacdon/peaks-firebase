@@ -467,7 +467,7 @@ export function buildDestinationRoutesQuery(
             r.elevation_retrieved_at,
             r.external_links, r.provenance, r.completion,
             r.shape, r.kind, r.slug, r.aliases,
-            r.difficulty, r.est_moving_seconds, r.state_code, r.country_code,
+            r.difficulty, r.terrain_category, r.terrain_summary, r.est_moving_seconds, r.state_code, r.country_code,
             r.objective_destination_id, r.trailhead_destination_id, r.popularity,
             r.description, r.description_source_name,
             r.description_source_url, r.description_source_license,
