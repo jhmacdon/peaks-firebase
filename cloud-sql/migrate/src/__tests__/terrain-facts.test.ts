@@ -195,3 +195,9 @@ test("a climb needs a 5th-class rating", () => {
   r.features[0] = { ...r.features[0], type: "technical_climb", yds_class: "4" };
   assert.ok(verify(packet, sha, r, pages).findings.some(f => f.problems.includes("a climb needs a stated 5th-class rating")));
 });
+
+test("a summary needs a short line and credited https sources", () => {
+  const ok = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [], summary: { line: "Hike with an optional class 3 scramble", gear: [], hardest_class: "3", sources: [{ name: "WTA", url: "https://www.wta.org/x" }] } });
+  assert.equal(ok.summary?.line, "Hike with an optional class 3 scramble");
+  assert.throws(() => plan("r", rows, { route_id: "r", packet_sha256: "", apply: [], summary: { line: "x", gear: [], hardest_class: null, sources: [] } }), /sources/);
+});

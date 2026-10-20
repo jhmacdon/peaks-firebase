@@ -19,12 +19,14 @@ import { KINDS, type Kind } from "../trail-graph/types";
 export type Endpoint = number | "start" | "end" | { elevation_ft: number; crossing: "first" | "last" } | { segment: string; edge: "start" | "end" };
 /** `display_name` renames the stretch, e.g. a climbers' trail's last 160 ft as "Summit gully". */
 export interface Interval { kind: Kind; from: Endpoint; to: Endpoint; note: string; display_name?: string }
-export interface Decision { route_id: string; packet_sha256: string; apply: Interval[] }
+/** The reviewed line on what the whole trip needs, shown on the route. */
+export interface TerrainSummary { line: string; gear: string[]; hardest_class: string | null; sources: { name: string; url: string }[] }
+export interface Decision { route_id: string; packet_sha256: string; apply: Interval[]; summary?: TerrainSummary }
 export interface SegmentRow { ordinal: number; direction: "forward" | "reverse"; id: string; kind: Kind; coords: number[][] }
 
 export interface KindOp { op: "kind"; segment_id: string; from: Kind; to: Kind; display_name: string | null; route_m: [number, number] }
 export interface SplitOp { op: "split"; segment_id: string; coords_sha: string; cuts_m: number[]; pieces: { id: string; kind: Kind; display_name: string | null; length_m: number }[] }
-export interface Plan { route_id: string; length_m: number; intervals: { kind: Kind; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
+export interface Plan { route_id: string; length_m: number; summary: TerrainSummary | null; intervals: { kind: Kind; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
 
 const SNAP_M = 15;
 const RESETTABLE: Kind[] = ["scramble", "climb"];
@@ -137,7 +139,15 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     }
     ops.push({ op: "split", segment_id: p.row.id, coords_sha: sha(p.row.coords), cuts_m: local.map(Math.round), pieces: planned });
   }
-  return { route_id: routeId, length_m: Math.round(total), intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
+  return { route_id: routeId, length_m: Math.round(total), summary: checkSummary(decision.summary), intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
+}
+
+export function checkSummary(s: TerrainSummary | undefined): TerrainSummary | null {
+  if (!s) return null;
+  if (typeof s.line !== "string" || !s.line.trim() || s.line.length > 160) throw new Error("summary.line must be 1-160 characters");
+  if (!Array.isArray(s.gear) || s.gear.some(g => typeof g !== "string" || !g.trim())) throw new Error("summary.gear must be a list of words");
+  if (!Array.isArray(s.sources) || !s.sources.length || s.sources.some(x => !x?.name?.trim() || !/^https:\/\//.test(x?.url ?? ""))) throw new Error("summary.sources needs a name and an https URL each");
+  return { line: s.line.trim(), gear: s.gear.map(g => g.trim()), hardest_class: s.hardest_class ?? null, sources: s.sources.map(x => ({ name: x.name.trim(), url: x.url })) };
 }
 
 export const sha = (v: unknown) => createHash("sha256").update(stableJson(v)).digest("hex");
@@ -208,5 +218,10 @@ export async function applyPlan(db: Queryable, p: Plan, evidence: Evidence): Pro
     // Splitting drops the parent's session visits; queue those sessions to match again.
     await db.query(`SELECT queue_matching_routes($1, 'terrain split')`, [routes]);
   }
+  // Kinds set the route's terrain category and its difficulty floor.
+  await db.query(`SELECT refresh_route_terrain($1)`, [routes]);
+  // After the refresh: the reviewed-route guard accepts a summary only beside the current category.
+  if (p.summary) await db.query(`UPDATE routes SET terrain_summary = $2::jsonb WHERE id = $1`,
+    [p.route_id, JSON.stringify({ ...p.summary, reviewed_at: new Date().toISOString().slice(0, 10) })]);
   return routes;
 }
