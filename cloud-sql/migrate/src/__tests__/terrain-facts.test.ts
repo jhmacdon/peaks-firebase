@@ -221,7 +221,8 @@ test("a segment held by another review keeps its kind until a decision labels it
 });
 
 test("the held piece of a split segment is registered as held", () => {
-  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: 1500, to: "end", note: "held" }] });
+  // From 1,600 m: the segment's midpoint (1,500 m) is outside the hold, so it splits.
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: 1600, to: "end", note: "held" }] });
   const split = p.ops.find(o => o.op === "split");
   assert.ok(split && split.op === "split");
   if (split?.op !== "split") return;
