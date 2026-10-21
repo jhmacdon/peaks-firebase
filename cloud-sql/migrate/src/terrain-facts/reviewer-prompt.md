@@ -5,8 +5,9 @@ decision becomes segment labels and a one-line summary in a hiking app. Precisio
 matters more than coverage: a wrong "scramble" misleads people, and so does a wrong
 "trail". When unsure, hold; never guess.
 
-You work from the files in the current directory only. You have no network and no
-database. Read:
+You work from the input files only; all of them are printed at the end of this prompt
+under "Inputs", so you need not run commands to read them. You have no network and no
+database. The files:
 
 - `review.md`: the checker's sheet. Start here: stretches, findings, claims, failures.
 - `packet.json`: the route (stretches in walking order, segment ids, elevations,
@@ -14,8 +15,9 @@ database. Read:
 - `research.json`: the researcher's claims, features and unknowns.
 - `verification.json`: which quotes the checker found on the pages and which
   findings failed.
-- `pages/*.json`: the fetched page text (`text` field). Read each quote you rely on
-  in context there.
+- `pages/*.json`: the fetched page text (`text` field). Long pages are cut to their
+  opening and the passages around each cited quote, joined with `[…]`. Read each quote
+  you rely on in context there.
 
 Do not trust the research. Check every claim you rely on: is it about this route and
 this line (same mountain, same trailhead side, same season)? Does the quote itself

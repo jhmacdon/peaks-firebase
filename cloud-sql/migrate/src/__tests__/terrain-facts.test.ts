@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { findQuote, htmlToText, publisherOf, verify, type Page, type Verification } from "../terrain-facts/verify";
 import { groupStretches, measure, packetSha256, type Packet } from "../terrain-facts/packet";
 import { reviewerDecisionSchema, type Research, type ReviewerDecision } from "../terrain-facts/schema";
-import { checkDecision } from "../terrain-facts/review-check";
+import { checkDecision, excerptPage } from "../terrain-facts/review-check";
 import { comparePlans, intervalIoU } from "../terrain-facts/review-compare";
 import thompsonReview from "./fixtures/terrain-review-thompson.json";
 
@@ -438,4 +438,15 @@ test("plan flags escalate agreement and failed checks or planning block it", () 
   assert.equal(noPlan.agree, false);
   assert.equal(noPlan.escalate, true);
   assert.equal(noPlan.a_plan_hash, null);
+});
+
+test("a reviewer page keeps its opening and the text around each quote", () => {
+  const filler = "menu link ".repeat(5000);
+  const text = `Mount Example Route. ${filler} The summit block is about 40 feet of   class 3 rock. ${filler} Comments follow.`;
+  const out = excerptPage(text, ["The summit block is about 40 feet of class 3 rock."]);
+  assert.ok(out.length < text.length / 2);
+  assert.ok(out.startsWith("Mount Example Route."));
+  assert.ok(out.includes("The summit block is about 40 feet of class 3 rock."));
+  assert.ok(out.includes("[…]"));
+  assert.equal(excerptPage("short page", ["x"]), "short page");
 });

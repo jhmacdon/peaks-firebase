@@ -55,3 +55,22 @@ export function checkDecision(decision: ReviewerDecision, research: Research, ve
   }
   return problems;
 }
+
+/**
+ * A page cut down for a reviewer: its opening (title, route summary) plus a window around each
+ * cited quote, in page order, joined with a gap marker. Short pages pass through whole.
+ */
+export function excerptPage(text: string, quotes: string[], window = 2500, head = 2000, cap = 24000): string {
+  if (text.length <= cap) return text;
+  // Work on whitespace-collapsed text so search positions and slices agree; quote checks ignore whitespace.
+  const flat = text.replace(/\s+/g, " "), lower = flat.toLowerCase(), spans: [number, number][] = [[0, head]];
+  for (const quote of quotes) {
+    const probe = quote.toLowerCase().replace(/\s+/g, " ").slice(0, 60).trim();
+    const at = probe ? lower.indexOf(probe) : -1;
+    if (at >= 0) spans.push([Math.max(0, at - window), Math.min(flat.length, at + quote.length + window)]);
+  }
+  spans.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const s of spans) { const last = merged[merged.length - 1]; if (last && s[0] <= last[1]) last[1] = Math.max(last[1], s[1]); else merged.push([...s]); }
+  return merged.map(([a, b]) => flat.slice(a, b)).join("\n[…]\n").slice(0, cap);
+}

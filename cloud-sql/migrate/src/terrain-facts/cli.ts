@@ -9,7 +9,7 @@ import { fetchPages } from "./fetch-pages";
 import { researchSchema, reviewerDecisionSchema, type Research, type ReviewerDecision } from "./schema";
 import { verify, type Page, type Verification } from "./verify";
 import { applyPlan, checkSummary, loadRoute, plan, sha, type Decision, type Plan } from "./apply";
-import { checkDecision } from "./review-check";
+import { checkDecision, excerptPage } from "./review-check";
 import { comparePlans } from "./review-compare";
 
 /**
@@ -26,6 +26,8 @@ import { comparePlans } from "./review-compare";
 
 const MODEL = process.env.TERRAIN_MODEL ?? "gpt-6.1-sol";
 const EFFORT = process.env.TERRAIN_EFFORT ?? "ultra";
+/** Reviewers read saved pages only; ultra's parallel helpers add cost there without new evidence. */
+const REVIEW_EFFORT = process.env.TERRAIN_REVIEW_EFFORT ?? "high";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -100,7 +102,7 @@ async function reviewCommand() {
   if (as !== "a" && as !== "b") throw new Error("--as must be a or b");
   const output = join(dir, `decision.${as}.json`), raw = join(dir, `decision.${as}.raw.json`);
   if (existsSync(output)) throw new Error(`${output} already exists; use a new run directory`);
-  const prompt = await readFile(join(__dirname, "reviewer-prompt.md"), "utf8");
+  let prompt = await readFile(join(__dirname, "reviewer-prompt.md"), "utf8");
   const schema = join(dir, `review-schema.${as}.json`), eventFile = join(dir, `events.review-${as}.jsonl`);
   await writeFile(schema, JSON.stringify(reviewerDecisionSchema, null, 2));
   // Config docs: https://learn.chatgpt.com/docs/config-file/config-basic#web-search-mode
@@ -109,11 +111,25 @@ async function reviewCommand() {
   const work = await mkdtemp(join(tmpdir(), `terrain-review-${as}-`));
   for (const name of ["review.md", "packet.json", "research.json", "verification.json", "pages"])
     await cp(join(dir, name), join(work, name), { recursive: true });
+  // Reviewers get each page's opening and the text around every cited quote, not whole pages
+  // (most of a page is navigation and comments). checkDecision still reads the full pages.
+  const research = await readJson<Research>(join(dir, "research.json"));
+  for (const file of (await readdir(join(work, "pages"))).filter(f => f.endsWith(".json"))) {
+    const page = await readJson<Page>(join(work, "pages", file));
+    const quotes = research.claims.filter(c => c.source_url === page.url).map(c => c.quote);
+    page.text = excerptPage(page.text ?? "", quotes);
+    await writeFile(join(work, "pages", file), JSON.stringify(page));
+  }
+  // Inline every input so the review is one pass: each shell read would resend the whole context.
+  const block = async (name: string) => `<file name="${name}">\n${await readFile(join(work, name), "utf8")}\n</file>`;
+  const pageBlocks = await Promise.all((await readdir(join(work, "pages"))).filter(f => f.endsWith(".json")).sort().map(f => block(join("pages", f))));
+  prompt += "\n\n## Inputs\n\nEvery input file is below; do not run commands to read them again.\n\n"
+    + [await block("review.md"), await block("packet.json"), await block("research.json"), await block("verification.json"), ...pageBlocks].join("\n\n");
   const argv = ["exec", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check",
     "-s", "read-only", "-C", work, "-m", MODEL,
-    "-c", `model_reasoning_effort="${EFFORT}"`, "-c", `web_search="disabled"`, "-c", "project_doc_max_bytes=0",
+    "-c", `model_reasoning_effort="${REVIEW_EFFORT}"`, "-c", `web_search="disabled"`, "-c", "project_doc_max_bytes=0",
     "--output-schema", schema, "-o", raw, "--json", "-"];
-  console.log(`codex ${MODEL} (${EFFORT}) reviewing as ${as} ...`);
+  console.log(`codex ${MODEL} (${REVIEW_EFFORT}) reviewing as ${as} ...`);
   const events = createWriteStream(eventFile);
   const code = await new Promise<number>((done, fail) => {
     const child = spawn("codex", argv, { cwd: work, stdio: ["pipe", "pipe", "inherit"] });
