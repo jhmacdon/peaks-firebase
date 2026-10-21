@@ -21,7 +21,7 @@ import { replacementPlan, rebaseLoad, SOURCE_SCHEMA_PREFLIGHT } from './load-reb
 import type { MergePlan, RebasePlan } from './rebase';
 import { transactionStart, segmentLinks, destinationLinks } from './load-sql';
 import { writeRematchNeeded } from './load-rematch';
-import { parseState, type StateCode } from './state';
+import { parseBulkState, parseState, type StateCode } from './state';
 
 export interface LoadOptions { stateCode?: StateCode; activate?: boolean; elevation?: boolean; includeReview?: boolean; onlyOk?: boolean; resolver?: DestinationResolver; supersede?: SupersedeDecision; overlaps?: ExistingOverlap[]; supersededIds?: Set<string>; currentIds?: Set<string>; livePreflight?: boolean; rebases?: RebasePlan[]; merges?: MergePlan[]; replacementId?: string }
 export interface Statement { kind: string; sql: string; values: unknown[] }
@@ -293,7 +293,7 @@ async function main() {
   const flags = loaderArgs(), mode = loaderMode(flags), dir = option(flags, 'out', DEFAULT_COMPOSE), input = option(flags, 'input', DEFAULT_INPUT);
   if (mode === 'bulk') {
     const { loadBulk } = await import('./load-bulk');
-    await loadBulk({ dir: option(flags, 'dir', ''), state: option(flags, 'state', '') as 'OR' | 'CA' | 'ID', apply: flags.has('apply'), activate: flags.has('activate'), batchSize: Number(option(flags, 'batch-size', '50')) });
+    await loadBulk({ dir: option(flags, 'dir', ''), state: parseBulkState(option(flags, 'state', '')), apply: flags.has('apply'), activate: flags.has('activate'), batchSize: Number(option(flags, 'batch-size', '50')) });
     return;
   }
   const batchSize = Number(option(flags, 'batch-size', '50'));

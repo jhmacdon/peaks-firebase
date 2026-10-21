@@ -1,3 +1,5 @@
+import { parseBulkState } from './state';
+
 export type LoaderMode = 'catalog' | 'bulk' | 'rebase' | 'prune' | 'retire-pilot';
 const switches = ['apply','activate','elevation','only-ok','include-review','prune-pending','rebase','retire-pilot','bulk'];
 /** Loader entry points must parse before reading files or opening a client.
@@ -21,7 +23,7 @@ export function loaderArgs(argv = process.argv.slice(2), cli: 'catalog' | 'segme
   if (mode === 'bulk') {
     for (const key of ['out','input','include-review','only-ok']) if (result.has(key)) throw new Error(`--${key} is not valid in bulk mode`);
     if (!result.get('dir')?.[0]) throw new Error('--bulk requires --dir');
-    if (!['OR','CA','ID'].includes(result.get('state')?.[0] ?? '')) throw new Error('--bulk requires --state OR|CA|ID');
+    parseBulkState(result.get('state')?.[0] ?? '');
     const batch = Number(result.get('batch-size')?.[0] ?? '50');
     if (!Number.isInteger(batch) || batch < 1 || batch > 200) throw new Error('Bulk batch size must be 1–200');
     return result;

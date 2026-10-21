@@ -1,14 +1,9 @@
-# Bulk catalog load for Oregon, California and Idaho
+# Bulk catalog load for US states and DC
 
-Run the stages in this order: install migrations, then compose, load and activate
-each state, then rematch all sessions. Use the existing Cloud SQL instance and
-proxy with a migration operator connection in `DATABASE_URL`. The factory and
-reviewer logins cannot run this loader. No production step ran during development.
-
-Run the commands below from `cloud-sql/migrate`. Set `OR_INPUT_DIR`,
-`CA_INPUT_DIR` and `ID_INPUT_DIR` to the prepared input directories for each state.
-Each state also needs its built graph at `../../.cache/<state>/graph`, where the
-state directory uses lowercase letters. Keep states in separate directories.
+Run the stages in this order: install migrations, then build, discover, select,
+load, and activate each non-WA state or DC, then rematch all sessions. Use the
+migration operator connection in `DATABASE_URL`. The factory and reviewer
+logins cannot run this loader. WA keeps its existing catalog path.
 
 ## 1. Install the migrations
 
@@ -28,6 +23,7 @@ test -f src/rematch-all-sessions.ts
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f ../migrations/20261016_wa_catalog_activation.sql
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f ../migrations/20261017_wa_catalog_source_bundles.sql
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f ../migrations/20261018_bulk_catalog_load.sql
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f ../migrations/20261021_us_catalog_states.sql
 ```
 
 The bulk migration can run again. It adds no tables or indexes and rewrites no
@@ -43,61 +39,28 @@ guard requires that exact owner during status changes. The migration extends
 only its state/ID eligibility and removes its temporary role membership before
 commit. All review, elevation, rights, geometry and receipt checks stay intact.
 
-## 2. Compose, load and activate each state
+## 2. Build, select, load and activate each state
 
-The current composer has `--input`, `--graph` and `--out`; it has no `--state`
-flag. Its input filenames still use `wa-` internally. Each configured input
-directory must hold that state's data under these names:
-
-- `seed/wa-hike-seed.json`
-- `peaks-snapshot/wa-destinations.ndjson`
-- `peaks-snapshot/wa-routes.ndjson`
-- `peaks-snapshot/wa-route-popularity.ndjson`
-- `peaks-snapshot/wa-reviewed-catalog-segments.ndjson`, when frozen assets exist
-
-Each graph directory needs `segments.ndjson`, `features.ndjson` and
-`access.ndjson`. The composer writes `routes.ndjson` and `segments.ndjson` to
-the output directory; route records carry their place references. Keep those
-files together. The loader checks the source composition before adding state
-prefixes to new route and segment IDs. Frozen IDs stay unchanged. New rows
-carry `state_code`; the route's `wa_catalog` provenance marker also records it.
-The internal `wa_catalog` key and loader name retain the existing guard checks.
-
-Set the three input variables, then run this sequence. Each dry run uses local
-files, opens no database connection and fetches no elevation tiles. Review
-`bulk-plan.json` in that state's compose directory before its apply command.
+Run from `cloud-sql/migrate`. Set one uppercase state code and its lowercase
+cache key. `select-final` removes non-loadable discovery rows, copies the
+segment file, and writes hard routes to `research.ndjson`.
 
 ```sh
 set -e
-: "${OR_INPUT_DIR:?Set OR_INPUT_DIR to the prepared Oregon input directory}"
-: "${CA_INPUT_DIR:?Set CA_INPUT_DIR to the prepared California input directory}"
-: "${ID_INPUT_DIR:?Set ID_INPUT_DIR to the prepared Idaho input directory}"
 : "${DATABASE_URL:?Set DATABASE_URL to the migration operator connection}"
+catalog_state=CO
+catalog_key=co
+catalog_compose="../../.cache/$catalog_key/compose"
+catalog_final="../../.cache/$catalog_key/final"
 
-for catalog_state in OR CA ID; do
-  case "$catalog_state" in
-    OR) catalog_key=or; catalog_input="$OR_INPUT_DIR" ;;
-    CA) catalog_key=ca; catalog_input="$CA_INPUT_DIR" ;;
-    ID) catalog_key=id; catalog_input="$ID_INPUT_DIR" ;;
-  esac
-  catalog_graph="../../.cache/$catalog_key/graph"
-  catalog_compose="../../.cache/$catalog_key/compose"
-
-  TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/compose.ts \
-    --input "$catalog_input" --graph "$catalog_graph" --out "$catalog_compose"
-
-  TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts \
-    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 50
-
-  TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts \
-    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 50 --apply
-
-  TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts \
-    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 50 --activate
-
-  TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts \
-    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 50 --activate --apply
-done
+npm run trail-graph:build -- --state "$catalog_state"
+npm run trail-graph:discover -- --state "$catalog_state"
+npm run trail-graph:select-final -- --state "$catalog_state" \
+  --from "$catalog_compose" --out "$catalog_final" --order research-first
+TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts \
+  --bulk --state "$catalog_state" --dir "$catalog_final" --batch-size 50 --apply
+TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts \
+  --bulk --state "$catalog_state" --dir "$catalog_final" --batch-size 50 --activate --apply
 ```
 
 `--activate` selects a separate activation pass over already-loaded pending

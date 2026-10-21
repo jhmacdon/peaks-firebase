@@ -11,9 +11,8 @@ import { sampleBulkSegments } from './bulk-elevation';
 import { displayName } from './display-names';
 import type { ComposedRoute, PlaceRef } from './catalog-types';
 import type { Provenance, Segment } from './types';
-import type { StateCode } from './state';
+import { parseBulkState, type BulkState } from './state';
 
-export type BulkState = Exclude<StateCode, 'WA'>;
 export interface BulkOptions { dir: string; state: BulkState; apply?: boolean; activate?: boolean; batchSize?: number }
 export interface BulkResult { route_id: string; state_code: BulkState; operation: 'load' | 'activate'; success: boolean; skipped?: string; error?: string; sqlstate?: string }
 export interface BulkRoute { row: ComposedRoute; plan: RoutePlan; id: string; refs: { id: string; direction: 'forward' | 'reverse' }[] }
@@ -26,7 +25,7 @@ export const DEFER_DERIVATIONS_SQL = "SET LOCAL peaks.defer_route_derivations = 
 /** Validate the original composition first, then give new assets a state namespace.
  * Frozen assets and existing destination IDs keep their original identity. */
 export function bulkId(id: string, state: BulkState): string {
-  return `${state.toLowerCase()}-${id.replace(/^(?:wa|or|ca|id)-/, '')}`;
+  return `${state.toLowerCase()}-${id.replace(/^[a-z]{2}-/, '')}`;
 }
 export function batches<T>(rows: T[], size = 200): T[][] {
   if (!Number.isInteger(size) || size < 1 || size > 200) throw new Error('Bulk batch size must be 1–200');
@@ -50,7 +49,7 @@ export function bulkPreflightValues(rows: ComposedRoute[], source: Map<string, S
 }
 
 export function planBulkBatch(rows: ComposedRoute[], source: Map<string, Segment>, state: BulkState, live?: BulkPreflight): BulkPlan {
-  if (!['OR','CA','ID'].includes(state)) throw new Error('--bulk requires --state OR|CA|ID');
+  parseBulkState(state);
   const result: BulkPlan = { routes: [], skipped: [], segments: new Map(), compositionHashes: new Map(), state, live };
   const resolver = new DestinationResolver(live?.destinations ?? [], state);
   const existing = new Map(live?.routes.map(r => [r.id, r]));
@@ -314,7 +313,7 @@ export function insidePoly(p: [number, number], poly: ReturnType<typeof parsePol
 
 export async function loadBulk(options: BulkOptions): Promise<void> {
   const { state, dir } = options, size = options.batchSize ?? 50;
-  if (!['OR','CA','ID'].includes(state)) throw new Error('--bulk requires --state OR|CA|ID');
+  parseBulkState(state);
   batches([], size);
   if (options.apply && !process.env.DATABASE_URL) throw new Error('--apply requires DATABASE_URL');
   const source = new Map((await readRows<Segment>(join(dir,'segments.ndjson'))).map(s => [s.id,s]));

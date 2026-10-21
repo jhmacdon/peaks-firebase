@@ -9,7 +9,7 @@ import { Grid, haversine } from '../trail-graph/geo';
 import { geojsonFeatures, ndjson } from '../trail-graph/io';
 import { keepWay, readOsm } from '../trail-graph/opl';
 import { readRoadAccess } from '../trail-graph/road-access';
-import { intersectsBbox, parseState, stateConfig, statePaths } from '../trail-graph/state';
+import { intersectsBbox, parseState, STATE_CODES, stateConfig, statePaths } from '../trail-graph/state';
 import { buildTopology, refresh } from '../trail-graph/topology';
 import type { Coord, Segment, Tags } from '../trail-graph/types';
 
@@ -19,16 +19,31 @@ async function temporary(run: (dir: string) => Promise<void>) {
   try { await run(dir); } finally { await rm(dir, { recursive: true, force: true }); }
 }
 test('state defaults use isolated cache directories, source credit, and valid bounds', () => {
-  for (const code of ['WA', 'OR', 'CA', 'ID'] as const) {
+  assert.equal(STATE_CODES.length, 51);
+  for (const code of STATE_CODES) {
     const state = stateConfig(code), paths = statePaths(code);
     assert.equal(parseState(code.toLowerCase()), code);
     assert.equal(paths.graph, resolve(__dirname, `../../../../.cache/${code.toLowerCase()}/graph`));
     assert.equal(paths.compose, resolve(__dirname, `../../../../.cache/${code.toLowerCase()}/compose`));
     assert.match(state.osmSourceUrl, new RegExp(`${state.slug}\\.html$`));
     assert.ok(state.bbox[0] < state.bbox[2] && state.bbox[1] < state.bbox[3]);
+  }
+  for (const code of ['WA', 'OR', 'CA', 'ID'] as const) {
+    const state = stateConfig(code), paths = statePaths(code);
     assert.equal(paths.input.endsWith(code === 'WA' ? 'private/wa-trail-data' : `private/west-trail-data/${state.slug}`), true);
   }
-  assert.throws(() => parseState('NY'), /Unsupported state/);
+  assert.equal(parseState('nh'), 'NH');
+  assert.deepEqual(stateConfig('NH'), {
+    code: 'NH', name: 'New Hampshire', slug: 'new-hampshire', bbox: [-72.7, 42.6, -70.6, 45.4],
+    input: '/Users/josiahm/projects/peaks/private/us-trail-data/new-hampshire',
+    osmSourceUrl: 'https://download.geofabrik.de/north-america/us/new-hampshire.html',
+  });
+  assert.equal(parseState('dc'), 'DC');
+  assert.equal(stateConfig('DC').slug, 'district-of-columbia');
+  assert.equal(statePaths('CO').input, '/Users/josiahm/projects/peaks/private/us-trail-data/colorado');
+  assert.equal(parseState('ak'), 'AK');
+  assert.deepEqual(stateConfig('AK').bbox, [-170, 51, -129.9, 72]);
+  assert.throws(() => parseState('ZZ'), /Unsupported state/);
   assert.throws(() => parseState('__proto__'), /Unsupported state/);
   assert.ok(intersectsBbox([[-122, 44], [-118, 44]], [-121, 43, -120, 45]));
   assert.equal(intersectsBbox([[-122, 48], [-118, 48]], [-121, 43, -120, 45]), false);

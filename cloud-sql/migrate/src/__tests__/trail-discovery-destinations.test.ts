@@ -89,7 +89,8 @@ test('resolved non-area objectives use their Peaks point for the contact gate', 
   assert.equal(d.row.status, 'ok'); assert.equal(d.row.kind, 'destination'); assert.equal(d.walk.length, 1);
   assert.deepEqual(d.row.objective, { peaks_id: f.peak.id });
 });
-test('snapshot paths use the WA input and shared western snapshot directory', () => {
+test('snapshot paths use the WA input and each shared state snapshot directory', () => {
   assert.equal(discoverySnapshotPath('WA', '/private/wa'), '/private/wa/peaks-snapshot/wa-destinations.ndjson');
   assert.equal(discoverySnapshotPath('OR', '/private/west/oregon'), '/private/west/peaks-snapshot/or-destinations.ndjson');
+  assert.equal(discoverySnapshotPath('CO', '/private/us/colorado'), '/private/us/peaks-snapshot/co-destinations.ndjson');
 });

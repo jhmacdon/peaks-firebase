@@ -10,14 +10,16 @@ npm run trail-graph:typecheck
 npm run trail-graph:test-discovery
 ```
 
-Repeat with `OR`, `ID`, or `CA`. Both commands use a 6 GiB V8 heap limit. States
+Repeat with any US state or DC. Both commands use a 6 GiB V8 heap limit. States
 run in separate processes. `--input`, `--graph` (discovery), and `--out` override
 paths. Discovery rejects unknown options and unsupported states before reading inputs.
 
 ## Inputs and bounds
 
-WA reads `/Users/josiahm/projects/peaks/private/wa-trail-data`. Other states read
-`/Users/josiahm/projects/peaks/private/west-trail-data/{oregon,idaho,california}`.
+WA reads `/Users/josiahm/projects/peaks/private/wa-trail-data`. OR, CA, and ID
+keep their roots under `/Users/josiahm/projects/peaks/private/west-trail-data`.
+Every other state and DC reads
+`/Users/josiahm/projects/peaks/private/us-trail-data/{geofabrik-state-slug}`.
 Each input root contains:
 
 - `extract/trails.opl`
@@ -31,8 +33,8 @@ selection to the buffered state bounds in `state.ts`. It keeps whole intersectin
 lines so it does not invent source nodes at rectangle edges. These bounds do not
 replace a state boundary polygon. Frozen WA catalog segments remain WA-only.
 Discovery also requires local Peaks destination snapshots: WA reads
-`peaks-snapshot/wa-destinations.ndjson` under its input root; western states read
-`../peaks-snapshot/{or,id,ca}-destinations.ndjson` beside their input roots. It
+`peaks-snapshot/wa-destinations.ndjson` under its input root; other states read
+`../peaks-snapshot/{lowercase-code}-destinations.ndjson` beside their input roots. It
 resolves source places to these existing destinations before final geometry.
 Summit connectors target the resolved Peaks point and keep the existing 75 m
 limit and 5 m contact gate. Missing snapshots fail the run.
@@ -40,7 +42,7 @@ limit and 5 m contact gate. Missing snapshots fail the run.
 The spatial index uses degree cells and latitude-aware query bounds; metre checks
 still use haversine and local point-to-line distances.
 
-Graph files go under `.cache/{wa,or,id,ca}/graph`; discovery writes under the
+Graph files go under `.cache/{lowercase-state}/graph`; discovery writes under the
 matching `compose` directory. The original WA seed composer remains available
 through `trail-graph:compose`; it reads the WA graph by default.
 
@@ -211,10 +213,8 @@ name agreement plus a compatible named start or a mapped seed trailhead within
 150 m. The report also counts name-only matches. This measures approach coverage,
 not full geometry equivalence to the 409 seed hikes.
 
-The existing loader can read the route and segment schema and build state-correct
-pending SQL plans offline. Its production apply and activation path still uses
-WA-specific guards and functions; non-WA apply or activation is blocked before a
-connection. No production load is part of this task.
+The catalog loader can load and activate each non-WA state through bulk mode.
+WA keeps its existing catalog path. No production load is part of local checks.
 
 ## Credits
 

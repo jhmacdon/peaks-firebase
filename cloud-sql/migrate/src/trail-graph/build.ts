@@ -34,7 +34,7 @@ export async function build(input: string, out: string, stateCode: StateCode = '
   conflated.segments.length = 0;
   for (const segment of withRoadLinks) {
     segment.state_code = state.code;
-    segment.id = segment.id.replace(/^(?:wa|or|ca|id)-/, `${state.code.toLowerCase()}-`);
+    segment.id = segment.id.replace(/^[a-z]{2}-/, `${state.code.toLowerCase()}-`);
     if (segment.provenance.contains_osm_geometry) segment.provenance.source_url = state.osmSourceUrl;
   }
   const idStats = resolveIdCollisions(withRoadLinks);

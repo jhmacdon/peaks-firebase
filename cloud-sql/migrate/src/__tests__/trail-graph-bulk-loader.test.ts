@@ -135,7 +135,7 @@ test('state mapping preserves the source composition and tags every inserted col
   row.trailhead = { new: { name: 'New River Trailhead', feature: 'trailhead', lng: -121, lat: 47, source: { kind: 'osm', osm_id: 'node/555' } } };
   rehash(row);
   const original = JSON.stringify({ row, source: [...source] });
-  for (const state of ['OR', 'CA', 'ID'] as const) {
+  for (const state of ['OR', 'CA', 'ID', 'CO'] as const) {
     const plan = planBulkBatch([row], source, state), batch = buildBulkBatch(plan, profiles(plan.segments));
     assert.equal(plan.skipped.length, 0);
     assert.equal(batch.ids[0], bulkId(row.route_id!, state));
@@ -354,6 +354,7 @@ test('activation commits per-route successes and failures from one call with at 
 
 test('bulk CLI validates state and bounded chunks before I/O and keeps legacy modes separate', () => {
   assert.equal(loaderMode(loaderArgs(['--bulk', '--state', 'CA', '--dir', 'local', '--activate'])), 'bulk');
+  assert.equal(loaderMode(loaderArgs(['--bulk', '--state', 'CO', '--dir', 'local'])), 'bulk');
   assert.deepEqual(batches(Array.from({ length: 401 }, (_, i) => i)).map(batch => batch.length), [200, 200, 1]);
   for (const size of [0, 201, 1.5, Number.NaN]) assert.throws(() => batches([], size), /1–200/);
   for (const args of [[], ['--state', 'WA'], ['--state', 'OR', '--batch-size', '201'],
