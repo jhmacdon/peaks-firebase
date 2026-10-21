@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Pool } from "pg";
@@ -105,14 +105,18 @@ async function reviewCommand() {
   await writeFile(schema, JSON.stringify(reviewerDecisionSchema, null, 2));
   // Config docs: https://learn.chatgpt.com/docs/config-file/config-basic#web-search-mode
   // "disabled" turns off the web search tool.
+  // Each reviewer reads a fresh copy of the inputs only, so neither sees the other's decision.
+  const work = await mkdtemp(join(tmpdir(), `terrain-review-${as}-`));
+  for (const name of ["review.md", "packet.json", "research.json", "verification.json", "pages"])
+    await cp(join(dir, name), join(work, name), { recursive: true });
   const argv = ["exec", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check",
-    "-s", "read-only", "-C", dir, "-m", MODEL,
+    "-s", "read-only", "-C", work, "-m", MODEL,
     "-c", `model_reasoning_effort="${EFFORT}"`, "-c", `web_search="disabled"`, "-c", "project_doc_max_bytes=0",
     "--output-schema", schema, "-o", raw, "--json", "-"];
   console.log(`codex ${MODEL} (${EFFORT}) reviewing as ${as} ...`);
   const events = createWriteStream(eventFile);
   const code = await new Promise<number>((done, fail) => {
-    const child = spawn("codex", argv, { cwd: dir, stdio: ["pipe", "pipe", "inherit"] });
+    const child = spawn("codex", argv, { cwd: work, stdio: ["pipe", "pipe", "inherit"] });
     events.on("error", fail);
     child.stdout.pipe(events);
     child.on("error", error => { events.end(); fail(error); });
@@ -120,6 +124,7 @@ async function reviewCommand() {
     child.stdin.on("error", fail);
     child.stdin.end(prompt);
   });
+  await rm(work, { recursive: true, force: true });
   if (code !== 0) throw new Error(`codex exited ${code}; see ${eventFile}`);
   const decision = await readJson<ReviewerDecision>(raw);
   await writeFile(output, JSON.stringify(decision, null, 2) + "\n", { flag: "wx" });

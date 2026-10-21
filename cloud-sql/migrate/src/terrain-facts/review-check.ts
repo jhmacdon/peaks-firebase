@@ -32,6 +32,11 @@ export function checkDecision(decision: ReviewerDecision, research: Research, ve
   for (const [index, label] of decision.labels.entries()) {
     if (!(REVIEW_KINDS as readonly string[]).includes(label.kind)) problems.push(`labels.${index}: unknown kind ${label.kind}`);
     checkBasis(`labels.${index}.basis`, label.basis);
+    // Josiah's rule: a scramble needs two publishers. Count distinct sites behind the label.
+    if (label.kind === "scramble") {
+      const hosts = new Set(label.basis.map(id => usable.get(id)?.source_url).filter((u): u is string => !!u).map(u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } }));
+      if (hosts.size < 2) problems.push(`labels.${index}: a scramble needs claims from two publishers (has ${hosts.size})`);
+    }
     if (label.kind === "climb" && !label.basis.some(id => /\b5\.\d|class 5|fifth class/i.test(usable.get(id)?.quote ?? "")))
       problems.push(`labels.${index}: a climb needs a basis quote with a stated 5th-class rating`);
   }
