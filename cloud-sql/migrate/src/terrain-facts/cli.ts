@@ -127,6 +127,8 @@ async function reviewCommand() {
   await rm(work, { recursive: true, force: true });
   if (code !== 0) throw new Error(`codex exited ${code}; see ${eventFile}`);
   const decision = await readJson<ReviewerDecision>(raw);
+  // A hold keeps the segment as it is, so a name on it means nothing; drop it rather than fail the plan.
+  for (const interval of decision.apply) if (interval.kind === "hold") interval.display_name = null;
   await writeFile(output, JSON.stringify(decision, null, 2) + "\n", { flag: "wx" });
   console.log(output);
 }

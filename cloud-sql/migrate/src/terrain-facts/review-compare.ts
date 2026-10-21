@@ -44,7 +44,9 @@ export function comparePlans(a: Plan | null, b: Plan | null, aProblems: string[]
   if (!a) disagreements.push("a: no valid plan");
   if (!b) disagreements.push("b: no valid plan");
   if (a && b) {
-    const kinds = (p: Plan) => new Set(p.intervals.filter(i => i.kind !== "trail").map(i => i.kind));
+    // Only the labels that change what a hiker is told to expect must agree; road, xc and mapped ice follow plan a.
+    const DECISIVE = new Set(["scramble", "climb", "climbers_route", "hold"]);
+    const kinds = (p: Plan) => new Set(p.intervals.filter(i => DECISIVE.has(i.kind)).map(i => i.kind));
     const ak = kinds(a), bk = kinds(b);
     if (ak.has("hold") !== bk.has("hold")) disagreements.push("holds appear in only one plan");
     for (const kind of new Set([...ak, ...bk])) {
