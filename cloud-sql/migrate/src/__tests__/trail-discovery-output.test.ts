@@ -4,7 +4,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { catalogSegment } from '../trail-graph/catalog-output';
 import { composeDiscover } from '../trail-graph/compose-discover';
-import { composeDiscovery, digestValue } from '../trail-graph/discovery-catalog';
+import { composeDiscovery as composeWithAccess, digestValue } from '../trail-graph/discovery-catalog';
+import { DiscoveryAccess } from '../trail-graph/discovery-access';
 import { catalogRouteId, finalizeRows, segmentManifestHash } from '../trail-graph/compose';
 import { compositionValid, planRoute } from '../trail-graph/load-catalog';
 import { sourcesCovered } from '../trail-graph/source-provenance';
@@ -24,6 +25,10 @@ function freeze<T>(value: T): T {
   if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); }
   return value;
 }
+
+// Geometry fixtures include a public parking contact at each route end.
+const composeDiscovery: typeof composeWithAccess = (candidate, index, state, segments, junctions, ranking, destinations, access) =>
+  composeWithAccess(candidate, index, state, segments, junctions, ranking, destinations, access ?? new DiscoveryAccess([{ osm_id: 'fixture/parking', coord: candidate.trailheadCoord, parking: true }, ...(candidate.endTrailhead ? [{ osm_id: 'fixture/far-parking', coord: 'coord' in candidate.endTrailhead ? candidate.endTrailhead.coord : [candidate.endTrailhead.lon, candidate.endTrailhead.lat] as [number, number], parking: true }] : [])]));
 
 test('catalog segment output removes only excluded copied tags without changing its source', () => {
   const segment = freeze(fixture()), before = JSON.stringify(segment), result = catalogSegment(segment), expected = JSON.parse(before) as Segment;
@@ -79,7 +84,7 @@ test('the offline composer exports cleaned metadata before finalizing loader has
     await writeFile(join(graph, 'segments.ndjson'), JSON.stringify(segment) + '\n');
     await writeFile(join(graph, 'features.ndjson'), JSON.stringify({ osm_id: 'node/2', name: 'Alpha Lake', feature: 'lake', lon: -121, lat: 47.02, graph_node: 'b', graph_coord: [-121, 47.02], graph_distance_m: 0, location_method: 'osm_point' }) + '\n');
     await writeFile(join(graph, 'access.ndjson'), JSON.stringify({ osm_id: 'node/1', coord: [-121, 47], name: 'Alpha Parking', parking: true }) + '\n');
-    const input = join(root, 'oregon'); await mkdir(input); await mkdir(join(root, 'peaks-snapshot')); await writeFile(join(root, 'peaks-snapshot/or-destinations.ndjson'), '');
+    const input = join(root, 'oregon'); await mkdir(input); await mkdir(join(input, 'extract')); await writeFile(join(input, 'extract/trails.opl'), ''); await mkdir(join(root, 'peaks-snapshot')); await writeFile(join(root, 'peaks-snapshot/or-destinations.ndjson'), '');
     await composeDiscover('OR', graph, out, input);
     const text = await readFile(join(out, 'segments.ndjson'), 'utf8'); assert.doesNotMatch(text, /alltrails\.com/i);
     const segments = text.trim().split('\n').map(line => JSON.parse(line) as Segment), source = new Map(segments.map(s => [s.id, s]));

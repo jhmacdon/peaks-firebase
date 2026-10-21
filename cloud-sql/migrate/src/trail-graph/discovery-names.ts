@@ -1,5 +1,6 @@
 import { displayName } from './display-names';
 import { isMotorizedName } from './discovery-eligibility';
+import { STATE_CODES, stateConfig } from './state';
 import type { AccessPoint } from './catalog-types';
 import type { NamedFeature } from './types';
 
@@ -12,6 +13,27 @@ export interface DiscoveryNameOptions {
   kind?: 'trail' | 'objective' | 'trailhead' | 'route';
   /** Only mapped trailheads can retain an official road-containing name. */
   officialTrailhead?: boolean;
+}
+
+/** Source notes and warnings cannot name a place. Keep them as review rows. */
+export function isNoteObjectiveName(value: string): boolean {
+  const name = value.trim();
+  return /[!?]/.test(name) || /\d\s*['"′″]/.test(name)
+    || /\.$/.test(name) && !/\b(?:st|mt|mtn|pk|dr|jr|sr|pt|ft|N\.R\.T)\.$/i.test(name)
+    || /\b(?:dangerous|danger|warning|caution|closed|no\s+access|private|emergency|keep\s+out|do\s+not)\b/i.test(name);
+}
+
+const stateSectionSuffix = new RegExp(`\\s+(?:[-‐‑‒–—−]\\s+)?(?:Section\\s+(?:[a-z]|\\d+[a-z]?)|(?:${STATE_CODES.map(code => stateConfig(code).name).join('|')})\\s+Section)(?:\\s+Trail)?$`, 'i');
+
+/** Relation sections describe source coverage, not the via trail's identity. */
+function stripTrailSections(name: string): string {
+  let previous: string;
+  do {
+    previous = name;
+    name = name.replace(/\s+[-‐‑‒–—−]\s+(?:[^-‐‑‒–—−]+?\s+Section|Section\s+[\p{L}\d]+)(?:\s+Trail)?$/iu, '')
+      .replace(stateSectionSuffix, '').trim();
+  } while (name !== previous);
+  return name;
 }
 
 /** Match road words anywhere, including a road hidden before a trail suffix. */
@@ -62,12 +84,16 @@ function parentheticalName(value: string): string {
 
 /** Shared source-name cleanup; originals remain available as aliases. */
 export function cleanDiscoveryName(value: string | null | undefined, options: DiscoveryNameOptions = {}): DiscoveryName {
-  const original = displayName(value ?? null), flags: string[] = [];
-  if (!original || isMotorizedName(original)) return { name: null, aliases: [], flags };
+  const raw = value?.trim(), original = displayName(value ?? null), flags: string[] = [];
+  if (!original || isMotorizedName(original) || /^(?:cdt|pct)\s+(?:fs|usfs|nfs|nfst)\s*[-#]?\s*\d/i.test(raw ?? '')) return { name: null, aliases: [], flags };
   if (/\(\s*seasonal\s*\)/i.test(original)) flags.push('seasonal');
   // A route title can include an objective plus a trail. Pick a parenthetical
   // trail alias within that clause without replacing the objective itself.
   let name = original.split(/(\s+via\s+|\s+from\s+)/i).map(part => parentheticalName(part)).join('');
+  if (options.kind === 'trail' || options.kind === 'route') {
+    const clauses = name.split(/(\s+via\s+|\s+from\s+)/i), hasVia = clauses.some(part => /^\s+via\s+$/i.test(part));
+    name = clauses.map((part, index) => index % 2 || index === 0 && hasVia || index > 0 && /^\s+from\s+$/i.test(clauses[index - 1]) ? part : stripTrailSections(part)).join('');
+  }
   const road = isRoadName(original) || isRoadName(name), rawJunk = isJunkDiscoveryName(name);
   name = name.replace(/\bNRT\b/gi, 'National Recreation Trail').replace(/\bNST\b/gi, 'National Scenic Trail')
     .replace(/(?:^|\s)(?:x{2,}|tbd|todo)(?=\s|$)/gi, ' ')
@@ -82,19 +108,21 @@ export function cleanDiscoveryName(value: string | null | undefined, options: Di
     name = name.replace(/^(?!.*\b(?:via|from)\b)(.+?\s+[^\s]+)\s+\d+[a-z]?$/i, '$1');
     if (/\btrailhead$/i.test(name)) name = '';
   }
+  name = name.replace(/\b(trail|path|loop|route)(?:\s+\1)+\b/gi, '$1');
   if (!name || rawJunk || isJunkDiscoveryName(name) || road && !(options.kind === 'trailhead' && options.officialTrailhead)) name = '';
-  return { name: name || null, aliases: name && name !== original ? [original] : [], flags };
+  return { name: name || null, aliases: name && raw && raw !== name ? [raw] : [], flags };
 }
 
 /** Keep the source generic word, and supply Trail where the source omits it. */
 export function viaTrailName(value: string | null | undefined): string | null {
   const name = cleanDiscoveryName(value, { kind: 'trail' }).name;
-  if (!name) return null;
+  if (!name || /^Emergency\b/i.test(name)) return null;
   return /\b(?:trail|path|route|way|walk|loop|traverse)\b/i.test(name) ? name : `${name} Trail`;
 }
 
 /** Parking codes and road contacts must not become invented trailhead names. */
 export function usableTrailheadName(place: NamedFeature | AccessPoint): string | null {
+  if (place.osm_id.startsWith('graph/')) return null;
   const official = 'feature' in place && place.feature === 'trailhead' && !place.osm_id.startsWith('graph/');
   const name = cleanDiscoveryName(place.name, { kind: 'trailhead', officialTrailhead: official }).name;
   if (!name || /(?:…|\.\.\.)/.test(name) || /^(?:p|lot|parking(?:\s+lot)?)\s*[-#]?\s*[a-z]?\d+[a-z]?$/i.test(name)) return null;

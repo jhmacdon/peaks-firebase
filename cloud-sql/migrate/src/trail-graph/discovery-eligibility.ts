@@ -3,6 +3,20 @@ import { geojsonFeatures, lines } from './io';
 import { parseTags } from './opl';
 import type { SourceFeature } from './features';
 import type { NamedFeature, Segment, Tags } from './types';
+import { restrictedFootAccess } from './pedestrian-access';
+
+/** Recover restrictions for older graphs whose segments omit OSM access tags. */
+export async function loadRestrictedDiscoverySegments(input: string, segments: Segment[]): Promise<Set<string>> {
+  const restricted = new Set<number>();
+  if (segments.some(segment => segment.osm_way_ids.length && segment.osm_access === undefined)) {
+    for await (const line of lines(join(input, 'extract', 'trails.opl'))) {
+      if (line[0] !== 'w') continue;
+      const field = /(?:^| )T([^ ]*)/.exec(line);
+      if (field && restrictedFootAccess(parseTags(field[1]))) restricted.add(Number(line.slice(1, line.indexOf(' '))));
+    }
+  }
+  return new Set(segments.filter(segment => restrictedFootAccess(segment.osm_access ?? {}) || segment.osm_way_ids.some(id => restricted.has(id))).map(segment => segment.id));
+}
 
 /** These designations describe motor recreation rather than a hiking trail. */
 export function isMotorizedName(value: string | null | undefined): boolean {

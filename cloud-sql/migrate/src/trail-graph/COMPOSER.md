@@ -63,8 +63,8 @@ vertices; a closer parking spur cannot divert the hike into a separate component
 Nearby Peaks trailheads remain a fallback within 500 m.
 
 The build streams roads-parking.opl twice. It keeps exact public road vertices
-within 150 m of graph ends/junctions and all public parking points and area
-centroids, including names. Private/no-access and motorway vertices do not prove
+within 250 m of graph ends/junctions and all public parking points and area
+centroids, including names. Private/no-access, non-drivable, and motorway vertices do not prove
 a start. Inference considers preferred-network ends/junctions within 150 m of
 this index. Out-and-back inference maximizes network distance from the goal;
 wide PCT/Commonwealth networks minimize it on the first seed trail. A known

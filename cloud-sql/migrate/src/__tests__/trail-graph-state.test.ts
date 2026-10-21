@@ -114,10 +114,11 @@ test('a local Oregon fixture builds without State Parks and writes Oregon segmen
   assert.match(segments[0].provenance.source_url, /oregon\.html$/);
 }));
 test('pedestrian restrictions exclude named paths and cannot reappear as source connectors or parking', async () => temporary(async dir => {
-  const restrictions: Tags[] = [{ foot: 'no' }, { foot: 'private' }, { access: 'no' }, { access: 'private', foot: 'yes' }];
+  const restrictions: Tags[] = [{ foot: 'no' }, { foot: 'private' }, { access: 'no' }];
   for (const tags of restrictions) {
     assert.equal(keepWay({ highway: 'path', name: 'Restricted Trail', ...tags }, true), false);
   }
+  assert.equal(keepWay({ highway: 'path', access: 'private', foot: 'yes' }, true), true);
   const path = join(dir, 'trails.opl');
   await writeFile(path, 'n1 T x-121 y44\nn2 T x-120.99 y44\nn3 T x-120.98 y44\nn4 T x-120.99 y44.01\nw1 Thighway=path,name=Public%20%Trail Nn1,n2\nw2 Thighway=footway,foot=no Nn2,n3\nw3 Thighway=track,foot=private Nn2,n4\n');
   const osm = await readOsm(path); assert.equal(osm.ways.length, 1); assert.equal(osm.connectors.length, 0);

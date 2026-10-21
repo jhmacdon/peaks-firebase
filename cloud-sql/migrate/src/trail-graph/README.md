@@ -45,7 +45,7 @@ candidates; it does not decide whether a distance meets a threshold.
 OSM nodes define connectivity. Crossings that lack a shared OSM node stay separate.
 The builder splits at shared nodes, repeated nodes, way ends, and kind changes.
 It joins degree-2 chains only when names, ref, relation membership, kind,
-`sac_scale`, and `trail_visibility` agree. Closed cycles survive. Pruning happens
+`sac_scale`, `trail_visibility`, and pedestrian access tags agree. Closed cycles survive. Pruning happens
 before agency additions: a component needs a name or hiking relation and 500 m.
 Raw footway/track connectors up to 400 m that touch kept ways join before pruning.
 Named, foot-permitted cycleways also survive. Short source road stretches join

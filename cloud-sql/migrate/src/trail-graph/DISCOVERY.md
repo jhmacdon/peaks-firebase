@@ -121,8 +121,9 @@ trailhead. No seed, WTA page, AllTrails link, or copied description is used.
 ## Names, checks, and dedupe
 
 Names use `names.ts`, `display-names.ts`, and `discovery-names.ts`: expand Mount,
-Mountain, Peak, and Pacific Crest Trail; title-case agency capitals and words
-after hyphens. Road names cannot supply preferred trails or viewpoint objectives.
+Mountain, Peak, Pacific Crest Trail, and Continental Divide Trail; expand National
+Recreation abbreviations, trim relation section labels, and title-case lowercase
+words while preserving internal capitals. Duplicate generic words appear once. Road names cannot supply preferred trails or viewpoint objectives.
 Only a mapped official trailhead can retain a road-containing name. Parking codes,
 truncated labels, bare numbers, inventory codes, and generic labels such as
 `Trail 024` or `Foot Trail` cannot name a hike. A proper trail name loses its
@@ -149,9 +150,31 @@ even when starts differ. The same objective and start also dedupe at 80% shared
 length. Status wins first, then a mapped trailhead, popularity, name and road
 shares, and shorter distance. After dedupe, `from <start>` distinguishes only
 remaining approaches to the same objective by the same trail. It never uses an
-invented trailhead label, parking code, or truncated source name. No two ok routes in a state share a normalized display name. Same-objective
+generated trailhead label, parking code, or truncated source name. An unnamed start
+uses the nearest named parking or trailhead within 125 m, then the first named
+trail in walking order with its final Trail/Path removed before Trailhead.
+Generated names carry `name_is_fallback`, a place source note, and a route flag. No two ok routes in a state share a normalized display name. Same-objective
 approaches use safe trailhead labels at any distance. Supported trail sections
 use their named endpoints; remaining name collisions keep the better route.
+
+After dedupe and name checks, an ok route requires review when another ok route
+to the same Peaks destination or new OSM objective is at most half its stored
+one-way length. `dedupe.long_alternatives_demoted` reports the state count.
+Every start and traverse end needs a public drivable road vertex or parking
+feature within 250 m in `access.ndjson`; mapped trailheads receive the same check.
+Note-like objective names require review: punctuation `!`, `?`, a final period
+except a known abbreviation, a numeric foot/inch mark, or a whole-word warning
+or access restriction. Emergency trails cannot supply the via name; an approach
+with no other usable via trail requires review.
+
+OSM ways with `access=private|no` or `foot=private|no` stay out of the build unless
+`foot=yes|designated|permissive` overrides the restriction. Segments retain these
+tags and split at access changes. Composition checks them again and recovers
+source-way restrictions from OPL for older graphs. Restricted walks require
+review. Existing road, length, contact, connectivity, and repeat checks still run.
+`quality_demotions` counts each new rule that fails an otherwise ok retained
+route; one route can count under several rules. `raw_quality_demotions` counts
+those failures before dedupe. Long-alternative counts apply only after dedupe.
 
 A search-budget review means a qualifying named alternative remains unresolved;
 it does not prove that none exists. This bound can reduce the number of ok routes.

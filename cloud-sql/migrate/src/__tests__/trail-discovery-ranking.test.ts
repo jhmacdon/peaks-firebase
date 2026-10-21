@@ -99,8 +99,8 @@ test('seed-free exports contain numeric popularity in descending loading order a
       const th = f.candidate.trailhead as NamedFeature; th.lon += shift; th.osm_id = `node/${i + 1}`; th.graph_node = `a${i}`; th.name = `Alpine ${i} Trailhead`; features.push(th);
       const objective = f.candidate.objective!; objective.lon += shift; objective.osm_id = `node/${i + 101}`; objective.graph_node = `b${i}`; objective.name = `Alpine ${i} Lake`; if (i >= 3) objective.tags = { wikidata: `Q${i}` }; features.push(objective);
     }
-    for (const [name, rows] of [['segments', segments], ['features', features], ['access', []]] as const) await writeFile(join(graph, `${name}.ndjson`), rows.map(r => JSON.stringify(r)).join('\n') + '\n');
-    const input = join(root, 'oregon'); await mkdir(input); await mkdir(join(root, 'peaks-snapshot')); await writeFile(join(root, 'peaks-snapshot/or-destinations.ndjson'), '');
+    for (const [name, rows] of [['segments', segments], ['features', features], ['access', features.filter(feature => feature.feature === 'trailhead').map(feature => ({ osm_id: `parking/${feature.osm_id}`, coord: [feature.lon, feature.lat], parking: true }))]] as const) await writeFile(join(graph, `${name}.ndjson`), rows.map(r => JSON.stringify(r)).join('\n') + '\n');
+    const input = join(root, 'oregon'); await mkdir(input); await mkdir(join(input, 'extract')); await writeFile(join(input, 'extract/trails.opl'), ''); await mkdir(join(root, 'peaks-snapshot')); await writeFile(join(root, 'peaks-snapshot/or-destinations.ndjson'), '');
     await composeDiscover('OR', graph, out, input);
     const rows = (await readFile(join(out, 'routes.ndjson'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as ComposedRoute); assert.ok(rows.length >= 6);
     assert.deepEqual([...new Set(rows.filter(r => r.status === 'ok').map(r => r.tier))].sort(), [1, 2, 3]);

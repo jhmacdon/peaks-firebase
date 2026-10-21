@@ -5,7 +5,8 @@ import { resolve, join } from 'node:path';
 import { composeDiscover } from '../trail-graph/compose-discover';
 import { discover, discoveryName, objectiveCostLowerBound, type DiscoveryCandidate, type HardGoalRequest, type HardGoalResult, type HardGoalSolver } from '../trail-graph/discovery';
 import { displayName, assertDisplayName } from '../trail-graph/display-names';
-import { composeDiscovery, DiscoveryDeduper, DiscoveryPieces, discoverySummary, popularity, routeDistance, routeTitle, sharedLength, type DiscoverySummary } from '../trail-graph/discovery-catalog';
+import { composeDiscovery as composeWithAccess, DiscoveryDeduper, DiscoveryPieces, discoverySummary, popularity, routeDistance, routeTitle, sharedLength, type DiscoverySummary } from '../trail-graph/discovery-catalog';
+import { DiscoveryAccess } from '../trail-graph/discovery-access';
 import { finalizeRows } from '../trail-graph/compose';
 import { compositionValid, planRoute } from '../trail-graph/load-catalog';
 import { haversine, length } from '../trail-graph/geo';
@@ -41,6 +42,10 @@ function connected(walk: RouteStep[], source: Map<string, Segment>, closed = fal
   if (closed) { const a = walk[0], b = walk.at(-1)!; assert.deepEqual(source.get(a.segment_id)!.coords[a.start_vertex], source.get(b.segment_id)!.coords[b.end_vertex]); }
 }
 const sourceOf = (routes: DiscoveryCandidate[], source: DiscoveryCandidate['source']) => routes.filter(r => r.source === source);
+
+// Geometry fixtures include a public parking contact at each route end.
+const composeDiscovery: typeof composeWithAccess = (candidate, index, state, segments, junctions, ranking, destinations, access) =>
+  composeWithAccess(candidate, index, state, segments, junctions, ranking, destinations, access ?? new DiscoveryAccess([{ osm_id: 'fixture/parking', coord: candidate.trailheadCoord, parking: true }, ...(candidate.endTrailhead ? [{ osm_id: 'fixture/far-parking', coord: 'coord' in candidate.endTrailhead ? candidate.endTrailhead.coord : [candidate.endTrailhead.lon, candidate.endTrailhead.lat] as [number, number], parking: true }] : [])]));
 
 test('WA discovery runs without an optional seed file', async () => {
   const parent = resolve(__dirname, '../../../../.cache/test-tmp'); await mkdir(parent, { recursive: true });

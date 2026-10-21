@@ -1,6 +1,7 @@
 import { lines } from './io';
 import type { Coord, Relation, Tags, Way } from './types';
 import { intersectsBbox, type Bbox } from './state';
+import { restrictedFootAccess } from './pedestrian-access';
 
 export function decodeOpl(value: string): string {
   return value.replace(/%([a-fA-F0-9]+)%/g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)));
@@ -27,7 +28,7 @@ export function parseOpl(line: string): OplRecord {
   return record;
 }
 export function keepWay(tags: Tags, inRelation: boolean): boolean {
-  if (['no', 'private'].includes(tags.access) || ['no', 'private'].includes(tags.foot)) return false;
+  if (restrictedFootAccess(tags)) return false;
   if (['path', 'bridleway', 'steps'].includes(tags.highway)) return true;
   // Some hiking relation members (notably rail trails) use cycleway geometry.
   if (tags.highway === 'cycleway') return ['yes', 'designated'].includes(tags.foot) && (!!tags.name?.trim() || inRelation);
@@ -65,7 +66,7 @@ export async function readOsm(path: string, bbox?: Bbox): Promise<{ ways: Way[];
   const connectors: Way[] = [], selectedNodes = new Set(required);
   for await (const line of lines(path)) if (line[0] === 'w') {
     const w = parseOpl(line);
-    if (keepWay(w.tags, memberships.has(w.id)) || ['private', 'no'].includes(w.tags.access) || ['private', 'no'].includes(w.tags.foot) || !['footway', 'track'].includes(w.tags.highway) || w.nodes.length < 2 || !w.nodes.some(n => selectedNodes.has(n))) continue;
+    if (keepWay(w.tags, memberships.has(w.id)) || restrictedFootAccess(w.tags) || !['footway', 'track'].includes(w.tags.highway) || w.nodes.length < 2 || !w.nodes.some(n => selectedNodes.has(n))) continue;
     connectors.push({ id: w.id, nodes: w.nodes, tags: w.tags, relations: [] }); w.nodes.forEach(n => required.add(n));
   }
   const nodes = new Map<number, Coord>();

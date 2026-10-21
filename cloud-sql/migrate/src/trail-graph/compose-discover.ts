@@ -8,7 +8,8 @@ import { stateConfig, statePaths, parseState, type StateCode } from './state';
 import { discover } from './discovery';
 import { createDiscoverySolver } from './discovery-solver';
 import { loadDiscoveryDestinations, discoverySnapshotPath } from './discovery-destinations';
-import { loadExcludedDiscoverySegments } from './discovery-eligibility';
+import { loadExcludedDiscoverySegments, loadRestrictedDiscoverySegments } from './discovery-eligibility';
+import { DiscoveryAccess } from './discovery-access';
 import { loadRankingContext, popularityThresholds, popularityTier, comparePopularity } from './discovery-ranking';
 import { catalogSegment } from './catalog-output';
 import { composeDiscovery, DiscoveryDeduper, DiscoveryPieces, discoverySummary, digestValue, routeDistance, routeTitle } from './discovery-catalog';
@@ -70,6 +71,7 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
   const destinations = await loadDiscoveryDestinations(state, input);
   const resolvedContacts = destinations.graphContacts(features, access);
   const excludedSegmentIds = await loadExcludedDiscoverySegments(input, segments);
+  const discoveryAccess = new DiscoveryAccess(access, features, await loadRestrictedDiscoverySegments(input, segments));
   const rankingContext = await loadRankingContext(input, access);
   const byId = new Map(segments.map(s => [s.id, s])), deduper = new DiscoveryDeduper(byId);
   const staging = join(out, `.discover-${process.pid}`); await mkdir(staging);
@@ -79,13 +81,14 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
   const tierCounts: Record<string, number> = {}, topPopular: { name: string; popularity: number; tier: number; length_km: number }[] = [];
   const rawCounts: Record<string, Record<string, number>> = {}, counts: Record<string, Record<string, number>> = {}, reasons: Record<string, number> = {};
   const samples: ComposedRoute[] = [], bad: ComposedRoute[] = [], overlapRows: ComposedRoute[] = [];
-  const badReasons = new Set<string>();
+  const badReasons = new Set<string>(), qualityDemotions: Record<string, number> = {}, rawQualityDemotions: Record<string, number> = {};
   try {
     for (const candidate of discover({ segments, features, access }, message => console.log(`${state}: ${message}`), { hardGoalSolver: solver.solve, excludedSegmentIds, resolvedContacts })) {
       const names = new Set<string>();
       // Local source names at the start contribute to the popularity score.
       for (const s of candidate.walk.slice(0, 3)) { const segment = byId.get(s.segment_id)!; if (segment.coords.some(p => haversine(p, candidate.trailheadCoord) <= 30)) for (const n of segment.trail_names) names.add(trailKey(n)); }
-      const draft = composeDiscovery(candidate, candidates++, state, byId, candidate.junctionNameCount ?? names.size, rankingContext, destinations);
+      const draft = composeDiscovery(candidate, candidates++, state, byId, candidate.junctionNameCount ?? names.size, rankingContext, destinations, discoveryAccess);
+      for (const reason of draft.quality_demotions ?? []) rawQualityDemotions[reason] = (rawQualityDemotions[reason] ?? 0) + 1;
       const summary = discoverySummary(draft);
       deduper.consider(summary); countRoute(rawCounts, draft.row);
       const line = JSON.stringify(draft) + '\n', bytes = Buffer.byteLength(line);
@@ -95,7 +98,9 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
     }
     stream.end(); await done;
     const finalNames = deduper.finalNames();
+    const longAlternatives = deduper.longAlternatives();
     const retainedReceipts = draftReceipts.filter(r => deduper.kept.has(r.seed_index));
+    for (const receipt of retainedReceipts) if (longAlternatives.has(receipt.seed_index)) receipt.status = 'review';
     const tierThresholds = popularityThresholds(retainedReceipts.filter(r => r.status === 'ok').map(r => r.popularity));
     console.log(`${state}: ${candidates} candidates; collecting shared segment cuts`);
     const pieces = new DiscoveryPieces();
@@ -112,7 +117,9 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
     const placeIds = new Set<string>(), usedSegments = new Set<string>();
     let retained = 0, ok = 0;
     for await (const draft of rankedDrafts(draftsPath, retainedReceipts)) {
+      for (const reason of draft.quality_demotions ?? []) qualityDemotions[reason] = (qualityDemotions[reason] ?? 0) + 1;
       const row = draft.row, finalName = finalNames.get(row.seed_index);
+      if (longAlternatives.has(row.seed_index)) { row.status = 'review'; row.reasons.push('a route under half this length reaches the same objective'); }
       if (finalName && finalName !== row.name) { row.aliases = [...new Set([...row.aliases, row.name])]; row.name = finalName; }
       row.tier = popularityTier(row.popularity ?? 0, tierThresholds);
       row.segments = pieces.materialize(draft.walk);
@@ -147,7 +154,8 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
       if (seeds) overlap = seedOverlap(seeds, overlapRows, features);
       await writeFile(join(staging, 'seed-overlap.json'), JSON.stringify(overlap ?? { available: false, reason: 'Optional WA seed file absent; discovery does not use seeds.' }, null, 2) + '\n');
     }
-    const summary = { state, candidates, retained, ok, by_kind_status: counts, raw_candidates_by_kind_status: rawCounts, dedupe: deduper.counts, reasons,
+    qualityDemotions['a route under half this length reaches the same objective'] = longAlternatives.size;
+    const summary = { state, candidates, retained, ok, quality_demotions: qualityDemotions, raw_quality_demotions: rawQualityDemotions, by_kind_status: counts, raw_candidates_by_kind_status: rawCounts, dedupe: deduper.counts, reasons,
       segments: usedSegments.size, places: placeIds.size, catalog_segments_cleaned: catalogSegmentsCleaned,
       peaks_snapshot: discoverySnapshotPath(state, input), destination_resolution: { ...destinations.stats, graph_contacts: resolvedContacts.size }, excluded_motorized_or_highway_segments: excludedSegmentIds.size,
       popularity: { tier_thresholds: tierThresholds, ok_by_tier: tierCounts, min: Math.min(...retainedReceipts.filter(r => r.status === 'ok').map(r => r.popularity), 1), max: Math.max(0, ...retainedReceipts.filter(r => r.status === 'ok').map(r => r.popularity)), distinct_scores: new Set(retainedReceipts.filter(r => r.status === 'ok').map(r => r.popularity)).size, source_files: rankingContext.source_files, top_25: topPopular },
@@ -167,7 +175,7 @@ export async function composeDiscover(state: StateCode, graph: string, out: stri
       '## Loading priority', '', 'Rows are written in descending numeric popularity. Tier 1 is the top score tercile among ok rows, tier 2 the middle, and tier 3 the rest; equal scores keep the same tier. Scores combine source tags and mapped facilities, not measured visits. Paths over 25 km one way receive a length penalty. Source tags unavailable in the local inputs cannot contribute.', '', '| Route | Popularity | Tier | Full km |', '| --- | ---: | ---: | ---: |', ...topPopular.map(r => `| ${tableSafe(r.name)} | ${r.popularity.toFixed(6)} | ${r.tier} | ${r.length_km.toFixed(2)} |`), '',
       '## 30 random ok samples', '', '| Name | Full km | Trailhead | Objective |', '| --- | ---: | --- | --- |', ...samples.map(r => `| ${tableSafe(r.name)} | ${(routeDistance(r) / 1000).toFixed(2)} | ${tableSafe(namedPlace(r.trailhead, destinations.byId))} | ${tableSafe(namedPlace(r.objective, destinations.byId))} |`), '',
       '## Suspect discoveries', '', 'These failed a quality gate; this list is a local rule check, not a map review.', '', ...bad.slice(0, 30).map(r => `- ${r.name}: ${r.reasons.join('; ')}`), '',
-      '## Quality reasons', '', ...Object.entries(reasons).sort((a, b) => b[1] - a[1]).map(([reason, n]) => `- ${n}: ${reason}`), '',
+      '## Quality demotions', '', 'Counts include each new rule that failed an otherwise ok retained route. A route can fail more than one rule.', '', ...Object.entries(qualityDemotions).map(([reason, n]) => `- ${n}: ${reason}`), '', '## Quality reasons', '', ...Object.entries(reasons).sort((a, b) => b[1] - a[1]).map(([reason, n]) => `- ${n}: ${reason}`), '',
       'Objective approaches shorter than 100 m require review. Two-trail lollipops use a cycle basis for each pair of names meeting at a junction; this does not enumerate every possible circuit.', '',
       'Feature coverage depends on the supplied extraction tags. Meadow records missing from the extract cannot be discovered. Local popularity is a score from tags, not a visit count.', ''].join('\n');
     await writeFile(join(staging, 'report.md'), report); await writeFile(join(staging, 'summary.json'), JSON.stringify(summary, null, 2) + '\n');

@@ -43,6 +43,6 @@ export interface ComposedRoute {
   approximate?: boolean; notes?: string[]; stretches?: { display_name: string | null; kind: Segment['kind']; length_m: number; segment_ids: string[] }[];
   dropped_links?: { id: string; name: string; gap_m: number; reason: string }[];
 }
-export interface DraftRoute { row: ComposedRoute; walk: RouteStep[]; xc?: RouteStep[]; source_places?: { trailhead?: NewPlace; objective?: NewPlace; end_trailhead?: NewPlace } }
+export interface DraftRoute { quality_demotions?: string[]; row: ComposedRoute; walk: RouteStep[]; xc?: RouteStep[]; source_places?: { trailhead?: NewPlace; objective?: NewPlace; end_trailhead?: NewPlace } }
 export interface AccessPoint { osm_id: string; coord: Coord; parking: boolean; name?: string }
 export interface CatalogInputs { seeds: Seed[]; destinations: PeaksDestination[]; routes: PeaksRoute[]; popularity: { route_id: string; n: number; users: number }[]; segments: Segment[]; features: NamedFeature[]; access?: AccessPoint[] }
