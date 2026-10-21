@@ -1,8 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findQuote, htmlToText, publisherOf, verify, type Page } from "../terrain-facts/verify";
+import { findQuote, htmlToText, publisherOf, verify, type Page, type Verification } from "../terrain-facts/verify";
 import { groupStretches, measure, packetSha256, type Packet } from "../terrain-facts/packet";
-import type { Research } from "../terrain-facts/schema";
+import { reviewerDecisionSchema, type Research, type ReviewerDecision } from "../terrain-facts/schema";
+import { checkDecision } from "../terrain-facts/review-check";
+import { comparePlans, intervalIoU } from "../terrain-facts/review-compare";
+import thompsonReview from "./fixtures/terrain-review-thompson.json";
 
 const packet: Packet = {
   route_id: "r1", route_name: "Test Peak via Ridge", shape: "out_and_back", state_code: "WA",
@@ -127,7 +130,7 @@ test("a class ceiling is not a rating", () => {
 });
 
 // ---------- apply ----------
-import { cutLine, lineLength, plan, resolve, type SegmentRow } from "../terrain-facts/apply";
+import { cutLine, lineLength, plan, resolve, type Plan, type SegmentRow } from "../terrain-facts/apply";
 
 // Two 1 km segments heading north, climbing 0 -> 100 -> 300 m; the second is stored reversed.
 const north = (lat0: number, km: number, z0: number, z1: number) => [0, 0.5, 1].map(f => [0, lat0 + f * km / 111.195, z0 + f * (z1 - z0)]);
@@ -256,4 +259,183 @@ test("a hold never keeps an unproven climb", () => {
   const climbing: SegmentRow[] = [rows[0], { ...rows[1], kind: "climb" }];
   const p = plan("r", climbing, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: { segment: "b", edge: "start" }, to: "end", note: "held" }] });
   assert.deepEqual(p.ops.map(o => o.op === "kind" && [o.segment_id, o.from, o.to]), [["b", "climb", "scramble"]]);
+});
+
+// ---------- independent review ----------
+
+function reviewFixture() {
+  const fixture = JSON.parse(JSON.stringify(thompsonReview)) as {
+    decision: ReviewerDecision; research: Research; verification: Verification; pages: Page[];
+  };
+  return { ...fixture, pages: new Map(fixture.pages.map(page => [page.url, page])) };
+}
+
+test("a trimmed real review passes the saved quote and basis checks", () => {
+  const f = reviewFixture();
+  assert.deepEqual(checkDecision(f.decision, f.research, f.verification, f.pages), []);
+});
+
+test("a reviewer quote absent from its saved page fails", () => {
+  const f = reviewFixture();
+  f.decision.reviewer_claims[0].quote = "The summit gully starts exactly 350 feet below the summit.";
+  f.decision.labels[0].basis = ["R3"];
+  const problems = checkDecision(f.decision, f.research, f.verification, f.pages);
+  assert.ok(problems.some(problem => problem.includes("R3")), problems.join("; "));
+});
+
+test("reviewer quotes use the research checker's text rules", () => {
+  const f = reviewFixture();
+  const claim = f.decision.reviewer_claims[0];
+  const page = f.pages.get(claim.source_url)!;
+  page.text = page.text.replace("depending on the conditions", "depending on the — conditions");
+  assert.equal(findQuote(claim.quote, page.text), "loose");
+  assert.deepEqual(checkDecision(f.decision, f.research, f.verification, f.pages), []);
+});
+
+test("a decision basis cannot use an unverified research claim", () => {
+  const f = reviewFixture();
+  f.verification.claims.find(claim => claim.id === "C3")!.status = "not_on_page";
+  const problems = checkDecision(f.decision, f.research, f.verification, f.pages);
+  assert.ok(problems.some(problem => problem.includes("C3")), problems.join("; "));
+});
+
+test("a climb label needs a fifth-class quote in its own basis", () => {
+  const f = reviewFixture();
+  f.decision.labels[0].kind = "climb";
+  f.decision.labels[0].yds_class = "5.6";
+  const problems = checkDecision(f.decision, f.research, f.verification, f.pages);
+  assert.ok(problems.some(problem => /5th|fifth|5\./i.test(problem)), problems.join("; "));
+});
+
+test("a verified reviewer fifth-class quote can back a climb", () => {
+  const f = reviewFixture();
+  const quote = "The final pitch is rated 5.6 and needs a rope.";
+  const sourceUrl = f.decision.reviewer_claims[0].source_url;
+  f.pages.get(sourceUrl)!.text += ` ${quote}`;
+  f.decision.reviewer_claims.push({ id: "R5", source_url: sourceUrl, quote, establishes: "The final pitch is fifth class." });
+  f.decision.labels[0] = { ...f.decision.labels[0], kind: "climb", yds_class: "5.6", basis: ["R5"] };
+  f.decision.apply = [{ kind: "climb", from: 1900, to: "end", note: "Synthetic test interval", display_name: null }];
+  f.decision.summary = null;
+  f.decision.summary_basis = [];
+  assert.deepEqual(checkDecision(f.decision, f.research, f.verification, f.pages), []);
+});
+
+test("decision identity and summary sources must match checked evidence", () => {
+  const f = reviewFixture();
+  f.decision.route_id = "another-route";
+  f.decision.packet_sha256 = "another-packet";
+  f.decision.summary!.sources[0].url = "https://unrelated.example.org/route";
+  const problems = checkDecision(f.decision, f.research, f.verification, f.pages);
+  assert.ok(problems.some(problem => problem.includes("route_id")), problems.join("; "));
+  assert.ok(problems.some(problem => problem.includes("packet_sha256")), problems.join("; "));
+  assert.ok(problems.some(problem => /source/i.test(problem)), problems.join("; "));
+});
+
+test("a decision summary passes the apply summary check", () => {
+  const f = reviewFixture();
+  f.decision.summary!.line = "x".repeat(161);
+  assert.ok(checkDecision(f.decision, f.research, f.verification, f.pages).some(problem => /summary|160/i.test(problem)));
+});
+
+test("holds cannot rename ground and strong apply kinds need a backed label", () => {
+  const f = reviewFixture();
+  f.decision.apply = [{ kind: "hold", from: "start", to: "end", note: "Unknown placement", display_name: "Summit gully" }];
+  assert.ok(checkDecision(f.decision, f.research, f.verification, f.pages).length > 0);
+  for (const kind of ["scramble", "climb", "climbers_route"] as const) {
+    f.decision.apply = [{ kind, from: "start", to: "end", note: "", display_name: null }];
+    f.decision.labels = [];
+    assert.ok(checkDecision(f.decision, f.research, f.verification, f.pages).length > 0, kind);
+  }
+});
+
+test("the reviewer schema requires every object field and forbids extra fields", () => {
+  function check(schema: any): void {
+    if (schema.type === "object" || (Array.isArray(schema.type) && schema.type.includes("object"))) {
+      assert.equal(schema.additionalProperties, false);
+      assert.deepEqual([...schema.required].sort(), Object.keys(schema.properties).sort());
+    }
+    for (const value of Object.values(schema)) {
+      if (Array.isArray(value)) value.filter(item => item && typeof item === "object").forEach(check);
+      else if (value && typeof value === "object") check(value);
+    }
+  }
+  check(reviewerDecisionSchema);
+  const schema: any = reviewerDecisionSchema;
+  assert.deepEqual(schema.properties.labels.items.properties.yds_class.type, ["string", "null"]);
+  assert.deepEqual(schema.properties.apply.items.properties.display_name.type, ["string", "null"]);
+});
+
+test("the planner accepts the reviewer's required null summary and display name", () => {
+  const p = plan("r", rows, {
+    route_id: "r", packet_sha256: "", summary: null,
+    apply: [{ kind: "hold", from: "start", to: "end", note: "Placement needs review", display_name: null }],
+  });
+  assert.equal(p.summary, null);
+  assert.equal(p.intervals[0].display_name, null);
+  assert.deepEqual(p.ops, []);
+});
+
+function comparisonPlan(intervals: Plan["intervals"], overrides: Partial<Plan> = {}): Plan {
+  return {
+    route_id: "r", length_m: 2000, summary: null, holds: { add: [], clear: [] }, flags: [],
+    intervals, ops: [], shared_with: [], ...overrides,
+  };
+}
+const reviewInterval = (kind: Plan["intervals"][number]["kind"], start_m: number, end_m: number): Plan["intervals"][number] =>
+  ({ kind, start_m, end_m, note: "", display_name: null });
+
+test("interval IoU measures the union of covered metres, including gaps", () => {
+  assert.equal(intervalIoU([{ start_m: 20, end_m: 30 }, { start_m: 0, end_m: 10 }], [{ start_m: 0, end_m: 30 }]), 2 / 3);
+  assert.equal(intervalIoU([{ start_m: 0, end_m: 10 }, { start_m: 5, end_m: 15 }], [{ start_m: 0, end_m: 15 }]), 1);
+  assert.equal(intervalIoU([{ start_m: 0, end_m: 10 }], [{ start_m: 20, end_m: 30 }]), 0);
+});
+
+test("review plans agree at 80 percent overlap and disagree below it", () => {
+  const a = comparisonPlan([reviewInterval("scramble", 0, 100)]);
+  const enough = comparePlans(a, comparisonPlan([reviewInterval("scramble", 20, 100)]));
+  assert.equal(enough.agree, true);
+  assert.equal(enough.escalate, false);
+  assert.match(enough.a_plan_hash!, /^[a-f0-9]{64}$/);
+  const short = comparePlans(a, comparisonPlan([reviewInterval("scramble", 21, 100)]));
+  assert.equal(short.agree, false);
+  assert.equal(short.escalate, true);
+});
+
+test("review comparison ignores trail coverage but requires the same non-trail kinds", () => {
+  assert.equal(comparePlans(comparisonPlan([]), comparisonPlan([reviewInterval("trail", 0, 2000)])).agree, true);
+  const differentKinds = comparePlans(comparisonPlan([reviewInterval("scramble", 0, 100)]), comparisonPlan([reviewInterval("road", 0, 100)]));
+  assert.equal(differentKinds.agree, false);
+  assert.equal(differentKinds.escalate, true);
+});
+
+test("review summaries must agree on presence and hardest class", () => {
+  const summary = { line: "Hike", gear: [], hardest_class: null, sources: [{ name: "A", url: pageA.url }] };
+  const withSummary = comparisonPlan([], { summary });
+  assert.equal(comparePlans(withSummary, comparisonPlan([])).agree, false);
+  assert.equal(comparePlans(withSummary, comparisonPlan([], { summary: { ...summary, hardest_class: "2" } })).agree, false);
+  assert.equal(comparePlans(withSummary, comparisonPlan([], { summary: { ...summary } })).agree, true);
+});
+
+test("holds and technical route kinds escalate even when both reviewers agree", () => {
+  for (const kind of ["hold", "climb", "climbers_route"] as const) {
+    const p = comparisonPlan([reviewInterval(kind, 1000, 2000)]);
+    const result = comparePlans(p, p);
+    assert.equal(result.agree, true, kind);
+    assert.equal(result.escalate, true, kind);
+  }
+  assert.equal(comparePlans(comparisonPlan([reviewInterval("hold", 1000, 2000)]), comparisonPlan([])).agree, false);
+});
+
+test("plan flags escalate agreement and failed checks or planning block it", () => {
+  const clean = comparisonPlan([]);
+  const flagged = comparePlans(comparisonPlan([], { flags: ["check placement"] }), clean);
+  assert.equal(flagged.agree, true);
+  assert.equal(flagged.escalate, true);
+  const badCheck = comparePlans(clean, clean, ["reviewer quote is absent"]);
+  assert.equal(badCheck.agree, false);
+  assert.equal(badCheck.escalate, true);
+  const noPlan = comparePlans(null, clean);
+  assert.equal(noPlan.agree, false);
+  assert.equal(noPlan.escalate, true);
+  assert.equal(noPlan.a_plan_hash, null);
 });

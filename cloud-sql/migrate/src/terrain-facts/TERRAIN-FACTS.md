@@ -6,8 +6,8 @@ climb, found one route at a time from public sources. OpenStreetMap
 move (Kaleetan's 1.9 km climbers' trail is T3 end to end) and grade glacier
 routes by crevasse risk (Disappointment Cleaver is T6).
 
-Nothing here writes to the database. The output is a reviewed decision per
-route; turning decisions into segment kinds is a separate, reviewed change.
+Packet, research, verify, review and compare never write to the database.
+Apply plans changes by default; writes need an explicit `--apply`.
 
 ## Steps
 
@@ -51,15 +51,34 @@ npm run terrain:verify -- --dir $RUN
      summit elevation when a quote says "summit", "final", "last" or "top"),
      and fall on the route.
    It writes `verification.json` and `review.md`.
-4. **Review.** A reviewer (a Claude session, or a person) reads `review.md`
-   with the saved page text and decides, claim by claim, whether the quote is
-   about this route and says what the researcher says it does. The checker
-   proves a quote exists; only the reviewer can say it supports the claim.
-   The reviewer writes `decision.json` in the run directory: the labels it
-   accepts with their claim ids, any quotes it found itself (`reviewer_claims`,
-   which must pass the same page check), what it rejected and why, and open
-   questions. Researchers miss things on pages they opened; Kaleetan's "about
-   160 vertical feet" came from the review, not the research.
+4. **Review** (`reviewer-prompt.md`). Two Codex reviewers read the same saved
+   files on their own, without web search. Each checks whether a quote is
+   about this route and supports its claim. They write `decision.a.json` and
+   `decision.b.json`, with labels, claim ids, new quotes, rejections and open
+   questions. The checker tests new quotes against saved page text.
+5. **Compare.** Checks both decisions and plans them against the database
+   read-only. It writes `compare.json` and sends doubtful cases to a person.
+
+## Review and compare
+
+After verify, run both reviewers, then compare:
+
+```bash
+npm run terrain:review -- --dir $RUN --as a
+npm run terrain:review -- --dir $RUN --as b
+DB_HOST=127.0.0.1 DB_PASS=... npm run terrain:compare -- --dir $RUN
+```
+
+Both decisions must pass the checks. They must name the same non-trail
+kinds. For each kind, the shared metres must cover at least 80% of the
+combined metres. Both must have holds or neither may have them. Summary
+presence and hardest class must match. Pure trail coverage does not affect
+agreement.
+
+Any disagreement goes to a person. So does any failed check, plan failure,
+plan flag, hold, climb or climbers route, even when the reviewers agree.
+Only agreement with no such flag writes `decision.json`. Existing decisions
+are never overwritten. Apply still needs a separate run.
 
 ## Round up
 
@@ -118,5 +137,6 @@ route; Peakbagger blocks scripts, so its quotes always need a person.
 
 ## Cost
 
-No service, timer, or database writes; $0/month fixed. Each research run uses
-Codex quota (several web searches and pages at `ultra` effort).
+No service or timer; $0/month fixed. Each research run uses
+Codex quota (several web searches and pages at `ultra` effort). Each reviewer
+uses Codex quota with web search disabled.
