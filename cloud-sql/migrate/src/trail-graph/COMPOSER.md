@@ -1,6 +1,6 @@
 # Washington catalog composer
 
-For seedless WA, OR, ID, and CA enumeration, see [state discovery](DISCOVERY.md).
+For seedless US state and DC enumeration, see [state discovery](DISCOVERY.md).
 
 Run from `cloud-sql/migrate` with the normal package dependencies available:
 

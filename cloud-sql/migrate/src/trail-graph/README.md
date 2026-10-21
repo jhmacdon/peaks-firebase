@@ -1,6 +1,6 @@
 # State trail graph
 
-Use [state discovery](DISCOVERY.md) to build WA, OR, ID, or CA and compose routes
+Use [state discovery](DISCOVERY.md) to build any US state or DC and compose routes
 without a seed list. `trail-graph:build -- --state XX` now writes
 `.cache/<lowercase-state>/graph`; the default state is WA.
 
