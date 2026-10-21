@@ -156,9 +156,11 @@ async function previewRouteChanges(client: PoolClient, grades: SegmentGrade[], r
       WHERE rs.route_id = ANY($3::text[])
     ), floors AS (
       SELECT route_id, CASE
-        WHEN SUM(length_m) FILTER (WHERE sac_scale IN
-          ('alpine_hiking', 'demanding_alpine_hiking', 'difficult_alpine_hiking')) >= 50 THEN 'hard'
-        WHEN SUM(length_m) FILTER (WHERE sac_scale = 'demanding_mountain_hiking') >= 50 THEN 'moderate'
+        -- Reviewed terrain past a hike floors at hard (20261021_route_terrain_category.sql).
+        WHEN peaks_route_terrain_category(route_id) IS NOT NULL THEN 'hard'
+        WHEN round((SUM(length_m) FILTER (WHERE sac_scale IN
+          ('alpine_hiking', 'demanding_alpine_hiking', 'difficult_alpine_hiking')))::numeric, 3) >= 50 THEN 'hard'
+        WHEN round((SUM(length_m) FILTER (WHERE sac_scale = 'demanding_mountain_hiking'))::numeric, 3) >= 50 THEN 'moderate'
         ELSE NULL END AS floor
       FROM linked GROUP BY route_id
     ), predicted AS (
