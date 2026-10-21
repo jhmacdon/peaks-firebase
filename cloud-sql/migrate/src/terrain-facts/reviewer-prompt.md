@@ -62,12 +62,42 @@ harder rating stands. An easier claim lowers a label only when two publishers sa
 in plain words and none says harder. Trip reports can raise a flag, never lower one.
 Rate the hardest conditions of the route's normal season.
 
+## Placement rulings (the owner's, 2026-10-21; binding)
+
+Imprecise placement is **not** a reason to hold. Hold only for weak or conflicting
+evidence (below).
+
+- **Scramble with a rough place.** When the scramble bar is met (class 3+ or hands,
+  two publishers) and sources tie the hands-on part to a named feature or a rough
+  place ("Aasgard Pass", "the summit ridge", "near the top", "the final 400 ft",
+  "the gully below the saddle"), label that whole stretch as scramble. Err longer,
+  never shorter: for "near the top" with no height, use the final stretch to the
+  summit; for a named pass or gully, the packet stretch or elevation band that
+  contains it. Explain the choice in the label's `note`.
+- **Mountaineering routes.** When sources say the normal route needs rope, crampons
+  or glacier travel in its normal season, label the route's non-glacier ground above
+  the hiking approach as `climbers_route` (start where sources say the climb leaves
+  the trail, or at the first glacier/snowfield; err earlier). Mapped glacier and
+  snowfield segments stay as they are; don't hold because glacier edges on the line
+  are unknown.
+- **A 5th-class pitch.** When sources rate the summit block or final pitch 5.x, label
+  the summit stretch `climb`: the `last` crossing of (summit elevation minus the
+  stated height) to `"end"`, or the final stretch to the summit when no height is
+  given. A 5.x section elsewhere that you cannot place: hold it.
+- **Class 2 with trip-report hands.** Guides rating ground class 2, with only trip
+  reports saying hands: trail, with "class 2" in the summary.
+- **Fixed aids.** Vertical ladders, cables and ropes that people pull themselves up
+  on are scramble, named in `display_name`. Angled ladders with a handrail and
+  stairs are trail.
+- Only call a route mountaineering, or mention glacier travel, when sources say the
+  normal route itself crosses a glacier or needs that gear.
+
 ## Holds
 
 If a credible source suggests hands but the evidence is below the scramble bar (one
 non-trip-report publisher, a guidebook's "occasional handholds", several trip
-reports, a page that would not load), or you cannot tell where the hands-on part is,
-add an interval with `"kind": "hold"` over that stretch (`"note": "held: <why>"`) and
+reports, a page that would not load), or sources conflict on whether hands are
+needed at all, add an interval with `"kind": "hold"` over that stretch (`"note": "held: <why>"`) and
 an `open` entry starting `HOLD:` that names the stretch and the exact question a
 targeted search should answer. A hold keeps the segment as it is. A `climb` with only
 class 3-4 evidence becomes `scramble`, not trail.
@@ -89,9 +119,9 @@ Endpoints:
   use the `last` crossing of (summit elevation minus stated height) to `"end"`.
 
 Intervals must not overlap. Use `display_name` only when a split piece needs its own
-name ("Summit block", "Summit gully", "Cables"). If you can't place a hands-on
-section from the sources, don't guess its place: hold the stretch it must lie in and
-say so in `open`. `apply: []` is valid.
+name ("Summit block", "Summit gully", "Cables"). Place hands-on sections by the
+placement rulings above; hold a stretch only when the sources give no feature or
+rough place at all, and say so in `open`. `apply: []` is valid.
 
 Each `labels` entry records a judgement for the human reader (stretches, kind, class,
 where, the claim ids behind it). `apply` is what the planner executes; keep the two
