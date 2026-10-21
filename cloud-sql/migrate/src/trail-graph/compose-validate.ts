@@ -24,7 +24,8 @@ export function repeatedEdgesAllowed(kind: Seed['kind'], walk: RouteStep[], byId
   for (const step of walk) {
     const low = Math.min(step.start_vertex, step.end_vertex), high = Math.max(step.start_vertex, step.end_vertex), ids: string[] = [];
     for (let i = low; i < high; i++) ids.push(`${step.segment_id}:${i}`);
-    edges.push(...(step.direction === 'forward' ? ids : ids.reverse()));
+    // A loop, not push(...ids): one long step can exceed the argument limit (Wyoming, 2026-10-21).
+    for (const id of step.direction === 'forward' ? ids : ids.reverse()) edges.push(id);
   }
   const counts = new Map<string, number>(); edges.forEach(e => counts.set(e, (counts.get(e) ?? 0) + 1));
   if (![...counts.values()].some(n => n > 1)) return true;
