@@ -144,7 +144,7 @@ test("cutLine splits at distances and interpolates elevation", () => {
 
 test("an elevation endpoint resolves along the walked route, across a reversed segment", () => {
   assert.ok(Math.abs(resolve({ elevation_ft: 200 / 0.3048, crossing: "last" }, rows) - 1500) < 2);
-  assert.throws(() => resolve({ elevation_ft: 2000, crossing: "last" }, rows), /never climbs/);
+  assert.throws(() => resolve({ elevation_ft: 2000, crossing: "last" }, rows), /never crosses/);
 });
 
 test("plan splits a reversed segment where an interval starts, and resets unbacked scrambles", () => {
@@ -200,4 +200,60 @@ test("a summary needs a short line and credited https sources", () => {
   const ok = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [], summary: { line: "Hike with an optional class 3 scramble", gear: [], hardest_class: "3", sources: [{ name: "WTA", url: "https://www.wta.org/x" }] } });
   assert.equal(ok.summary?.line, "Hike with an optional class 3 scramble");
   assert.throws(() => plan("r", rows, { route_id: "r", packet_sha256: "", apply: [], summary: { line: "x", gear: [], hardest_class: null, sources: [] } }), /sources/);
+});
+
+test("a hold keeps a segment as it is and spares it the reset", () => {
+  const held = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: { segment: "b", edge: "start" }, to: "end", note: "held" }] });
+  assert.deepEqual(held.ops, [], "b stays scramble; a stays trail");
+  const onTrail = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: "start", to: "end", note: "held" }] });
+  assert.deepEqual(onTrail.ops, [], "a hold never upgrades trail");
+});
+
+test("a segment held by another review keeps its kind until a decision labels it", () => {
+  const reset = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [] }, [], ["b"]);
+  assert.deepEqual(reset.ops, [], "no reset of a held scramble");
+  assert.deepEqual(reset.holds, { add: [], clear: [] });
+  const settled = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "trail", from: { segment: "b", edge: "start" }, to: "end", note: "settled" }] }, [], ["b"]);
+  assert.deepEqual(settled.ops.map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "trail"]]);
+  assert.deepEqual(settled.holds.clear, ["b"]);
+  const held = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: "start", to: "end", note: "held" }] });
+  assert.deepEqual(held.holds.add, ["a", "b"]);
+});
+
+test("the held piece of a split segment is registered as held", () => {
+  // From 1,600 m: the segment's midpoint (1,500 m) is outside the hold, so it splits.
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: 1600, to: "end", note: "held" }] });
+  const split = p.ops.find(o => o.op === "split");
+  assert.ok(split && split.op === "split");
+  if (split?.op !== "split") return;
+  const heldPiece = split.pieces.find(x => x.kind === "scramble")!;
+  assert.deepEqual(p.holds.add, [heldPiece.id]);
+});
+
+test("a segment walked twice is fine when both passes agree", () => {
+  const loop: SegmentRow[] = [rows[0], { ...rows[0], ordinal: 1, direction: "reverse" }];
+  assert.doesNotThrow(() => plan("r", loop, { route_id: "r", packet_sha256: "", apply: [] }));
+  assert.throws(() => plan("r", loop, { route_id: "r", packet_sha256: "", apply: [{ kind: "scramble", from: 0, to: 1000, note: "" }] }), /different answers/);
+});
+
+test("slope flags a scramble on gentle ground and never changes a label", () => {
+  // Segment b climbs 200 m in 1 km: 20% at most, under the 25% scramble prompt.
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "scramble", from: { segment: "b", edge: "start" }, to: "end", note: "" }] });
+  assert.ok(p.flags.some(f => /no steeper than 20% over 50 m/.test(f)));
+  assert.deepEqual(p.ops, [], "b is already scramble; the flag changes nothing");
+});
+
+test("elevation crossings count on the way down, and climbers routes keep mapped ice", () => {
+  // Up 0 -> 300 m, then down to 100 m: 200 m is crossed twice, the last time at 2,500 m.
+  const down: SegmentRow = { ordinal: 2, direction: "forward", id: "c", kind: "glacier", coords: north(2 / 111.195, 1, 300, 100) };
+  const traverse = [...rows, down];
+  assert.ok(Math.abs(resolve({ elevation_ft: 200 / 0.3048, crossing: "last" }, traverse) - 2500) < 2);
+  const p = plan("r", traverse, { route_id: "r", packet_sha256: "", apply: [{ kind: "climbers_route", from: { segment: "b", edge: "start" }, to: "end", note: "" }] });
+  assert.deepEqual(p.ops.map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "climbers_route"]], "c stays glacier");
+});
+
+test("a hold never keeps an unproven climb", () => {
+  const climbing: SegmentRow[] = [rows[0], { ...rows[1], kind: "climb" }];
+  const p = plan("r", climbing, { route_id: "r", packet_sha256: "", apply: [{ kind: "hold", from: { segment: "b", edge: "start" }, to: "end", note: "held" }] });
+  assert.deepEqual(p.ops.map(o => o.op === "kind" && [o.segment_id, o.from, o.to]), [["b", "climb", "scramble"]]);
 });

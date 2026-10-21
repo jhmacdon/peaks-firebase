@@ -11,7 +11,9 @@ import { createHash } from "node:crypto";
 
 export type Queryable = { query(text: string, values?: unknown[]): Promise<{ rows: any[] }> };
 
-export interface Stretch { id: string; name: string | null; segment_ids: string[]; start_m: number; end_m: number; start_ft: number | null; end_ft: number | null; low_ft: number | null; high_ft: number | null }
+export interface Stretch { id: string; name: string | null; segment_ids: string[]; start_m: number; end_m: number; start_ft: number | null; end_ft: number | null; low_ft: number | null; high_ft: number | null;
+  /** Steepest 50 m on the DEM, as a grade, and where it starts. A hint for where hands might be, never proof. */
+  steepest_50m?: { grade_pct: number; at_m: number } | null }
 export interface Waypoint { id: string; destination_id: string; name: string; features: string[]; along_m: number; elevation_ft: number | null; off_route_m: number }
 export interface Packet {
   route_id: string; route_name: string; shape: string | null; state_code: string | null;
@@ -66,8 +68,25 @@ export function groupStretches(segments: { id: string; name: string | null; leng
     const inside = coords.filter((_, k) => along[k] >= start && along[k] <= end).map(c => c[2]).filter((z): z is number => Number.isFinite(z));
     return { ...s, id: `S${i + 1}`, start_m: Math.round(start), end_m: Math.round(end),
       start_ft: ft(elevationAt(coords, along, start)), end_ft: ft(elevationAt(coords, along, end)),
-      low_ft: inside.length ? ft(Math.min(...inside)) : null, high_ft: inside.length ? ft(Math.max(...inside)) : null };
+      low_ft: inside.length ? ft(Math.min(...inside)) : null, high_ft: inside.length ? ft(Math.max(...inside)) : null,
+      steepest_50m: steepestWindow(coords, along, start, end) };
   });
+}
+
+/** Steepest window of `window` metres between two route distances, from the line's own elevations. */
+export function steepestWindow(coords: number[][], along: number[], from: number, to: number, window = 50): { grade_pct: number; at_m: number } | null {
+  const idx = along.map((d, i) => i).filter(i => along[i] >= from && along[i] <= to);
+  if (idx.length < 2 || to - from < window * 0.8) return null;
+  let best: { grade_pct: number; at_m: number } | null = null, j = idx[0];
+  for (const i of idx) {
+    while (j < idx[idx.length - 1] && along[j] - along[i] < window) j++;
+    const run = along[j] - along[i], zi = coords[i][2], zj = coords[j][2];
+    if (run >= window * 0.8 && Number.isFinite(zi) && Number.isFinite(zj)) {
+      const g = Math.abs(zj - zi) / run * 100;
+      if (!best || g > best.grade_pct) best = { grade_pct: Math.round(g), at_m: Math.round(along[i]) };
+    }
+  }
+  return best;
 }
 
 export function profile(coords: number[][], along: number[], every = 100): [number, number | null][] {

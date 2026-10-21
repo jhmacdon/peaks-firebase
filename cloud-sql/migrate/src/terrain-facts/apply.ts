@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { haversine, stableJson, type Queryable } from "./packet";
+import { haversine, stableJson, steepestWindow, type Queryable } from "./packet";
 import { KINDS, type Kind } from "../trail-graph/types";
 
 /**
@@ -17,8 +17,10 @@ import { KINDS, type Kind } from "../trail-graph/types";
  */
 
 export type Endpoint = number | "start" | "end" | { elevation_ft: number; crossing: "first" | "last" } | { segment: string; edge: "start" | "end" };
-/** `display_name` renames the stretch, e.g. a climbers' trail's last 160 ft as "Summit gully". */
-export interface Interval { kind: Kind; from: Endpoint; to: Endpoint; note: string; display_name?: string }
+/** `display_name` renames the stretch, e.g. a climbers' trail's last 160 ft as "Summit gully".
+ *  Kind `hold` keeps whatever the segment is now and exempts it from the reset: evidence of
+ *  hands that is below the scramble bar must never make a route read easier. */
+export interface Interval { kind: Kind | "hold"; from: Endpoint; to: Endpoint; note: string; display_name?: string }
 /** The reviewed line on what the whole trip needs, shown on the route. */
 export interface TerrainSummary { line: string; gear: string[]; hardest_class: string | null; sources: { name: string; url: string }[] }
 export interface Decision { route_id: string; packet_sha256: string; apply: Interval[]; summary?: TerrainSummary }
@@ -26,9 +28,13 @@ export interface SegmentRow { ordinal: number; direction: "forward" | "reverse";
 
 export interface KindOp { op: "kind"; segment_id: string; from: Kind; to: Kind; display_name: string | null; route_m: [number, number] }
 export interface SplitOp { op: "split"; segment_id: string; coords_sha: string; cuts_m: number[]; pieces: { id: string; kind: Kind; display_name: string | null; length_m: number }[] }
-export interface Plan { route_id: string; length_m: number; summary: TerrainSummary | null; intervals: { kind: Kind; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
+export interface Plan { route_id: string; length_m: number; summary: TerrainSummary | null; holds: { add: string[]; clear: string[] };
+  /** DEM slope prompts for a second look; they never change a label. */
+  flags: string[]; intervals: { kind: Kind | "hold"; start_m: number; end_m: number; note: string; display_name: string | null }[]; ops: (KindOp | SplitOp)[]; shared_with: string[] }
 
 const SNAP_M = 15;
+/** From reviewed WA/CA segments (2026-10-21): trails reach 70-116% over 50 m, scrambles 42-250%. */
+const SCRAMBLE_MIN_PCT = 25, TRAIL_LOOK_PCT = 90;
 const RESETTABLE: Kind[] = ["scramble", "climb"];
 
 export function lineLength(coords: number[][]): number {
@@ -88,19 +94,23 @@ export function resolve(e: Endpoint, rows: SegmentRow[]): number {
     let d = p.start;
     for (let i = 1; i < p.coords.length; i++) {
       const a = p.coords[i - 1], b = p.coords[i], step = haversine(a, b), za = a[2], zb = b[2];
-      if (Number.isFinite(za) && Number.isFinite(zb) && za < target && zb >= target) hits.push(d + step * (target - za) / (zb - za));
+      // Either direction: a traverse's descent crosses heights too.
+      if (Number.isFinite(za) && Number.isFinite(zb) && za !== zb && (za - target) * (zb - target) <= 0 && zb !== target)
+        hits.push(d + step * (target - za) / (zb - za));
       d += step;
     }
   }
-  if (!hits.length) throw new Error(`the route never climbs through ${e.elevation_ft} ft`);
+  if (!hits.length) throw new Error(`the route never crosses ${e.elevation_ft} ft`);
   return e.crossing === "first" ? hits[0] : hits[hits.length - 1];
 }
 
-export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sharedWith: string[] = []): Plan {
+/** `held` lists segments another review held: they keep their kind unless this decision labels them. */
+export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sharedWith: string[] = [], held: string[] = []): Plan {
   if (decision.route_id !== routeId) throw new Error("decision is for another route");
   const { parts, total } = walk(rows);
   const intervals = decision.apply.map(i => {
-    if (!(KINDS as readonly string[]).includes(i.kind)) throw new Error(`unknown kind ${i.kind}`);
+    if (i.kind !== "hold" && !(KINDS as readonly string[]).includes(i.kind)) throw new Error(`unknown kind ${i.kind}`);
+    if (i.kind === "hold" && i.display_name) throw new Error("a hold keeps the segment as it is; it cannot rename it");
     const start = resolve(i.from, rows), end = resolve(i.to, rows);
     if (!(end > start)) throw new Error(`interval ${JSON.stringify(i)} is empty`);
     if (i.display_name !== undefined && !i.display_name.trim()) throw new Error("display_name must not be blank");
@@ -108,17 +118,48 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
   }).sort((a, b) => a.start_m - b.start_m);
   for (let i = 1; i < intervals.length; i++) if (intervals[i].start_m < intervals[i - 1].end_m - 1) throw new Error("decision intervals overlap");
   const at = (m: number) => intervals.find(i => m >= i.start_m && m < i.end_m);
-  const kindAt = (m: number, fallback: Kind): Kind => at(m)?.kind ?? (RESETTABLE.includes(fallback) ? "trail" : fallback);
+  const kindAt = (m: number, fallback: Kind): Kind => {
+    const i = at(m);
+    // A hold keeps the segment, except an unproven climb: climb needs a stated 5th-class rating,
+    // so a held OSM climb reads as a scramble until a decision says otherwise.
+    if (i?.kind === "hold") return fallback === "climb" ? "scramble" : fallback;
+    // A climbers route is the ground between the ice; mapped glacier and snowfield stay.
+    if (i?.kind === "climbers_route" && (fallback === "glacier" || fallback === "snowfield")) return fallback;
+    return i?.kind ?? (RESETTABLE.includes(fallback) ? "trail" : fallback);
+  };
 
-  const ops: Plan["ops"] = [], seen = new Set<string>();
+  const decided = new Map<string, string | null>();
+  const ops: Plan["ops"] = [], seen = new Set<string>(), heldBefore = new Set(held), add: string[] = [], clear: string[] = [];
   for (const p of parts) {
-    if (seen.has(p.row.id)) throw new Error(`segment ${p.row.id} appears twice on the route; split it by hand`);
+    // A loop or a stem walks a segment twice: fine when both passes give the same answer.
+    if (seen.has(p.row.id)) {
+      const mid2 = (p.start + p.end) / 2, again = at(mid2);
+      const first = decided.get(p.row.id)!;
+      const cutsHere = intervals.some(i => [i.start_m, i.end_m].some(m => m > p.start + SNAP_M && m < p.end - SNAP_M));
+      if (cutsHere || (again?.kind ?? null) !== first) throw new Error(`segment ${p.row.id} appears twice on the route with different answers; split it by hand`);
+      continue;
+    }
     seen.add(p.row.id);
+    decided.set(p.row.id, at((p.start + p.end) / 2)?.kind ?? null);
     // Route-order cut positions inside this segment, snapped away from its ends.
+    const mid = (p.start + p.end) / 2, covering = at(mid);
+    if (covering?.kind === "hold") {
+      if (!heldBefore.has(p.row.id)) add.push(p.row.id);
+      if (p.row.kind === "climb") ops.push({ op: "kind", segment_id: p.row.id, from: "climb", to: "scramble", display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
+      continue;
+    }
+    if (heldBefore.has(p.row.id)) {
+      // Held elsewhere: only an explicit label on this segment settles it.
+      if (!covering) {
+        if (p.row.kind === "climb") ops.push({ op: "kind", segment_id: p.row.id, from: "climb", to: "scramble", display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
+        continue;
+      }
+      clear.push(p.row.id);
+    }
     const cuts = intervals.flatMap(i => [i.start_m, i.end_m]).filter(m => m > p.start + SNAP_M && m < p.end - SNAP_M)
       .sort((x, y) => x - y).filter((m, k, all) => k === 0 || m - all[k - 1] > 1);
     if (!cuts.length) {
-      const mid = (p.start + p.end) / 2, to = kindAt(mid, p.row.kind), name = at(mid)?.display_name ?? null;
+      const to = kindAt(mid, p.row.kind), name = covering?.display_name ?? null;
       if (to !== p.row.kind || (name && name !== p.row.display_name)) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, display_name: name, route_m: [Math.round(p.start), Math.round(p.end)] });
       continue;
     }
@@ -129,6 +170,8 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     const planned = pieces.map((c, k) => {
       const len = lineLength(c), mid = offset + len / 2; offset += len;
       const routeMid = p.row.direction === "reverse" ? p.end - mid : p.start + mid;
+      // A piece under a hold is registered as held under its new id.
+      if (at(routeMid)?.kind === "hold") add.push(id(k));
       return { id: id(k), kind: kindAt(routeMid, p.row.kind), display_name: at(routeMid)?.display_name ?? null, length_m: Math.round(len) };
     });
     // Pieces that would all read the same are not worth a split: relabel the segment whole.
@@ -139,7 +182,19 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     }
     ops.push({ op: "split", segment_id: p.row.id, coords_sha: sha(p.row.coords), cuts_m: local.map(Math.round), pieces: planned });
   }
-  return { route_id: routeId, length_m: Math.round(total), summary: checkSummary(decision.summary), intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
+  // Slope prompts: a scramble on gentle ground is probably misplaced; trail on very steep ground deserves a look.
+  const line = parts.flatMap((p, k) => (k ? p.coords.slice(1) : p.coords)), along = [0];
+  for (let k = 1; k < line.length; k++) along.push(along[k - 1] + haversine(line[k - 1], line[k]));
+  const flags: string[] = [];
+  for (const i of intervals.filter(i => i.kind === "scramble")) {
+    const s = steepestWindow(line, along, i.start_m, i.end_m);
+    if (s && s.grade_pct < SCRAMBLE_MIN_PCT) flags.push(`scramble ${Math.round(i.start_m)}-${Math.round(i.end_m)} m is no steeper than ${s.grade_pct}% over 50 m: check placement`);
+  }
+  for (const op of ops) if (op.op === "kind" && op.to === "trail" && op.from !== "trail") {
+    const s = steepestWindow(line, along, op.route_m[0], op.route_m[1]);
+    if (s && s.grade_pct >= TRAIL_LOOK_PCT) flags.push(`${op.segment_id} becomes trail but reaches ${s.grade_pct}% over 50 m at ${s.at_m} m: second look`);
+  }
+  return { route_id: routeId, length_m: Math.round(total), summary: checkSummary(decision.summary), holds: { add, clear }, flags, intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
 }
 
 export function checkSummary(s: TerrainSummary | undefined): TerrainSummary | null {
@@ -152,7 +207,7 @@ export function checkSummary(s: TerrainSummary | undefined): TerrainSummary | nu
 
 export const sha = (v: unknown) => createHash("sha256").update(stableJson(v)).digest("hex");
 
-export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[] }> {
+export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[]; held: string[] }> {
   const rows = (await db.query(`
     SELECT rs.ordinal, rs.direction, s.id, s.kind, s.display_name, ST_AsGeoJSON(s.path::geometry, 9) AS geojson
     FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
@@ -162,10 +217,11 @@ export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows:
   const sharedWith = (await db.query(`
     SELECT DISTINCT rs.route_id FROM route_segments rs
     WHERE rs.segment_id = ANY($1) AND rs.route_id <> $2 ORDER BY 1`, [rows.map(r => r.id), routeId])).rows.map(r => r.route_id);
-  return { rows, sharedWith };
+  const held = (await db.query(`SELECT segment_id FROM segment_terrain_holds WHERE segment_id = ANY($1) ORDER BY 1`, [rows.map(r => r.id)])).rows.map(r => r.segment_id);
+  return { rows, sharedWith, held };
 }
 
-export interface Evidence { plan_sha256: string; reviewed_by: string; sources: string[] }
+export interface Evidence { plan_sha256: string; reviewed_by: string; sources: string[]; hold_question?: string }
 
 /** Writes a plan. The caller owns the transaction; this re-reads and refuses on any drift. */
 export async function applyPlan(db: Queryable, p: Plan, evidence: Evidence): Promise<string[]> {
@@ -218,6 +274,10 @@ export async function applyPlan(db: Queryable, p: Plan, evidence: Evidence): Pro
     // Splitting drops the parent's session visits; queue those sessions to match again.
     await db.query(`SELECT queue_matching_routes($1, 'terrain split')`, [routes]);
   }
+  for (const id of p.holds.add)
+    await db.query(`INSERT INTO segment_terrain_holds (segment_id, route_id, question, plan_sha256) VALUES ($1, $2, $3, $4) ON CONFLICT (segment_id) DO NOTHING`,
+      [id, p.route_id, evidence.hold_question ?? "held in terrain review", evidence.plan_sha256]);
+  if (p.holds.clear.length) await db.query(`DELETE FROM segment_terrain_holds WHERE segment_id = ANY($1)`, [p.holds.clear]);
   // Kinds set the route's terrain category and its difficulty floor.
   await db.query(`SELECT refresh_route_terrain($1)`, [routes]);
   // After the refresh: the reviewed-route guard accepts a summary only beside the current category.

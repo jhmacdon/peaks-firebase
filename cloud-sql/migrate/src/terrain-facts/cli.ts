@@ -51,7 +51,10 @@ async function researchCommand() {
   const dir = resolve(need("dir"));
   if (existsSync(join(dir, "research.json"))) throw new Error(`${dir} already has research; use a new run directory`);
   const packet = await readJson<Packet>(join(dir, "packet.json"));
+  // A focus run answers one open question from review: where hands are needed, or whether.
+  const focus = arg("focus");
   const prompt = (await readFile(join(__dirname, "researcher-prompt.md"), "utf8"))
+    + (focus ? `\n\n## Focus question\n\nA reviewer could not settle this from a first round of research. Answer it above all else, with the same rules for quotes. Look especially for guidebooks, land-agency pages and route pages, which count for more than trip reports. If nothing settles it, say so in \`unknowns\`.\n\n${focus}\n` : "")
     + `\n\n<packet sha256="${packetSha256(packet)}">\n${JSON.stringify(packet, null, 1)}\n</packet>\n`;
   await writeFile(join(dir, "prompt.md"), prompt);
   await writeFile(join(dir, "research-schema.json"), JSON.stringify(researchSchema, null, 2));
@@ -93,10 +96,11 @@ export function reviewSheet(packet: Packet, research: Research, v: Verification)
   const check = new Map(v.claims.map(c => [c.id, c]));
   const lines = [`# ${packet.route_name} — terrain review`, "", `Route \`${packet.route_id}\`, packet \`${v.packet_sha256.slice(0, 12)}\`. Checker: **${v.ok ? "all checks pass" : "has failures"}**.`, ""];
   if (v.structural.length) lines.push("## Structural problems", "", ...v.structural.map(s => `- ${s}`), "");
-  lines.push("## Stretches", "", "| Stretch | Name | km | ft | Terrain | Claims |", "|---|---|---|---|---|---|");
+  lines.push("## Stretches", "", "| Stretch | Name | km | ft | Steepest 50 m | Terrain | Claims |", "|---|---|---|---|---|---|---|");
   for (const s of packet.stretches) {
     const f = research.stretches.find(x => x.stretch_id === s.id);
-    lines.push(`| ${s.id} | ${s.name ?? "—"} | ${(s.start_m / 1000).toFixed(2)}–${(s.end_m / 1000).toFixed(2)} | ${s.start_ft ?? "?"}→${s.end_ft ?? "?"} | ${f?.terrain ?? "missing"} | ${f?.claim_ids.join(", ") ?? ""} |`);
+    const steep = s.steepest_50m ? `${s.steepest_50m.grade_pct}% at ${(s.steepest_50m.at_m / 1000).toFixed(2)} km` : "—";
+    lines.push(`| ${s.id} | ${s.name ?? "—"} | ${(s.start_m / 1000).toFixed(2)}–${(s.end_m / 1000).toFixed(2)} | ${s.start_ft ?? "?"}→${s.end_ft ?? "?"} | ${steep} | ${f?.terrain ?? "missing"} | ${f?.claim_ids.join(", ") ?? ""} |`);
   }
   lines.push("", "## Route", "");
   for (const [k, val] of Object.entries(research.route)) lines.push(`- **${k}**: ${val.value} ${val.claim_ids.length ? `(${val.claim_ids.join(", ")})` : ""}`);
@@ -152,10 +156,12 @@ async function applyCommand() {
       } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
       return;
     }
-    const { rows, sharedWith } = await loadRoute(db, decision.route_id);
-    const p = plan(decision.route_id, rows, decision, sharedWith), hash = sha(p);
+    const { rows, sharedWith, held } = await loadRoute(db, decision.route_id);
+    const p = plan(decision.route_id, rows, decision, sharedWith, held), hash = sha(p);
     await writeFile(join(dir, write ? "apply-plan.applied.json" : "apply-plan.json"), JSON.stringify({ hash, ...p }, null, 2) + "\n");
+    for (const flag of p.flags) console.log(`flag   ${flag}`);
     for (const op of p.ops) console.log(op.op === "kind" ? `kind   ${op.segment_id} ${op.from} -> ${op.to}${op.display_name ? ` "${op.display_name}"` : ""} (${op.route_m.join("-")} m)` : `split  ${op.segment_id} at ${op.cuts_m.join(", ")} m -> ${op.pieces.map(x => `${x.kind}${x.display_name ? ` "${x.display_name}"` : ""} ${x.length_m} m`).join(" | ")}`);
+    if (p.holds.add.length || p.holds.clear.length) console.log(`holds: +${p.holds.add.length} -${p.holds.clear.length}${p.holds.clear.length ? ` (settles ${p.holds.clear.join(", ")})` : ""}`);
     if (p.shared_with.length) console.log(`shared with ${p.shared_with.length} other routes: ${p.shared_with.join(", ")}`);
     console.log(`plan ${hash}`);
     if (!write) return;
@@ -163,7 +169,7 @@ async function applyCommand() {
     const client = await db.connect();
     try {
       await client.query("BEGIN");
-      const routes = await applyPlan(client, p, { plan_sha256: hash, reviewed_by: decision.reviewed_by, sources });
+      const routes = await applyPlan(client, p, { plan_sha256: hash, reviewed_by: decision.reviewed_by, sources, hold_question: (decision as any).open?.find((o: string) => o.startsWith("HOLD:")) });
       await client.query("COMMIT");
       console.log(`applied; routes touched: ${routes.join(", ")}`);
     } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
@@ -172,5 +178,5 @@ async function applyCommand() {
 
 const commands: Record<string, () => Promise<void>> = { packet: packetCommand, research: researchCommand, verify: verifyCommand, apply: applyCommand };
 const command = commands[process.argv[2] ?? ""];
-if (!command) { console.error("usage: terrain-facts <packet|research|verify|apply> --dir <run dir> [--route <id>] [--apply --expected-plan <hash>]"); process.exit(2); }
+if (!command) { console.error("usage: terrain-facts <packet|research|verify|apply> --dir <run dir> [--route <id>] [--focus <question>] [--apply --expected-plan <hash>] [--summary-only]"); process.exit(2); }
 command().catch(error => { console.error(error instanceof Error ? error.message : error); process.exit(1); });
