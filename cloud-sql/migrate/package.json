@@ -77,6 +77,8 @@
     "terrain:packet": "./scripts/run-tsx.sh src/terrain-facts/cli.ts packet",
     "terrain:research": "./scripts/run-tsx.sh src/terrain-facts/cli.ts research",
     "terrain:verify": "./scripts/run-tsx.sh src/terrain-facts/cli.ts verify",
+    "terrain:review": "./scripts/run-tsx.sh src/terrain-facts/cli.ts review",
+    "terrain:compare": "./scripts/run-tsx.sh src/terrain-facts/cli.ts compare",
     "terrain:apply": "./scripts/run-tsx.sh src/terrain-facts/cli.ts apply"
   },
   "dependencies": {

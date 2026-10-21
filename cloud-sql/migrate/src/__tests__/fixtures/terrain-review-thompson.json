@@ -1,0 +1,151 @@
+{
+  "provenance": "Trimmed from the local 2026-10-20 Thompson Peak via Alpine Way run. Quotes and checks come from saved files. The fixture tests evidence only; it omits the unsourced settled interval and full page text.",
+  "decision": {
+    "route_id": "id-catalog-e64fdffdaf418e7401da5064",
+    "packet_sha256": "920682be3ce6e95741542ff95929cf69eae68042203cc6613cc9449ea1e0b1ac",
+    "route": "Thompson Peak via Alpine Way",
+    "labels": [
+      {
+        "stretch_ids": [
+          "S4",
+          "S5"
+        ],
+        "kind": "scramble",
+        "yds_class": "3",
+        "where": "Short class 3 summit gully; its start is unknown.",
+        "basis": [
+          "C3",
+          "C4"
+        ],
+        "note": "Exact placement is unknown."
+      }
+    ],
+    "reviewer_claims": [
+      {
+        "id": "R3",
+        "source_url": "https://www.summitpost.org/south-couloir/161992",
+        "quote": "depending on the conditions when you go, an ice axe and crampons might be useful.",
+        "establishes": "SummitPost: ice axe and crampons may help, not required."
+      }
+    ],
+    "rejected": [],
+    "open": [
+      "The sources do not place the summit gully. This fixture omits the old decision's settled but unsourced interval."
+    ],
+    "apply": [],
+    "summary": {
+      "line": "Hike to a short class 3 summit gully.",
+      "gear": [],
+      "hardest_class": "3",
+      "sources": [
+        {
+          "name": "SummitPost",
+          "url": "https://www.summitpost.org/south-couloir/161992"
+        },
+        {
+          "name": "Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Thompson_Peak_(Idaho)"
+        }
+      ]
+    },
+    "summary_basis": [
+      "C3",
+      "C4"
+    ]
+  },
+  "research": {
+    "route_id": "id-catalog-e64fdffdaf418e7401da5064",
+    "packet_sha256": "920682be3ce6e95741542ff95929cf69eae68042203cc6613cc9449ea1e0b1ac",
+    "route": {
+      "hardest_class": {
+        "value": "3",
+        "claim_ids": [
+          "C3",
+          "C4"
+        ]
+      },
+      "hands_needed_anywhere": {
+        "value": "unknown",
+        "claim_ids": []
+      },
+      "glacier_travel": {
+        "value": "unknown",
+        "claim_ids": []
+      },
+      "technical_gear": {
+        "value": "unknown",
+        "claim_ids": []
+      }
+    },
+    "features": [],
+    "stretches": [],
+    "claims": [
+      {
+        "id": "C3",
+        "source_url": "https://www.summitpost.org/south-couloir/161992",
+        "publisher": "SummitPost",
+        "source_type": "route_page",
+        "quote": "You will find a short couloir/gully here that contains a bit of class 3 scrambling to take you to the summit.",
+        "establishes": "A short gully leading to the summit has Class 3 scrambling."
+      },
+      {
+        "id": "C4",
+        "source_url": "https://en.wikipedia.org/wiki/Thompson_Peak_(Idaho)",
+        "publisher": "Wikipedia",
+        "source_type": "encyclopedia",
+        "quote": "before making the class 3 scramble on the west-southwest side of the peak",
+        "establishes": "The described route has Class 3 scrambling on the west-southwest side."
+      }
+    ],
+    "unknowns": [],
+    "conflicts": [],
+    "sources_consulted": [
+      "https://www.summitpost.org/south-couloir/161992",
+      "https://en.wikipedia.org/wiki/Thompson_Peak_(Idaho)"
+    ]
+  },
+  "verification": {
+    "route_id": "id-catalog-e64fdffdaf418e7401da5064",
+    "packet_sha256": "920682be3ce6e95741542ff95929cf69eae68042203cc6613cc9449ea1e0b1ac",
+    "ok": false,
+    "structural": [],
+    "claims": [
+      {
+        "id": "C3",
+        "publisher": "summitpost.org",
+        "source_url": "https://www.summitpost.org/south-couloir/161992",
+        "status": "verified",
+        "detail": null
+      },
+      {
+        "id": "C4",
+        "publisher": "wikipedia.org",
+        "source_url": "https://en.wikipedia.org/wiki/Thompson_Peak_(Idaho)",
+        "status": "verified",
+        "detail": null
+      }
+    ],
+    "findings": [],
+    "locations": {}
+  },
+  "pages": [
+    {
+      "url": "https://en.wikipedia.org/wiki/Thompson_Peak_(Idaho)",
+      "status": "ok",
+      "http_status": 200,
+      "via": "https",
+      "text": "before making the class 3 scramble on the west-southwest side of the peak",
+      "error": null,
+      "fetched_at": "2026-10-20T22:43:06.522Z"
+    },
+    {
+      "url": "https://www.summitpost.org/south-couloir/161992",
+      "status": "ok",
+      "http_status": 200,
+      "via": "https",
+      "text": "You will find a short couloir/gully here that contains a bit of class 3 scrambling to take you to the summit. depending on the conditions when you go, an ice axe and crampons might be useful.",
+      "error": null,
+      "fetched_at": "2026-10-20T22:43:05.756Z"
+    }
+  ]
+}

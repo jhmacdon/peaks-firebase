@@ -1,14 +1,16 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Pool } from "pg";
 import { buildPacket, packetSha256, type Packet } from "./packet";
 import { fetchPages } from "./fetch-pages";
-import { researchSchema, type Research } from "./schema";
-import { verify, type Verification } from "./verify";
-import { applyPlan, checkSummary, loadRoute, plan, sha, type Decision } from "./apply";
+import { researchSchema, reviewerDecisionSchema, type Research, type ReviewerDecision } from "./schema";
+import { verify, type Page, type Verification } from "./verify";
+import { applyPlan, checkSummary, loadRoute, plan, sha, type Decision, type Plan } from "./apply";
+import { checkDecision } from "./review-check";
+import { comparePlans } from "./review-compare";
 
 /**
  * Route terrain facts, one route per run directory:
@@ -16,6 +18,8 @@ import { applyPlan, checkSummary, loadRoute, plan, sha, type Decision } from "./
  *   packet    read the route from production (read-only) into packet.json
  *   research  one Codex researcher, live web search, schema-bound answer
  *   verify    fetch every cited page, check quotes and citations, write review.md
+ *   review    two separate Codex reviewers, saved pages only
+ *   compare   check both decisions and read-only plans; pass or send to a person
  *
  * See TERRAIN-FACTS.md. Nothing here writes to the database.
  */
@@ -89,6 +93,84 @@ async function verifyCommand() {
   await writeFile(join(dir, "review.md"), reviewSheet(packet, research, result));
   const bad = result.findings.filter(f => !f.ok).length, verified = result.claims.filter(c => c.status.startsWith("verified")).length;
   console.log(`${verified}/${result.claims.length} quotes verified; ${bad} findings fail; ${result.structural.length} structural problems\n${join(dir, "review.md")}`);
+}
+
+async function reviewCommand() {
+  const dir = resolve(need("dir")), as = need("as");
+  if (as !== "a" && as !== "b") throw new Error("--as must be a or b");
+  const output = join(dir, `decision.${as}.json`), raw = join(dir, `decision.${as}.raw.json`);
+  if (existsSync(output)) throw new Error(`${output} already exists; use a new run directory`);
+  const prompt = await readFile(join(__dirname, "reviewer-prompt.md"), "utf8");
+  const schema = join(dir, `review-schema.${as}.json`), eventFile = join(dir, `events.review-${as}.jsonl`);
+  await writeFile(schema, JSON.stringify(reviewerDecisionSchema, null, 2));
+  // Config docs: https://learn.chatgpt.com/docs/config-file/config-basic#web-search-mode
+  // "disabled" turns off the web search tool.
+  // Each reviewer reads a fresh copy of the inputs only, so neither sees the other's decision.
+  const work = await mkdtemp(join(tmpdir(), `terrain-review-${as}-`));
+  for (const name of ["review.md", "packet.json", "research.json", "verification.json", "pages"])
+    await cp(join(dir, name), join(work, name), { recursive: true });
+  const argv = ["exec", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check",
+    "-s", "read-only", "-C", work, "-m", MODEL,
+    "-c", `model_reasoning_effort="${EFFORT}"`, "-c", `web_search="disabled"`, "-c", "project_doc_max_bytes=0",
+    "--output-schema", schema, "-o", raw, "--json", "-"];
+  console.log(`codex ${MODEL} (${EFFORT}) reviewing as ${as} ...`);
+  const events = createWriteStream(eventFile);
+  const code = await new Promise<number>((done, fail) => {
+    const child = spawn("codex", argv, { cwd: work, stdio: ["pipe", "pipe", "inherit"] });
+    events.on("error", fail);
+    child.stdout.pipe(events);
+    child.on("error", error => { events.end(); fail(error); });
+    child.on("close", c => events.end(() => done(c ?? 1)));
+    child.stdin.on("error", fail);
+    child.stdin.end(prompt);
+  });
+  await rm(work, { recursive: true, force: true });
+  if (code !== 0) throw new Error(`codex exited ${code}; see ${eventFile}`);
+  const decision = await readJson<ReviewerDecision>(raw);
+  await writeFile(output, JSON.stringify(decision, null, 2) + "\n", { flag: "wx" });
+  console.log(output);
+}
+
+async function compareCommand() {
+  const dir = resolve(need("dir"));
+  const a = await readJson<ReviewerDecision>(join(dir, "decision.a.json"));
+  const b = await readJson<ReviewerDecision>(join(dir, "decision.b.json"));
+  const research = await readJson<Research>(join(dir, "research.json"));
+  const verification = await readJson<Verification>(join(dir, "verification.json"));
+  const pages = new Map<string, Page>();
+  for (const file of (await readdir(join(dir, "pages"))).filter(f => f.endsWith(".json"))) {
+    const page = await readJson<Page>(join(dir, "pages", file));
+    pages.set(page.url, page);
+  }
+  const check = (decision: ReviewerDecision): string[] => {
+    try { return checkDecision(decision, research, verification, pages); }
+    catch (error) { return [`invalid decision: ${error instanceof Error ? error.message : String(error)}`]; }
+  };
+  const aProblems = check(a), bProblems = check(b);
+  let aPlan: Plan | null = null, bPlan: Plan | null = null;
+  const db = pool();
+  try {
+    await db.query("SET default_transaction_read_only = on");
+    const { rows, sharedWith, held } = await loadRoute(db, verification.route_id);
+    const makePlan = (decision: ReviewerDecision, problems: string[]): Plan | null => {
+      try { return plan(verification.route_id, rows, decision, sharedWith, held); }
+      catch (error) { problems.push(`plan failed: ${error instanceof Error ? error.message : String(error)}`); return null; }
+    };
+    aPlan = makePlan(a, aProblems);
+    bPlan = makePlan(b, bProblems);
+  } catch (error) {
+    const problem = `could not read route: ${error instanceof Error ? error.message : String(error)}`;
+    aProblems.push(problem); bProblems.push(problem);
+  } finally { await db.end(); }
+  const result = comparePlans(aPlan, bPlan, aProblems, bProblems);
+  await writeFile(join(dir, "compare.json"), JSON.stringify(result, null, 2) + "\n");
+  if (result.agree && !result.escalate) {
+    const decision = { ...a, reviewed_by: "codex reviewer a; reviewer b agreed",
+      default: "Unlabelled stretches keep mapped kinds; unbacked scramble/climb reset to trail." };
+    try { await writeFile(join(dir, "decision.json"), JSON.stringify(decision, null, 2) + "\n", { flag: "wx" }); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+  }
+  console.log(`${result.escalate ? "ESCALATE" : "AGREE"}: ${(result.reasons.join("; ") || "checks and intervals agree").replace(/\s+/g, " ")}`);
 }
 
 /** One page a reviewer reads top to bottom: each finding, then each quote with its check. */
@@ -176,7 +258,7 @@ async function applyCommand() {
   } finally { await db.end(); }
 }
 
-const commands: Record<string, () => Promise<void>> = { packet: packetCommand, research: researchCommand, verify: verifyCommand, apply: applyCommand };
+const commands: Record<string, () => Promise<void>> = { packet: packetCommand, research: researchCommand, verify: verifyCommand, review: reviewCommand, compare: compareCommand, apply: applyCommand };
 const command = commands[process.argv[2] ?? ""];
-if (!command) { console.error("usage: terrain-facts <packet|research|verify|apply> --dir <run dir> [--route <id>] [--focus <question>] [--apply --expected-plan <hash>] [--summary-only]"); process.exit(2); }
+if (!command) { console.error("usage: terrain-facts <packet|research|verify|review|compare|apply> --dir <run dir> [--route <id>] [--focus <question>] [--as <a|b>] [--apply --expected-plan <hash>] [--summary-only]"); process.exit(2); }
 command().catch(error => { console.error(error instanceof Error ? error.message : error); process.exit(1); });

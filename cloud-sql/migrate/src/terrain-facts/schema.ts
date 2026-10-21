@@ -4,6 +4,8 @@
  * spelled out: strict structured output has no optional keys.
  */
 
+import type { Decision, Endpoint, TerrainSummary } from "./apply";
+
 export const TERRAINS = ["maintained_trail", "rough_trail", "unmaintained_path", "talus_or_boulders", "scramble", "technical_climb", "snow", "glacier", "road", "unknown"] as const;
 export const FEATURE_TYPES = ["scramble", "technical_climb", "rough_trail", "unmaintained_path", "talus_or_boulders", "glacier", "snowfield", "exposure", "fixed_aid", "other"] as const;
 export const YDS = ["1", "2", "3", "4", "5", "unknown"] as const;
@@ -33,6 +35,22 @@ export interface Research {
   sources_consulted: string[];
 }
 
+export const REVIEW_KINDS = ["trail", "scramble", "climb", "climbers_route", "glacier", "snowfield", "road", "xc", "hold"] as const;
+export type ReviewerKind = typeof REVIEW_KINDS[number];
+export interface ReviewerClaim { id: string; source_url: string; quote: string; establishes: string }
+export interface ReviewerLabel { stretch_ids: string[]; kind: ReviewerKind; yds_class: string | null; where: string; basis: string[]; note: string }
+export interface ReviewerInterval { kind: ReviewerKind; from: Endpoint; to: Endpoint; note: string; display_name: string | null }
+export interface ReviewerDecision extends Decision {
+  route: string;
+  labels: ReviewerLabel[];
+  reviewer_claims: ReviewerClaim[];
+  rejected: { ref: string; reason: string }[];
+  open: string[];
+  apply: ReviewerInterval[];
+  summary: TerrainSummary | null;
+  summary_basis: string[];
+}
+
 const str = { type: "string" } as const;
 const strs = { type: "array", items: str } as const;
 const nullable = (schema: object) => ({ anyOf: [schema, { type: "null" }] });
@@ -53,4 +71,26 @@ export const researchSchema = obj({
   unknowns: strs,
   conflicts: strs,
   sources_consulted: strs,
+});
+
+const nullableString = { type: ["string", "null"] } as const;
+const endpoint = { anyOf: [
+  { type: "string", enum: ["start", "end"] },
+  { type: "number" },
+  obj({ segment: str, edge: { type: "string", enum: ["start", "end"] } }),
+  obj({ elevation_ft: { type: "number" }, crossing: { type: "string", enum: ["first", "last"] } }),
+] };
+
+/** Every key is required; nullable fields use type arrays for strict output. */
+export const reviewerDecisionSchema = obj({
+  route_id: str,
+  packet_sha256: str,
+  route: str,
+  labels: { type: "array", items: obj({ stretch_ids: strs, kind: { type: "string", enum: REVIEW_KINDS }, yds_class: nullableString, where: str, basis: strs, note: str }) },
+  reviewer_claims: { type: "array", items: obj({ id: str, source_url: str, quote: str, establishes: str }) },
+  rejected: { type: "array", items: obj({ ref: str, reason: str }) },
+  open: strs,
+  apply: { type: "array", items: obj({ kind: { type: "string", enum: REVIEW_KINDS }, from: endpoint, to: endpoint, note: str, display_name: nullableString }) },
+  summary: { ...obj({ line: str, gear: strs, hardest_class: nullableString, sources: { type: "array", items: obj({ name: str, url: str }) } }), type: ["object", "null"] },
+  summary_basis: strs,
 });

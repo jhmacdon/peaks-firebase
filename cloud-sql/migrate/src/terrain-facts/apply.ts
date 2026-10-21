@@ -20,10 +20,10 @@ export type Endpoint = number | "start" | "end" | { elevation_ft: number; crossi
 /** `display_name` renames the stretch, e.g. a climbers' trail's last 160 ft as "Summit gully".
  *  Kind `hold` keeps whatever the segment is now and exempts it from the reset: evidence of
  *  hands that is below the scramble bar must never make a route read easier. */
-export interface Interval { kind: Kind | "hold"; from: Endpoint; to: Endpoint; note: string; display_name?: string }
+export interface Interval { kind: Kind | "hold"; from: Endpoint; to: Endpoint; note: string; display_name?: string | null }
 /** The reviewed line on what the whole trip needs, shown on the route. */
 export interface TerrainSummary { line: string; gear: string[]; hardest_class: string | null; sources: { name: string; url: string }[] }
-export interface Decision { route_id: string; packet_sha256: string; apply: Interval[]; summary?: TerrainSummary }
+export interface Decision { route_id: string; packet_sha256: string; apply: Interval[]; summary?: TerrainSummary | null }
 export interface SegmentRow { ordinal: number; direction: "forward" | "reverse"; id: string; kind: Kind; coords: number[][]; display_name?: string | null }
 
 export interface KindOp { op: "kind"; segment_id: string; from: Kind; to: Kind; display_name: string | null; route_m: [number, number] }
@@ -113,7 +113,7 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     if (i.kind === "hold" && i.display_name) throw new Error("a hold keeps the segment as it is; it cannot rename it");
     const start = resolve(i.from, rows), end = resolve(i.to, rows);
     if (!(end > start)) throw new Error(`interval ${JSON.stringify(i)} is empty`);
-    if (i.display_name !== undefined && !i.display_name.trim()) throw new Error("display_name must not be blank");
+    if (i.display_name != null && !i.display_name.trim()) throw new Error("display_name must not be blank");
     return { kind: i.kind, start_m: start, end_m: end, note: i.note, display_name: i.display_name?.trim() ?? null };
   }).sort((a, b) => a.start_m - b.start_m);
   for (let i = 1; i < intervals.length; i++) if (intervals[i].start_m < intervals[i - 1].end_m - 1) throw new Error("decision intervals overlap");
@@ -197,7 +197,7 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
   return { route_id: routeId, length_m: Math.round(total), summary: checkSummary(decision.summary), holds: { add, clear }, flags, intervals: intervals.map(i => ({ ...i, start_m: Math.round(i.start_m), end_m: Math.round(i.end_m) })), ops, shared_with: sharedWith };
 }
 
-export function checkSummary(s: TerrainSummary | undefined): TerrainSummary | null {
+export function checkSummary(s: TerrainSummary | null | undefined): TerrainSummary | null {
   if (!s) return null;
   if (typeof s.line !== "string" || !s.line.trim() || s.line.length > 160) throw new Error("summary.line must be 1-160 characters");
   if (!Array.isArray(s.gear) || s.gear.some(g => typeof g !== "string" || !g.trim())) throw new Error("summary.gear must be a list of words");
