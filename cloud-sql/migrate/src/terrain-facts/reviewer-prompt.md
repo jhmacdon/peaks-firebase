@@ -43,7 +43,10 @@ rejects the whole decision if any reviewer quote is not on its page.
   the part that needs hands (a summit block, a gully), not the approach.
 - **climbers_route**: only the non-glacier ground of a mountaineering route, meaning
   the route as a whole needs rope, crampons or glacier travel per the sources.
-  Crampons needed in the route's normal season count, even early season only. Never
+  Crampons needed through the route's main season count (Stuart's Cascadian Couloir
+  holds snow into the climbing season). Snow gear needed only in winter or spring on a
+  route that is a summer hike does not: the normal Mount Whitney Trail is a hike, its
+  Mountaineers Route is the climbers route. Say the snow-season gear in the summary. Never
   on a hike.
 - **climb**: 5th class, a roped technical rock climb. Needs a stated class 5 or 5.x
   rating for that stretch. Class 4 is a scramble.
