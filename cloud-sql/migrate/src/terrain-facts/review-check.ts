@@ -37,7 +37,7 @@ export function checkDecision(decision: ReviewerDecision, research: Research, ve
       const hosts = new Set(label.basis.map(id => usable.get(id)?.source_url).filter((u): u is string => !!u).map(u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } }));
       if (hosts.size < 2) problems.push(`labels.${index}: a scramble needs claims from two publishers (has ${hosts.size})`);
     }
-    if (label.kind === "climb" && !label.basis.some(id => /\b5\.\d|class 5|fifth class/i.test(usable.get(id)?.quote ?? "")))
+    if (label.kind === "climb" && !label.basis.some(id => /\b5\.\d|class 5|fifth class|5th class/i.test(usable.get(id)?.quote ?? "")))
       problems.push(`labels.${index}: a climb needs a basis quote with a stated 5th-class rating`);
   }
   checkBasis("summary_basis", decision.summary_basis);
@@ -50,8 +50,29 @@ export function checkDecision(decision: ReviewerDecision, research: Research, ve
   for (const [index, interval] of decision.apply.entries()) {
     if (!(REVIEW_KINDS as readonly string[]).includes(interval.kind)) problems.push(`apply.${index}: unknown kind ${interval.kind}`);
     if (interval.kind === "hold" && interval.display_name != null) problems.push(`apply.${index}: a hold cannot have a display_name`);
+    if (interval.kind === "hold" && !decision.labels.some(label => label.kind === "hold" && label.basis.length > 0))
+      problems.push(`apply.${index}: a hold needs a label of kind hold citing the source that suggests hands`);
     if (["scramble", "climb", "climbers_route"].includes(interval.kind) && !decision.labels.some(label => label.kind === interval.kind && label.basis.length > 0))
       problems.push(`apply.${index}: ${interval.kind} needs a label of the same kind with a non-empty basis`);
   }
   return problems;
+}
+
+/**
+ * A page cut down for a reviewer: its opening (title, route summary) plus a window around each
+ * cited quote, in page order, joined with a gap marker. Short pages pass through whole.
+ */
+export function excerptPage(text: string, quotes: string[], window = 2500, head = 2000, cap = 24000): string {
+  if (text.length <= cap) return text;
+  // Work on whitespace-collapsed text so search positions and slices agree; quote checks ignore whitespace.
+  const flat = text.replace(/\s+/g, " "), lower = flat.toLowerCase(), spans: [number, number][] = [[0, head]];
+  for (const quote of quotes) {
+    const probe = quote.toLowerCase().replace(/\s+/g, " ").slice(0, 60).trim();
+    const at = probe ? lower.indexOf(probe) : -1;
+    if (at >= 0) spans.push([Math.max(0, at - window), Math.min(flat.length, at + quote.length + window)]);
+  }
+  spans.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const s of spans) { const last = merged[merged.length - 1]; if (last && s[0] <= last[1]) last[1] = Math.max(last[1], s[1]); else merged.push([...s]); }
+  return merged.map(([a, b]) => flat.slice(a, b)).join("\n[…]\n").slice(0, cap);
 }

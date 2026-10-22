@@ -5,8 +5,9 @@ decision becomes segment labels and a one-line summary in a hiking app. Precisio
 matters more than coverage: a wrong "scramble" misleads people, and so does a wrong
 "trail". When unsure, hold; never guess.
 
-You work from the files in the current directory only. You have no network and no
-database. Read:
+You work from the input files only; all of them are printed at the end of this prompt
+under "Inputs", so you need not run commands to read them. You have no network and no
+database. The files:
 
 - `review.md`: the checker's sheet. Start here: stretches, findings, claims, failures.
 - `packet.json`: the route (stretches in walking order, segment ids, elevations,
@@ -14,8 +15,9 @@ database. Read:
 - `research.json`: the researcher's claims, features and unknowns.
 - `verification.json`: which quotes the checker found on the pages and which
   findings failed.
-- `pages/*.json`: the fetched page text (`text` field). Read each quote you rely on
-  in context there.
+- `pages/*.json`: the fetched page text (`text` field). Long pages are cut to their
+  opening and the passages around each cited quote, joined with `[…]`. Read each quote
+  you rely on in context there.
 
 Do not trust the research. Check every claim you rely on: is it about this route and
 this line (same mountain, same trailhead side, same season)? Does the quote itself
@@ -41,7 +43,10 @@ rejects the whole decision if any reviewer quote is not on its page.
   the part that needs hands (a summit block, a gully), not the approach.
 - **climbers_route**: only the non-glacier ground of a mountaineering route, meaning
   the route as a whole needs rope, crampons or glacier travel per the sources.
-  Crampons needed in the route's normal season count, even early season only. Never
+  Crampons needed through the route's main season count (Stuart's Cascadian Couloir
+  holds snow into the climbing season). Snow gear needed only in winter or spring on a
+  route that is a summer hike does not: the normal Mount Whitney Trail is a hike, its
+  Mountaineers Route is the climbers route. Say the snow-season gear in the summary. Never
   on a hike.
 - **climb**: 5th class, a roped technical rock climb. Needs a stated class 5 or 5.x
   rating for that stretch. Class 4 is a scramble.
@@ -84,8 +89,16 @@ evidence (below).
   the summit stretch `climb`: the `last` crossing of (summit elevation minus the
   stated height) to `"end"`, or the final stretch to the summit when no height is
   given. A 5.x section elsewhere that you cannot place: hold it.
+- **Technical formations.** When sources say every route to the top of a formation (a
+  spire, dome or tower) is 5th class, label its summit stretch `climb` with the easiest
+  stated grade, even if no source names the exact line the route takes.
 - **Class 2 with trip-report hands.** Guides rating ground class 2, with only trip
-  reports saying hands: trail, with "class 2" in the summary.
+  reports saying hands: trail, with "class 2" in the summary. "Hands for balance" inside
+  a guide's own class 2 rating is not hands evidence.
+- **Ratings that are not classes.** The Mountaineers' "Technical 4" and similar
+  activity ratings are not YDS classes.
+- **Main season.** The main season is when most parties go (often July to October in
+  the mountain West), not an agency's widest listed season.
 - **Fixed aids.** Vertical ladders, cables and ropes that people pull themselves up
   on are scramble, named in `display_name`. Angled ladders with a handrail and
   stairs are trail.
@@ -93,6 +106,11 @@ evidence (below).
   normal route itself crosses a glacier or needs that gear.
 
 ## Holds
+
+A hold needs a source that suggests hands on that stretch, cited in a `hold` label's
+`basis`. Never hold a stretch because no source describes it: leave it unlabelled (it
+keeps its mapped kind) and say so in `open`. The bare word "scramble" with no mention of
+hands or a class is not a reason to hold; keep it as a warning in the summary.
 
 If a credible source suggests hands but the evidence is below the scramble bar (one
 non-trip-report publisher, a guidebook's "occasional handholds", several trip

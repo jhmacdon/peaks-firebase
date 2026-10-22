@@ -9,7 +9,7 @@ import { fetchPages } from "./fetch-pages";
 import { researchSchema, reviewerDecisionSchema, type Research, type ReviewerDecision } from "./schema";
 import { verify, type Page, type Verification } from "./verify";
 import { applyPlan, checkSummary, loadRoute, plan, sha, type Decision, type Plan } from "./apply";
-import { checkDecision } from "./review-check";
+import { checkDecision, excerptPage } from "./review-check";
 import { comparePlans } from "./review-compare";
 
 /**
@@ -26,6 +26,8 @@ import { comparePlans } from "./review-compare";
 
 const MODEL = process.env.TERRAIN_MODEL ?? "gpt-6.1-sol";
 const EFFORT = process.env.TERRAIN_EFFORT ?? "ultra";
+/** Reviewers read saved pages only; ultra's parallel helpers add cost there without new evidence. */
+const REVIEW_EFFORT = process.env.TERRAIN_REVIEW_EFFORT ?? "high";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -37,6 +39,18 @@ function need(name: string): string {
   return v;
 }
 const readJson = async <T>(path: string): Promise<T> => JSON.parse(await readFile(path, "utf8"));
+
+/** The route read retries on a dropped connection: a busy shared db-f1-micro resets idle sockets. */
+async function loadRouteRetry(db: Pool, routeId: string): ReturnType<typeof loadRoute> {
+  for (let attempt = 1; ; attempt++) {
+    try { return await loadRoute(db, routeId); }
+    catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (attempt >= 5 || !/ECONNRESET|Connection terminated|timeout|ETIMEDOUT|EPIPE/i.test(msg)) throw error;
+      await new Promise(r => setTimeout(r, 5000 * attempt));
+    }
+  }
+}
 
 async function packetCommand() {
   const routeId = need("route"), dir = resolve(need("dir"));
@@ -100,7 +114,7 @@ async function reviewCommand() {
   if (as !== "a" && as !== "b") throw new Error("--as must be a or b");
   const output = join(dir, `decision.${as}.json`), raw = join(dir, `decision.${as}.raw.json`);
   if (existsSync(output)) throw new Error(`${output} already exists; use a new run directory`);
-  const prompt = await readFile(join(__dirname, "reviewer-prompt.md"), "utf8");
+  let prompt = await readFile(join(__dirname, "reviewer-prompt.md"), "utf8");
   const schema = join(dir, `review-schema.${as}.json`), eventFile = join(dir, `events.review-${as}.jsonl`);
   await writeFile(schema, JSON.stringify(reviewerDecisionSchema, null, 2));
   // Config docs: https://learn.chatgpt.com/docs/config-file/config-basic#web-search-mode
@@ -109,11 +123,25 @@ async function reviewCommand() {
   const work = await mkdtemp(join(tmpdir(), `terrain-review-${as}-`));
   for (const name of ["review.md", "packet.json", "research.json", "verification.json", "pages"])
     await cp(join(dir, name), join(work, name), { recursive: true });
+  // Reviewers get each page's opening and the text around every cited quote, not whole pages
+  // (most of a page is navigation and comments). checkDecision still reads the full pages.
+  const research = await readJson<Research>(join(dir, "research.json"));
+  for (const file of (await readdir(join(work, "pages"))).filter(f => f.endsWith(".json"))) {
+    const page = await readJson<Page>(join(work, "pages", file));
+    const quotes = research.claims.filter(c => c.source_url === page.url).map(c => c.quote);
+    page.text = excerptPage(page.text ?? "", quotes);
+    await writeFile(join(work, "pages", file), JSON.stringify(page));
+  }
+  // Inline every input so the review is one pass: each shell read would resend the whole context.
+  const block = async (name: string) => `<file name="${name}">\n${await readFile(join(work, name), "utf8")}\n</file>`;
+  const pageBlocks = await Promise.all((await readdir(join(work, "pages"))).filter(f => f.endsWith(".json")).sort().map(f => block(join("pages", f))));
+  prompt += "\n\n## Inputs\n\nEvery input file is below; do not run commands to read them again.\n\n"
+    + [await block("review.md"), await block("packet.json"), await block("research.json"), await block("verification.json"), ...pageBlocks].join("\n\n");
   const argv = ["exec", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check",
     "-s", "read-only", "-C", work, "-m", MODEL,
-    "-c", `model_reasoning_effort="${EFFORT}"`, "-c", `web_search="disabled"`, "-c", "project_doc_max_bytes=0",
+    "-c", `model_reasoning_effort="${REVIEW_EFFORT}"`, "-c", `web_search="disabled"`, "-c", "project_doc_max_bytes=0",
     "--output-schema", schema, "-o", raw, "--json", "-"];
-  console.log(`codex ${MODEL} (${EFFORT}) reviewing as ${as} ...`);
+  console.log(`codex ${MODEL} (${REVIEW_EFFORT}) reviewing as ${as} ...`);
   const events = createWriteStream(eventFile);
   const code = await new Promise<number>((done, fail) => {
     const child = spawn("codex", argv, { cwd: work, stdio: ["pipe", "pipe", "inherit"] });
@@ -127,6 +155,18 @@ async function reviewCommand() {
   await rm(work, { recursive: true, force: true });
   if (code !== 0) throw new Error(`codex exited ${code}; see ${eventFile}`);
   const decision = await readJson<ReviewerDecision>(raw);
+  // A hold keeps the segment as it is, so a name on it means nothing; drop it rather than fail the plan.
+  for (const interval of decision.apply) if (interval.kind === "hold") interval.display_name = null;
+  // Identifiers come from the files, not the model's retyping (one review dropped two hex digits).
+  const ver = await readJson<Verification>(join(dir, "verification.json"));
+  decision.route_id = ver.route_id; decision.packet_sha256 = ver.packet_sha256;
+  // A hold needs a source suggesting hands. Reviewers still hold stretches that no source describes;
+  // drop those holds (the stretch keeps its mapped kind) instead of sending the route to a person.
+  if (decision.apply.some(i => i.kind === "hold") && !decision.labels.some(l => l.kind === "hold" && l.basis.length > 0)) {
+    decision.apply = decision.apply.filter(i => i.kind !== "hold");
+    decision.labels = decision.labels.filter(l => l.kind !== "hold");
+    decision.open = [...decision.open.map(o => o.replace(/^HOLD:/, "Undescribed (hold dropped, no source suggests hands):")),];
+  }
   await writeFile(output, JSON.stringify(decision, null, 2) + "\n", { flag: "wx" });
   console.log(output);
 }
@@ -151,9 +191,9 @@ async function compareCommand() {
   const db = pool();
   try {
     await db.query("SET default_transaction_read_only = on");
-    const { rows, sharedWith, held } = await loadRoute(db, verification.route_id);
+    const { rows, sharedWith, held, reviewedHard, heldElsewhere, reconciled } = await loadRouteRetry(db, verification.route_id);
     const makePlan = (decision: ReviewerDecision, problems: string[]): Plan | null => {
-      try { return plan(verification.route_id, rows, decision, sharedWith, held); }
+      try { return plan(verification.route_id, rows, decision, sharedWith, held, reviewedHard, heldElsewhere, reconciled); }
       catch (error) { problems.push(`plan failed: ${error instanceof Error ? error.message : String(error)}`); return null; }
     };
     aPlan = makePlan(a, aProblems);
@@ -165,7 +205,8 @@ async function compareCommand() {
   const result = comparePlans(aPlan, bPlan, aProblems, bProblems);
   await writeFile(join(dir, "compare.json"), JSON.stringify(result, null, 2) + "\n");
   if (result.agree && !result.escalate) {
-    const decision = { ...a, reviewed_by: "codex reviewer a; reviewer b agreed",
+    const chosen = result.prefer === "b" ? b : a;
+    const decision = { ...chosen, reviewed_by: `codex reviewer ${result.prefer}; reviewer ${result.prefer === "a" ? "b" : "a"} agreed`,
       default: "Unlabelled stretches keep mapped kinds; unbacked scramble/climb reset to trail." };
     try { await writeFile(join(dir, "decision.json"), JSON.stringify(decision, null, 2) + "\n", { flag: "wx" }); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
@@ -238,8 +279,8 @@ async function applyCommand() {
       } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
       return;
     }
-    const { rows, sharedWith, held } = await loadRoute(db, decision.route_id);
-    const p = plan(decision.route_id, rows, decision, sharedWith, held), hash = sha(p);
+    const { rows, sharedWith, held, reviewedHard, heldElsewhere, reconciled } = await loadRouteRetry(db, decision.route_id);
+    const p = plan(decision.route_id, rows, decision, sharedWith, held, reviewedHard, heldElsewhere, reconciled), hash = sha(p);
     await writeFile(join(dir, write ? "apply-plan.applied.json" : "apply-plan.json"), JSON.stringify({ hash, ...p }, null, 2) + "\n");
     for (const flag of p.flags) console.log(`flag   ${flag}`);
     for (const op of p.ops) console.log(op.op === "kind" ? `kind   ${op.segment_id} ${op.from} -> ${op.to}${op.display_name ? ` "${op.display_name}"` : ""} (${op.route_m.join("-")} m)` : `split  ${op.segment_id} at ${op.cuts_m.join(", ")} m -> ${op.pieces.map(x => `${x.kind}${x.display_name ? ` "${x.display_name}"` : ""} ${x.length_m} m`).join(" | ")}`);
