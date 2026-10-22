@@ -124,7 +124,10 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
   const HARD: Record<string, number> = { climb: 3, scramble: 2, climbers_route: 1 };
   const over = (a: number, b: number) => {
     const lo = Math.min(a, b), hi = Math.max(a, b);
-    const hard = intervals.filter(i => HARD[i.kind] && Math.min(hi, i.end_m) - Math.max(lo, i.start_m) > 0.5)
+    // A hard interval counts when it overlaps the span by at least SNAP_M, or lies wholly inside it (a short
+    // summit pitch); a few metres of spill from a neighbouring placement must not relabel a whole segment.
+    const hard = intervals.filter(i => HARD[i.kind] && (Math.min(hi, i.end_m) - Math.max(lo, i.start_m) >= SNAP_M
+        || (i.start_m >= lo - 0.5 && i.end_m <= hi + 0.5 && i.end_m - i.start_m > 0.5)))
       .sort((x, y) => HARD[y.kind] - HARD[x.kind])[0];
     return hard ?? at((lo + hi) / 2);
   };

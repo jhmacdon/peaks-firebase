@@ -269,6 +269,15 @@ test("a hard section too short to split still labels its segment (round up)", ()
   assert.deepEqual(p.ops.filter(o => o.op === "kind").map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "climb"]]);
 });
 
+test("a few metres of spill from a neighbouring hard interval does not relabel a segment", () => {
+  const a = lineLength(rows[0].coords);
+  // Climb starts 5 m before the end of segment a and runs over all of b: a stays as it was.
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "climb", from: a - 5, to: "end", note: "pitch" }] });
+  const kinds = Object.fromEntries(p.ops.filter(o => o.op === "kind").map(o => o.op === "kind" ? [o.segment_id, o.to] : []));
+  assert.equal(kinds["a"], undefined);
+  assert.equal(kinds["b"], "climb");
+});
+
 // ---------- independent review ----------
 
 function reviewFixture() {
