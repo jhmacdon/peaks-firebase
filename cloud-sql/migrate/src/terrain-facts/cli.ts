@@ -40,6 +40,18 @@ function need(name: string): string {
 }
 const readJson = async <T>(path: string): Promise<T> => JSON.parse(await readFile(path, "utf8"));
 
+/** The route read retries on a dropped connection: a busy shared db-f1-micro resets idle sockets. */
+async function loadRouteRetry(db: Pool, routeId: string): ReturnType<typeof loadRoute> {
+  for (let attempt = 1; ; attempt++) {
+    try { return await loadRoute(db, routeId); }
+    catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (attempt >= 5 || !/ECONNRESET|Connection terminated|timeout|ETIMEDOUT|EPIPE/i.test(msg)) throw error;
+      await new Promise(r => setTimeout(r, 5000 * attempt));
+    }
+  }
+}
+
 async function packetCommand() {
   const routeId = need("route"), dir = resolve(need("dir"));
   if (existsSync(join(dir, "packet.json"))) throw new Error(`${dir} already has a packet; use a new run directory`);
@@ -169,7 +181,7 @@ async function compareCommand() {
   const db = pool();
   try {
     await db.query("SET default_transaction_read_only = on");
-    const { rows, sharedWith, held } = await loadRoute(db, verification.route_id);
+    const { rows, sharedWith, held } = await loadRouteRetry(db, verification.route_id);
     const makePlan = (decision: ReviewerDecision, problems: string[]): Plan | null => {
       try { return plan(verification.route_id, rows, decision, sharedWith, held); }
       catch (error) { problems.push(`plan failed: ${error instanceof Error ? error.message : String(error)}`); return null; }
@@ -257,7 +269,7 @@ async function applyCommand() {
       } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
       return;
     }
-    const { rows, sharedWith, held } = await loadRoute(db, decision.route_id);
+    const { rows, sharedWith, held } = await loadRouteRetry(db, decision.route_id);
     const p = plan(decision.route_id, rows, decision, sharedWith, held), hash = sha(p);
     await writeFile(join(dir, write ? "apply-plan.applied.json" : "apply-plan.json"), JSON.stringify({ hash, ...p }, null, 2) + "\n");
     for (const flag of p.flags) console.log(`flag   ${flag}`);
