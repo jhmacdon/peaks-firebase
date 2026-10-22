@@ -105,7 +105,7 @@ export function resolve(e: Endpoint, rows: SegmentRow[]): number {
 }
 
 /** `held` lists segments another review held: they keep their kind unless this decision labels them. */
-export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sharedWith: string[] = [], held: string[] = [], reviewedHard: Record<string, Kind> = {}, heldElsewhere: string[] = []): Plan {
+export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sharedWith: string[] = [], held: string[] = [], reviewedHard: Record<string, Kind> = {}, heldElsewhere: string[] = [], reconciled: Record<string, Kind> = {}): Plan {
   const crossFlags: string[] = [], heldOther = new Set(heldElsewhere);
   if (decision.route_id !== routeId) throw new Error("decision is for another route");
   const { parts, total } = walk(rows);
@@ -126,8 +126,11 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     const lo = Math.min(a, b), hi = Math.max(a, b);
     // A hard interval counts when it overlaps the span by at least SNAP_M, or lies wholly inside it (a short
     // summit pitch); a few metres of spill from a neighbouring placement must not relabel a whole segment.
-    const hard = intervals.filter(i => HARD[i.kind] && (Math.min(hi, i.end_m) - Math.max(lo, i.start_m) >= SNAP_M
-        || (i.start_m >= lo - 0.5 && i.end_m <= hi + 0.5 && i.end_m - i.start_m > 0.5)))
+    // Every hard interval still labels at least the segment it overlaps most (a short pitch across two segments).
+    const ov = (i: { start_m: number; end_m: number }, x: number, y: number) => Math.min(y, i.end_m) - Math.max(x, i.start_m);
+    const hard = intervals.filter(i => HARD[i.kind] && (ov(i, lo, hi) >= SNAP_M
+        || (i.start_m >= lo - 0.5 && i.end_m <= hi + 0.5 && i.end_m - i.start_m > 0.5)
+        || (ov(i, lo, hi) > 0.5 && ov(i, lo, hi) >= Math.max(...parts.map(q => ov(i, q.start, q.end))) - 0.5)))
       .sort((x, y) => HARD[y.kind] - HARD[x.kind])[0];
     return hard ?? at((lo + hi) / 2);
   };
@@ -176,6 +179,13 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
         continue;
       }
       clear.push(p.row.id);
+    }
+    // A reconciled segment is not split or relabelled by one route's decision.
+    if (reconciled[p.row.id]) {
+      const want = kindAt((p.start + p.end) / 2, p.row.kind);
+      if (want !== reconciled[p.row.id]) crossFlags.push(`kept reconciled ${reconciled[p.row.id]} on ${p.row.id} (this decision says ${want})`);
+      if (p.row.kind !== reconciled[p.row.id]) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to: reconciled[p.row.id], display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
+      continue;
     }
     const cuts = intervals.flatMap(i => [i.start_m, i.end_m]).filter(m => m > p.start + SNAP_M && m < p.end - SNAP_M)
       .sort((x, y) => x - y).filter((m, k, all) => k === 0 || m - all[k - 1] > 1);
@@ -237,7 +247,7 @@ export function checkSummary(s: TerrainSummary | null | undefined): TerrainSumma
 
 export const sha = (v: unknown) => createHash("sha256").update(stableJson(v)).digest("hex");
 
-export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[]; held: string[]; reviewedHard: Record<string, Kind>; heldElsewhere: string[] }> {
+export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[]; held: string[]; reviewedHard: Record<string, Kind>; heldElsewhere: string[]; reconciled: Record<string, Kind> }> {
   const rows = (await db.query(`
     SELECT rs.ordinal, rs.direction, s.id, s.kind, s.display_name, ST_AsGeoJSON(s.path::geometry, 9) AS geojson
     FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
@@ -256,7 +266,13 @@ export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows:
     SELECT DISTINCT ON (segment_id) segment_id, kind FROM segment_terrain_labels
     WHERE segment_id = ANY($1) AND route_id <> $2 ORDER BY segment_id, applied_at DESC, id DESC`, [rows.map(r => r.id), routeId])).rows)
     if (["scramble", "climb", "climbers_route"].includes(r.kind)) reviewedHard[r.segment_id] = r.kind;
-  return { rows, sharedWith, held, reviewedHard, heldElsewhere };
+  // Labels settled by pooling every route's evidence on a shared segment outrank any one route's decision.
+  const reconciled: Record<string, Kind> = {};
+  for (const r of (await db.query(`
+    SELECT DISTINCT ON (segment_id) segment_id, kind, reviewed_by FROM segment_terrain_labels
+    WHERE segment_id = ANY($1) ORDER BY segment_id, applied_at DESC, id DESC`, [rows.map(r => r.id)])).rows)
+    if (/reconciliation/.test(r.reviewed_by)) reconciled[r.segment_id] = r.kind;
+  return { rows, sharedWith, held, reviewedHard, heldElsewhere, reconciled };
 }
 
 export interface Evidence { plan_sha256: string; reviewed_by: string; sources: string[]; hold_question?: string }

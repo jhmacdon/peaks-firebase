@@ -191,9 +191,9 @@ async function compareCommand() {
   const db = pool();
   try {
     await db.query("SET default_transaction_read_only = on");
-    const { rows, sharedWith, held, reviewedHard, heldElsewhere } = await loadRouteRetry(db, verification.route_id);
+    const { rows, sharedWith, held, reviewedHard, heldElsewhere, reconciled } = await loadRouteRetry(db, verification.route_id);
     const makePlan = (decision: ReviewerDecision, problems: string[]): Plan | null => {
-      try { return plan(verification.route_id, rows, decision, sharedWith, held, reviewedHard, heldElsewhere); }
+      try { return plan(verification.route_id, rows, decision, sharedWith, held, reviewedHard, heldElsewhere, reconciled); }
       catch (error) { problems.push(`plan failed: ${error instanceof Error ? error.message : String(error)}`); return null; }
     };
     aPlan = makePlan(a, aProblems);
@@ -279,8 +279,8 @@ async function applyCommand() {
       } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
       return;
     }
-    const { rows, sharedWith, held, reviewedHard, heldElsewhere } = await loadRouteRetry(db, decision.route_id);
-    const p = plan(decision.route_id, rows, decision, sharedWith, held, reviewedHard, heldElsewhere), hash = sha(p);
+    const { rows, sharedWith, held, reviewedHard, heldElsewhere, reconciled } = await loadRouteRetry(db, decision.route_id);
+    const p = plan(decision.route_id, rows, decision, sharedWith, held, reviewedHard, heldElsewhere, reconciled), hash = sha(p);
     await writeFile(join(dir, write ? "apply-plan.applied.json" : "apply-plan.json"), JSON.stringify({ hash, ...p }, null, 2) + "\n");
     for (const flag of p.flags) console.log(`flag   ${flag}`);
     for (const op of p.ops) console.log(op.op === "kind" ? `kind   ${op.segment_id} ${op.from} -> ${op.to}${op.display_name ? ` "${op.display_name}"` : ""} (${op.route_m.join("-")} m)` : `split  ${op.segment_id} at ${op.cuts_m.join(", ")} m -> ${op.pieces.map(x => `${x.kind}${x.display_name ? ` "${x.display_name}"` : ""} ${x.length_m} m`).join(" | ")}`);
