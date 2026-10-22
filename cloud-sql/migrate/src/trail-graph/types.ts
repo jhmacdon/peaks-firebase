@@ -21,6 +21,8 @@ export interface Segment {
   state_code?: import('./state').StateCode;
   display_name?: string | null; description?: string | null; description_source_url?: string | null;
   source_segment_ids?: string[]; informal?: string | null;
+  /** Identical OSM pedestrian access tags throughout this segment. */
+  osm_access?: Tags;
   sac_scale: string | null; trail_visibility: string | null; osm_way_ids: number[];
   relation_names: string[]; relations: Relation[]; start_node: string; end_node: string;
   coords: Coord[]; node_ids: string[]; osm_edge_way_ids: number[]; length_m: number; provenance: Provenance;

@@ -1,10 +1,17 @@
 import { Grid, haversine, length } from './geo';
 import { lines } from './io';
 import { parseOpl } from './opl';
-import type { Coord, Segment, Way } from './types';
+import type { Coord, Segment, Tags, Way } from './types';
 import { buildTopology, refresh } from './topology';
 import { MinHeap } from './router';
 import type { AccessPoint } from './catalog-types';
+
+/** A pedestrian path or a road closed to cars cannot prove drive-up access. */
+export function drivablePublicRoad(tags: Tags): boolean {
+  return ['trunk', 'trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'unclassified', 'residential', 'living_street', 'service', 'road', 'track'].includes(tags.highway)
+    && !['access', 'vehicle', 'motor_vehicle', 'motorcar', 'foot'].some(key => /^(?:private|no)$/i.test(tags[key] ?? ''))
+    && (tags.highway !== 'track' || ['vehicle', 'motor_vehicle', 'motorcar'].some(key => /^(?:yes|designated|permissive|destination)$/i.test(tags[key] ?? '')));
+}
 
 /** The extract contains only roads/parking and their referenced nodes. Keep exact
  * road vertices near graph junctions/ends, and all parking features. Two streaming
@@ -24,7 +31,7 @@ export async function readRoadAccess(path: string, segments: Segment[]) {
       const x = / x(-?[\d.]+)(?: |$)/.exec(line), y = / y(-?[\d.]+)(?: |$)/.exec(line);
       if (!x || !y) continue;
       const coord: Coord = [Number(x[1]), Number(y[1])], parking = /(?: T|,)amenity=parking(?:,| |$)/.test(line);
-      if (!parking && !junctions.near(coord, 160).some(p => haversine(p, coord) <= 150)) continue;
+      if (!parking && !junctions.near(coord, 250).some(p => haversine(p, coord) <= 250)) continue;
       const r = parseOpl(line);
       if (['private', 'no'].includes(r.tags.access) || ['private', 'no'].includes(r.tags.foot)) continue;
       points.push({ osm_id: `node/${r.id}`, coord, parking, ...(r.tags.name ? { name: r.tags.name } : {}) });
@@ -32,8 +39,8 @@ export async function readRoadAccess(path: string, segments: Segment[]) {
     } else if (line[0] === 'w') {
       inputWays++;
       const r = parseOpl(line);
-      if (r.tags.highway && !['motorway', 'motorway_link'].includes(r.tags.highway) && !['private', 'no'].includes(r.tags.access) && !['private', 'no'].includes(r.tags.foot)) for (const n of r.nodes) if (candidateNodes.has(String(n))) publicNodes.add(String(n));
-      if (!existingWays.has(r.id) && r.tags.highway && !['motorway', 'motorway_link', 'trunk', 'trunk_link', 'footway', 'path', 'steps', 'bridleway', 'cycleway'].includes(r.tags.highway) && !['private', 'no'].includes(r.tags.access) && !['private', 'no'].includes(r.tags.foot) && r.nodes.some(n => candidateNodes.has(String(n)))) roadWays.push({ id: r.id, nodes: r.nodes, tags: r.tags, relations: [] });
+      if (drivablePublicRoad(r.tags)) for (const n of r.nodes) if (candidateNodes.has(String(n))) publicNodes.add(String(n));
+      if (!existingWays.has(r.id) && drivablePublicRoad(r.tags) && !['trunk', 'trunk_link'].includes(r.tags.highway) && r.nodes.some(n => candidateNodes.has(String(n)))) roadWays.push({ id: r.id, nodes: r.nodes, tags: r.tags, relations: [] });
       if (r.tags.amenity !== 'parking') continue;
       if (!['private', 'no'].includes(r.tags.access) && !['private', 'no'].includes(r.tags.foot)) parkingWays.push({ id: r.id, name: r.tags.name, nodes: r.nodes });
     }
@@ -51,7 +58,7 @@ export async function readRoadAccess(path: string, segments: Segment[]) {
   }
   const links = boundedRoadLinks(roadWays.filter(w => w.nodes.every(n => coords.has(n))), coords, seen);
   const indexed = points.filter(p => p.parking || publicNodes.has(p.osm_id.slice(5)));
-  return { points: indexed, links, coords, stats: { input_nodes: inputNodes, input_ways: inputWays, indexed_road_vertices: indexed.filter(p => !p.parking).length, parking_features: indexed.filter(p => p.parking).length, named_parking: indexed.filter(p => p.parking && p.name).length, road_vertex_retention_radius_m: 150, source_road_links: links.length } };
+  return { points: indexed, links, coords, stats: { input_nodes: inputNodes, input_ways: inputWays, indexed_road_vertices: indexed.filter(p => !p.parking).length, parking_features: indexed.filter(p => p.parking).length, named_parking: indexed.filter(p => p.parking && p.name).length, road_vertex_retention_radius_m: 250, source_road_links: links.length } };
 }
 
 /** Recover <=400 m source road stretches between trail contacts, even when

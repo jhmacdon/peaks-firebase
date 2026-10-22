@@ -68,8 +68,9 @@ function preferences(walk: RouteStep[], namesById: Map<string, string[]>): strin
   }
   return [...weights.values()].sort((a, b) => b.length - a.length || a.name.localeCompare(b.name)).map(v => v.name);
 }
-function syntheticStart(node: string, p: Coord, name: string): NamedFeature {
-  return { osm_id: `graph/${node}`, name: `${name} Trailhead`, feature: 'trailhead', lon: p[0], lat: p[1], graph_node: node, graph_distance_m: 0, graph_coord: p, location_method: 'osm_point' };
+function syntheticStart(node: string, p: Coord): NamedFeature {
+  // The composer names this from a nearby mapped start or the first walked trail.
+  return { osm_id: `graph/${node}`, name: '', feature: 'trailhead', lon: p[0], lat: p[1], graph_node: node, graph_distance_m: 0, graph_coord: p, location_method: 'osm_point' };
 }
 function featureRadius(f: NamedFeature): number {
   return f.feature === 'trailhead' ? 150 : f.feature === 'summit' ? 75 : 30;
@@ -516,7 +517,7 @@ class DiscoveryGraph {
     }
     return { labels, best };
   }
-  fallback(node: string, name: string): Start { const p = this.positions.get(node)!; return { node, coord: p, vertex: { id: node, coord: p, segment: 0, vertex: 0 }, place: syntheticStart(node, p, name) }; }
+  fallback(node: string): Start { const p = this.positions.get(node)!; return { node, coord: p, vertex: { id: node, coord: p, segment: 0, vertex: 0 }, place: syntheticStart(node, p) }; }
 }
 
 function mergeSteps(walk: RouteStep[]): RouteStep[] {
@@ -586,7 +587,7 @@ export function* discover(input: { segments: Segment[]; features: NamedFeature[]
     if (branched) reasons.push('relation branches; its longest connected approach needs review');
     const loop = !branched && ends.length === 0, candidates = (loop ? [...map.keys()] : ends).flatMap(node => (graph.contacts.get(node) ?? []).map(start => ({ start, node })));
     candidates.sort((a, b) => Number('coord' in a.start.place && !a.start.place.parking) - Number('coord' in b.start.place && !b.start.place.parking) || placeId(a.start.place).localeCompare(placeId(b.start.place)));
-    const start = candidates[0]?.start ?? graph.fallback((ends[0] ?? selected[0].from), name);
+    const start = candidates[0]?.start ?? graph.fallback((ends[0] ?? selected[0].from));
     if (!candidates.length) reasons.push(loop ? 'closed relation has no road or parking contact' : 'open relation has no road or parking contact at an end');
     let walk: RouteStep[], end: string;
     if (branched) {
@@ -614,7 +615,7 @@ export function* discover(input: { segments: Segment[]; features: NamedFeature[]
     for (const [objective, label] of [...search.goals].sort(([a], [b]) => a.osm_id.localeCompare(b.osm_id))) {
       const walk = graph.walk(label), preferredNames = preferences(walk, graph.namesById), reasons = search.review.get(objective); if (!reasons?.length) markCovered(walk);
       const name = cleanDiscoveryName(objective.name, { kind: 'objective' }).name; if (!name) continue;
-      const via = viaTrailName(preferredNames[0]);
+      const via = preferredNames.map(viaTrailName).find((name): name is string => !!name);
       yield { source: 'objective', identity: `${placeId(start.place)}/${objective.osm_id}`, name: via ? `${name} via ${via}` : name, shape: 'out_and_back', walk, trailhead: start.place, trailheadCoord: start.coord, objective, preferredNames, junctionNameCount, ...(reasons?.length ? { reasons } : {}) };
       objectives++;
     }
@@ -629,7 +630,7 @@ export function* discover(input: { segments: Segment[]; features: NamedFeature[]
     const map = adjacency(selected), ends = [...map].filter(([, arcs]) => arcs.length === 1).map(([node]) => node), ids = new Set(selected.map(e => e.id));
     for (const node of ends) {
       const explicit = graph.startsAt.get(node) ?? [], inferred = explicit.length ? null : graph.findContact(node, 125);
-      const starts = explicit.length ? explicit : inferred ? [{ ...graph.fallback(node, group.name), place: inferred.access }] : [];
+      const starts = explicit.length ? explicit : inferred ? [{ ...graph.fallback(node), place: inferred.access }] : [];
       for (const start of starts) {
       const search = graph.search([node], Infinity, e => ids.has(e.id), false);
       const destination = ends.filter(n => n !== node).map(n => search.best.get(n)).filter((l): l is Label => !!l).sort((a, b) => b.distance - a.distance || a.node.localeCompare(b.node))[0];

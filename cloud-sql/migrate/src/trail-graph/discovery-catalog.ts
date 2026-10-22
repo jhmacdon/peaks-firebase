@@ -1,7 +1,7 @@
 import { displayName, assertDisplayName } from './display-names';
 import { featureDistance } from './features';
 import { hash, haversine, length, unique } from './geo';
-import { cleanTrail, normalizeName, trailKey } from './names';
+import { normalizeName, trailKey } from './names';
 import { repeatedEdgesAllowed } from './compose-validate';
 import { alignSummitKind, appendSummitConnector } from './summit-connectors';
 import type { DiscoveryDestinations } from './discovery-destinations';
@@ -10,7 +10,9 @@ import type { AccessPoint, ComposedRoute, DraftRoute, PlaceRef } from './catalog
 import type { DiscoveryCandidate } from './discovery';
 import { discoveryName } from './discovery';
 import { rankDiscovery, popularityTier, type RankingContext } from './discovery-ranking';
-import { cleanDiscoveryName, usableTrailheadName } from './discovery-names';
+import { cleanDiscoveryName, isNoteObjectiveName, usableTrailheadName, viaTrailName } from './discovery-names';
+import { DiscoveryAccess } from './discovery-access';
+import { restrictedFootAccess } from './pedestrian-access';
 import type { Coord, NamedFeature, Segment } from './types';
 import type { RouteStep } from './router';
 
@@ -31,7 +33,8 @@ export function placeRef(place: NamedFeature | AccessPoint, fallback: string, se
     retrieved_at: graphSource?.retrieved_at ?? '', osm_way_ids: wayIds, osm_way_urls: wayIds.map(id => `https://www.openstreetmap.org/way/${id}`), contains_osm_geometry: wayIds.length > 0 } : graphSource;
   return { new: { name: routeTitle(safeName || fallback), feature: isFeature ? place.feature : 'trailhead', lng: coord[0], lat: coord[1],
     ...(isFeature && place.ele !== undefined ? { ele: place.ele } : {}), ...(isFeature && place.boundary ? { boundary: place.boundary } : {}),
-    source: osm ? { kind: 'osm', osm_id: place.osm_id, provenance: source, ...(official ? { official_name: true } : {}), ...(!safeName ? { name_is_fallback: true } : {}) } : { kind: 'graph', node_id: place.osm_id.replace(/^graph\//, ''), provenance: source, ...(!safeName ? { name_is_fallback: true } : {}) } } };
+    source: { ...(osm ? { kind: 'osm' as const, osm_id: place.osm_id, provenance: source, ...(official ? { official_name: true } : {}) } : { kind: 'graph' as const, node_id: place.osm_id.replace(/^graph\//, ''), provenance: source }),
+      ...(!safeName ? { name_is_fallback: true, note: isTrailhead ? 'Generated name from the first named trail at this start.' : 'Source name lacks a usable place name.' } : {}) } } };
 }
 export function namedSegment(s: Segment): boolean {
   return s.kind !== 'road' && [...s.trail_names, ...s.relation_names].some(n => !!discoveryName(n));
@@ -39,7 +42,7 @@ export function namedSegment(s: Segment): boolean {
 export function popularity(candidate: DiscoveryCandidate, byId: Map<string, Segment>, junctionNames = 0, context?: RankingContext): number {
   return rankDiscovery(candidate, byId, junctionNames, context).popularity;
 }
-export function composeDiscovery(candidate: DiscoveryCandidate, index: number, state: NonNullable<ComposedRoute['state_code']>, byId: Map<string, Segment>, junctionNames = 0, rankingContext?: RankingContext, destinations?: DiscoveryDestinations): DraftRoute {
+export function composeDiscovery(candidate: DiscoveryCandidate, index: number, state: NonNullable<ComposedRoute['state_code']>, byId: Map<string, Segment>, junctionNames = 0, rankingContext?: RankingContext, destinations?: DiscoveryDestinations, access = new DiscoveryAccess()): DraftRoute {
   const walk = candidate.walk.map(s => ({ ...s })), total = walk.reduce((n, s) => n + s.length_m, 0);
   const preferred = candidate.preferredNames.map(n => trailKey(discoveryName(n) ?? n));
   const isPreferred = (s: Segment) => namedSegment(s) && (!preferred.length || [...s.trail_names, ...s.relation_names].some(n => preferred.includes(trailKey(discoveryName(n) ?? ''))));
@@ -50,7 +53,9 @@ export function composeDiscovery(candidate: DiscoveryCandidate, index: number, s
   const startStep = walk[0], start = startStep ? byId.get(startStep.segment_id)!.coords[startStep.start_vertex] : candidate.trailheadCoord;
   const used = new Map(walk.map(s => [s.segment_id, byId.get(s.segment_id)!]));
   const cleanedTitle = cleanDiscoveryName(candidate.name, { kind: 'route' });
-  const sourceNames = [...used.values()].flatMap(s => [...s.trail_names, ...s.relation_names]).filter(n => preferred.includes(trailKey(discoveryName(n) ?? ''))).map(n => cleanDiscoveryName(n, { kind: 'trail' }));
+  const sourceNames = [...used.values()].flatMap(s => [...s.trail_names, ...s.relation_names,
+    ...s.alt_sources.flatMap(source => [source.name, source.tags?.trail_name, source.tags?.TRLNAME, source.tags?.TRLALTNAME, source.tags?.TR_NM, source.tags?.TR_ALT_NM])])
+    .filter((n): n is string => !!n && preferred.includes(trailKey(discoveryName(n) ?? ''))).map(n => cleanDiscoveryName(n, { kind: 'trail' }));
   const objectiveName = cleanDiscoveryName(candidate.objective?.name, { kind: 'objective' });
   const objectiveAliases = [...(candidate.objective?.aliases ?? []), ...(candidate.endTrailhead && 'aliases' in candidate.endTrailhead ? candidate.endTrailhead.aliases ?? [] : [])].flatMap(n => {
     const cleaned = cleanDiscoveryName(n, { kind: 'objective' }); return cleaned.name ? [cleaned.name, ...cleaned.aliases] : [];
@@ -58,19 +63,32 @@ export function composeDiscovery(candidate: DiscoveryCandidate, index: number, s
   const aliases = unique([...cleanedTitle.aliases, ...sourceNames.flatMap(n => n.aliases), ...objectiveName.aliases, ...objectiveAliases]);
   const flags = unique([...cleanedTitle.flags, ...sourceNames.flatMap(n => n.flags), ...objectiveName.flags]);
   const ranking = rankDiscovery(candidate, byId, junctionNames, rankingContext);
+  const startRef = (place: NamedFeature | AccessPoint, point: Coord, steps: RouteStep[]): PlaceRef => {
+    const named = usableTrailheadName(place) ? place : access.namedStart(point) ?? place;
+    const names = steps.flatMap(step => {
+      const segment = byId.get(step.segment_id)!;
+      return segment.kind === 'road' ? [] : [...segment.trail_names, ...segment.relation_names];
+    }).map(viaTrailName).filter((name): name is string => !!name);
+    // Prefer the trail the route is named for (East Pecos Baldy via Jacks Creek Trail starts at
+    // Jacks Creek Trailhead); the first trail at the start is often a different, passing trail.
+    const trail = names.find(name => preferred.includes(trailKey(discoveryName(name) ?? name))) ?? names[0];
+    // "Long Trail" -> "Long Trail Trailhead", not "Long Trailhead": keep the generic word when the stem is not a name.
+    const stem = trail?.replace(/\s+(?:Trail|Path)$/i, '');
+    const bare = !!stem && /^(?:long|old|new|main|upper|lower|middle|north|south|east|west|high|low|loop|river|creek|lake|ridge)$/i.test(stem);
+    return placeRef(named, trail ? `${bare ? trail : stem} Trailhead` : 'Trailhead', used);
+  };
   const row: ComposedRoute = { seed_index: index, state_code: state, discovery_source: candidate.source, discovery_identity: candidate.identity,
     name: routeTitle(cleanedTitle.name ?? candidate.name), aliases, ...(flags.length ? { flags } : {}), kind: candidate.shape === 'loop' ? 'loop' : candidate.shape === 'point_to_point' ? 'traverse' : candidate.objective?.feature === 'summit' ? 'summit' : 'destination',
-    region: state, tier: popularityTier(ranking.popularity), trailhead: placeRef(candidate.trailhead, `${candidate.name} Trailhead`, used), objective: candidate.objective ? placeRef(candidate.objective, candidate.objective.name, used) : null,
-    ...(candidate.endTrailhead ? { end_trailhead: placeRef(candidate.endTrailhead, 'Trailhead', used) } : {}),
+    region: state, tier: popularityTier(ranking.popularity), trailhead: startRef(candidate.trailhead, start, walk), objective: candidate.objective ? placeRef(candidate.objective, candidate.objective.name, used) : null,
+    ...(candidate.endTrailhead ? { end_trailhead: startRef(candidate.endTrailhead, end, [...walk].reverse()) } : {}),
     segments: walk.map(s => ({ id: s.segment_id, direction: s.direction })), length_m: total, shape: candidate.shape, waypoints: [], wta_url: null, requires_permit: null, season: '',
     existing_route_match: null, existing_route_matches: [], name_duplicates: [], status: 'ok', reasons: [...(candidate.reasons ?? [])],
     expected_length_m: total, deviation_fraction: null, preferred_fraction: total ? preferredM / total : 0, road_fraction: total ? road / total : 0,
     approx_roundtrip_mi: (candidate.shape === 'out_and_back' ? total * 2 : total) / 1609.344, route_start: start, route_end: end, segment_sources: [], popularity_score: ranking.popularity, popularity: ranking.popularity, popularity_signals: ranking.signals };
   if (candidate.trailheadEvidence) {
     const evidence = candidate.trailheadEvidence, place = row.trailhead!.new!;
-    place.name = `${cleanTrail(row.name).replace(/\s+Trail$/i, '')} Trailhead`;
     place.source = { ...place.source, kind: 'inferred_road_contact', node_id: evidence.node_id, access_name: evidence.access.name, access_gap_m: evidence.gap_m,
-      note: 'Named-trail end at a public road or parking contact.' };
+      note: [place.source.note, 'Named-trail end at a public road or parking contact.'].filter(Boolean).join(' ') };
     row.notes = [`Inferred trailhead from public road or parking contact, ${evidence.gap_m.toFixed(1)} m from the mapped trail end.`];
   }
   if (!row.objective && row.shape === 'point_to_point' && row.end_trailhead) row.objective = row.end_trailhead;
@@ -140,8 +158,19 @@ export function composeDiscovery(candidate: DiscoveryCandidate, index: number, s
   if (candidate.source === 'objective' && (unnamed + row.length_m - total) / row.length_m > .3 + 1e-9 && !row.reasons.includes('unnamed path or road share exceeds 30%')) review('unnamed path or road share exceeds 30%');
   if (preferred.length && row.preferred_fraction < .6 - 1e-9 && !row.reasons.includes('preferred-name share below 60%')) review('preferred-name share below 60%');
   if (row.reasons.length && row.status === 'ok') row.status = 'review';
+  const qualityDemotions: string[] = [], otherwiseOk = row.status === 'ok';
+  const qualityReview = (reason: string) => { review(reason); if (otherwiseOk) qualityDemotions.push(reason); };
+  if ([candidate.objective?.name, source_places?.objective?.name, row.objective?.new?.name, resolvedObjective?.name].some(name => name && isNoteObjectiveName(name))) qualityReview('objective name reads as a note or warning');
+  if (candidate.source === 'objective' && candidate.preferredNames.length && !candidate.preferredNames.some(viaTrailName)) qualityReview('no usable via trail; emergency trails cannot name an approach');
+  if (!access.hasRoadContact(row.route_start!)) qualityReview('start has no public road or parking within 250 m');
+  if (candidate.endTrailhead && !access.hasRoadContact(row.route_end!)) qualityReview('far trailhead has no public road or parking within 250 m');
+  if (walk.some(step => restrictedFootAccess(byId.get(step.segment_id)!.osm_access ?? {}) || access.restrictedSegments.has(step.segment_id))) qualityReview('route uses a private or no-access pedestrian segment');
+  if ([source_places?.trailhead ?? row.trailhead?.new, source_places?.end_trailhead ?? row.end_trailhead?.new].some(place => place?.source.name_is_fallback)) {
+    row.flags = unique([...(row.flags ?? []), 'generated trailhead name']);
+    row.notes = [...(row.notes ?? []), 'Generated trailhead name from the first named trail; no named parking or trailhead within 125 m.'];
+  }
   row.approx_roundtrip_mi = routeDistance(row) / 1609.344;
-  return { row, walk, ...(source_places ? { source_places } : {}) };
+  return { row, walk, quality_demotions: qualityDemotions, ...(source_places ? { source_places } : {}) };
 }
 
 export interface DiscoverySummary {
@@ -221,7 +250,9 @@ export class DiscoveryDeduper {
     for (const group of groups.values()) for (const item of group) {
       const alternatives = group.filter(other => other.index !== item.index && (item.loadable === false || other.loadable !== false));
       let name = item.name;
-      if (alternatives.some(other => this.distinguishable(item, other)) && item.trailheadLabel) name = `${name} from ${item.trailheadLabel}`;
+      // "via Moose Mountain Trail from Moose Mountain Trail" says nothing: skip a label that repeats the via trail.
+      const repeatsTrail = !!item.trail && !!item.trailheadLabel && normalizeName(item.trailheadLabel) === normalizeName(item.trail);
+      if (alternatives.some(other => this.distinguishable(item, other)) && item.trailheadLabel && !repeatsTrail) name = `${name} from ${item.trailheadLabel}`;
       else if (alternatives.length && item.section && item.trailheadLabel && item.endLabel
         && normalizeName(item.trailheadLabel) !== normalizeName(item.endLabel)) name = `${name}: ${item.trailheadLabel} to ${item.endLabel}`;
       result.set(item.index, name);
@@ -238,6 +269,15 @@ export class DiscoveryDeduper {
       this.counts.name_collision_suppressed = (this.counts.name_collision_suppressed ?? 0) + 1;
     }
     return result;
+  }
+  /** Compare only surviving ok approaches with the same resolved objective. */
+  longAlternatives(): Set<number> {
+    const shortest = new Map<string, number>();
+    for (const item of this.kept.values()) if (item.loadable && item.objective) shortest.set(item.objective, Math.min(shortest.get(item.objective) ?? Infinity, item.length));
+    const demoted = new Set<number>();
+    for (const item of this.kept.values()) if (item.loadable && item.objective && item.length > 0 && shortest.get(item.objective)! * 2 <= item.length + 1e-6) demoted.add(item.index);
+    this.counts.long_alternatives_demoted = demoted.size;
+    return demoted;
   }
 }
 export class DiscoveryPieces {

@@ -13,6 +13,8 @@ import type { ComposedRoute, PlaceRef } from './catalog-types';
 import type { Provenance, Segment } from './types';
 import { parseBulkState, type BulkState } from './state';
 
+const SAC_GRADES = new Set(['hiking', 'mountain_hiking', 'demanding_mountain_hiking', 'alpine_hiking', 'demanding_alpine_hiking', 'difficult_alpine_hiking']);
+
 export interface BulkOptions { dir: string; state: BulkState; apply?: boolean; activate?: boolean; batchSize?: number }
 export interface BulkResult { route_id: string; state_code: BulkState; operation: 'load' | 'activate'; success: boolean; skipped?: string; error?: string; sqlstate?: string }
 export interface BulkRoute { row: ComposedRoute; plan: RoutePlan; id: string; refs: { id: string; direction: 'forward' | 'reverse' }[] }
@@ -106,7 +108,8 @@ export function buildBulkBatch(plan: BulkPlan, profiles?: Map<string, number[][]
       geometry: JSON.stringify({ type: 'LineString', coordinates: xyz }), provenance };
     checks.push({ ...record, geometry: JSON.stringify({ type: 'LineString', coordinates: s.frozen_catalog?.coords_xyz ?? s.coords }),
       frozen: !!s.frozen_catalog, old_path_hash: old?.path_hash ?? null, expected_source: withoutElevation(s.provenance) });
-    if (!old && !s.frozen_catalog) segments.push({ ...record, osm_sac_scale: s.sac_scale ?? null });
+    // Only the six SAC grades are stored; mappers also write 'strolling', '1' or 'mountain_biking' (UT, ME 2026-10-21).
+    if (!old && !s.frozen_catalog) segments.push({ ...record, osm_sac_scale: SAC_GRADES.has(s.sac_scale ?? '') ? s.sac_scale : null });
   }
   for (const route of plan.routes) {
     const insert = route.plan.statements.find(s => s.kind === 'route_insert')!, v = insert.values;

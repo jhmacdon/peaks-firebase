@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DiscoveryDestinations, discoverySnapshotPath } from '../trail-graph/discovery-destinations';
-import { composeDiscovery, DiscoveryPieces, discoverySummary } from '../trail-graph/discovery-catalog';
+import { composeDiscovery as composeWithAccess, DiscoveryPieces, discoverySummary } from '../trail-graph/discovery-catalog';
+import { DiscoveryAccess } from '../trail-graph/discovery-access';
 import { finalizeRows } from '../trail-graph/compose';
 import { DestinationResolver } from '../trail-graph/load-matching';
 import { planRoute } from '../trail-graph/load-catalog';
@@ -18,6 +19,10 @@ function fixture(gap = 20) {
   const candidate: DiscoveryCandidate = { source: 'objective', identity: 'node/1/node/2', name: 'Example Peak via Example Trail', shape: 'out_and_back', trailhead: { osm_id: 'node/1', name: 'Example Trailhead', feature: 'trailhead', lon: start[0], lat: start[1], graph_node: 'a', graph_coord: start, graph_distance_m: 0, location_method: 'osm_point' }, trailheadCoord: start, objective: { osm_id: 'node/2', name: 'Example Peak', feature: 'summit', lon: end[0], lat: end[1], graph_node: 'b', graph_coord: end, graph_distance_m: 0, location_method: 'osm_point' }, preferredNames: ['Example Trail'], walk: [{ segment_id: segment.id, direction: 'forward', start_vertex: 0, end_vertex: 1, length_m: segment.length_m }] };
   return { candidate, peak, byId: new Map([[segment.id, segment]]) };
 }
+// Geometry fixtures include a public parking contact at each route end.
+const composeDiscovery: typeof composeWithAccess = (candidate, index, state, segments, junctions, ranking, destinations, access) =>
+  composeWithAccess(candidate, index, state, segments, junctions, ranking, destinations, access ?? new DiscoveryAccess([{ osm_id: 'fixture/parking', coord: candidate.trailheadCoord, parking: true }, ...(candidate.endTrailhead ? [{ osm_id: 'fixture/far-parking', coord: 'coord' in candidate.endTrailhead ? candidate.endTrailhead.coord : [candidate.endTrailhead.lon, candidate.endTrailhead.lat] as [number, number], parking: true }] : [])]));
+
 test('snapshot resolution precedes the only summit connector and reaches the Peaks point', () => {
   const f = fixture(), destinations = new DiscoveryDestinations([f.peak]);
   const d = composeDiscovery(f.candidate, 1, 'OR', f.byId, 0, undefined, destinations);
