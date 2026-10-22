@@ -93,7 +93,12 @@ evidence (below).
   spire, dome or tower) is 5th class, label its summit stretch `climb` with the easiest
   stated grade, even if no source names the exact line the route takes.
 - **Class 2 with trip-report hands.** Guides rating ground class 2, with only trip
-  reports saying hands: trail, with "class 2" in the summary.
+  reports saying hands: trail, with "class 2" in the summary. "Hands for balance" inside
+  a guide's own class 2 rating is not hands evidence.
+- **Ratings that are not classes.** The Mountaineers' "Technical 4" and similar
+  activity ratings are not YDS classes.
+- **Main season.** The main season is when most parties go (often July to October in
+  the mountain West), not an agency's widest listed season.
 - **Fixed aids.** Vertical ladders, cables and ropes that people pull themselves up
   on are scramble, named in `display_name`. Angled ladders with a handrail and
   stairs are trail.

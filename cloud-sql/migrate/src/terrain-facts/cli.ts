@@ -157,6 +157,9 @@ async function reviewCommand() {
   const decision = await readJson<ReviewerDecision>(raw);
   // A hold keeps the segment as it is, so a name on it means nothing; drop it rather than fail the plan.
   for (const interval of decision.apply) if (interval.kind === "hold") interval.display_name = null;
+  // Identifiers come from the files, not the model's retyping (one review dropped two hex digits).
+  const ver = await readJson<Verification>(join(dir, "verification.json"));
+  decision.route_id = ver.route_id; decision.packet_sha256 = ver.packet_sha256;
   // A hold needs a source suggesting hands. Reviewers still hold stretches that no source describes;
   // drop those holds (the stretch keeps its mapped kind) instead of sending the route to a person.
   if (decision.apply.some(i => i.kind === "hold") && !decision.labels.some(l => l.kind === "hold" && l.basis.length > 0)) {
