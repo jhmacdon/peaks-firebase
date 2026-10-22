@@ -105,8 +105,8 @@ export function resolve(e: Endpoint, rows: SegmentRow[]): number {
 }
 
 /** `held` lists segments another review held: they keep their kind unless this decision labels them. */
-export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sharedWith: string[] = [], held: string[] = [], reviewedHard: Record<string, Kind> = {}): Plan {
-  const crossFlags: string[] = [];
+export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sharedWith: string[] = [], held: string[] = [], reviewedHard: Record<string, Kind> = {}, heldElsewhere: string[] = []): Plan {
+  const crossFlags: string[] = [], heldOther = new Set(heldElsewhere);
   if (decision.route_id !== routeId) throw new Error("decision is for another route");
   const { parts, total } = walk(rows);
   const intervals = decision.apply.map(i => {
@@ -164,6 +164,11 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     if (heldBefore.has(p.row.id)) {
       // Held elsewhere: only an explicit label on this segment settles it.
       if (!covering) {
+        if (p.row.kind === "climb") ops.push({ op: "kind", segment_id: p.row.id, from: "climb", to: "scramble", display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
+        continue;
+      }
+      if (heldOther.has(p.row.id) && !(covering && HARD[covering.kind])) {
+        crossFlags.push(`kept another route's hold on ${p.row.id} (this decision says ${covering.kind})`);
         if (p.row.kind === "climb") ops.push({ op: "kind", segment_id: p.row.id, from: "climb", to: "scramble", display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
         continue;
       }
@@ -229,7 +234,7 @@ export function checkSummary(s: TerrainSummary | null | undefined): TerrainSumma
 
 export const sha = (v: unknown) => createHash("sha256").update(stableJson(v)).digest("hex");
 
-export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[]; held: string[]; reviewedHard: Record<string, Kind> }> {
+export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[]; held: string[]; reviewedHard: Record<string, Kind>; heldElsewhere: string[] }> {
   const rows = (await db.query(`
     SELECT rs.ordinal, rs.direction, s.id, s.kind, s.display_name, ST_AsGeoJSON(s.path::geometry, 9) AS geojson
     FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
@@ -239,14 +244,16 @@ export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows:
   const sharedWith = (await db.query(`
     SELECT DISTINCT rs.route_id FROM route_segments rs
     WHERE rs.segment_id = ANY($1) AND rs.route_id <> $2 ORDER BY 1`, [rows.map(r => r.id), routeId])).rows.map(r => r.route_id);
-  const held = (await db.query(`SELECT segment_id FROM segment_terrain_holds WHERE segment_id = ANY($1) ORDER BY 1`, [rows.map(r => r.id)])).rows.map(r => r.segment_id);
+  const heldRows = (await db.query(`SELECT segment_id, route_id FROM segment_terrain_holds WHERE segment_id = ANY($1) ORDER BY 1`, [rows.map(r => r.id)])).rows;
+  // A hold another route set is not this route's to clear: its pages may hold evidence ours lack.
+  const held = heldRows.map(r => r.segment_id), heldElsewhere = heldRows.filter(r => r.route_id !== routeId).map(r => r.segment_id);
   // The latest reviewed label each shared segment got on another route, when that label is hands-on or technical.
   const reviewedHard: Record<string, Kind> = {};
   for (const r of (await db.query(`
     SELECT DISTINCT ON (segment_id) segment_id, kind FROM segment_terrain_labels
     WHERE segment_id = ANY($1) AND route_id <> $2 ORDER BY segment_id, applied_at DESC, id DESC`, [rows.map(r => r.id), routeId])).rows)
     if (["scramble", "climb", "climbers_route"].includes(r.kind)) reviewedHard[r.segment_id] = r.kind;
-  return { rows, sharedWith, held, reviewedHard };
+  return { rows, sharedWith, held, reviewedHard, heldElsewhere };
 }
 
 export interface Evidence { plan_sha256: string; reviewed_by: string; sources: string[]; hold_question?: string }
