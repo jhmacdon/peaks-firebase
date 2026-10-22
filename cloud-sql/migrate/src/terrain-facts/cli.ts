@@ -183,7 +183,8 @@ async function compareCommand() {
   const result = comparePlans(aPlan, bPlan, aProblems, bProblems);
   await writeFile(join(dir, "compare.json"), JSON.stringify(result, null, 2) + "\n");
   if (result.agree && !result.escalate) {
-    const decision = { ...a, reviewed_by: "codex reviewer a; reviewer b agreed",
+    const chosen = result.prefer === "b" ? b : a;
+    const decision = { ...chosen, reviewed_by: `codex reviewer ${result.prefer}; reviewer ${result.prefer === "a" ? "b" : "a"} agreed`,
       default: "Unlabelled stretches keep mapped kinds; unbacked scramble/climb reset to trail." };
     try { await writeFile(join(dir, "decision.json"), JSON.stringify(decision, null, 2) + "\n", { flag: "wx" }); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }

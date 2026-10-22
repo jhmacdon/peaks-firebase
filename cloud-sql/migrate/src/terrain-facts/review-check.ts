@@ -37,7 +37,7 @@ export function checkDecision(decision: ReviewerDecision, research: Research, ve
       const hosts = new Set(label.basis.map(id => usable.get(id)?.source_url).filter((u): u is string => !!u).map(u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } }));
       if (hosts.size < 2) problems.push(`labels.${index}: a scramble needs claims from two publishers (has ${hosts.size})`);
     }
-    if (label.kind === "climb" && !label.basis.some(id => /\b5\.\d|class 5|fifth class/i.test(usable.get(id)?.quote ?? "")))
+    if (label.kind === "climb" && !label.basis.some(id => /\b5\.\d|class 5|fifth class|5th class/i.test(usable.get(id)?.quote ?? "")))
       problems.push(`labels.${index}: a climb needs a basis quote with a stated 5th-class rating`);
   }
   checkBasis("summary_basis", decision.summary_basis);
@@ -50,6 +50,8 @@ export function checkDecision(decision: ReviewerDecision, research: Research, ve
   for (const [index, interval] of decision.apply.entries()) {
     if (!(REVIEW_KINDS as readonly string[]).includes(interval.kind)) problems.push(`apply.${index}: unknown kind ${interval.kind}`);
     if (interval.kind === "hold" && interval.display_name != null) problems.push(`apply.${index}: a hold cannot have a display_name`);
+    if (interval.kind === "hold" && !decision.labels.some(label => label.kind === "hold" && label.basis.length > 0))
+      problems.push(`apply.${index}: a hold needs a label of kind hold citing the source that suggests hands`);
     if (["scramble", "climb", "climbers_route"].includes(interval.kind) && !decision.labels.some(label => label.kind === interval.kind && label.basis.length > 0))
       problems.push(`apply.${index}: ${interval.kind} needs a label of the same kind with a non-empty basis`);
   }

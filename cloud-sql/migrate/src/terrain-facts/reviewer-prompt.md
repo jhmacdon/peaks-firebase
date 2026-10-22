@@ -96,6 +96,11 @@ evidence (below).
 
 ## Holds
 
+A hold needs a source that suggests hands on that stretch, cited in a `hold` label's
+`basis`. Never hold a stretch because no source describes it: leave it unlabelled (it
+keeps its mapped kind) and say so in `open`. The bare word "scramble" with no mention of
+hands or a class is not a reason to hold; keep it as a warning in the summary.
+
 If a credible source suggests hands but the evidence is below the scramble bar (one
 non-trip-report publisher, a guidebook's "occasional handholds", several trip
 reports, a page that would not load), or sources conflict on whether hands are

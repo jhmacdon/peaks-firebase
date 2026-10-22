@@ -416,10 +416,12 @@ test("review comparison ignores trail coverage but requires the same non-trail k
   assert.equal(differentKinds.escalate, true);
 });
 
-test("review summaries must agree on presence and hardest class", () => {
+test("review summaries must agree on hardest class; a missing summary defers to the other", () => {
   const summary = { line: "Hike", gear: [], hardest_class: null, sources: [{ name: "A", url: pageA.url }] };
   const withSummary = comparisonPlan([], { summary });
-  assert.equal(comparePlans(withSummary, comparisonPlan([])).agree, false);
+  const oneNull = comparePlans(comparisonPlan([]), withSummary);
+  assert.equal(oneNull.agree, true);
+  assert.equal(oneNull.prefer, "b");
   assert.equal(comparePlans(withSummary, comparisonPlan([], { summary: { ...summary, hardest_class: "2" } })).agree, false);
   assert.equal(comparePlans(withSummary, comparisonPlan([], { summary: { ...summary } })).agree, true);
 });
@@ -434,11 +436,12 @@ test("holds and technical route kinds escalate even when both reviewers agree", 
   assert.equal(comparePlans(comparisonPlan([reviewInterval("hold", 1000, 2000)]), comparisonPlan([])).agree, false);
 });
 
-test("plan flags escalate agreement and failed checks or planning block it", () => {
+test("plan flags are recorded, not escalated; failed checks or planning block agreement", () => {
   const clean = comparisonPlan([]);
   const flagged = comparePlans(comparisonPlan([], { flags: ["check placement"] }), clean);
   assert.equal(flagged.agree, true);
-  assert.equal(flagged.escalate, true);
+  assert.equal(flagged.escalate, false);
+  assert.equal(flagged.notes.length, 1);
   const badCheck = comparePlans(clean, clean, ["reviewer quote is absent"]);
   assert.equal(badCheck.agree, false);
   assert.equal(badCheck.escalate, true);
