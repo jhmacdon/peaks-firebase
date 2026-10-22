@@ -86,6 +86,9 @@ evidence (below).
   the summit stretch `climb`: the `last` crossing of (summit elevation minus the
   stated height) to `"end"`, or the final stretch to the summit when no height is
   given. A 5.x section elsewhere that you cannot place: hold it.
+- **Technical formations.** When sources say every route to the top of a formation (a
+  spire, dome or tower) is 5th class, label its summit stretch `climb` with the easiest
+  stated grade, even if no source names the exact line the route takes.
 - **Class 2 with trip-report hands.** Guides rating ground class 2, with only trip
   reports saying hands: trail, with "class 2" in the summary.
 - **Fixed aids.** Vertical ladders, cables and ropes that people pull themselves up

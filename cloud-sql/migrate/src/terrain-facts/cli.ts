@@ -157,6 +157,13 @@ async function reviewCommand() {
   const decision = await readJson<ReviewerDecision>(raw);
   // A hold keeps the segment as it is, so a name on it means nothing; drop it rather than fail the plan.
   for (const interval of decision.apply) if (interval.kind === "hold") interval.display_name = null;
+  // A hold needs a source suggesting hands. Reviewers still hold stretches that no source describes;
+  // drop those holds (the stretch keeps its mapped kind) instead of sending the route to a person.
+  if (decision.apply.some(i => i.kind === "hold") && !decision.labels.some(l => l.kind === "hold" && l.basis.length > 0)) {
+    decision.apply = decision.apply.filter(i => i.kind !== "hold");
+    decision.labels = decision.labels.filter(l => l.kind !== "hold");
+    decision.open = [...decision.open.map(o => o.replace(/^HOLD:/, "Undescribed (hold dropped, no source suggests hands):")),];
+  }
   await writeFile(output, JSON.stringify(decision, null, 2) + "\n", { flag: "wx" });
   console.log(output);
 }
