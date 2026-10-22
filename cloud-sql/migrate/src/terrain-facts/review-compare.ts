@@ -29,8 +29,11 @@ export function intervalIoU(a: Span[], b: Span[]): number {
 
 export interface Comparison {
   agree: boolean;
+  /** Which decision to write when they agree: a, unless only b wrote a supported summary. */
+  prefer: "a" | "b";
   escalate: boolean;
   reasons: string[];
+  notes: string[];
   a_plan_hash: string | null;
   b_plan_hash: string | null;
 }
@@ -40,7 +43,8 @@ export function comparePlans(a: Plan | null, b: Plan | null, aProblems: string[]
   const disagreements: string[] = [
     ...aProblems.map(p => `a: ${p}`), ...bProblems.map(p => `b: ${p}`),
   ];
-  const escalations: string[] = [];
+  const escalations: string[] = [], notes: string[] = [];
+  let prefer: "a" | "b" = "a";
   if (!a) disagreements.push("a: no valid plan");
   if (!b) disagreements.push("b: no valid plan");
   if (a && b) {
@@ -57,15 +61,17 @@ export function comparePlans(a: Plan | null, b: Plan | null, aProblems: string[]
       const iou = intervalIoU(a.intervals.filter(i => i.kind === kind), b.intervals.filter(i => i.kind === kind));
       if (iou < 0.8) disagreements.push(`${kind} coverage IoU ${iou.toFixed(3)} is below 0.8`);
     }
-    if ((a.summary === null) !== (b.summary === null)) disagreements.push("only one summary is null");
+    // One reviewer leaving the summary empty is not a disagreement about terrain: take the one that wrote it.
+    if ((a.summary === null) !== (b.summary === null)) prefer = a.summary === null ? "b" : "a";
     if ((a.summary?.hardest_class ?? null) !== (b.summary?.hardest_class ?? null)) disagreements.push("summary.hardest_class differs");
   }
   for (const [name, p] of [["a", a], ["b", b]] as const) {
     if (!p) continue;
     for (const kind of ["climb", "climbers_route", "hold"] as const)
       if (p.intervals.some(i => i.kind === kind)) escalations.push(`${name}: ${kind} needs a person`);
-    escalations.push(...p.flags.map(flag => `${name}: plan flag: ${flag}`));
+    // Slope flags ask for a second look; they are recorded, not escalated (a 50 m profile cannot see a 15 m block).
+    notes.push(...p.flags.map(flag => `${name}: plan flag: ${flag}`));
   }
   const reasons = [...disagreements, ...escalations];
-  return { agree: disagreements.length === 0, escalate: reasons.length > 0, reasons, a_plan_hash: a ? sha(a) : null, b_plan_hash: b ? sha(b) : null };
+  return { agree: disagreements.length === 0, prefer, escalate: reasons.length > 0, reasons, notes, a_plan_hash: a ? sha(a) : null, b_plan_hash: b ? sha(b) : null };
 }

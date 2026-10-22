@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { findQuote, htmlToText, publisherOf, verify, type Page, type Verification } from "../terrain-facts/verify";
 import { groupStretches, measure, packetSha256, type Packet } from "../terrain-facts/packet";
 import { reviewerDecisionSchema, type Research, type ReviewerDecision } from "../terrain-facts/schema";
-import { checkDecision } from "../terrain-facts/review-check";
+import { checkDecision, excerptPage } from "../terrain-facts/review-check";
 import { comparePlans, intervalIoU } from "../terrain-facts/review-compare";
 import thompsonReview from "./fixtures/terrain-review-thompson.json";
 
@@ -261,6 +261,23 @@ test("a hold never keeps an unproven climb", () => {
   assert.deepEqual(p.ops.map(o => o.op === "kind" && [o.segment_id, o.from, o.to]), [["b", "climb", "scramble"]]);
 });
 
+test("a hard section too short to split still labels its segment (round up)", () => {
+  const len = lineLength(rows[1].coords);
+  // A climb over only the last 5 m of segment b: too short to cut, so b must become a climb, not stay trail.
+  const end = lineLength(rows[0].coords) + len;
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "climb", from: end - 5, to: "end", note: "5.9 pitch" }] });
+  assert.deepEqual(p.ops.filter(o => o.op === "kind").map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "climb"]]);
+});
+
+test("a few metres of spill from a neighbouring hard interval does not relabel a segment", () => {
+  const a = lineLength(rows[0].coords);
+  // Climb starts 5 m before the end of segment a and runs over all of b: a stays as it was.
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "climb", from: a - 5, to: "end", note: "pitch" }] });
+  const kinds = Object.fromEntries(p.ops.filter(o => o.op === "kind").map(o => o.op === "kind" ? [o.segment_id, o.to] : []));
+  assert.equal(kinds["a"], undefined);
+  assert.equal(kinds["b"], "climb");
+});
+
 // ---------- independent review ----------
 
 function reviewFixture() {
@@ -408,10 +425,12 @@ test("review comparison ignores trail coverage but requires the same non-trail k
   assert.equal(differentKinds.escalate, true);
 });
 
-test("review summaries must agree on presence and hardest class", () => {
+test("review summaries must agree on hardest class; a missing summary defers to the other", () => {
   const summary = { line: "Hike", gear: [], hardest_class: null, sources: [{ name: "A", url: pageA.url }] };
   const withSummary = comparisonPlan([], { summary });
-  assert.equal(comparePlans(withSummary, comparisonPlan([])).agree, false);
+  const oneNull = comparePlans(comparisonPlan([]), withSummary);
+  assert.equal(oneNull.agree, true);
+  assert.equal(oneNull.prefer, "b");
   assert.equal(comparePlans(withSummary, comparisonPlan([], { summary: { ...summary, hardest_class: "2" } })).agree, false);
   assert.equal(comparePlans(withSummary, comparisonPlan([], { summary: { ...summary } })).agree, true);
 });
@@ -426,11 +445,12 @@ test("holds and technical route kinds escalate even when both reviewers agree", 
   assert.equal(comparePlans(comparisonPlan([reviewInterval("hold", 1000, 2000)]), comparisonPlan([])).agree, false);
 });
 
-test("plan flags escalate agreement and failed checks or planning block it", () => {
+test("plan flags are recorded, not escalated; failed checks or planning block agreement", () => {
   const clean = comparisonPlan([]);
   const flagged = comparePlans(comparisonPlan([], { flags: ["check placement"] }), clean);
   assert.equal(flagged.agree, true);
-  assert.equal(flagged.escalate, true);
+  assert.equal(flagged.escalate, false);
+  assert.equal(flagged.notes.length, 1);
   const badCheck = comparePlans(clean, clean, ["reviewer quote is absent"]);
   assert.equal(badCheck.agree, false);
   assert.equal(badCheck.escalate, true);
@@ -438,4 +458,15 @@ test("plan flags escalate agreement and failed checks or planning block it", () 
   assert.equal(noPlan.agree, false);
   assert.equal(noPlan.escalate, true);
   assert.equal(noPlan.a_plan_hash, null);
+});
+
+test("a reviewer page keeps its opening and the text around each quote", () => {
+  const filler = "menu link ".repeat(5000);
+  const text = `Mount Example Route. ${filler} The summit block is about 40 feet of   class 3 rock. ${filler} Comments follow.`;
+  const out = excerptPage(text, ["The summit block is about 40 feet of class 3 rock."]);
+  assert.ok(out.length < text.length / 2);
+  assert.ok(out.startsWith("Mount Example Route."));
+  assert.ok(out.includes("The summit block is about 40 feet of class 3 rock."));
+  assert.ok(out.includes("[…]"));
+  assert.equal(excerptPage("short page", ["x"]), "short page");
 });

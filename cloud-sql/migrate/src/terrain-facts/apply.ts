@@ -105,7 +105,8 @@ export function resolve(e: Endpoint, rows: SegmentRow[]): number {
 }
 
 /** `held` lists segments another review held: they keep their kind unless this decision labels them. */
-export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sharedWith: string[] = [], held: string[] = []): Plan {
+export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sharedWith: string[] = [], held: string[] = [], reviewedHard: Record<string, Kind> = {}, heldElsewhere: string[] = [], reconciled: Record<string, Kind> = {}): Plan {
+  const crossFlags: string[] = [], heldOther = new Set(heldElsewhere);
   if (decision.route_id !== routeId) throw new Error("decision is for another route");
   const { parts, total } = walk(rows);
   const intervals = decision.apply.map(i => {
@@ -118,6 +119,24 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
   }).sort((a, b) => a.start_m - b.start_m);
   for (let i = 1; i < intervals.length; i++) if (intervals[i].start_m < intervals[i - 1].end_m - 1) throw new Error("decision intervals overlap");
   const at = (m: number) => intervals.find(i => m >= i.start_m && m < i.end_m);
+  // Round up: a span that touches hands-on or technical ground takes the hardest such label, even when
+  // that ground is too short to split off (a 12 m summit pitch at the end of a 45 m connector).
+  const HARD: Record<string, number> = { climb: 3, scramble: 2, climbers_route: 1 };
+  const over = (a: number, b: number) => {
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    // A hard interval counts when it overlaps the span by at least SNAP_M, or lies wholly inside it (a short
+    // summit pitch); a few metres of spill from a neighbouring placement must not relabel a whole segment.
+    // Every hard interval still labels at least the segment it overlaps most (a short pitch across two segments).
+    const ov = (i: { start_m: number; end_m: number }, x: number, y: number) => Math.min(y, i.end_m) - Math.max(x, i.start_m);
+    const hard = intervals.filter(i => HARD[i.kind] && (ov(i, lo, hi) >= SNAP_M
+        || (i.start_m >= lo - 0.5 && i.end_m <= hi + 0.5 && i.end_m - i.start_m > 0.5)
+        || (ov(i, lo, hi) > 0.5 && ov(i, lo, hi) >= Math.max(...parts.map(q => ov(i, q.start, q.end))) - 0.5)))
+      .sort((x, y) => HARD[y.kind] - HARD[x.kind])[0];
+    return hard ?? at((lo + hi) / 2);
+  };
+  // The hard label a span takes; a climbers route still leaves mapped glacier and snowfield as they are.
+  const hardKind = (i: (typeof intervals)[number] | undefined, fallback: Kind): Kind | null =>
+    !i || !HARD[i.kind] ? null : i.kind === "climbers_route" && (fallback === "glacier" || fallback === "snowfield") ? fallback : i.kind as Kind;
   const kindAt = (m: number, fallback: Kind): Kind => {
     const i = at(m);
     // A hold keeps the segment, except an unproven climb: climb needs a stated 5th-class rating,
@@ -142,7 +161,7 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     seen.add(p.row.id);
     decided.set(p.row.id, at((p.start + p.end) / 2)?.kind ?? null);
     // Route-order cut positions inside this segment, snapped away from its ends.
-    const mid = (p.start + p.end) / 2, covering = at(mid);
+    const mid = (p.start + p.end) / 2, covering = over(p.start, p.end);
     if (covering?.kind === "hold") {
       if (!heldBefore.has(p.row.id)) add.push(p.row.id);
       if (p.row.kind === "climb") ops.push({ op: "kind", segment_id: p.row.id, from: "climb", to: "scramble", display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
@@ -154,12 +173,28 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
         if (p.row.kind === "climb") ops.push({ op: "kind", segment_id: p.row.id, from: "climb", to: "scramble", display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
         continue;
       }
+      if (heldOther.has(p.row.id) && !(covering && HARD[covering.kind])) {
+        crossFlags.push(`kept another route's hold on ${p.row.id} (this decision says ${covering.kind})`);
+        if (p.row.kind === "climb") ops.push({ op: "kind", segment_id: p.row.id, from: "climb", to: "scramble", display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
+        continue;
+      }
       clear.push(p.row.id);
+    }
+    // A reconciled segment is not split or relabelled by one route's decision.
+    if (reconciled[p.row.id]) {
+      const want = kindAt((p.start + p.end) / 2, p.row.kind);
+      if (want !== reconciled[p.row.id]) crossFlags.push(`kept reconciled ${reconciled[p.row.id]} on ${p.row.id} (this decision says ${want})`);
+      if (p.row.kind !== reconciled[p.row.id]) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to: reconciled[p.row.id], display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
+      continue;
     }
     const cuts = intervals.flatMap(i => [i.start_m, i.end_m]).filter(m => m > p.start + SNAP_M && m < p.end - SNAP_M)
       .sort((x, y) => x - y).filter((m, k, all) => k === 0 || m - all[k - 1] > 1);
     if (!cuts.length) {
-      const to = kindAt(mid, p.row.kind), name = covering?.display_name ?? null;
+      let to = hardKind(covering, p.row.kind) ?? kindAt(mid, p.row.kind);
+      const name = covering?.display_name ?? null;
+      // Round up across routes: a shared segment never loses a harder label another route's review gave it.
+      const elsewhere = reviewedHard[p.row.id];
+      if (elsewhere && (HARD[to] ?? 0) < HARD[elsewhere]) { crossFlags.push(`kept ${elsewhere} on ${p.row.id} from another route's review (this decision says ${to})`); to = elsewhere; }
       if (to !== p.row.kind || (name && name !== p.row.display_name)) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, display_name: name, route_m: [Math.round(p.start), Math.round(p.end)] });
       continue;
     }
@@ -168,11 +203,16 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     const pieces = cutLine(p.row.coords, local), id = (k: number) => `${p.row.id}-t${createHash("sha256").update(`${p.row.id}:${local.map(Math.round).join(",")}`).digest("hex").slice(0, 6)}${k}`;
     let offset = 0;
     const planned = pieces.map((c, k) => {
-      const len = lineLength(c), mid = offset + len / 2; offset += len;
+      const len = lineLength(c), mid = offset + len / 2, from = offset; offset += len;
       const routeMid = p.row.direction === "reverse" ? p.end - mid : p.start + mid;
+      const span = p.row.direction === "reverse" ? [p.end - offset, p.end - from] : [p.start + from, p.start + offset];
+      const hard = over(span[0], span[1]);
       // A piece under a hold is registered as held under its new id.
       if (at(routeMid)?.kind === "hold") add.push(id(k));
-      return { id: id(k), kind: kindAt(routeMid, p.row.kind), display_name: at(routeMid)?.display_name ?? null, length_m: Math.round(len) };
+      let kind = hardKind(hard, p.row.kind) ?? kindAt(routeMid, p.row.kind);
+      const elsewhere = reviewedHard[p.row.id];
+      if (elsewhere && (HARD[kind] ?? 0) < HARD[elsewhere]) { crossFlags.push(`kept ${elsewhere} on part of ${p.row.id} from another route's review (this decision says ${kind})`); kind = elsewhere; }
+      return { id: id(k), kind, display_name: (hard && HARD[hard.kind] ? hard : at(routeMid))?.display_name ?? null, length_m: Math.round(len) };
     });
     // Pieces that would all read the same are not worth a split: relabel the segment whole.
     if (planned.every(x => x.kind === planned[0].kind && x.display_name === planned[0].display_name)) {
@@ -185,7 +225,7 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
   // Slope prompts: a scramble on gentle ground is probably misplaced; trail on very steep ground deserves a look.
   const line = parts.flatMap((p, k) => (k ? p.coords.slice(1) : p.coords)), along = [0];
   for (let k = 1; k < line.length; k++) along.push(along[k - 1] + haversine(line[k - 1], line[k]));
-  const flags: string[] = [];
+  const flags: string[] = [...crossFlags];
   for (const i of intervals.filter(i => i.kind === "scramble")) {
     const s = steepestWindow(line, along, i.start_m, i.end_m);
     if (s && s.grade_pct < SCRAMBLE_MIN_PCT) flags.push(`scramble ${Math.round(i.start_m)}-${Math.round(i.end_m)} m is no steeper than ${s.grade_pct}% over 50 m: check placement`);
@@ -207,7 +247,7 @@ export function checkSummary(s: TerrainSummary | null | undefined): TerrainSumma
 
 export const sha = (v: unknown) => createHash("sha256").update(stableJson(v)).digest("hex");
 
-export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[]; held: string[] }> {
+export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows: SegmentRow[]; sharedWith: string[]; held: string[]; reviewedHard: Record<string, Kind>; heldElsewhere: string[]; reconciled: Record<string, Kind> }> {
   const rows = (await db.query(`
     SELECT rs.ordinal, rs.direction, s.id, s.kind, s.display_name, ST_AsGeoJSON(s.path::geometry, 9) AS geojson
     FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
@@ -217,8 +257,22 @@ export async function loadRoute(db: Queryable, routeId: string): Promise<{ rows:
   const sharedWith = (await db.query(`
     SELECT DISTINCT rs.route_id FROM route_segments rs
     WHERE rs.segment_id = ANY($1) AND rs.route_id <> $2 ORDER BY 1`, [rows.map(r => r.id), routeId])).rows.map(r => r.route_id);
-  const held = (await db.query(`SELECT segment_id FROM segment_terrain_holds WHERE segment_id = ANY($1) ORDER BY 1`, [rows.map(r => r.id)])).rows.map(r => r.segment_id);
-  return { rows, sharedWith, held };
+  const heldRows = (await db.query(`SELECT segment_id, route_id FROM segment_terrain_holds WHERE segment_id = ANY($1) ORDER BY 1`, [rows.map(r => r.id)])).rows;
+  // A hold another route set is not this route's to clear: its pages may hold evidence ours lack.
+  const held = heldRows.map(r => r.segment_id), heldElsewhere = heldRows.filter(r => r.route_id !== routeId).map(r => r.segment_id);
+  // The latest reviewed label each shared segment got on another route, when that label is hands-on or technical.
+  const reviewedHard: Record<string, Kind> = {};
+  for (const r of (await db.query(`
+    SELECT DISTINCT ON (segment_id) segment_id, kind FROM segment_terrain_labels
+    WHERE segment_id = ANY($1) AND route_id <> $2 ORDER BY segment_id, applied_at DESC, id DESC`, [rows.map(r => r.id), routeId])).rows)
+    if (["scramble", "climb", "climbers_route"].includes(r.kind)) reviewedHard[r.segment_id] = r.kind;
+  // Labels settled by pooling every route's evidence on a shared segment outrank any one route's decision.
+  const reconciled: Record<string, Kind> = {};
+  for (const r of (await db.query(`
+    SELECT DISTINCT ON (segment_id) segment_id, kind, reviewed_by FROM segment_terrain_labels
+    WHERE segment_id = ANY($1) ORDER BY segment_id, applied_at DESC, id DESC`, [rows.map(r => r.id)])).rows)
+    if (/reconciliation/.test(r.reviewed_by)) reconciled[r.segment_id] = r.kind;
+  return { rows, sharedWith, held, reviewedHard, heldElsewhere, reconciled };
 }
 
 export interface Evidence { plan_sha256: string; reviewed_by: string; sources: string[]; hold_question?: string }
