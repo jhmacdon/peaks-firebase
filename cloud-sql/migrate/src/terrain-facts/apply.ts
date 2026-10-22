@@ -118,6 +118,18 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
   }).sort((a, b) => a.start_m - b.start_m);
   for (let i = 1; i < intervals.length; i++) if (intervals[i].start_m < intervals[i - 1].end_m - 1) throw new Error("decision intervals overlap");
   const at = (m: number) => intervals.find(i => m >= i.start_m && m < i.end_m);
+  // Round up: a span that touches hands-on or technical ground takes the hardest such label, even when
+  // that ground is too short to split off (a 12 m summit pitch at the end of a 45 m connector).
+  const HARD: Record<string, number> = { climb: 3, scramble: 2, climbers_route: 1 };
+  const over = (a: number, b: number) => {
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    const hard = intervals.filter(i => HARD[i.kind] && Math.min(hi, i.end_m) - Math.max(lo, i.start_m) > 0.5)
+      .sort((x, y) => HARD[y.kind] - HARD[x.kind])[0];
+    return hard ?? at((lo + hi) / 2);
+  };
+  // The hard label a span takes; a climbers route still leaves mapped glacier and snowfield as they are.
+  const hardKind = (i: (typeof intervals)[number] | undefined, fallback: Kind): Kind | null =>
+    !i || !HARD[i.kind] ? null : i.kind === "climbers_route" && (fallback === "glacier" || fallback === "snowfield") ? fallback : i.kind as Kind;
   const kindAt = (m: number, fallback: Kind): Kind => {
     const i = at(m);
     // A hold keeps the segment, except an unproven climb: climb needs a stated 5th-class rating,
@@ -142,7 +154,7 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     seen.add(p.row.id);
     decided.set(p.row.id, at((p.start + p.end) / 2)?.kind ?? null);
     // Route-order cut positions inside this segment, snapped away from its ends.
-    const mid = (p.start + p.end) / 2, covering = at(mid);
+    const mid = (p.start + p.end) / 2, covering = over(p.start, p.end);
     if (covering?.kind === "hold") {
       if (!heldBefore.has(p.row.id)) add.push(p.row.id);
       if (p.row.kind === "climb") ops.push({ op: "kind", segment_id: p.row.id, from: "climb", to: "scramble", display_name: null, route_m: [Math.round(p.start), Math.round(p.end)] });
@@ -159,7 +171,7 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     const cuts = intervals.flatMap(i => [i.start_m, i.end_m]).filter(m => m > p.start + SNAP_M && m < p.end - SNAP_M)
       .sort((x, y) => x - y).filter((m, k, all) => k === 0 || m - all[k - 1] > 1);
     if (!cuts.length) {
-      const to = kindAt(mid, p.row.kind), name = covering?.display_name ?? null;
+      const to = hardKind(covering, p.row.kind) ?? kindAt(mid, p.row.kind), name = covering?.display_name ?? null;
       if (to !== p.row.kind || (name && name !== p.row.display_name)) ops.push({ op: "kind", segment_id: p.row.id, from: p.row.kind, to, display_name: name, route_m: [Math.round(p.start), Math.round(p.end)] });
       continue;
     }
@@ -168,11 +180,14 @@ export function plan(routeId: string, rows: SegmentRow[], decision: Decision, sh
     const pieces = cutLine(p.row.coords, local), id = (k: number) => `${p.row.id}-t${createHash("sha256").update(`${p.row.id}:${local.map(Math.round).join(",")}`).digest("hex").slice(0, 6)}${k}`;
     let offset = 0;
     const planned = pieces.map((c, k) => {
-      const len = lineLength(c), mid = offset + len / 2; offset += len;
+      const len = lineLength(c), mid = offset + len / 2, from = offset; offset += len;
       const routeMid = p.row.direction === "reverse" ? p.end - mid : p.start + mid;
+      const span = p.row.direction === "reverse" ? [p.end - offset, p.end - from] : [p.start + from, p.start + offset];
+      const hard = over(span[0], span[1]);
       // A piece under a hold is registered as held under its new id.
       if (at(routeMid)?.kind === "hold") add.push(id(k));
-      return { id: id(k), kind: kindAt(routeMid, p.row.kind), display_name: at(routeMid)?.display_name ?? null, length_m: Math.round(len) };
+      const kind = hardKind(hard, p.row.kind) ?? kindAt(routeMid, p.row.kind);
+      return { id: id(k), kind, display_name: (hard && HARD[hard.kind] ? hard : at(routeMid))?.display_name ?? null, length_m: Math.round(len) };
     });
     // Pieces that would all read the same are not worth a split: relabel the segment whole.
     if (planned.every(x => x.kind === planned[0].kind && x.display_name === planned[0].display_name)) {

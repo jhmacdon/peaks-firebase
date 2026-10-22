@@ -261,6 +261,14 @@ test("a hold never keeps an unproven climb", () => {
   assert.deepEqual(p.ops.map(o => o.op === "kind" && [o.segment_id, o.from, o.to]), [["b", "climb", "scramble"]]);
 });
 
+test("a hard section too short to split still labels its segment (round up)", () => {
+  const len = lineLength(rows[1].coords);
+  // A climb over only the last 5 m of segment b: too short to cut, so b must become a climb, not stay trail.
+  const end = lineLength(rows[0].coords) + len;
+  const p = plan("r", rows, { route_id: "r", packet_sha256: "", apply: [{ kind: "climb", from: end - 5, to: "end", note: "5.9 pitch" }] });
+  assert.deepEqual(p.ops.filter(o => o.op === "kind").map(o => o.op === "kind" && [o.segment_id, o.to]), [["b", "climb"]]);
+});
+
 // ---------- independent review ----------
 
 function reviewFixture() {
