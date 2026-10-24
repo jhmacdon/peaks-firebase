@@ -132,7 +132,10 @@ test("GET /:id/destinations serves amenities per destination", async (t) => {
   const response = new FakeResponse();
   await handler({ params: { id: "route-1" }, uid: "user-1" }, response);
 
-  assert.deepEqual(response.jsonBody, DESTINATION_ROWS);
+  assert.deepEqual(
+    response.jsonBody,
+    DESTINATION_ROWS.map((row) => ({ ...row, start_access: null }))
+  );
   assert.deepEqual(response.jsonBody[0].amenities, PARKING_AMENITIES);
   assert.equal(response.jsonBody[1].amenities, null);
   assert.equal(seen.length, 1);
@@ -207,5 +210,8 @@ test("mapRouteDetailRow defaults destinations to an empty array", () => {
 test("mapRouteDetailRow keeps the query's destination order", () => {
   const mapped = mapRouteDetailRow({ id: "route-1", areas: [] }, DESTINATION_ROWS);
 
-  assert.deepEqual(mapped.destinations, DESTINATION_ROWS);
+  assert.deepEqual(
+    mapped.destinations,
+    DESTINATION_ROWS.map((row) => ({ ...row, start_access: null }))
+  );
 });

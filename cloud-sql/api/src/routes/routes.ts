@@ -7,6 +7,7 @@ import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
 import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/catalog-limits";
+import { startAccessSql, withStartAccess } from "../lib/start-access";
 
 const router = Router();
 
@@ -93,13 +94,16 @@ export function buildRouteDetailQuery(
  *  One builder serves both `GET /:id/destinations` and the array embedded in
  *  `GET /:id`, so the two can never drift into different shapes — the client
  *  decodes them with the same reader and falls back from one to the other.
- *  `amenities` is JSONB, so it arrives as an object and serializes as one. */
+ *  `amenities` is JSONB, so it arrives as an object and serializes as one.
+ *  `start_access` says how a hiker reaches the start (docs/start-access.md);
+ *  both handlers pass each row through `withStartAccess`. */
 export function buildRouteDestinationsQuery(
   id: string,
   uid: string
 ): { text: string; values: unknown[] } {
   return {
     text: `SELECT d.id, d.name, d.elevation, d.features, d.amenities,
+            ${startAccessSql("d")},
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             rd.ordinal
@@ -215,7 +219,7 @@ export function mapRouteDetailRow(row: any, destinations: any[] = []): any {
   row.external_links = normalizeExternalLinks(row.external_links);
   // Embedded in ordinal order, straight from the query — route detail costs
   // the client one request instead of two.
-  row.destinations = Array.isArray(destinations) ? destinations : [];
+  row.destinations = Array.isArray(destinations) ? destinations.map(withStartAccess) : [];
   return row;
 }
 
@@ -259,7 +263,7 @@ router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const query = buildRouteDestinationsQuery(id, getUid(req));
   const result = await db.query(query.text, query.values);
-  res.json(result.rows);
+  res.json(result.rows.map(withStartAccess));
 }));
 
 // GET /api/routes/:id/shared — visible active routes on the same physical trail.
