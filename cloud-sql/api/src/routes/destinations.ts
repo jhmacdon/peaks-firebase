@@ -8,6 +8,7 @@ import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
 import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/catalog-limits";
 import { hasColumn } from "../lib/schema-features";
+import { normalizeStartAccess, startAccessSql } from "../lib/start-access";
 
 const router = Router();
 
@@ -313,6 +314,7 @@ export function buildDestinationDetailQuery(
             d.country_code, d.state_code,
             COALESCE(d.metadata->'names', '{}'::jsonb) AS names,
             d.external_ids, d.external_links, d.amenities,
+            ${startAccessSql("d")},
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
             d.hero_image_focal_x, d.hero_image_focal_y,
             ${heroOrigin} AS hero_image_origin,
@@ -398,6 +400,10 @@ export function mapDestinationDetailRow(row: any): any {
   // its own source envelope, so the client credits each fact where it shows it.
   // A row with no facts sends an explicit null rather than dropping the key.
   row.amenities = row.amenities ?? null;
+
+  // How a hiker reaches this place when a route starts here. Null means
+  // parking: drive there. Contract: docs/start-access.md.
+  row.start_access = normalizeStartAccess(row.start_access);
 
   row.description_source_name = textOrNull(row.description_source_name);
   row.description_source_url = textOrNull(row.description_source_url);
