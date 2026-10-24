@@ -7,7 +7,11 @@ transit start it says "Take the cable car to Säntis" and links to a timetable.
 ## Where it lives
 
 On the route's start destination (the one with the `trailhead` feature), in
-`destinations.metadata.start_access`:
+`destinations.metadata.start_access`. For a lift or transit start, that
+destination is the station where the hike begins: the stop you ride **to**,
+such as the Säntis summit station at the top of the cable car, not the valley
+station you board at. `station_name` names that stop, and it is the stop the
+app searches a timetable for.
 
 ```json
 {
@@ -30,13 +34,16 @@ Rules:
 - **A missing value means parking.** Every route loaded before this field
   existed keeps its car directions. Write nothing for a parking start, or
   `{"kind": "parking"}`.
-- `lift` is a passenger aerial lift or funicular that leaves from the start.
-  Use mode `cable_car`, `gondola`, `chair_lift` or `funicular`.
-- `transit` is a scheduled public stop. Use mode `train`, `bus`, `tram`,
-  `boat`, or `funicular` for a funicular in the rail timetable.
-- `station_name` is the name the timetable knows. In Switzerland prefer the
-  OSM `uic_name` over `name` when the two differ: the app searches the SBB
-  timetable with it. When null, the app uses the destination's name.
+- `lift`: you reach the start by passenger aerial lift or funicular; the start
+  is its arrival station. Use mode `cable_car`, `gondola`, `chair_lift` or
+  `funicular`.
+- `transit`: you reach the start by scheduled public transport; the start is
+  the stop you get off at. Use mode `train`, `bus`, `tram`, `boat`, or
+  `funicular` for a funicular in the rail timetable.
+- `station_name` is that arrival stop's name as the timetable knows it. In
+  Switzerland prefer the OSM `uic_name` over `name` when the two differ: the
+  app searches the SBB timetable for it. When null, the app uses the
+  destination's name.
 - `mode: null` is allowed but weaker: the app then says "Take the lift" or
   "Take public transport". An unknown mode is served as null; the kind stays.
 - An unknown `kind` is served as null, so the app falls back to parking. Do not
@@ -79,10 +86,12 @@ name. `operator` comes from the station's `operator` tag, else the line's.
 | `kind` | Copy | Action |
 |---|---|---|
 | `parking` or null | Directions | Driving directions in the user's maps app |
-| `lift` | Take the cable car to Säntis | Timetable |
-| `transit` | Take the train to Lauterbrunnen | Timetable |
+| `lift` | Take the cable car to Säntis | Timetable (SBB) or Transit |
+| `transit` | Take the train to Lauterbrunnen | Timetable (SBB) or Transit |
 
 For a start in Switzerland or Liechtenstein, Timetable opens
-`https://www.sbb.ch/en?nach=<station_name>`, which fills the SBB "To" field
-(checked 2026-10-24; `?stop=` is ignored). Elsewhere it opens transit directions
-to the start in the user's maps app.
+`https://www.sbb.ch/<lang>?nach=<station_name>`, which fills the SBB "To" field
+with the arrival stop and leaves "From" to the rider (checked 2026-10-24;
+`?stop=` is ignored). `<lang>` is `de`, `fr`, `it` or `en`, from the phone's
+first preferred language. Elsewhere, or with no stop name, the action reads
+Transit and opens transit directions to the start in the user's maps app.
