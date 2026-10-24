@@ -96,14 +96,15 @@ export function buildRouteDetailQuery(
  *  decodes them with the same reader and falls back from one to the other.
  *  `amenities` is JSONB, so it arrives as an object and serializes as one.
  *  `start_access` says how a hiker reaches the start (docs/start-access.md);
- *  both handlers pass each row through `withStartAccess`. */
+ *  both handlers pass each row through `withStartAccess`. `country_code`
+ *  picks the timetable the app links a lift or transit start to. */
 export function buildRouteDestinationsQuery(
   id: string,
   uid: string
 ): { text: string; values: unknown[] } {
   return {
     text: `SELECT d.id, d.name, d.elevation, d.features, d.amenities,
-            ${startAccessSql("d")},
+            ${startAccessSql("d")}, d.country_code,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             rd.ordinal

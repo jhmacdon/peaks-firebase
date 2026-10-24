@@ -51,7 +51,8 @@ Rules:
 - `GET /api/destinations/:id`
 
 The API validates the stored value (`cloud-sql/api/src/lib/start-access.ts`)
-and always sends the key: the object above, or `null` for no value. No
+and always sends the key: the object above, or `null` for no value. Route
+destination rows also carry `country_code`, which picks the timetable. No
 migration is needed; `metadata` is an existing JSONB column.
 
 ## Mapping from the trail-graph loader

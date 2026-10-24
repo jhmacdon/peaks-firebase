@@ -79,6 +79,8 @@ test("both queries select start_access from destination metadata as JSONB", () =
   const expected = startAccessSql("d");
   assert.equal(expected, "d.metadata->'start_access' AS start_access");
   assert.ok(buildRouteDestinationsQuery("route-1", "user-1").text.includes(expected));
+  // The app picks the timetable (SBB in Switzerland) by the start's country.
+  assert.match(buildRouteDestinationsQuery("route-1", "user-1").text, /d\.country_code\b/);
   assert.ok(buildDestinationDetailQuery("dest-1").text.includes(expected));
   // `->>` would hand the client a JSON string to parse a second time.
   assert.doesNotMatch(buildDestinationDetailQuery("dest-1").text, /->>'start_access'/);
