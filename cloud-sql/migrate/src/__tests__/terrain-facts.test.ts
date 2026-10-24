@@ -337,6 +337,21 @@ test("a verified reviewer fifth-class quote can back a climb", () => {
   assert.deepEqual(checkDecision(f.decision, f.research, f.verification, f.pages), []);
 });
 
+test("\"low 5th\" shorthand counts as a fifth-class rating, a low elevation does not", () => {
+  for (const [quote, ok] of [["Sister Peak (Low 5 Chimney)", true], ["scrambling low 5fth class, loose mossy choss", true], ["low fifth on the summit block", true], ["the low 5,000 ft saddle", false]] as const) {
+    const f = reviewFixture();
+    const sourceUrl = f.decision.reviewer_claims[0].source_url;
+    f.pages.get(sourceUrl)!.text += ` ${quote}`;
+    f.decision.reviewer_claims.push({ id: "R5", source_url: sourceUrl, quote, establishes: "The summit is fifth class." });
+    f.decision.labels[0] = { ...f.decision.labels[0], kind: "climb", yds_class: "5.0", basis: ["R5"] };
+    f.decision.apply = [{ kind: "climb", from: 1900, to: "end", note: "Synthetic test interval", display_name: null }];
+    f.decision.summary = null;
+    f.decision.summary_basis = [];
+    const problems = checkDecision(f.decision, f.research, f.verification, f.pages);
+    assert.equal(problems.some(problem => problem.includes("5th-class rating")), !ok, `${quote}: ${problems.join("; ")}`);
+  }
+});
+
 test("decision identity and summary sources must match checked evidence", () => {
   const f = reviewFixture();
   f.decision.route_id = "another-route";

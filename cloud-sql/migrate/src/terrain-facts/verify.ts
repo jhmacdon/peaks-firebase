@@ -89,7 +89,7 @@ const CLASS_WORDS: Record<string, RegExp> = {
   "2": /\bclass[ -]?(?:2|ii|two)\b|\b(?:2nd|second)[ -]class\b/,
   "3": /\bclass[ -]?(?:3|iii|three)\b|\b(?:3rd|third)[ -]class\b/,
   "4": /\bclass[ -]?(?:4|iv|four)\b|\b(?:4th|fourth)[ -]class\b/,
-  "5": /\bclass[ -]?(?:5|v|five)\b|\b(?:5th|fifth)[ -]class\b|\b5\.\d{1,2}[abcd+-]?\b/,
+  "5": /\bclass[ -]?(?:5|v|five)\b|\b(?:5th|fifth)[ -]class\b|\b5\.\d{1,2}[abcd+-]?\b|\blow[ -]?(?:5(?![\d,.])|fifth)/,
 };
 const HAND_WORDS = /\bhands?\b|\bscrambl|\bclimb(?:ing)?\b|\bhandhold|\bholds\b|\bchimney|\bhand-over-hand/;
 const NO_HAND_WORDS = /\bno hands\b|\bwithout (?:using )?(?:your )?hands\b|\bhands[- ]free\b|\bwalk[- ]?up\b|\bnon-?technical\b|\bno scrambling\b|\bwithout scrambling\b|\bclass[ -]?(?:1|one)\b/;
