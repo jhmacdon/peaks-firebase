@@ -394,7 +394,9 @@ missing catalog data remains an error.
 ### Places along a route
 
 Public route pages use the shared API `/api/routes/:id/landmarks` through
-`getRoutePlaces`. It returns named places in first-visit order, with track distance
+`getRoutePlacePreview` for ISR and `getRoutePlaces` for fresh load-more/retry reads.
+The initial fetch shares the page's one-hour cache; a no-store fetch during ISR
+would throw a dynamic-render error. Results contain first-visit order, track distance
 and off-route distance. The API uses small indexed path and boundary pieces for
 camps, lake shores, and other features. Summits must already link to the route.
 The reader can load more pages; malformed or failed pages show a retry. Keep the

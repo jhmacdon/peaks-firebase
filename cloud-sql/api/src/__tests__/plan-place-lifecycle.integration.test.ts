@@ -13,6 +13,7 @@ test("route-only plan saves finish matching before responding and preserve goals
   await c.query(`CREATE TEMP TABLE plans(id text PRIMARY KEY,user_id text,name text,description text,date timestamptz,
    is_public bool DEFAULT false,path geography,distance float8,gain float8,processing_state text DEFAULT 'idle',
    processing_error text,processing_started_at timestamptz,processed_at timestamptz,created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now());
+   CREATE TRIGGER temp_plans_updated BEFORE UPDATE ON plans FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
    CREATE TEMP TABLE routes(id text PRIMARY KEY,owner text,status text,path geography,updated_at timestamptz DEFAULT now());
    CREATE TEMP TABLE plan_routes(plan_id text,route_id text,ordinal int,PRIMARY KEY(plan_id,route_id));
    CREATE TEMP TABLE plan_destinations(plan_id text,destination_id text,ordinal int,PRIMARY KEY(plan_id,destination_id));
@@ -57,6 +58,18 @@ test("route-only plan saves finish matching before responding and preserve goals
    await processPlan("plan","owner",{pool});
    assert.equal((await c.query("SELECT route_id FROM plan_routes WHERE plan_id='plan'")).rows[0].route_id,"other");
    assert.equal((await c.query("SELECT destination_id FROM plan_reached_destinations WHERE plan_id='plan'")).rows[0].destination_id,"other-camp");
+  });
+  await t.test("guarded repair tolerates the real processing timestamp trigger",async()=>{
+   const row=(await c.query(`SELECT ${planSourceFingerprintSql()} fingerprint,updated_at::text AS version FROM plans p WHERE id='plan'`)).rows[0];
+   await processPlan("plan","owner",{pool,expectedSourceFingerprint:row.fingerprint,expectedUpdatedAt:row.version});
+   const after=(await c.query(`SELECT ${planSourceFingerprintSql()} fingerprint,processing_state FROM plans p WHERE id='plan'`)).rows[0];
+   assert.equal(after.fingerprint,row.fingerprint);
+   assert.equal(after.processing_state,"completed");
+  });
+  await t.test("the claim rejects a changed timestamp even if user fields match",async()=>{
+   const row=(await c.query(`SELECT ${planSourceFingerprintSql()} fingerprint,updated_at::text AS version FROM plans p WHERE id='plan'`)).rows[0];
+   await c.query("UPDATE plans SET path=path WHERE id='plan'");
+   await assert.rejects(processPlan("plan","owner",{pool,expectedSourceFingerprint:row.fingerprint,expectedUpdatedAt:row.version}),/already_processing/);
   });
   await t.test("repair claims reject changed source data before overwriting matches",async()=>{
    const fingerprint=(await c.query(`SELECT ${planSourceFingerprintSql()} fingerprint FROM plans p WHERE id='plan'`)).rows[0].fingerprint;

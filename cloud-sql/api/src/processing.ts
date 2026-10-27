@@ -1275,7 +1275,7 @@ export async function drainSessionRematchQueue(
 export async function processPlan(
   planId: string,
   userId: string,
-  opts: { pool?: Pool; expectedSourceFingerprint?: string } = {}
+  opts: { pool?: Pool; expectedSourceFingerprint?: string; expectedUpdatedAt?: string } = {}
 ): Promise<{ destinations_matched: number }> {
   const pool = opts.pool ?? db;
   const claim = await pool.query(
@@ -1285,10 +1285,11 @@ export async function processPlan(
          processing_started_at = now()
      WHERE id = $1 AND user_id = $2
        AND ($3::text IS NULL OR ${planSourceFingerprintSql()}=$3)
+       AND ($4::timestamptz IS NULL OR p.updated_at=$4)
        AND (processing_state IS DISTINCT FROM 'processing'
             OR processing_started_at IS NULL
             OR processing_started_at < now() - make_interval(mins => ${STALE_PROCESSING_MINUTES}))`,
-    [planId, userId, opts.expectedSourceFingerprint ?? null]
+    [planId, userId, opts.expectedSourceFingerprint ?? null, opts.expectedUpdatedAt ?? null]
   );
   if ((claim.rowCount ?? 0) === 0) {
     throw new Error("already_processing");

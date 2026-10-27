@@ -40,16 +40,17 @@ async function main() {
     if (snapshot.uid!==uid||snapshot.plans.length!==count) throw new Error("Snapshot owner or cohort count differs");
     const baseline=new Map<string,any>(snapshot.plans.map((p:any)=>[p.id,p]));
     const ids=[...baseline.keys()];
-    const validateSource=(row:any)=>{
+    const validateSource=(row:any,afterProcessing=false)=>{
       const before=baseline.get(row.id);
-      if (!before||row.fingerprint!==before.fingerprint||!row.geometry_complete
+      if (!before||(!afterProcessing&&row.processing_state!=="completed"&&row.has_path!==before.has_path)
+        ||(before.has_path&&row.path_fingerprint!==before.path_fingerprint)||row.fingerprint!==before.fingerprint||!row.geometry_complete
         ||!isDeepStrictEqual(row.protected,before.protected)||!isDeepStrictEqual(row.goals,before.goals)
         ||!isDeepStrictEqual(row.routes,before.routes)||!isDeepStrictEqual(row.manual,before.manual))
         throw new Error(`Source or protected data changed for plan ${row.id}`);
     };
     const current=await get(ids);
     if(current.length!==count) throw new Error("A snapshotted plan is missing");
-    current.forEach(validateSource);
+    current.forEach(row=>validateSource(row));
     const results:unknown[]=[];
     if (apply) {
       for (const row of current) {
@@ -57,7 +58,7 @@ async function main() {
           results.push({id:row.id,alreadyComplete:true});continue;
         }
         try {
-          const result=await processPlan(row.id,uid,{pool,expectedSourceFingerprint:row.fingerprint});
+          const result=await processPlan(row.id,uid,{pool,expectedSourceFingerprint:row.fingerprint,expectedUpdatedAt:row.source_updated_at});
           results.push({id:row.id,...result});
         } catch(error) {results.push({id:row.id,error:error instanceof Error?error.message:String(error)});}
         writeFileSync(`${snapshotPath}.results.json`,JSON.stringify({deployedSha:value("--deployed-sha"),results},null,2),{mode:0o600});
@@ -66,7 +67,7 @@ async function main() {
     }
     const after=await get(ids);
     if(after.length!==count) throw new Error("A repaired plan is missing");
-    after.forEach(validateSource);
+    after.forEach(row=>validateSource(row,true));
     const incomplete=after.filter(p=>p.processing_state!=="completed"||!p.processed_at||!p.has_path);
     if(incomplete.length) throw new Error(`${incomplete.length} plans remain incomplete: ${incomplete.map(p=>p.id).join(",")}`);
     const duplicate=await pool.query(`SELECT a.plan_id FROM plan_reached_destinations a
