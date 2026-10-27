@@ -1,20 +1,20 @@
-// Pure HRRR helpers: cycle discovery, S3 URLs, .idx byte ranges, grib_get
-// stdout parsing, and cell snapping (golden vectors shared with
+// Pure HRRR helpers: cycle discovery, S3 URLs, .idx byte ranges, grid
+// indexing, IEEE GRIB2 reads, and cell snapping (golden vectors shared with
 // cloud-sql/api/src/__tests__/air-quality-logic.test.ts).
 
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
   snapToCell,
-  isInHrrrConus,
   candidateCycles,
   cycleTimeSec,
   gribUrl,
   idxUrl,
   findMassdenRange,
   rangeHeader,
-  parseGribGetValue,
-  KG_M3_TO_UG_M3,
+  gridIndex,
+  gridMatchesHrrr,
+  readIeeeGrib2Values,
 } from "../hrrr";
 
 // GOLDEN VECTORS — identical assertions exist in
@@ -31,11 +31,64 @@ test("snapToCell golden vectors", () => {
   assert.ok(Math.abs(b.lng - -120.0) < 1e-9);
 });
 
-test("isInHrrrConus golden vectors", () => {
-  assert.equal(isInHrrrConus(44.27, -71.3), true);
-  assert.equal(isInHrrrConus(39.0, -120.0), true);
-  assert.equal(isInHrrrConus(60.0, -150.0), false);
-  assert.equal(isInHrrrConus(46.0, 7.0), false);
+// Indexes from ecCodes codes_grib_find_nearest on a real HRRR MASSDEN record.
+test("gridIndex matches ecCodes nearest grid points", () => {
+  assert.equal(gridIndex(32.43, -116.25), 655149);
+  assert.equal(gridIndex(40.92, -120.81), 1261352);
+  assert.equal(gridIndex(37.92, -103.8), 925401);
+  assert.equal(gridIndex(25.5, -95.58), 80121);
+});
+
+test("gridIndex is null off the HRRR grid", () => {
+  assert.equal(gridIndex(24.6, -69.84), null);
+  assert.equal(gridIndex(60.0, -150.0), null);
+  assert.equal(gridIndex(46.0, 7.0), null);
+});
+
+test("gridMatchesHrrr accepts grib_get's rounded metadata and rejects a changed grid", () => {
+  assert.equal(gridMatchesHrrr("1799 1059 21.1381 237.28 262.5 38.5 38.5 3000 3000 64\n"), true);
+  assert.equal(gridMatchesHrrr("1799 1059 21.1381 237.28 262.5 38.5 38.5 2500 2500 64"), false);
+  assert.equal(gridMatchesHrrr("1799 1059"), false);
+});
+
+function ieeeMessage(values: number[], opts: { template?: number; bitmap?: number } = {}): Buffer {
+  const section = (num: number, body: Buffer) => {
+    const head = Buffer.alloc(5);
+    head.writeUInt32BE(body.length + 5, 0);
+    head[4] = num;
+    return Buffer.concat([head, body]);
+  };
+  const s5 = Buffer.alloc(7);
+  s5.writeUInt32BE(values.length, 0);
+  s5.writeUInt16BE(opts.template ?? 4, 4);
+  s5[6] = 1;
+  const data = Buffer.alloc(values.length * 4);
+  values.forEach((v, i) => data.writeFloatBE(v, i * 4));
+  const body = Buffer.concat([
+    section(3, Buffer.alloc(9)),
+    section(5, s5),
+    section(6, Buffer.from([opts.bitmap ?? 255])),
+    section(7, data),
+    Buffer.from("7777"),
+  ]);
+  const s0 = Buffer.alloc(16);
+  s0.write("GRIB", 0, "ascii");
+  s0[7] = 2;
+  s0.writeBigUInt64BE(BigInt(body.length + 16), 8);
+  return Buffer.concat([s0, body]);
+}
+
+test("readIeeeGrib2Values reads float32 values by grid index", () => {
+  const valueAt = readIeeeGrib2Values(ieeeMessage([0, 2.5e-9, 9999]));
+  assert.ok(Math.abs(valueAt(1) - 2.5e-9) < 1e-15);
+  assert.equal(valueAt(2), 9999);
+  assert.throws(() => valueAt(3));
+});
+
+test("readIeeeGrib2Values rejects other packings and bitmaps", () => {
+  assert.throws(() => readIeeeGrib2Values(ieeeMessage([1], { template: 3 })), /IEEE/);
+  assert.throws(() => readIeeeGrib2Values(ieeeMessage([1], { bitmap: 0 })), /bitmap/);
+  assert.throws(() => readIeeeGrib2Values(Buffer.from("not grib")), /GRIB2/);
 });
 
 test("candidateCycles returns newest-first synoptic cycles within 30 h", () => {
@@ -90,11 +143,4 @@ test("findMassdenRange open-ended when MASSDEN is the last record", () => {
 
 test("findMassdenRange returns null when absent", () => {
   assert.equal(findMassdenRange("1:0:d=2026080612:TMP:2 m above ground:anl:"), null);
-});
-
-test("parseGribGetValue parses grib_get stdout and rejects garbage", () => {
-  assert.equal(parseGribGetValue("1.234e-08\n"), 1.234e-8);
-  assert.equal(parseGribGetValue("  0  "), 0);
-  assert.ok(Math.abs(parseGribGetValue("2.5e-09") * KG_M3_TO_UG_M3 - 2.5) < 1e-9);
-  assert.throws(() => parseGribGetValue("ECCODES ERROR: unreadable"));
 });

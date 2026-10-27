@@ -157,7 +157,7 @@ describe("signed-out catalog privacy with PostGIS fixtures", { skip: dbSkipReaso
   });
 
   test("private IDs cannot open detail, geometry, divisions or membership while signed out", async () => {
-    for (const path of [`/destinations/${secretDestination}`,`/lists/${secretList}`,`/areas/${secretArea}`,`/routes/${secretRoute}`,`/routes/${secretRoute}/elevation`]) {
+    for (const path of [`/destinations/${secretDestination}`,`/lists/${secretList}`,`/areas/${secretArea}`,`/routes/${secretRoute}`,`/routes/${secretRoute}/elevation`,`/routes/${secretRoute}/air-quality`]) {
       assert.equal((await appRequest(app,"GET",`/api${path}`)).status,404,path);
     }
     for (const path of [`/destinations/${secretDestination}/lists`,`/destinations/${secretDestination}/routes`,`/lists/${secretList}/destinations`,`/routes/${secretRoute}/sections`,`/routes/${secretRoute}/destinations`]) {

@@ -17,7 +17,7 @@ function fakePool(rows: any[]) {
   };
 }
 
-test("collectSampleCells dedupes to cells, skips nulls and non-CONUS", async () => {
+test("collectSampleCells dedupes to cells, skips nulls and off-grid points", async () => {
   const pool = fakePool([
     { id: "p1", lat: 44.2701, lng: -71.3033 },
     { id: "p2", lat: 44.2703, lng: -71.3035 }, // same cell as p1
@@ -30,6 +30,10 @@ test("collectSampleCells dedupes to cells, skips nulls and non-CONUS", async () 
     cells.map((c) => c.cellKey).sort(),
     ["1300:-4000", "1476:-2377"]
   );
+  assert.ok(cells.every((c) => Number.isInteger(c.gridIndex) && c.gridIndex > 0));
+  // Recently viewed trail cells join the plan points, newest first, capped:
+  assert.match(pool.calls[0].sql, /UNION ALL/);
+  assert.match(pool.calls[0].sql, /FROM smoke_sample_cells\s+WHERE requested_at > now\(\) - interval '72 hours'\s+ORDER BY requested_at DESC\s+LIMIT 500/);
   // Date-window scoping and first-destination-then-path fallback in SQL:
   assert.match(pool.calls[0].sql, /p\.date BETWEEN now\(\) - interval '24 hours' AND now\(\) \+ interval '60 hours'/);
   assert.match(pool.calls[0].sql, /ST_PointOnSurface/);

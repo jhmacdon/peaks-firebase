@@ -11,7 +11,7 @@ const allowed = [
   "/destinations/:id", "/destinations/:id/lists", "/destinations/:id/routes",
   "/lists/popular", "/lists/by-destinations", "/lists/:id", "/lists/:id/destinations",
   "/search", "/search/all", "/search/features", "/routes/near", "/routes/:id",
-  "/routes/:id/destinations", "/routes/:id/sections", "/routes/:id/elevation", "/areas/:id",
+  "/routes/:id/destinations", "/routes/:id/sections", "/routes/:id/elevation", "/routes/:id/air-quality", "/areas/:id",
 ];
 afterEach(() => mock.restoreAll());
 
