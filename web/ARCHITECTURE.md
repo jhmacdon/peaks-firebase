@@ -274,6 +274,13 @@ the sitemap. Activity and state guides have their own generated Open Graph
 images. The landing sitemap lists the two supported activity pages and states
 that cleared the 50-destination review on 2026-08-20.
 
+Destination and catalog route metadata use the credited catalog cover URL for
+both Open Graph and Twitter images. Image alt text includes the saved photo
+credit, and the detail page links to its source. Records without a complete
+cover record use their generated `/share-image` card. This fallback uses an
+ordinary route handler: an `opengraph-image` metadata file would override the
+cover URL chosen by `generateMetadata`.
+
 The root sitemap index and landing/static child sitemaps do not query the
 database. Three destination chunks cover the current 82,977-row catalog and
 must be raised before the catalog reaches 120,001 rows. Catalog child sitemaps

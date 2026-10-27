@@ -9,6 +9,7 @@ import { buildDestinationJsonLd } from "../../../../lib/json-ld";
 import { subdivisionName, countryName } from "../../../../lib/regions";
 import { describeDestination } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
+import { catalogShareImage } from "../../../../lib/catalog-share-image";
 
 // One template, ~70,000 catalog pages, and the record behind any one of
 // them changes on the order of months. Rendering every visit against a
@@ -108,6 +109,11 @@ export async function generateMetadata({
     });
 
     const canonicalPath = `/destinations/${id}`;
+    const images = [catalogShareImage(title, canonicalPath, {
+      imageUrl: destination.hero_image,
+      attribution: destination.hero_image_attribution,
+      attributionUrl: destination.hero_image_attribution_url,
+    })];
 
     return {
       title,
@@ -115,21 +121,19 @@ export async function generateMetadata({
       alternates: {
         canonical: absoluteUrl(canonicalPath),
       },
-      // No `images` here: the co-located `opengraph-image.tsx` in this same
-      // segment is picked up automatically, with the correct build-hashed,
-      // cache-busted URL Next.js generates for it — a hand-built URL can't
-      // reproduce that hash.
       openGraph: {
         title,
         description,
         url: absoluteUrl(canonicalPath),
         siteName: siteConfig.name,
         type: "website",
+        images,
       },
       twitter: {
         card: "summary_large_image",
         title,
         description,
+        images,
       },
     };
   } catch {

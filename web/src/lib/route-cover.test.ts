@@ -6,10 +6,7 @@ import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import RouteCard from "../components/route-card";
 import { buildRouteJsonLd } from "./json-ld";
-import {
-  EntityOgImage,
-  isPublicDomainImageAttribution,
-} from "./seo-image";
+import { EntityOgImage } from "./seo-image";
 import type { SearchRouteResult } from "./actions/search";
 
 const webRoot = resolve(import.meta.dirname, "..");
@@ -40,7 +37,6 @@ test("route detail and credited cards use the derived photo", () => {
   const card = read("components/route-card.tsx");
   const page = read("app/(public)/routes/[id]/page.tsx");
   const layout = read("app/(public)/routes/[id]/layout.tsx");
-  const shareImage = read("app/(public)/routes/[id]/opengraph-image.tsx");
 
   assert.match(page, /route\.cover_image_attribution_url/);
   assert.match(page, /<RouteHero/);
@@ -48,8 +44,9 @@ test("route detail and credited cards use the derived photo", () => {
   assert.match(hero, /href=\{cover\.attributionUrl\}/);
   assert.match(card, /src=\{hasCreditedCover \? route\.cover_image : null\}/);
   assert.match(layout, /image: route\.cover_image/);
-  assert.match(shareImage, /isPublicDomainImageAttribution/);
-  assert.match(shareImage, /imageUrl = route\.cover_image/);
+  assert.match(layout, /imageUrl: route\.cover_image/);
+  assert.match(layout, /attribution: route\.cover_image_attribution/);
+  assert.match(layout, /attributionUrl: route\.cover_image_attribution_url/);
 });
 
 const coveredRoute: SearchRouteResult = {
@@ -91,20 +88,14 @@ test("route cards suppress a photo when its visible credit record is incomplete"
   assert.doesNotMatch(html, /upload\.wikimedia\.org\/rainier\.jpg/);
 });
 
-test("standalone share images accept only explicit public-domain credits", () => {
-  assert.equal(isPublicDomainImageAttribution("Jane / CC0 1.0"), true);
-  assert.equal(isPublicDomainImageAttribution("Jane / Public domain"), true);
-  assert.equal(isPublicDomainImageAttribution("Jane / PD-USGov"), true);
-  assert.equal(isPublicDomainImageAttribution("Jane / CC BY-SA 4.0"), false);
-
+test("generated share cards keep the route name and stats without a cover", () => {
   const html = renderToStaticMarkup(React.createElement(EntityOgImage, {
     name: "Disappointment Cleaver",
     stats: "9 mi · Mount Rainier",
-    imageUrl: coveredRoute.cover_image,
-    imageAttribution: "Jane / CC0 1.0",
   }));
-  assert.match(html, /upload\.wikimedia\.org\/rainier\.jpg/);
-  assert.match(html, /Jane \/ CC0 1\.0 · cropped/);
+  assert.match(html, /Disappointment Cleaver/);
+  assert.match(html, /9 mi · Mount Rainier/);
+  assert.doesNotMatch(html, /<img/);
 });
 
 test("route structured metadata publishes the same cover URL", () => {

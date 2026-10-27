@@ -1,24 +1,21 @@
 import { ImageResponse } from "next/og";
-import { getDestination } from "../../../../lib/actions/destinations";
-import { describeDestinationType } from "../../../../lib/destination-detail";
-import { subdivisionName, countryName } from "../../../../lib/regions";
-import { EntityOgImage } from "../../../../lib/seo-image";
-import { formatFeet, joinStats } from "../../../../lib/seo";
+import { getDestination } from "../../../../../lib/actions/destinations";
+import { describeDestinationType } from "../../../../../lib/destination-detail";
+import { subdivisionName, countryName } from "../../../../../lib/regions";
+import { EntityOgImage } from "../../../../../lib/seo-image";
+import { formatFeet, joinStats } from "../../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const size = {
+const size = {
   width: 1200,
   height: 630,
 };
 
-export const contentType = "image/png";
-
-export default async function Image({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const { id } = await params;
 
   let name = "Destination";

@@ -7,6 +7,7 @@ import {
 import { buildRouteJsonLd } from "../../../../lib/json-ld";
 import { describeRoute, pickPrimaryRouteDestinationName } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
+import { catalogShareImage } from "../../../../lib/catalog-share-image";
 
 // One template serving every published route, and a route's geometry and
 // stats change on the order of months, not requests — same reasoning as
@@ -92,6 +93,11 @@ export async function generateMetadata({
     });
 
     const canonicalPath = `/routes/${id}`;
+    const images = [catalogShareImage(title, canonicalPath, {
+      imageUrl: route.cover_image,
+      attribution: route.cover_image_attribution,
+      attributionUrl: route.cover_image_attribution_url,
+    })];
 
     return {
       title,
@@ -99,19 +105,19 @@ export async function generateMetadata({
       alternates: {
         canonical: absoluteUrl(canonicalPath),
       },
-      // The co-located image route uses this route's derived destination cover
-      // when one exists, with the plain branded panel as its fallback.
       openGraph: {
         title,
         description,
         url: absoluteUrl(canonicalPath),
         siteName: siteConfig.name,
         type: "website",
+        images,
       },
       twitter: {
         card: "summary_large_image",
         title,
         description,
+        images,
       },
     };
   } catch {
