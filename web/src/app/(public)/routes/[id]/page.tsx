@@ -39,7 +39,7 @@ import { RouteAbout } from "../../../../components/route/route-about";
 import { RouteHistorySummary } from "../../../../components/route/route-history-summary";
 import { RouteElevationProfile } from "../../../../components/route/route-elevation-profile";
 import { RouteWaypoints } from "../../../../components/route/route-waypoints";
-import { getRoutePlaces } from "../../../../lib/actions/route-context";
+import { getRoutePlacePreview } from "../../../../lib/actions/route-context";
 import { RouteSegments } from "../../../../components/route/route-segments";
 import { RouteSource } from "../../../../components/route/route-source";
 import { SectionHeading } from "../../../../components/ui/section-heading";
@@ -58,7 +58,7 @@ export default async function RouteDetailPage({
     settled(getRouteSegments(id), []),
     settled(getRouteElevation(id), []),
     settled(getRouteSessionCount(id), 0),
-    settled(getRoutePlaces(id), null),
+    settled(getRoutePlacePreview(id), null),
   ]);
 
   const start = places?.items.find(p => p.features.includes("trailhead")) ?? destinations.find(d => d.features.includes("trailhead"));
