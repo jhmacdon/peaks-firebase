@@ -602,6 +602,8 @@ router.post("/", asyncRoute(async (req, res: Response) => {
   }
 
   const client = await db.connect();
+  let clientReleased = false;
+  const releaseClient = () => { if (!clientReleased) { client.release(); clientReleased = true; } };
   try {
     await client.query("BEGIN");
 
@@ -631,7 +633,7 @@ router.post("/", asyncRoute(async (req, res: Response) => {
        geometry ? JSON.stringify(geometry) : null, distance ?? null, gain ?? null]
     );
     if (planWrite.rows.length === 0) {
-      await client.query("ROLLBACK");
+      if (!clientReleased) await client.query("ROLLBACK");
       res.status(409).json({ error: "Route ID unavailable" });
       return;
     }
@@ -656,20 +658,28 @@ router.post("/", asyncRoute(async (req, res: Response) => {
       await replacePlanRoutes(client, id, uid, routeIds);
     }
 
+    if (geometry || routeIds !== undefined || routeRecords.length > 0) {
+      await client.query(
+        `UPDATE plans SET path=CASE WHEN $3 THEN path ELSE NULL END,
+           processing_state='pending',processing_error=NULL WHERE id=$1 AND user_id=$2`,
+        [id,uid,Boolean(geometry)]
+      );
+    }
     await client.query("COMMIT");
+    releaseClient();
 
-    // Kick processing inline (best-effort) when geometry was supplied. iOS polls
+    // Match geometry and route-only plans before responding. iOS polls
     // /processing-status to observe pending→completed; a failure here flips the
     // plan to 'failed' inside processPlan and is surfaced the same way.
-    if (geometry) {
-      processPlan(id, uid).catch((err) =>
+    if (geometry || routeIds !== undefined || routeRecords.length > 0) {
+      await processPlan(id, uid).catch((err) =>
         console.error(`Inline plan process failed for ${id}:`, err)
       );
     }
 
     res.status(201).json({ id, is_public: isPublic === true });
   } catch (err) {
-    await client.query("ROLLBACK");
+    if (!clientReleased) await client.query("ROLLBACK");
     if (err instanceof InaccessiblePlanRouteError) {
       res.status(400).json({ error: err.message });
       return;
@@ -677,7 +687,7 @@ router.post("/", asyncRoute(async (req, res: Response) => {
     console.error("Error creating plan:", err);
     res.status(500).json({ error: "Failed to create plan" });
   } finally {
-    client.release();
+    releaseClient();
   }
 }));
 
@@ -727,6 +737,8 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
   }
 
   const client = await db.connect();
+  let clientReleased = false;
+  const releaseClient = () => { if (!clientReleased) { client.release(); clientReleased = true; } };
   try {
     await client.query("BEGIN");
 
@@ -750,7 +762,7 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
        hasIsPublic, isPublic ?? false, uid]
     );
     if (updateResult.rows.length === 0) {
-      await client.query("ROLLBACK");
+      if (!clientReleased) await client.query("ROLLBACK");
       res.status(404).json({ error: "Route not found" });
       return;
     }
@@ -775,17 +787,25 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
       await replacePlanRoutes(client, id, uid, routeIds);
     }
 
+    if (geometry || routeIds !== undefined || routeRecords.length > 0) {
+      await client.query(
+        `UPDATE plans SET path=CASE WHEN $3 THEN path ELSE NULL END,
+           processing_state='pending',processing_error=NULL WHERE id=$1 AND user_id=$2`,
+        [id,uid,Boolean(geometry)]
+      );
+    }
     await client.query("COMMIT");
+    releaseClient();
 
-    if (geometry) {
-      processPlan(id, uid).catch((err) =>
+    if (geometry || routeIds !== undefined || routeRecords.length > 0) {
+      await processPlan(id, uid).catch((err) =>
         console.error(`Inline plan process failed for ${id}:`, err)
       );
     }
 
     res.json(updateResult.rows[0]);
   } catch (err) {
-    await client.query("ROLLBACK");
+    if (!clientReleased) await client.query("ROLLBACK");
     if (err instanceof InaccessiblePlanRouteError) {
       res.status(400).json({ error: err.message });
       return;
@@ -793,7 +813,7 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
     console.error("Error updating plan:", err);
     res.status(500).json({ error: "Failed to update plan" });
   } finally {
-    client.release();
+    releaseClient();
   }
 }));
 

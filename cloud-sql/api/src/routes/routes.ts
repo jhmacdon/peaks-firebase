@@ -10,7 +10,7 @@ import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/ca
 import { AirQualityQueryable, forecastAirQuality, requestSmokeSampling } from "../air-quality-forecast";
 import { CamsFetcher, fetchCams } from "../open-meteo";
 import { startAccessSql, withStartAccess } from "../lib/start-access";
-import { buildRouteLandmarksQuery } from "../lib/route-landmarks";
+import { buildRouteLandmarksQuery, decodeRoutePlaceCursor, routePlacePage } from "../lib/route-landmarks";
 
 const router = Router();
 
@@ -328,11 +328,20 @@ router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   res.json(result.rows.map(withStartAccess));
 }));
 
-// Display-only camps and landmarks; saved route destinations stay separate.
+// Display-only places in first-visit order; saved objectives stay separate.
 router.get("/:id/landmarks", asyncRoute(async (req, res: Response) => {
-  const query = buildRouteLandmarksQuery(req.params.id, getUid(req));
+  let cursor;
+  try { cursor = decodeRoutePlaceCursor(req.query.cursor); }
+  catch { res.status(400).json({error:"Invalid place cursor"}); return; }
+  const query = buildRouteLandmarksQuery(req.params.id, getUid(req), cursor);
   const result = await db.query(query.text, query.values);
-  res.json(result.rows);
+  if (!result.rows.length) { res.status(404).json({error:"Route not found or missing geometry"}); return; }
+  try { res.json(routePlacePage(result.rows[0], cursor)); }
+  catch (error) {
+    if (error instanceof Error && error.message === "Route changed; reload its places")
+      res.status(409).json({error:error.message});
+    else throw error;
+  }
 }));
 
 // GET /api/routes/:id/shared — visible active routes on the same physical trail.

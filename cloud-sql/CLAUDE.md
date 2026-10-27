@@ -211,12 +211,21 @@ follow the signed-out filter. Personal routes, sessions, plans, trip reports,
 account actions, and `/lists` still require auth, as do all other paths and
 methods (including HEAD).
 
-`/routes/:id/landmarks` returns display-only public camps and huts within 300 m
-of the track, plus viewpoints, waterfalls, and lookouts within 50 m. Each row
-includes `route_offset_m`, the shortest distance from the place to the track.
-It removes nearby duplicates with the same name and omits saved destinations.
-It does not write `route_destinations` or infer summits. Routes longer than
-100 km keep their published sections; this endpoint returns no extra places.
+`/routes/:id/landmarks` returns `{ items, nextCursor, distanceThroughMeters }`.
+Named public places use the same feature thresholds as plan matching, except camps
+and huts may sit within 300 m. Boundary parts find lake shores and camp edges even
+when their pins are far away. Summits must already link to the route. Each item has
+`route_offset_m` and `distance_along_m` for the first visit. Same-name nearby camp/hut
+records collapse to one, with saved identities preferred. Pages cover 2,048 original
+segments and at most 100 places; indexed long trails read their point slices. A route
+edit invalidates its cursor. No route-length exclusion or writes to saved objectives.
+
+Plan create/update awaits matching for geometry, route IDs, or route records. A plan
+without its own path uses its linked paths in order, preserving gaps. Saved links to
+superseded routes retain their original geometry; missing or unavailable paths fail
+before replacing matches. `scripts/repair-plan-places.ts` snapshots a fixed owner and
+count, guards source fingerprints, and checks goals, links, manual matches, membership,
+and first-visit order after a serial repair. Take a Cloud SQL backup before applying.
 
 `index.ts` holds the explicit allowlist and trusts one Cloud Run proxy hop.
 This assumes clients call the `run.app` URL directly. A load balancer in front

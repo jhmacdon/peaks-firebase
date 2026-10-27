@@ -390,3 +390,12 @@ Write about the place and the people who know it, using concrete details and pla
 prose. Put sources after the chapter. Do not infer access, difficulty, or waterfall
 height from a destination pin or elevation. Unknown guide slugs return 404;
 missing catalog data remains an error.
+
+### Places along a route
+
+Public route pages use the shared API `/api/routes/:id/landmarks` through
+`getRoutePlaces`. It returns named places in first-visit order, with track distance
+and off-route distance. The API uses small indexed path and boundary pieces for
+camps, lake shores, and other features. Summits must already link to the route.
+The reader can load more pages; malformed or failed pages show a retry. Keep the
+first encounter across pages. These places never change saved objectives or goals.

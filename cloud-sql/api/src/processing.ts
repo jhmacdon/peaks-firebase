@@ -11,6 +11,8 @@ import {
   type RouteMatch,
 } from "./route-coverage";
 import { segmentPasses, type SegmentCorridorRow, type SegmentPass } from "./segment-passes";
+import { pathPlacesCtes, planTrackVerticesSql } from "./lib/path-places";
+import { planSourceFingerprintSql } from "./lib/plan-repair";
 
 export function generateId(): string {
   return crypto.randomBytes(10).toString("hex");
@@ -1064,32 +1066,24 @@ export async function processSession(
   }
 }
 
-/**
- * Build the destination-match INSERT for a plan, ordered along the plan path.
- *
- * Mirrors session matchDestinations() but operates on plans.path (a 2D
- * LineString supplied by the client) and writes to plan_reached_destinations.
- * Ordinal is assigned by ST_LineLocatePoint fraction so destinations read
- * start→finish along the route. ST_LineMerge collapses a multi-route plan path
- * to a single line where contiguous; for a still-multipart path the fraction
- * falls back to 0 (insertion order), which is acceptable for disjoint plans.
- */
+/** Match each place at its first visit, preserving goal and manual identities. */
+function planPlaceSourceSql(): string {
+  return `WITH source AS MATERIALIZED (
+    SELECT p.id,p.user_id,p.path FROM plans p WHERE p.id=$1 AND p.path IS NOT NULL
+  ), track_vertices AS MATERIALIZED (${planTrackVerticesSql}),
+  ${pathPlacesCtes({nearby:false,linked:"EXISTS(SELECT 1 FROM plan_destinations pd WHERE pd.plan_id=$1 AND pd.destination_id=d.id) OR EXISTS(SELECT 1 FROM plan_reached_destinations prd WHERE prd.plan_id=$1 AND prd.destination_id=d.id AND prd.source<>'auto')"})}`;
+}
+
+export function buildPlanPlaceReadQuery(planId: string) {
+  return {text: `${planPlaceSourceSql()} SELECT id,distance_along_m FROM unique_places ORDER BY distance_along_m,id`,values:[planId]};
+}
+
 export function buildPlanDestinationMatchSql(planId: string): { text: string; values: unknown[] } {
   return {
-    text: `INSERT INTO plan_reached_destinations (plan_id, destination_id, ordinal, source)
-     SELECT p.id, m.destination_id,
-            (row_number() OVER (ORDER BY m.frac, m.destination_id) - 1) AS ordinal,
-            'auto'
-     FROM plans p
-     JOIN LATERAL (
-       SELECT d.id AS destination_id,
-              CASE WHEN ST_GeometryType(ST_LineMerge(p.path::geometry)) = 'ST_LineString'
-                   THEN ST_LineLocatePoint(ST_LineMerge(p.path::geometry), d.location::geometry)
-                   ELSE 0 END AS frac
-       FROM (${destinationMatchCandidatesSql("p.path", "p.user_id")}) c
-       JOIN destinations d ON d.id = c.id
-     ) m ON true
-     WHERE p.id = $1 AND p.path IS NOT NULL
+    text: `${planPlaceSourceSql()}
+     INSERT INTO plan_reached_destinations (plan_id,destination_id,ordinal,source)
+     SELECT $1,id,(row_number() OVER (ORDER BY distance_along_m,id)-1)::int,'auto'
+     FROM unique_places
      ON CONFLICT (plan_id, destination_id) DO NOTHING`,
     values: [planId],
   };
@@ -1276,24 +1270,25 @@ export async function drainSessionRematchQueue(
  *
  * plans.path is normally set by the create/update endpoint from client-supplied
  * geometry. If absent (a system-route plan), Step 0 assembles it from the
- * constituent routes that DO exist in the PostGIS routes table.
+ * ordered route paths, after checking every referenced route.
  */
 export async function processPlan(
   planId: string,
   userId: string,
-  opts: { pool?: Pool } = {}
+  opts: { pool?: Pool; expectedSourceFingerprint?: string } = {}
 ): Promise<{ destinations_matched: number }> {
   const pool = opts.pool ?? db;
   const claim = await pool.query(
-    `UPDATE plans
+    `UPDATE plans p
      SET processing_state = 'processing',
          processing_error = NULL,
          processing_started_at = now()
      WHERE id = $1 AND user_id = $2
+       AND ($3::text IS NULL OR ${planSourceFingerprintSql()}=$3)
        AND (processing_state IS DISTINCT FROM 'processing'
             OR processing_started_at IS NULL
             OR processing_started_at < now() - make_interval(mins => ${STALE_PROCESSING_MINUTES}))`,
-    [planId, userId]
+    [planId, userId, opts.expectedSourceFingerprint ?? null]
   );
   if ((claim.rowCount ?? 0) === 0) {
     throw new Error("already_processing");
@@ -1303,14 +1298,34 @@ export async function processPlan(
   try {
     await client.query("BEGIN");
 
-    // Step 0: if the client did not supply geometry (system-route plan), try to
-    // assemble a path from constituent routes that DO exist in PostGIS.
+    await client.query("SELECT id FROM plans WHERE id=$1 AND user_id=$2 FOR UPDATE",[planId,userId]);
+
+    // Hold the linked paths stable through matching. Recheck the repair source
+    // after taking locks so a concurrent route edit cannot slip past the claim.
+    await client.query(`SELECT r.id FROM routes r JOIN plan_routes pr ON pr.route_id=r.id
+      WHERE pr.plan_id=$1 ORDER BY r.id FOR SHARE OF r`,[planId]);
+    if (opts.expectedSourceFingerprint) {
+      const check=await client.query(`SELECT ${planSourceFingerprintSql()} AS fingerprint FROM plans p WHERE p.id=$1`,[planId]);
+      if (check.rows[0]?.fingerprint!==opts.expectedSourceFingerprint) throw new Error("Plan source changed during repair");
+    }
+
+    // Fail a partial migration or broken route link before replacing auto matches.
+    const missing = await client.query(
+      `SELECT pr.route_id FROM plan_routes pr LEFT JOIN routes r ON r.id=pr.route_id
+       JOIN plans p ON p.id=pr.plan_id
+       WHERE pr.plan_id=$1 AND (r.id IS NULL OR r.path IS NULL OR r.status NOT IN ('active','superseded')
+         OR NOT (r.owner='peaks' OR r.owner=p.user_id))`, [planId]
+    );
+    if (missing.rows.length) throw new Error("Plan routes have missing or unavailable geometry: "
+      + missing.rows.map(row => row.route_id).join(", "));
+
+    // Preserve route order and gaps when the client did not supply geometry.
     await client.query(
       `UPDATE plans p
        SET path = sub.merged
        FROM (
          SELECT pr.plan_id,
-                ST_Force2D(ST_LineMerge(ST_Collect(r.path::geometry ORDER BY pr.ordinal)))::geography AS merged
+                ST_Force2D(ST_Collect(r.path::geometry ORDER BY pr.ordinal))::geography AS merged
          FROM plan_routes pr
          JOIN routes r ON r.id = pr.route_id
          JOIN plans route_plan ON route_plan.id = pr.plan_id
@@ -1321,6 +1336,9 @@ export async function processPlan(
        WHERE p.id = $1 AND p.path IS NULL`,
       [planId]
     );
+
+    const geometry = await client.query("SELECT path IS NOT NULL AS has_path FROM plans WHERE id=$1",[planId]);
+    if (!geometry.rows[0]?.has_path) throw new Error("Plan has no geometry to match");
 
     // Step 1: clear previous auto-tags (idempotent re-processing). Never touches
     // user-chosen plan_destinations goals.
