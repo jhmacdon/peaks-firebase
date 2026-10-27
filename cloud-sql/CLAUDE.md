@@ -200,7 +200,7 @@ Only these catalog GETs use `optionalAuth` (paths are under `/api`):
   `/lists/:id/destinations`.
 - Search: `/search`, `/search/all`, `/search/features`.
 - Routes: `/routes/near`, `/routes/:id`, `/routes/:id/destinations`,
-  `/routes/:id/sections`, `/routes/:id/elevation`.
+  `/routes/:id/sections`, `/routes/:id/elevation`, `/routes/:id/air-quality`.
 - Areas: `/areas/:id`.
 
 Signed-out reads return catalog rows owned by `peaks` and public PAD-US areas
@@ -271,6 +271,7 @@ refreshed after deletion. The merge's completed claim allows that retry.
 | GET | `/api/search?q=&lat=&lng=&limit=` | Fuzzy text search (pg_trgm + geo ranking) |
 | GET | `/api/search/features?features=&activities=&lat=&lng=&radius=` | Filter by features/activities |
 | GET | `/api/routes/...` | Route queries |
+| GET | `/api/routes/:id/air-quality` | Same forecast JSON as `/api/plans/:id/air-quality` with `planDate: null`, at the route path's start (else its first visible linked destination). Shares the plan grid cells, stored HRRR smoke rows, and one-hour CAMS cache; the smoke job samples only plan cells, so most routes get CAMS alone |
 | GET | `/api/routes/:id/sessions/mine` | The caller's own recordings on one route, newest first, with the stretch each covered (owner-only; the one reader of partial `session_routes` rows) |
 | GET | `/api/sessions/...` | Session queries |
 | GET | `/api/sessions/:id/areas` | Protected areas crossed by saved session track segments |

@@ -37,7 +37,7 @@ async function responseFor(pool: ReturnType<typeof fakePool>, cams: CamsFetcher 
     status(code: number) { status = code; return this; },
     json(value: unknown) { body = value; return this; },
   } as Response;
-  await handleRouteAirQuality({ params: { id: "route-1" }, uid: "member" } as unknown as Request<{ id: string }>,
+  await handleRouteAirQuality({ params: { id: "route-1" }, uid: "member" } as unknown as Request<Record<string, string>>,
     response, pool, cams, NOW);
   return { status, body };
 }

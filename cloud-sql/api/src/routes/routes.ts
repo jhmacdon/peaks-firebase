@@ -16,8 +16,7 @@ const router = Router();
 /** Route-start forecast; only visible linked places can supply a missing path. */
 export function buildRouteAirQualityPointQuery(id: string, uid: string): { text: string; values: unknown[] } {
   return {
-    text: `SELECT r.id,
-             ST_Y(COALESCE(ST_StartPoint(r.path::geometry), first_destination.location)) AS lat,
+    text: `SELECT ST_Y(COALESCE(ST_StartPoint(r.path::geometry), first_destination.location)) AS lat,
              ST_X(COALESCE(ST_StartPoint(r.path::geometry), first_destination.location)) AS lng
            FROM routes r
            LEFT JOIN LATERAL (
@@ -35,31 +34,34 @@ export function buildRouteAirQualityPointQuery(id: string, uid: string): { text:
   };
 }
 
+// GET /api/routes/:id/air-quality — the plan forecast for a catalog route,
+// with no trip day flagged. Same access rule as GET /:id. Upstream trouble
+// degrades to { available: false }, as on plans.
 export async function handleRouteAirQuality(
-  req: Request,
+  req: Request<Record<string, string>>,
   res: Response,
   pool: AirQualityQueryable = db,
   cams: CamsFetcher = fetchCams,
   nowSec: () => number = () => Math.floor(Date.now() / 1000)
 ): Promise<void> {
-  const id = req.params.id;
-  if (typeof id !== "string") {
-    res.status(400).json({ error: "Route id is required" });
-    return;
+  try {
+    const query = buildRouteAirQualityPointQuery(req.params.id, getUid(req));
+    const result = await pool.query(query.text, query.values);
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: "Route not found" });
+      return;
+    }
+    const point = result.rows[0] as { lat?: number | null; lng?: number | null };
+    if (typeof point.lat !== "number" || typeof point.lng !== "number"
+        || !Number.isFinite(point.lat) || !Number.isFinite(point.lng)) {
+      res.json({ available: false, reason: "no_location" });
+      return;
+    }
+    res.json(await forecastAirQuality({ lat: point.lat, lng: point.lng }, null, pool, cams, nowSec));
+  } catch (err) {
+    console.error("[air-quality] route lookup failed:", err);
+    res.status(500).json({ error: "air quality lookup failed" });
   }
-  const query = buildRouteAirQualityPointQuery(id, getUid(req));
-  const result = await pool.query(query.text, query.values);
-  if (result.rows.length === 0) {
-    res.status(404).json({ error: "Route not found" });
-    return;
-  }
-  const point = result.rows[0] as { lat?: number | null; lng?: number | null };
-  if (typeof point.lat !== "number" || typeof point.lng !== "number"
-      || !Number.isFinite(point.lat) || !Number.isFinite(point.lng)) {
-    res.json({ available: false, reason: "no_location" });
-    return;
-  }
-  res.json(await forecastAirQuality({ lat: point.lat, lng: point.lng }, null, pool, cams, nowSec));
 }
 
 export function buildRouteDetailQuery(
@@ -310,7 +312,6 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
   res.json(mapRouteDetailRow(result.rows[0], destinations.rows));
 }));
 
-// GET /api/routes/:id/air-quality — the same forecast card as plans, for today.
 router.get("/:id/air-quality", asyncRoute((req, res: Response) => handleRouteAirQuality(req, res)));
 
 // GET /api/routes/:id/destinations
