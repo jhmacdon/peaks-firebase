@@ -11,7 +11,7 @@ const allowed = [
   "/destinations/:id", "/destinations/:id/lists", "/destinations/:id/routes",
   "/lists/popular", "/lists/by-destinations", "/lists/:id", "/lists/:id/destinations",
   "/search", "/search/all", "/search/features", "/routes/near", "/routes/:id",
-  "/routes/:id/destinations", "/routes/:id/sections", "/routes/:id/elevation", "/routes/:id/air-quality", "/areas/:id",
+  "/routes/:id/destinations", "/routes/:id/landmarks", "/routes/:id/sections", "/routes/:id/elevation", "/routes/:id/air-quality", "/areas/:id",
 ];
 afterEach(() => mock.restoreAll());
 
@@ -42,7 +42,9 @@ test("every registered non-allowlisted API route and every non-GET method requir
 
 test("each allowlisted handler accepts no uid and logs once without query text", async () => {
   const logs = mock.method(console, "log", () => undefined);
-  const query = async () => ({ rows: [{ id: "public", name: "Public peak", owner: "peaks" }], rowCount: 1 });
+  const query = async (sql: string) => ({ rows: [sql.includes("unique_places")
+    ? {version:"v1",total_vertices:2,last_vertex:2,end_m:100,items:[]}
+    : { id: "public", name: "Public peak", owner: "peaks" }], rowCount: 1 });
   mock.method(db, "query", query);
   mock.method(db, "connect", async () => ({ query, release() {} }));
   const params = "?lat=47&lng=-122&minLat=46&maxLat=48&minLng=-123&maxLng=-121&q=peak&features=summit&ids=public";

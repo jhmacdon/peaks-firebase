@@ -83,7 +83,7 @@ describe("signed-out catalog privacy with PostGIS fixtures", { skip: dbSkipReaso
   });
   after(cleanup);
 
-  test("all 19 allowlisted reads return 200 without private rows or personal history", async () => {
+  test("public allowlisted reads return 200 without private rows or personal history", async () => {
     const paths = [
       "/destinations/nearby?lat=47&lng=-122",
       "/destinations/viewport?minLat=46.9&maxLat=47.1&minLng=-122.1&maxLng=-121.9",
@@ -94,7 +94,7 @@ describe("signed-out catalog privacy with PostGIS fixtures", { skip: dbSkipReaso
       `/lists/${publicList}`, `/lists/${publicList}/destinations`,
       "/search?q=guest%20catalog", "/search/all?q=guest%20catalog", "/search/features?features=summit&lat=47&lng=-122",
       "/routes/near?lat=47&lng=-122", `/routes/${publicRoute}`, `/routes/${publicRoute}/destinations`,
-      `/routes/${publicRoute}/sections`, `/routes/${publicRoute}/elevation`, `/areas/${publicArea}`,
+      `/routes/${publicRoute}/sections`, `/routes/${publicRoute}/elevation`, `/routes/${publicRoute}/landmarks`, `/areas/${publicArea}`,
     ];
     for (const path of paths) {
       const response = await appRequest(app,"GET",`/api${path}`);
@@ -157,7 +157,7 @@ describe("signed-out catalog privacy with PostGIS fixtures", { skip: dbSkipReaso
   });
 
   test("private IDs cannot open detail, geometry, divisions or membership while signed out", async () => {
-    for (const path of [`/destinations/${secretDestination}`,`/lists/${secretList}`,`/areas/${secretArea}`,`/routes/${secretRoute}`,`/routes/${secretRoute}/elevation`,`/routes/${secretRoute}/air-quality`]) {
+    for (const path of [`/destinations/${secretDestination}`,`/lists/${secretList}`,`/areas/${secretArea}`,`/routes/${secretRoute}`,`/routes/${secretRoute}/elevation`,`/routes/${secretRoute}/air-quality`,`/routes/${secretRoute}/landmarks`]) {
       assert.equal((await appRequest(app,"GET",`/api${path}`)).status,404,path);
     }
     for (const path of [`/destinations/${secretDestination}/lists`,`/destinations/${secretDestination}/routes`,`/lists/${secretList}/destinations`,`/routes/${secretRoute}/sections`,`/routes/${secretRoute}/destinations`]) {

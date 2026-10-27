@@ -39,6 +39,7 @@ import { RouteAbout } from "../../../../components/route/route-about";
 import { RouteHistorySummary } from "../../../../components/route/route-history-summary";
 import { RouteElevationProfile } from "../../../../components/route/route-elevation-profile";
 import { RouteWaypoints } from "../../../../components/route/route-waypoints";
+import { getRoutePlaces } from "../../../../lib/actions/route-context";
 import { RouteSegments } from "../../../../components/route/route-segments";
 import { RouteSource } from "../../../../components/route/route-source";
 import { SectionHeading } from "../../../../components/ui/section-heading";
@@ -52,14 +53,15 @@ export default async function RouteDetailPage({
   const route = await getRouteCached(id);
   if (!route) notFound();
 
-  const [destinations, segments, elevationPoints, sessionCount] = await Promise.all([
+  const [destinations, segments, elevationPoints, sessionCount, places] = await Promise.all([
     settled(getRouteDestinationsCached(id), []),
     settled(getRouteSegments(id), []),
     settled(getRouteElevation(id), []),
     settled(getRouteSessionCount(id), 0),
+    settled(getRoutePlaces(id), null),
   ]);
 
-  const start = destinations[0];
+  const start = places?.items.find(p => p.features.includes("trailhead")) ?? destinations.find(d => d.features.includes("trailhead"));
   const onRouteIds = new Set(destinations.map((d) => d.id));
   const nearbyRaw =
     start && start.lat != null && start.lng != null
@@ -160,7 +162,7 @@ export default async function RouteDetailPage({
         { id: "route-about", label: "Overview" },
         { id: "route-map", label: "Map" },
         ...(profilePoints.length >= 2 ? [{ id: "route-elevation-profile", label: "Elevation" }] : []),
-        { id: "route-waypoints", label: "Waypoints" },
+        { id: "route-waypoints", label: "Along the way" },
       ]} />
       <div className="mt-12 grid gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-12">
@@ -192,7 +194,7 @@ export default async function RouteDetailPage({
             </section>
           ) : null}
 
-          <RouteWaypoints destinations={destinations} />
+          <RouteWaypoints routeId={id} initialPage={places} />
 
           <details className="border-t border-hairline pt-5">
             <summary className="min-h-11 cursor-pointer text-sm font-medium text-ink-2">Route segments</summary>
