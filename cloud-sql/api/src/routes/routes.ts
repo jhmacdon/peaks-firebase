@@ -10,6 +10,7 @@ import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/ca
 import { AirQualityQueryable, forecastAirQuality, requestSmokeSampling } from "../air-quality-forecast";
 import { CamsFetcher, fetchCams } from "../open-meteo";
 import { startAccessSql, withStartAccess } from "../lib/start-access";
+import { buildRouteLandmarksQuery } from "../lib/route-landmarks";
 
 const router = Router();
 
@@ -325,6 +326,13 @@ router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const query = buildRouteDestinationsQuery(id, getUid(req));
   const result = await db.query(query.text, query.values);
   res.json(result.rows.map(withStartAccess));
+}));
+
+// Display-only camps and landmarks; saved route destinations stay separate.
+router.get("/:id/landmarks", asyncRoute(async (req, res: Response) => {
+  const query = buildRouteLandmarksQuery(req.params.id, getUid(req));
+  const result = await db.query(query.text, query.values);
+  res.json(result.rows);
 }));
 
 // GET /api/routes/:id/shared — visible active routes on the same physical trail.

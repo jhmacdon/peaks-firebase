@@ -200,7 +200,7 @@ Only these catalog GETs use `optionalAuth` (paths are under `/api`):
   `/lists/:id/destinations`.
 - Search: `/search`, `/search/all`, `/search/features`.
 - Routes: `/routes/near`, `/routes/:id`, `/routes/:id/destinations`,
-  `/routes/:id/sections`, `/routes/:id/elevation`, `/routes/:id/air-quality`.
+  `/routes/:id/landmarks`, `/routes/:id/sections`, `/routes/:id/elevation`, `/routes/:id/air-quality`.
 - Areas: `/areas/:id`.
 
 Signed-out reads return catalog rows owned by `peaks` and public PAD-US areas
@@ -210,6 +210,13 @@ history is empty without a uid. Nested catalog rows and cover photos also
 follow the signed-out filter. Personal routes, sessions, plans, trip reports,
 account actions, and `/lists` still require auth, as do all other paths and
 methods (including HEAD).
+
+`/routes/:id/landmarks` returns display-only public camps and huts within 300 m
+of the track, plus viewpoints, waterfalls, and lookouts within 50 m. Each row
+includes `route_offset_m`, the shortest distance from the place to the track.
+It removes nearby duplicates with the same name and omits saved destinations.
+It does not write `route_destinations` or infer summits. Routes longer than
+100 km keep their published sections; this endpoint returns no extra places.
 
 `index.ts` holds the explicit allowlist and trusts one Cloud Run proxy hop.
 This assumes clients call the `run.app` URL directly. A load balancer in front
