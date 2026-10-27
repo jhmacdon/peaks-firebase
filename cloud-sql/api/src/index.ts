@@ -138,7 +138,7 @@ export const signedOutCatalogPaths = [
   "/lists/popular", "/lists/by-destinations", "/lists/:id", "/lists/:id/destinations",
   "/search", "/search/all", "/search/features",
   "/routes/near", "/routes/:id", "/routes/:id/destinations",
-  "/routes/:id/sections", "/routes/:id/elevation",
+  "/routes/:id/sections", "/routes/:id/elevation", "/routes/:id/air-quality",
   "/areas/:id",
 ] as const;
 const catalogPatterns = signedOutCatalogPaths.map((path) =>

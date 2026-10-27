@@ -7,6 +7,7 @@ import {
   buildRouteDestinationsQuery,
   buildRouteDetailQuery,
   buildRouteElevationQuery,
+  buildRouteAirQualityPointQuery,
 } from "../routes/routes";
 import { buildRouteSearchQuery } from "../routes/search";
 
@@ -26,7 +27,8 @@ test("route detail and child geometry use only catalog, owner, or party access",
   const destinations = buildRouteDestinationsQuery("route-1", "user-1");
   const elevation = buildRouteElevationQuery("route-1", "user-1");
 
-  for (const query of [detail, destinations, elevation]) {
+  const airQuality = buildRouteAirQualityPointQuery("route-1", "user-1");
+  for (const query of [detail, destinations, elevation, airQuality]) {
     assertUserRouteAccess(query.text);
     assert.deepEqual(query.values, ["route-1", "user-1"]);
   }

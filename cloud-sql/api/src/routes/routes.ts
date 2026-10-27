@@ -1,4 +1,4 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 import { asyncRoute } from "../lib/async-route";
 import { getUid } from "../auth";
 import db from "../db";
@@ -7,9 +7,60 @@ import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
 import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/catalog-limits";
+import { AirQualityQueryable, forecastAirQuality } from "../air-quality-forecast";
+import { CamsFetcher, fetchCams } from "../open-meteo";
 import { startAccessSql, withStartAccess } from "../lib/start-access";
 
 const router = Router();
+
+/** Route-start forecast; only visible linked places can supply a missing path. */
+export function buildRouteAirQualityPointQuery(id: string, uid: string): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT r.id,
+             ST_Y(COALESCE(ST_StartPoint(r.path::geometry), first_destination.location)) AS lat,
+             ST_X(COALESCE(ST_StartPoint(r.path::geometry), first_destination.location)) AS lng
+           FROM routes r
+           LEFT JOIN LATERAL (
+             SELECT d.location::geometry AS location
+             FROM route_destinations rd
+             JOIN destinations d ON d.id = rd.destination_id
+             WHERE rd.route_id = r.id AND d.location IS NOT NULL
+               AND ${publicCatalogSql("d", !uid)}
+             ORDER BY rd.ordinal, rd.destination_id
+             LIMIT 1
+           ) first_destination ON r.path IS NULL
+           WHERE r.id = $1 AND r.status = 'active'
+             AND ${buildRouteAccessSql("r", "$2")}`,
+    values: [id, uid],
+  };
+}
+
+export async function handleRouteAirQuality(
+  req: Request,
+  res: Response,
+  pool: AirQualityQueryable = db,
+  cams: CamsFetcher = fetchCams,
+  nowSec: () => number = () => Math.floor(Date.now() / 1000)
+): Promise<void> {
+  const id = req.params.id;
+  if (typeof id !== "string") {
+    res.status(400).json({ error: "Route id is required" });
+    return;
+  }
+  const query = buildRouteAirQualityPointQuery(id, getUid(req));
+  const result = await pool.query(query.text, query.values);
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "Route not found" });
+    return;
+  }
+  const point = result.rows[0] as { lat?: number | null; lng?: number | null };
+  if (typeof point.lat !== "number" || typeof point.lng !== "number"
+      || !Number.isFinite(point.lat) || !Number.isFinite(point.lng)) {
+    res.json({ available: false, reason: "no_location" });
+    return;
+  }
+  res.json(await forecastAirQuality({ lat: point.lat, lng: point.lng }, null, pool, cams, nowSec));
+}
 
 export function buildRouteDetailQuery(
   id: string,
@@ -258,6 +309,9 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
   }
   res.json(mapRouteDetailRow(result.rows[0], destinations.rows));
 }));
+
+// GET /api/routes/:id/air-quality — the same forecast card as plans, for today.
+router.get("/:id/air-quality", asyncRoute((req, res: Response) => handleRouteAirQuality(req, res)));
 
 // GET /api/routes/:id/destinations
 router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {

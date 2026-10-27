@@ -5,7 +5,7 @@ import { getUid } from "../auth";
 import db from "../db";
 import { processPlan } from "../processing";
 import { parseStatusIds } from "./sessions";
-import { buildAirQualityResponse, snapToCell, HrrrRow } from "../air-quality";
+import { forecastAirQuality } from "../air-quality-forecast";
 import { fetchCams, CamsFetcher } from "../open-meteo";
 import { isOptionalFiniteNumber } from "../lib/finite-number";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
@@ -515,33 +515,14 @@ export async function handlePlanAirQuality(
       return;
     }
 
-    const cell = snapToCell(point.lat, point.lng);
-    const smokeResult = await pool.query(
-      `SELECT valid_at, run_at, smoke_ug_m3
-       FROM smoke_forecasts
-       WHERE cell_key = $1 AND valid_at >= now() - interval '1 hour'
-       ORDER BY valid_at`,
-      [cell.cellKey]
-    );
-    const hrrrRows: HrrrRow[] = (
-      smokeResult.rows as { valid_at: Date; run_at: Date; smoke_ug_m3: number }[]
-    ).map((r) => ({
-      validAtSec: Math.floor(new Date(r.valid_at).getTime() / 1000),
-      smokeUgM3: r.smoke_ug_m3,
-      runAtIso: new Date(r.run_at).toISOString(),
-    }));
-
-    const camsData = await cams(cell.lat, cell.lng);
     res.json(
-      buildAirQualityResponse({
-        point: { lat: point.lat, lng: point.lng },
-        hrrrRows,
-        cams: camsData,
-        planDateSec: planDate
+      await forecastAirQuality(
+        { lat: point.lat, lng: point.lng },
+        planDate
           ? Math.floor(new Date(planDate).getTime() / 1000)
           : null,
-        nowSec: nowSec(),
-      })
+        pool, cams, nowSec
+      )
     );
   } catch (err) {
     console.error("[air-quality] lookup failed:", err);
