@@ -44,21 +44,29 @@ Each run:
    else `ST_PointOnSurface(path::geometry)`, else skip. Points snap to a
    ~3 km grid: `latIdx = round(lat / 0.03)`, `lngIdx = round(lng / 0.03)`,
    `cell_key = "{latIdx}:{lngIdx}"`; the sampled coordinate is the cell
-   center. Nearby plans share cells. Points outside the HRRR CONUS domain
-   (lat 21–53, lng −134 to −60, approximate) are skipped.
+   center. Nearby plans share cells. Trail cells join them: the 500 most
+   recent `smoke_sample_cells` rows requested in the last 72 h (written by
+   `GET /api/routes/:id/air-quality`, see
+   `cloud-sql/migrations/20261027_smoke_sample_cells.sql`). Cells off the
+   HRRR grid are skipped.
 2. **Pick the cycle.** Latest 00/06/12/18 UTC cycle whose `f48` file exists
    (check the `.idx` sidecar). If none newer than what's stored, exit.
 3. **Fetch the smoke field.** For f00–f48, read the `.idx` sidecar for
    `hrrr.tHHz.wrfsfcfNN.grib2`, find the `MASSDEN` (8 m mass density) record,
    and byte-range-download just that record (~1 MB/hour, ~50 MB/run).
-4. **Extract point values.** Run `grib_get -l <lat>,<lng>,1 <file>`
-   (ecCodes nearest-gridpoint mode) per cell; parse the numeric stdout.
-   Convert kg/m³ → µg/m³ (×10⁹). Fallback if nearest-mode ever fails on
-   HRRR's Lambert grid: `grib_get_data` full-field dump + JS nearest match.
+4. **Extract point values.** Each cell's flat grid index comes from the
+   fixed HRRR Lambert projection in TypeScript (`gridIndex`, pinned to
+   ecCodes nearest-point results). Per hour, `grib_get -p` checks the grid
+   metadata (a changed grid fails the run), `grib_set -r -s
+   packingType=grid_ieee` repacks the record once (~8 MB of float32), and
+   every cell reads its value from the bytes. Measured on a real record:
+   decode ~10 ms vs ~260 ms per `grib_get -l` nearest search, so run time no
+   longer grows with cell count. Convert kg/m³ → µg/m³ (×10⁹).
 5. **Store.** Upsert into `smoke_forecasts`; newer runs win. Prune rows with
-   `valid_at < now() - 24h`.
+   `valid_at < now() - 24h` and trail cells not requested in 72 h.
 
-If zero plans qualify, the run exits after step 1 without touching S3.
+If no plan or trail cell qualifies, the run exits after step 1 without
+touching S3.
 Failures log to Cloud Run and the run exits nonzero (visible in job history);
 the endpoint degrades to CAMS, so a missed run never breaks the card.
 
@@ -206,8 +214,9 @@ Node's built-in test runner, matching `bigint-parser.test.ts`:
   day `source` labeling (single-source vs mixed); plan-day flagging incl.
   beyond-horizon and undated cases.
 - Sample-point resolution: destination → path midpoint → unavailable.
-- Job: cell snapping, `.idx` record selection, and `wgrib2` stdout parsing
-  against text fixtures.
+- Job: cell snapping, `.idx` record selection, grid indexes against ecCodes
+  golden vectors, grid metadata checks, and IEEE GRIB2 reads from a
+  synthetic message.
 - CI runs API tests already; smoke-job tests wire into its `deploy-smoke-job`
   build steps. Post-deploy: manual check of a real plan's card.
 

@@ -271,7 +271,7 @@ refreshed after deletion. The merge's completed claim allows that retry.
 | GET | `/api/search?q=&lat=&lng=&limit=` | Fuzzy text search (pg_trgm + geo ranking) |
 | GET | `/api/search/features?features=&activities=&lat=&lng=&radius=` | Filter by features/activities |
 | GET | `/api/routes/...` | Route queries |
-| GET | `/api/routes/:id/air-quality` | Same forecast JSON as `/api/plans/:id/air-quality` with `planDate: null`, at the route path's start (else its first visible linked destination). Shares the plan grid cells, stored HRRR smoke rows, and one-hour CAMS cache; the smoke job samples only plan cells, so most routes get CAMS alone |
+| GET | `/api/routes/:id/air-quality` | Same forecast JSON as `/api/plans/:id/air-quality` with `planDate: null`, at the route path's start (else its first visible linked destination). Shares the plan grid cells, stored HRRR smoke rows, and one-hour CAMS cache. Each CONUS view upserts the cell into `smoke_sample_cells` (at most hourly), so the smoke job samples it for 72 h; the first view before the next job run gets CAMS alone |
 | GET | `/api/routes/:id/sessions/mine` | The caller's own recordings on one route, newest first, with the stretch each covered (owner-only; the one reader of partial `session_routes` rows) |
 | GET | `/api/sessions/...` | Session queries |
 | GET | `/api/sessions/:id/areas` | Protected areas crossed by saved session track segments |

@@ -1,4 +1,4 @@
-import { AirQualityResponse, buildAirQualityResponse, HrrrRow, snapToCell } from "./air-quality";
+import { AirQualityResponse, buildAirQualityResponse, HrrrRow, isInHrrrConus, snapToCell } from "./air-quality";
 import { CamsFetcher } from "./open-meteo";
 
 export interface AirQualityQueryable {
@@ -32,4 +32,28 @@ export async function forecastAirQuality(
     runAtIso: new Date(row.run_at).toISOString(),
   }));
   return buildAirQualityResponse({ point, hrrrRows, cams: camsData, planDateSec, nowSec: nowSec() });
+}
+
+/**
+ * Asks the smoke job to sample a trail's cell for the next 72 hours. Repeat
+ * views refresh it at most hourly so browsing doesn't turn into writes. A
+ * failure only costs HRRR detail, so it never fails the forecast.
+ */
+export async function requestSmokeSampling(
+  point: { lat: number; lng: number },
+  pool: AirQualityQueryable
+): Promise<void> {
+  if (!isInHrrrConus(point.lat, point.lng)) return;
+  const cell = snapToCell(point.lat, point.lng);
+  try {
+    await pool.query(
+      `INSERT INTO smoke_sample_cells (cell_key, lat, lng)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (cell_key) DO UPDATE SET requested_at = now()
+       WHERE smoke_sample_cells.requested_at < now() - interval '1 hour'`,
+      [cell.cellKey, cell.lat, cell.lng]
+    );
+  } catch (err) {
+    console.warn("[air-quality] could not request smoke sampling:", err);
+  }
 }

@@ -1,28 +1,32 @@
 // HRRR-Smoke ingestion. Runs 4x/day via Cloud Scheduler → Cloud Run Job:
 // samples near-surface smoke (MASSDEN, 8 m) at every upcoming plan's grid
-// cell for forecast hours f00–f48 and upserts into smoke_forecasts.
+// cell and every recently viewed trail's cell for forecast hours f00–f48 and
+// upserts into smoke_forecasts.
 // Steps: collect cells → newest complete cycle → byte-range MASSDEN records
-// via .idx → grib_get nearest-point extraction → upsert → prune.
+// via .idx → repack each hour to IEEE floats once → read every cell's grid
+// index → upsert → prune.
 // Design: docs/superpowers/specs/2026-08-06-plan-air-quality-design.md
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pool from "./db";
 import {
   Cell,
+  HRRR_GRID_KEYS,
   HrrrCycle,
   KG_M3_TO_UG_M3,
   candidateCycles,
   cycleTimeSec,
   findMassdenRange,
   gribUrl,
+  gridIndex,
+  gridMatchesHrrr,
   idxUrl,
-  isInHrrrConus,
-  parseGribGetValue,
   rangeHeader,
+  readIeeeGrib2Values,
   snapToCell,
 } from "./hrrr";
 
@@ -32,12 +36,20 @@ interface Queryable {
   query(sql: string, params?: unknown[]): Promise<{ rows: any[] }>;
 }
 
-// One sample point per plan dated in the ingestion window: first destination
-// by ordinal, else a point on the plan path. Deduped to ~3 km grid cells.
-export async function collectSampleCells(db: Queryable): Promise<Cell[]> {
+export interface SampleCell extends Cell {
+  gridIndex: number;
+}
+
+// Trail cells come from GET /api/routes/:id/air-quality views. The cap
+// bounds upsert volume, not extraction time, which no longer grows per cell.
+export const TRAIL_CELL_LIMIT = 500;
+
+// One sample point per plan dated in the ingestion window (first destination
+// by ordinal, else a point on the plan path), plus the cells of trails viewed
+// in the last 72 hours. Deduped to ~3 km grid cells on the HRRR grid.
+export async function collectSampleCells(db: Queryable): Promise<SampleCell[]> {
   const result = await db.query(
-    `SELECT p.id,
-            COALESCE(fd.lat, ST_Y(ST_PointOnSurface(p.path::geometry))) AS lat,
+    `SELECT COALESCE(fd.lat, ST_Y(ST_PointOnSurface(p.path::geometry))) AS lat,
             COALESCE(fd.lng, ST_X(ST_PointOnSurface(p.path::geometry))) AS lng
      FROM plans p
      LEFT JOIN LATERAL (
@@ -48,14 +60,22 @@ export async function collectSampleCells(db: Queryable): Promise<Cell[]> {
        ORDER BY pd.ordinal, pd.destination_id
        LIMIT 1
      ) fd ON true
-     WHERE p.date BETWEEN now() - interval '24 hours' AND now() + interval '60 hours'`
+     WHERE p.date BETWEEN now() - interval '24 hours' AND now() + interval '60 hours'
+     UNION ALL
+     SELECT lat, lng FROM (
+       SELECT lat, lng FROM smoke_sample_cells
+       WHERE requested_at > now() - interval '72 hours'
+       ORDER BY requested_at DESC
+       LIMIT ${TRAIL_CELL_LIMIT}
+     ) trails`
   );
-  const cells = new Map<string, Cell>();
+  const cells = new Map<string, SampleCell>();
   for (const row of result.rows) {
     if (row.lat == null || row.lng == null) continue;
-    if (!isInHrrrConus(row.lat, row.lng)) continue;
     const cell = snapToCell(row.lat, row.lng);
-    cells.set(cell.cellKey, cell);
+    const index = gridIndex(cell.lat, cell.lng);
+    if (index === null) continue;
+    cells.set(cell.cellKey, { ...cell, gridIndex: index });
   }
   return [...cells.values()];
 }
@@ -110,7 +130,7 @@ async function main(): Promise<void> {
   const nowSec = Math.floor(Date.now() / 1000);
   const cells = await collectSampleCells(pool);
   if (cells.length === 0) {
-    console.log("[smoke-job] no plans in the ingestion window; nothing to do");
+    console.log("[smoke-job] no plans or recent trail views to sample; nothing to do");
     return;
   }
   const cycle = await findLatestCycle(nowSec);
@@ -141,22 +161,26 @@ async function main(): Promise<void> {
         console.warn(`[smoke-job] f${fh}: grib HTTP ${gribRes.status}, skipping hour`);
         continue;
       }
-      // Single reused filename: /tmp is in-memory tmpfs on Cloud Run and
-      // counts against the container's memory limit — don't accumulate all
-      // 49 hourly GRIB files for the run.
+      // Reused filenames: /tmp is in-memory tmpfs on Cloud Run and counts
+      // against the container's memory limit — don't accumulate all 49
+      // hourly GRIB files (the IEEE copy is ~8 MB) for the run.
       const file = join(dir, "massden.grib2");
+      const ieeeFile = join(dir, "massden-ieee.grib2");
       await writeFile(file, Buffer.from(await gribRes.arrayBuffer()));
+      const { stdout: grid } = await run("grib_get", ["-p", HRRR_GRID_KEYS.join(","), file]);
+      if (!gridMatchesHrrr(grid)) {
+        throw new Error(`HRRR grid metadata changed; update HRRR_GRID: ${grid.trim()}`);
+      }
+      let valueAt: (index: number) => number;
+      try {
+        await run("grib_set", ["-r", "-s", "packingType=grid_ieee", file, ieeeFile]);
+        valueAt = readIeeeGrib2Values(await readFile(ieeeFile));
+      } catch (err) {
+        console.warn(`[smoke-job] f${fh}: IEEE repack failed, skipping hour: ${err}`);
+        continue;
+      }
       for (const cell of cells) {
-        let raw: number;
-        try {
-          const { stdout } = await run("grib_get", ["-l", `${cell.lat},${cell.lng},1`, file]);
-          raw = parseGribGetValue(stdout);
-        } catch (err) {
-          console.warn(
-            `[smoke-job] f${fh}: cell ${cell.cellKey} grib_get failed, skipping: ${err}`
-          );
-          continue;
-        }
+        const raw = valueAt(cell.gridIndex);
         // ecCodes emits 9999 as a missing-value marker; real MASSDEN values
         // sit around 1e-9 kg/m³, so anything outside [0, 1] kg/m³ is a
         // missing-data sentinel, not a real reading — skip it rather than
@@ -182,6 +206,7 @@ async function main(): Promise<void> {
   if (rows.length === 0) throw new Error("no smoke values extracted");
   await upsertSmokeRows(pool, rows);
   await pool.query(`DELETE FROM smoke_forecasts WHERE valid_at < now() - interval '24 hours'`);
+  await pool.query(`DELETE FROM smoke_sample_cells WHERE requested_at < now() - interval '72 hours'`);
   console.log(`[smoke-job] upserted ${rows.length} rows for ${cells.length} cell(s)`);
 }
 

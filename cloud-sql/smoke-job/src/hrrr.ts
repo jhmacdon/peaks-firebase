@@ -1,5 +1,5 @@
 // Pure HRRR-Smoke helpers: cycle discovery, S3 URLs, .idx sidecar parsing,
-// grib_get output parsing, and grid-cell snapping. No I/O here.
+// grid indexing, IEEE GRIB2 value reads, and grid-cell snapping. No I/O here.
 // Design: docs/superpowers/specs/2026-08-06-plan-air-quality-design.md
 
 // ~3 km grid cells. Keep in sync with cloud-sql/api/src/air-quality.ts
@@ -22,9 +22,67 @@ export function snapToCell(lat: number, lng: number): Cell {
   };
 }
 
-// Approximate HRRR CONUS domain.
-export function isInHrrrConus(lat: number, lng: number): boolean {
-  return lat >= 21 && lat <= 53 && lng >= -134 && lng <= -60;
+// HRRR CONUS 3 km Lambert conformal grid (GRIB2 template 3.30, spherical
+// earth, scanning mode 64: rows run south→north, columns west→east). The job
+// checks these against each run's GRIB metadata before trusting gridIndex.
+export const HRRR_GRID = {
+  nx: 1799,
+  ny: 1059,
+  firstLat: 21.138123,
+  firstLng: 237.280472,
+  lov: 262.5,
+  latin: 38.5,
+  dxMetres: 3000,
+  earthRadiusMetres: 6371229,
+} as const;
+
+// grib_get -p order used by the job to read the grid metadata.
+export const HRRR_GRID_KEYS = [
+  "Nx",
+  "Ny",
+  "latitudeOfFirstGridPointInDegrees",
+  "longitudeOfFirstGridPointInDegrees",
+  "LoVInDegrees",
+  "Latin1InDegrees",
+  "Latin2InDegrees",
+  "DxInMetres",
+  "DyInMetres",
+  "scanningMode",
+];
+
+export function gridMatchesHrrr(gribGetOutput: string): boolean {
+  const v = gribGetOutput.trim().split(/\s+/).map(Number);
+  const g = HRRR_GRID;
+  const expected = [g.nx, g.ny, g.firstLat, g.firstLng, g.lov, g.latin, g.latin, g.dxMetres, g.dxMetres, 64];
+  // grib_get prints doubles with ~6 significant digits (237.280472 → 237.28).
+  return v.length === expected.length && expected.every((e, i) => Math.abs(v[i] - e) < 1e-3);
+}
+
+const RAD = Math.PI / 180;
+const CONE = Math.sin(HRRR_GRID.latin * RAD);
+const RHO_SCALE =
+  (HRRR_GRID.earthRadiusMetres * Math.cos(HRRR_GRID.latin * RAD) *
+    Math.tan(Math.PI / 4 + (HRRR_GRID.latin * RAD) / 2) ** CONE) / CONE;
+
+function lambertXY(lat: number, lng: number): { x: number; y: number } {
+  const rho = RHO_SCALE / Math.tan(Math.PI / 4 + (lat * RAD) / 2) ** CONE;
+  let dLng = lng - HRRR_GRID.lov;
+  dLng -= 360 * Math.round(dLng / 360);
+  const theta = CONE * dLng * RAD;
+  return { x: rho * Math.sin(theta), y: -rho * Math.cos(theta) };
+}
+
+const FIRST_POINT = lambertXY(HRRR_GRID.firstLat, HRRR_GRID.firstLng);
+
+// Flat index into the GRIB values array of the grid point nearest
+// (lat, lng), or null outside the grid. Replaces a per-hour grib_get -l
+// nearest search (~260 ms each) with arithmetic.
+export function gridIndex(lat: number, lng: number): number | null {
+  const p = lambertXY(lat, lng);
+  const i = Math.round((p.x - FIRST_POINT.x) / HRRR_GRID.dxMetres);
+  const j = Math.round((p.y - FIRST_POINT.y) / HRRR_GRID.dxMetres);
+  if (i < 0 || i >= HRRR_GRID.nx || j < 0 || j >= HRRR_GRID.ny) return null;
+  return j * HRRR_GRID.nx + i;
 }
 
 export interface HrrrCycle {
@@ -93,13 +151,42 @@ export function rangeHeader(r: ByteRange): string {
   return r.end === null ? `bytes=${r.start}-` : `bytes=${r.start}-${r.end}`;
 }
 
-// grib_get -l lat,lng,1 prints the nearest-gridpoint value as a bare number.
-export function parseGribGetValue(stdout: string): number {
-  const v = parseFloat(stdout.trim().split(/\s+/)[0]);
-  if (!Number.isFinite(v)) {
-    throw new Error(`unparseable grib_get output: ${stdout.slice(0, 120)}`);
+// Values of a single-message GRIB2 file repacked by
+// `grib_set -r -s packingType=grid_ieee`: 32-bit big-endian floats in
+// section 7, one per grid point in scan order. One decode serves every cell.
+export function readIeeeGrib2Values(grib: Buffer): (index: number) => number {
+  if (grib.toString("ascii", 0, 4) !== "GRIB" || grib[7] !== 2) {
+    throw new Error("not a GRIB2 message");
   }
-  return v;
+  let offset = 16;
+  let pointCount = -1;
+  while (offset + 5 <= grib.length && grib.toString("ascii", offset, offset + 4) !== "7777") {
+    const length = grib.readUInt32BE(offset);
+    const section = grib[offset + 4];
+    if (section === 5) {
+      pointCount = grib.readUInt32BE(offset + 5);
+      const template = grib.readUInt16BE(offset + 9);
+      const precision = grib[offset + 11];
+      if (template !== 4 || precision !== 1) {
+        throw new Error(`expected 32-bit IEEE packing, got template ${template} precision ${precision}`);
+      }
+    } else if (section === 6 && grib[offset + 5] !== 255) {
+      throw new Error("bitmapped GRIB2 fields are not supported");
+    } else if (section === 7) {
+      if (pointCount < 0) throw new Error("GRIB2 data section before representation section");
+      const dataStart = offset + 5;
+      if (length - 5 < pointCount * 4) throw new Error("GRIB2 data section is truncated");
+      return (index: number) => {
+        if (!Number.isInteger(index) || index < 0 || index >= pointCount) {
+          throw new Error(`grid index ${index} outside 0..${pointCount - 1}`);
+        }
+        return grib.readFloatBE(dataStart + index * 4);
+      };
+    }
+    if (length < 5) throw new Error("corrupt GRIB2 section length");
+    offset += length;
+  }
+  throw new Error("GRIB2 message has no data section");
 }
 
 // MASSDEN arrives in kg/m³; we store µg/m³.

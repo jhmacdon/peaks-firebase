@@ -19,12 +19,19 @@ const CAMS: CamsData = {
 
 afterEach(() => mock.restoreAll());
 
-function fakePool(pointRows: unknown[], smokeRows: unknown[] = []) {
+function fakePool(pointRows: unknown[], smokeRows: unknown[] = [], sampleError?: Error) {
   const calls: { sql: string; params: unknown[] }[] = [];
   return {
     calls,
+    callFor(fragment: string) {
+      return calls.find((call) => call.sql.includes(fragment));
+    },
     async query(sql: string, params: unknown[]) {
       calls.push({ sql, params });
+      if (sql.includes("smoke_sample_cells")) {
+        if (sampleError) throw sampleError;
+        return { rows: [] };
+      }
       return { rows: sql.includes("FROM smoke_forecasts") ? smokeRows : pointRows };
     },
   };
@@ -60,8 +67,32 @@ test("route forecast merges the same HRRR cell and CAMS data without a plan date
   assert.equal(body.days[0].category, "unhealthy_sensitive");
   assert.deepEqual(body.days[0].hours.map((hour: any) => hour.source), ["hrrr_smoke", "cams"]);
   assert.deepEqual(pool.calls[0].params, ["route-1", "member"]);
-  assert.deepEqual(pool.calls[1].params, ["1562:-4059"]);
+  assert.deepEqual(pool.callFor("FROM smoke_forecasts")?.params, ["1562:-4059"]);
   assert.deepEqual(requested, [[46.86, -121.77]]);
+});
+
+test("route views ask the smoke job to sample the trail cell, refreshed at most hourly", async () => {
+  const pool = fakePool([{ lat: 46.85, lng: -121.76 }]);
+  await responseFor(pool);
+  const sample = pool.callFor("INSERT INTO smoke_sample_cells");
+  assert.deepEqual(sample?.params, ["1562:-4059", 46.86, -121.77]);
+  assert.match(sample!.sql, /ON CONFLICT \(cell_key\) DO UPDATE SET requested_at = now\(\)/);
+  assert.match(sample!.sql, /requested_at < now\(\) - interval '1 hour'/);
+});
+
+test("trails outside the HRRR domain are not queued for smoke sampling", async () => {
+  const pool = fakePool([{ lat: 46.5, lng: 8.0 }]);
+  const { body } = await responseFor(pool);
+  assert.equal(body.available, true);
+  assert.equal(pool.callFor("smoke_sample_cells"), undefined);
+});
+
+test("a failed smoke sampling request still returns the forecast", async () => {
+  mock.method(console, "warn", () => undefined);
+  const pool = fakePool([{ lat: 46.85, lng: -121.76 }], [], new Error("relation does not exist"));
+  const { status, body } = await responseFor(pool);
+  assert.equal(status, 200);
+  assert.equal(body.available, true);
 });
 
 test("missing or inaccessible routes return 404 before requesting forecasts", async () => {

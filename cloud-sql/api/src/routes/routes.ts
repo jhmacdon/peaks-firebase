@@ -7,7 +7,7 @@ import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
 import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/catalog-limits";
-import { AirQualityQueryable, forecastAirQuality } from "../air-quality-forecast";
+import { AirQualityQueryable, forecastAirQuality, requestSmokeSampling } from "../air-quality-forecast";
 import { CamsFetcher, fetchCams } from "../open-meteo";
 import { startAccessSql, withStartAccess } from "../lib/start-access";
 
@@ -57,7 +57,12 @@ export async function handleRouteAirQuality(
       res.json({ available: false, reason: "no_location" });
       return;
     }
-    res.json(await forecastAirQuality({ lat: point.lat, lng: point.lng }, null, pool, cams, nowSec));
+    const location = { lat: point.lat, lng: point.lng };
+    const [forecast] = await Promise.all([
+      forecastAirQuality(location, null, pool, cams, nowSec),
+      requestSmokeSampling(location, pool),
+    ]);
+    res.json(forecast);
   } catch (err) {
     console.error("[air-quality] route lookup failed:", err);
     res.status(500).json({ error: "air quality lookup failed" });
