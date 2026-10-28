@@ -21,7 +21,9 @@ BEGIN
       SELECT DISTINCT destination_id FROM public.route_glacier_crossings WHERE route_id=r.id AND r.glacier_match_input_hash IS NOT NULL
     ) c JOIN public.destinations d ON d.id=c.destination_id
       CROSS JOIN LATERAL unnest(ARRAY[d.search_name] ||
-        CASE WHEN d.name='Inter Glacier' THEN ARRAY['interglacier'] ELSE ARRAY[]::text[] END) term
+        ARRAY(SELECT public.peaks_search_name(alias) FROM jsonb_array_elements_text(
+          CASE WHEN jsonb_typeof(d.metadata->'glacier_catalog'->'aliases')='array'
+            THEN d.metadata->'glacier_catalog'->'aliases' ELSE '[]'::jsonb END) alias)) term
       WHERE 'glacier'::public.destination_feature=ANY(d.features) AND (d.owner='peaks' OR d.owner=r.owner)
   ) terms
   WHERE r.id=ANY(route_ids) AND r.status='active' AND terms.term IS NOT NULL AND terms.term<>''

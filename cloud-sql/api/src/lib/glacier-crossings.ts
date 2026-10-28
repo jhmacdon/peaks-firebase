@@ -14,6 +14,8 @@ export function glacierCrossingsSql(kind: "route" | "session", alias: string): s
   const session = kind === "session";
   return `COALESCE((SELECT json_agg(json_build_object(
     'destination_id',c.destination_id,'name',gd.name,'kind',gf.kind,
+    'aliases',CASE WHEN jsonb_typeof(gd.metadata->'glacier_catalog'->'aliases')='array'
+      THEN gd.metadata->'glacier_catalog'->'aliases' ELSE '[]'::jsonb END,
     'pass_index',c.pass_index,'segment_number',c.segment_number,
     'entered_distance_m',c.entered_distance_m,'exited_distance_m',c.exited_distance_m,
     'crossed_distance_m',c.crossed_distance_m,

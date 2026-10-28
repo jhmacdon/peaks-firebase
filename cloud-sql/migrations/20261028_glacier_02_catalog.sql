@@ -1,4 +1,4 @@
--- Rainier pilot. No new infrastructure; expected fixed cost $0/month.
+-- Glacier catalog (first import: Mount Rainier). No new infrastructure; expected fixed cost $0/month.
 -- Run as postgres after 20261028_glacier_01_feature.sql has committed.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS public.destination_glacier_facts (
   parent_mountain_id TEXT NOT NULL REFERENCES public.destinations(id),
   outline geography(MultiPolygon,4326) NOT NULL,
   kind TEXT NOT NULL CHECK (kind IN ('glacier','snowfield')),
-  nps_name TEXT,
+  -- The glacier's name in the facts source's inventory, when it differs.
+  inventory_name TEXT,
   observed_year SMALLINT CHECK (observed_year BETWEEN 1800 AND 2200),
   area_km2 DOUBLE PRECISION CHECK (area_km2 > 0),
   area_uncertainty_km2 DOUBLE PRECISION CHECK (area_uncertainty_km2 >= 0),
@@ -29,14 +30,16 @@ CREATE TABLE IF NOT EXISTS public.destination_glacier_facts (
   area_history_scope TEXT,
   percent_change_since_earliest DOUBLE PRECISION,
   provenance JSONB NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(provenance)='object'),
-  -- OSM snapshot date is NOT the NPS fact observation year.
+  -- Outline snapshot date is NOT the facts' observation year.
   outline_observed_at DATE NOT NULL,
   outline_source_url TEXT NOT NULL,
   outline_source_sha256 TEXT NOT NULL CHECK (outline_source_sha256 ~ '^[0-9a-f]{64}$'),
   outline_revision INTEGER NOT NULL DEFAULT 1 CHECK (outline_revision > 0),
-  geometry_credit TEXT NOT NULL DEFAULT '© OpenStreetMap contributors',
-  geometry_license TEXT NOT NULL DEFAULT 'ODbL-1.0',
-  facts_credit TEXT NOT NULL DEFAULT 'Beason et al. (2023), National Park Service',
+  geometry_credit TEXT NOT NULL CHECK (btrim(geometry_credit)<>''),
+  geometry_license TEXT NOT NULL CHECK (btrim(geometry_license)<>''),
+  -- Credits and source links come from each import's manifest, never a default.
+  facts_credit TEXT NOT NULL CHECK (btrim(facts_credit)<>''),
+  facts_source_url TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CHECK (destination_id <> parent_mountain_id),
   CHECK (head_elevation_m IS NULL OR terminus_elevation_m IS NULL OR head_elevation_m >= terminus_elevation_m)

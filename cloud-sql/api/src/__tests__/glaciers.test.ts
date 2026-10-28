@@ -88,3 +88,21 @@ test("glacier search uses narrow candidates, retains the planner fixes, and acce
   assert.ok(old.text.indexOf("NOT ('glacier'")<old.text.indexOf("ranked_destinations AS"));
   assert.equal(glacierVisibilitySql("ds",true),"TRUE");
 });
+
+test("summary enrichment walks nested arrays copy-on-write and keeps detail glacier objects",async()=>{
+  const { attachGlacierSummaries, collectGlacierSummaryIds } = await import("../lib/glacier-summary");
+  const body={destinations:[{id:"g",features:["glacier"]},{id:"d",features:["glacier"],glacier:{kind:"glacier",area_km2:1}}],
+    areas:[{id:"a",destinations:[{id:"g2",features:"{summit,glacier}",boundary:{features:["glacier"],id:"x"}}]}],
+    results:[{type:"destination",id:"g",data:{features:["glacier"]}}]};
+  assert.deepEqual([...collectGlacierSummaryIds(body)].sort(),["g","g2"]);
+  let calls=0;
+  const out=await attachGlacierSummaries(body,"",async(_t,values)=>{calls++;
+    assert.deepEqual(values,[["g","g2"],""]);
+    return [{id:"g",glacier:{kind:"glacier",parent_mountain:{id:"p",name:"P"}}},{id:"g2",glacier:{kind:"snowfield",parent_mountain:{id:"p",name:"P"}}}];});
+  assert.equal(calls,1);
+  assert.equal(out.destinations[0].glacier.kind,"glacier");
+  assert.equal(out.destinations[1].glacier.area_km2,1);
+  assert.equal(out.areas[0].destinations[0].glacier.kind,"snowfield");
+  assert.equal((body.destinations[0] as any).glacier,undefined,"cached rows stay untouched");
+  assert.equal(await attachGlacierSummaries([{id:"l",features:["lake"]}],"",async()=>{throw new Error("no lookup");}).then(r=>r.length),1);
+});

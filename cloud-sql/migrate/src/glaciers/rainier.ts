@@ -15,7 +15,7 @@ export interface GlacierCandidate {
 }
 export interface Observation { year: number; area_km2: number | null; uncertainty_km2: number | null }
 export interface GlacierFacts {
-  nps_name: string | null; kind: "glacier" | "snowfield"; observed_year: number | null;
+  inventory_name: string | null; kind: "glacier" | "snowfield"; observed_year: number | null;
   area_km2: number | null; area_uncertainty_km2: number | null; rank_on_mountain: number | null;
   head_elevation_m: number | null; terminus_elevation_m: number | null; elevation_range_m: number | null;
   length_km: number | null; average_slope_deg: number | null;
@@ -193,7 +193,7 @@ export function parseRainierFacts(report: string, candidates: GlacierCandidate[]
     const description = name && page && page.includes(`${name} Glacier`) ? copies[name] ?? null : null;
     const pageUrl = pageKey && description ? `https://www.nps.gov/places/${pageKey}-glacier.htm` : null;
     result[c.name] = {
-      nps_name: name, kind: c.kind, observed_year: a ? 2021 : null,
+      inventory_name: name, kind: c.kind, observed_year: a ? 2021 : null,
       area_km2: a ? number(a[4]) / 1e6 : null, area_uncertainty_km2: a ? number(a[5]) / 1e6 : null,
       rank_on_mountain: a ? number(a[3]) : null,
       head_elevation_m: t ? number(t[0]) : null, terminus_elevation_m: t ? number(t[2]) : null,

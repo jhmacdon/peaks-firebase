@@ -83,9 +83,9 @@ test("Table 4/5/7/12 facts cross-check independent published values and units",(
 
 test("name crosswalks preserve combined histories and unknown observations",()=>{
   const pkg=loadRainierPackage(), facts=(name:string)=>pkg.places.find(p=>p.name===name)!.facts;
-  assert.equal(facts("Inter Glacier").nps_name,"Inter");
+  assert.equal(facts("Inter Glacier").inventory_name,"Inter");
   assert.equal(facts("Pyramid Glaciers").area_km2,.176038);
-  assert.equal(facts("Sarvant Glacier").nps_name,"Sarvent");
+  assert.equal(facts("Sarvant Glacier").inventory_name,"Sarvent");
   assert.equal(facts("Cowlitz Glacier").area_history_scope,"Cowlitz-Ingraham");
   assert.equal(facts("Cowlitz Glacier").area_history[6].area_km2,6.647);
   assert.equal(facts("Cowlitz Glacier").area_km2,3.684615);
@@ -107,4 +107,20 @@ test("apply requires a reviewed hash before opening a connection; repair batches
   assert.throws(()=>parseGlacierBackfillOptions(["--limit=101"]),/1..100/);
   assert.throws(()=>parseGlacierBackfillOptions(["--limit=1.5"]),/1..100/);
   assert.throws(()=>parseGlacierBackfillOptions(["--kind=everything"]),/kind/);
+});
+
+test("the Rainier builder emits a generic manifest; the writer reads every name, credit and check from it",async()=>{
+  const { validateGlacierManifest, importGlacierManifest, manifestSha256 } = await import("../import-glacier-manifest");
+  const pkg=loadRainierPackage();
+  assert.equal(manifestSha256(pkg),pkg.manifest_sha256);
+  assert.deepEqual(pkg.places.find(p=>p.name==="Inter Glacier")!.aliases,["Interglacier"]);
+  assert.ok(pkg.places.filter(p=>p.name!=="Inter Glacier").every(p=>p.aliases.length===0));
+  assert.equal(pkg.mountain_context.history_start_year,1896);
+  assert.equal(pkg.parent.name,"Mount Rainier");
+  assert.equal(pkg.facts_source_url,"https://doi.org/10.36967/2299328");
+  const { manifest_sha256: _hash, ...body } = pkg;
+  assert.throws(()=>validateGlacierManifest({...body,facts_credit:" "}),/credits/);
+  assert.throws(()=>validateGlacierManifest({...body,places:[]}),/no places/);
+  assert.throws(()=>validateGlacierManifest({...body,places:[{...body.places[0],aliases:undefined as never}]}),/aliases/);
+  await assert.rejects(importGlacierManifest([]),/--manifest/);
 });

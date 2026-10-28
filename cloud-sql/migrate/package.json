@@ -82,6 +82,7 @@
     "terrain:apply": "./scripts/run-tsx.sh src/terrain-facts/cli.ts apply",
     "audit:trail-stretch-names": "./scripts/run-tsx.sh src/audit-trail-stretch-names.ts",
     "import:rainier-glaciers": "tsx src/import-rainier-glaciers.ts",
+    "import:glacier-manifest": "tsx src/import-glacier-manifest.ts",
     "backfill:glacier-crossings": "tsx src/backfill-glacier-crossings.ts"
   },
   "dependencies": {

@@ -7,6 +7,7 @@ import db from "../db";
 import { dbSkipReason } from "./helpers/test-db";
 import { buildGlacierDetailQuery, buildGlacierFactsQuery } from "../lib/glacier-detail";
 import { buildRankedDestinationSearchQuery } from "../routes/search";
+import { attachGlacierSummaries } from "../lib/glacier-summary";
 import { buildRouteDetailQuery } from "../routes/routes";
 import { buildSessionDetailQuery, applyDestinationRejections } from "../routes/sessions";
 
@@ -34,12 +35,14 @@ test("shared glacier engine: clipping, gaps, interpolation, write maintenance, s
     await c.query("BEGIN");
     await c.query(`INSERT INTO destinations(id,name,search_name,owner,features,location)
       VALUES($1,'Synthetic Parent','synthetic parent','peaks','{summit}',ST_SetSRID(ST_MakePoint(-121.76,46.85,0),4326)::geography)`,[parent]);
-    await c.query(`INSERT INTO destinations(id,name,search_name,owner,type,features,location,boundary)
+    await c.query(`INSERT INTO destinations(id,name,search_name,owner,type,features,location,boundary,metadata)
       VALUES($1,'Inter Glacier','inter glacier','peaks','region','{glacier}',
-        ST_SetSRID(ST_MakePoint(-121.759,46.851,0),4326)::geography,ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography)`,
+        ST_SetSRID(ST_MakePoint(-121.759,46.851,0),4326)::geography,ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography,'{"glacier_catalog":{"aliases":["Interglacier"]}}')`,
       [glacier,JSON.stringify({type:"Polygon",coordinates:[ring()]})]);
-    await c.query(`INSERT INTO destination_glacier_facts(destination_id,parent_mountain_id,kind,outline_observed_at,outline_source_url,outline_source_sha256,outline)
-      VALUES($1,$2,'glacier','2026-10-28','https://example.test/synthetic',repeat('a',64),ST_SetSRID(ST_GeomFromGeoJSON($3),4326)::geography)`,
+    await c.query(`INSERT INTO destination_glacier_facts(destination_id,parent_mountain_id,kind,facts_credit,facts_source_url,geometry_credit,geometry_license,
+        outline_observed_at,outline_source_url,outline_source_sha256,outline)
+      VALUES($1,$2,'glacier','Synthetic Survey (2026)','https://example.test/report','Synthetic Map','CC0-1.0',
+        '2026-10-28','https://example.test/synthetic',repeat('a',64),ST_SetSRID(ST_GeomFromGeoJSON($3),4326)::geography)`,
       [glacier,parent,shape([[ring()]])]);
 
     await t.test("both endpoints outside, directed entry/exit and repeat passes",async()=>{
@@ -163,7 +166,8 @@ test("shared glacier engine: clipping, gaps, interpolation, write maintenance, s
       assert.ok(terms.some(r=>r.term==="inter glacier" && Math.abs(r.weight-.8)<.001));
       assert.ok(terms.some(r=>r.term==="interglacier"));
       const q=buildRouteDetailQuery(route,owner,{glaciers:true});
-      assert.equal((await c.query(q.text,q.values)).rows[0].glacier_crossings.length,2);
+      const served=(await c.query(q.text,q.values)).rows[0].glacier_crossings;
+      assert.equal(served.length,2);assert.deepEqual(served[0].aliases,["Interglacier"],"aliases come from catalog metadata");
       const stamp=(await c.query("SELECT updated_at FROM routes WHERE id=$1",[route])).rows[0].updated_at.valueOf();
       await c.query("SELECT refresh_route_glacier_crossings($1)",[route]);
       assert.equal((await c.query("SELECT updated_at FROM routes WHERE id=$1",[route])).rows[0].updated_at.valueOf(),stamp);
@@ -232,6 +236,19 @@ test("shared glacier engine: clipping, gaps, interpolation, write maintenance, s
       assert.ok((await c.query(q.text,q.values)).rows.some(r=>r.id===glacier));
       const old=buildRankedDestinationSearchQuery({normalizedQuery:"inter glacier",rawQuery:"inter glacier",limit:100,glaciers:false});
       assert.ok(!(await c.query(old.text,old.values)).rows.some(r=>r.id===glacier));
+    });
+    await t.test("final search rows gain kind and checked parent in one lookup",async()=>{
+      const q=buildRankedDestinationSearchQuery({normalizedQuery:"inter glacier",rawQuery:"inter glacier",limit:100,glaciers:true});
+      const rows=(await c.query(q.text,q.values)).rows;
+      const sql:string[]=[];
+      const out=await attachGlacierSummaries(rows,owner,async(text,values)=>{sql.push(text);return (await c.query(text,values)).rows;});
+      assert.equal(sql.length,1);
+      assert.deepEqual(out.find((r:any)=>r.id===glacier).glacier,{kind:"glacier",parent_mountain:{id:parent,name:"Synthetic Parent"}});
+      assert.ok(out.filter((r:any)=>r.id!==glacier).every((r:any)=>r.glacier===undefined));
+      await c.query("UPDATE destinations SET owner=$2 WHERE id=$1",[parent,`someone-else-${token}`]);
+      const hidden=await attachGlacierSummaries(rows,owner,async(text,values)=>(await c.query(text,values)).rows);
+      assert.equal(hidden.find((r:any)=>r.id===glacier).glacier,undefined,"another owner's parent stays private");
+      await c.query("UPDATE destinations SET owner='peaks' WHERE id=$1",[parent]);
     });
     await t.test("changed outlines invalidate both caches; removing a path clears its spans",async()=>{
       await setShape([[ring(10,10,14,14)]]);

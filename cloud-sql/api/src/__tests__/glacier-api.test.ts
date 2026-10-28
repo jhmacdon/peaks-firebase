@@ -74,3 +74,26 @@ test("capable destination detail replaces the legacy polygon with the full outli
   assert.equal(lake.status,200);assert.equal(lake.body.boundary.type,"Polygon");
   assert.equal(lake.body.glacier,undefined);
 });
+
+test("capable summary rows gain kind and parent after their query; detail and old readers are unchanged",async()=>{
+  const queries:string[]=[];
+  mock.method(db,"query",async(sql:string,values?:unknown[])=>{
+    queries.push(sql);
+    if (sql.includes("to_regprocedure")) return {rows:[{ready:true}],rowCount:1};
+    if (sql.includes("FROM destination_glacier_facts gf JOIN destinations pm")) {
+      assert.deepEqual(values,[["ice"],"glacier-reader"]);
+      return {rows:[{id:"ice",glacier:{kind:"snowfield",parent_mountain:{id:"peak",name:"Parent Peak"}}}],rowCount:1};
+    }
+    return {rows:[{id:"ice",name:"Ice",features:["glacier"]},{id:"lake",name:"Lake",features:["lake"]}],rowCount:2};
+  });
+  const nearby=await appRequest(app,"GET","/api/destinations/viewport?minLat=0&maxLat=1&minLng=0&maxLng=1",headers);
+  assert.equal(nearby.status,200);
+  assert.deepEqual(nearby.body[0].glacier,{kind:"snowfield",parent_mountain:{id:"peak",name:"Parent Peak"}});
+  assert.equal(nearby.body[1].glacier,undefined);
+  const lookup=queries.findIndex(q=>q.includes("FROM destination_glacier_facts gf JOIN destinations pm"));
+  assert.ok(lookup>queries.findIndex(q=>q.includes("ST_MakeEnvelope")),"the lookup runs after the limited row query");
+  queries.length=0;
+  const old=await appRequest(app,"GET","/api/destinations/viewport?minLat=0&maxLat=1&minLng=0&maxLng=1",{"X-Test-User":"glacier-reader"});
+  assert.equal(old.body.length,1);assert.equal(old.body[0].glacier,undefined);
+  assert.ok(!queries.some(q=>q.includes("FROM destination_glacier_facts gf JOIN destinations pm")));
+});

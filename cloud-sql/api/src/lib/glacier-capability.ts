@@ -1,4 +1,8 @@
 import type { Request, RequestHandler } from "express";
+import db from "../db";
+import { getUid } from "../auth";
+import { hasGlacierSupport } from "./schema-features";
+import { attachGlacierSummaries, collectGlacierSummaryIds } from "./glacier-summary";
 
 export const GLACIER_CAPABILITY = "glaciers-v1";
 export function supportsGlaciers(req: Pick<Request,"headers">): boolean {
@@ -38,8 +42,23 @@ export function withoutGlaciers(value: any): any {
 export const glacierCapabilityGuard: RequestHandler = (req,res,next) => {
   if (req.method !== "GET") return next();
   res.vary("X-Peaks-Capabilities");
-  if (supportsGlaciers(req)) return next();
   const json=res.json.bind(res);
+  if (supportsGlaciers(req)) {
+    // Summary rows gain {kind,parent_mountain} after their query's LIMIT.
+    res.json=(body: any) => {
+      if (res.statusCode>=300 || !collectGlacierSummaryIds(body).size) return json(body);
+      void (async()=>{
+        let out=body;
+        try {
+          if (await hasGlacierSupport())
+            out=await attachGlacierSummaries(body,getUid(req),async(text,values)=>(await db.query(text,values)).rows);
+        } catch (error) { console.error("Glacier summary lookup failed",error); }
+        if (!res.headersSent && !res.destroyed) json(out);
+      })();
+      return res;
+    };
+    return next();
+  }
   res.json=(body: any) => {
     if (body?.features?.includes?.("glacier")) { res.status(404); return json({error:"Destination not found"}); }
     return json(withoutGlaciers(body));

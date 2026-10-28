@@ -54,13 +54,22 @@ minute. No reader tries a legacy datastore or repairs data during a GET.
 | `POST /sessions/:id/destinations` | Existing `rejected` / `unreject` lists also govern glacier crossings. No body change. A rejection hides/deletes derived spans at once; unreject queues a fresh match. Manual reaches do not invent spans. |
 | `GET /sessions/changes` | Existing sync envelope stays unchanged. Changed crossings touch the session's sync timestamp. Fetch detail/route-facts after an upsert; omitted crossing fields in list/sync rows do not mean deletion. |
 
-`Interglacier` normalizes to `inter glacier`; the importer also records that alias
-in destination metadata. Search keeps the October word-candidate cap, trigram
+A query compound ending in `glacier` splits before matching: `Interglacier` normalizes
+to `inter glacier`. Importers record other spellings in
+`destinations.metadata.glacier_catalog.aliases`; route search terms and crossing
+JSON read them from there. No runtime code names a glacier. Search keeps the October word-candidate cap, trigram
 indexes and function costs. It does not join boundary geometry or crossing tables
 when scoring destination candidates. Full rows load after the shortlist.
 
 A search destination summary looks like this; optional existing scores and area
-summaries follow the endpoint's current contract:
+summaries follow the endpoint's current contract. For capable callers, every
+glacier row in a destination summary response — `/search`, `/search/all`
+(`destinations` bucket and any nested destination arrays), `/search/features`,
+`/destinations/nearby`, `/destinations/viewport`, and nested destination arrays
+elsewhere (areas, lists, sessions) — carries a compact `glacier` object with
+`kind` and the checked `parent_mountain`. A row that already has the full
+detail `glacier` object keeps it. The ranked `results[].data` summaries stay
+unchanged; join them to their bucket row by `id`.
 
 ```json
 {
@@ -75,9 +84,17 @@ summaries follow the endpoint's current contract:
   "state_code": "WA",
   "lat": 46.88,
   "lng": -121.72,
-  "areas": []
+  "areas": [],
+  "glacier": {"kind": "glacier", "parent_mountain": {"id": "<rainier-id>", "name": "Mount Rainier"}}
 }
 ```
+
+The summary `glacier` loads after each query's final LIMIT: one primary-key
+lookup on `destination_glacier_facts` joined to its parent destination, for the
+response's glacier ids only. It never joins into candidate scoring. A parent the
+caller cannot read (not Peaks-owned and not theirs) leaves the field absent, as
+in detail. Old callers never see it. If the lookup fails, the response is sent
+without it.
 
 The example coordinate is illustrative. The representative pin has no measured
 elevation; do not treat its legacy PointZ padding as a glacier height. Fetch detail for the stored display
@@ -120,7 +137,7 @@ illustrative, not claims about a user's recordings. No production rows were read
   "parent_mountain": {"id":"<rainier-id>","name":"Mount Rainier"},
   "glacier": {
     "kind": "glacier",
-    "nps_name": "Emmons",
+    "inventory_name": "Emmons",
     "observed_year": 2021,
     "area_km2": 10.959203,
     "area_uncertainty_km2": 0.575333,
@@ -158,7 +175,7 @@ illustrative, not claims about a user's recordings. No production rows were read
     "parent_mountain": {"id":"<rainier-id>","name":"Mount Rainier"},
     "mountain_context": {
       "observed_year":2021,"named_glacier_count":28,"area_km2":75.496,
-      "area_uncertainty_km2":4.109,"percent_change_since_1896":-41.6
+      "area_uncertainty_km2":4.109,"history_start_year":1896,"percent_change_since_history_start":-41.6
     },
     "description": "Emmons Glacier descends from Mount Rainier’s northeast side into the White River Valley. Rock debris from a 1963 rockfall off Little Tahoma covers much of its lower surface.",
     "description_credit": "National Park Service",
@@ -183,7 +200,7 @@ illustrative, not claims about a user's recordings. No production rows were read
       "source_snapshot_sha256":"02cea8bc617563b180036921c7114b56e0234c359a0af174cf24becc37cf5cb0",
       "mountain_context": {
         "observed_year":2021,"named_glacier_count":28,"area_km2":75.496,
-        "area_uncertainty_km2":4.109,"percent_change_since_1896":-41.6
+        "area_uncertainty_km2":4.109,"history_start_year":1896,"percent_change_since_history_start":-41.6
       }
     }
   },
@@ -201,6 +218,12 @@ illustrative, not claims about a user's recordings. No production rows were read
   "sessions_next_offset": 25
 }
 ```
+
+Every credit, source link and mountain total above comes from the facts row
+(`facts_credit`, `facts_source_url`, `geometry_credit`, `geometry_license`,
+`provenance.mountain_context`) that the import wrote. The schema has no source
+defaults, and clients show a credit or a "of N" rank only when the row carries
+it. `inventory_name` is the glacier's name in the facts source, when it differs.
 
 All physical measurements are JSON numbers or null, never numeric strings or
 placeholder zeroes. The area and volume use the report's m²/m³ values converted
@@ -296,6 +319,7 @@ A route or session detail adds:
     "destination_id": "B5B5E8E3D1BFB7A3126D",
     "name": "Emmons Glacier",
     "kind": "glacier",
+    "aliases": [],
     "pass_index": 0,
     "segment_number": 2,
     "entered_distance_m": 2300.5,
@@ -383,6 +407,35 @@ changes. Pending matches contribute no borrowed glacier names. The existing swee
 session repairs use its existing queue. No service, timer, pool increase, or
 always-on work is added. Expected added fixed cost: **$0/month**. Storage, write
 CPU and cold/warm query latency still need measurement on representative data.
+
+## Adding another mountain
+
+No API, schema or app change is needed. The writer
+`cloud-sql/migrate/src/import-glacier-manifest.ts` takes one JSON manifest
+(type `GlacierManifest`) that carries everything mountain-specific:
+
+- `parent`: the parent destination's name, features, country/state, point and
+  radius. Apply refuses a `--parent-mountain-id` that fails any of them.
+- `container_area`: the area kind and name every outline must lie inside,
+  checked against `--park-area-id`.
+- Credits and sources: `geometry_source`, `geometry_credit`, `geometry_license`,
+  `facts_credit`, `facts_source_url`, `description_source_name`,
+  `description_source_license`.
+- `country_code`, `state_code`, `activities` and `mountain_context`
+  (`named_glacier_count` drives the "of N" rank; `history_start_year` and
+  `percent_change_since_history_start` are optional mountain totals).
+- `places[]`: deterministic id, name, OSM key and external ids, `kind`,
+  `aliases`, MultiPolygon `boundary`, and `facts` (any field may be null).
+
+Steps: save and hash the source files under `cloud-sql/migrate/data/`; write a
+builder beside `glaciers/rainier.ts` (or the manifest by hand); save it with
+`--write-manifest=FILE` or as a reviewed file; dry-run
+`npm run import:glacier-manifest -- --manifest=FILE`; then apply with
+`--apply --expected-manifest-sha256=<printed> --parent-mountain-id=<checked>
+--park-area-id=<checked>` and `GLACIER_DATABASE_URL`. Run
+`backfill:glacier-crossings` afterwards. The Rainier script is one such builder:
+`import:rainier-glaciers` builds its manifest from the saved OSM snapshot, NPS
+report and pages, then calls the same writer.
 
 ## Runbook for the main session
 
