@@ -56,5 +56,5 @@ test("area, destination, and search route summaries do not leak private geometry
     assertUserRouteAccess(query.text);
   }
   assert.deepEqual(destination.values, ["destination-1", "user-1"]);
-  assert.deepEqual(search.values, ["mailbox", "mailbox%", "%mailbox%", 10, "user-1"]);
+  assert.deepEqual(search.values, ["mailbox", "mailbox%", "%mailbox%", 10, "user-1", "mailbox:*"]);
 });
