@@ -10,6 +10,8 @@ import searchRouter, {
   clampSearchLimit,
   runMixedSearchQueries,
   runSearchQuery,
+  SEARCH_SESSION_RESET_SQL,
+  SEARCH_SESSION_SQL,
 } from "../routes/search";
 
 function deferred<T>() {
@@ -346,7 +348,8 @@ test("search route without explicit coordinates skips IP geolocation", async (t)
   let fetchCount = 0;
   const fakeClient = {
     query: async (text: string) => {
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 246 }] };
       }
       capturedSql = text;
@@ -382,7 +385,8 @@ test("search route without explicit coordinates skips IP geolocation", async (t)
 test("mixed search route returns typed result buckets", async (t) => {
   const fakeClient = {
     query: async (text: string) => {
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 246 }] };
       }
       // Area counts also join routes, so match the route query's own CTE.
@@ -430,7 +434,8 @@ test("mixed search exposes route failures as 500 instead of an empty route bucke
   t.mock.method(console, "error", () => undefined);
   const fakeClient = {
     query: async (text: string) => {
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 246 }] };
       }
       if (/FROM ranked_routes r/.test(text)) {
@@ -471,7 +476,8 @@ test("mixed search keeps area failures optional and continues to lists", async (
   const queries = buildMixedSearchQueries({ normalizedQuery: "si", rawQuery: "Si", limit: 20 });
   const fakeClient = {
     query: async (sql: string) => {
-      if (sql === "SELECT pg_backend_pid() AS pid") return { rows: [{ pid: 246 }] };
+      if (sql === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (sql === SEARCH_SESSION_SQL) return { rows: [{ pid: 246 }] };
       if (sql === queries.areas.text) throw new Error("area query failed");
       if (sql === queries.lists.text) return { rows: [{ id: "si-hikes", name: "Si Hikes", score: 0.6 }] };
       return { rows: [] };
@@ -493,7 +499,8 @@ test("mixed search cancels the active backend query when the client disconnects"
   const fakeClient = {
     query: async (text: string) => {
       executedSql.push(text);
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 741 }] };
       }
       queryStarted.resolve();
@@ -529,7 +536,11 @@ test("mixed search cancels the active backend query when the client disconnects"
   assert.equal(await searchPromise, undefined);
   assert.deepEqual(canceledPids, [741]);
   assert.equal(releaseCount, 1);
-  assert.equal(executedSql.length, 2, "route and area buckets must not start after cancellation");
+  assert.deepEqual(
+    executedSql.filter((sql) => sql !== SEARCH_SESSION_RESET_SQL),
+    [SEARCH_SESSION_SQL, queries.destinations.text],
+    "route and area buckets must not start after cancellation"
+  );
 });
 
 test("search route does not start DB work or write after response closes before pool checkout", async (t) => {
@@ -538,7 +549,8 @@ test("search route does not start DB work or write after response closes before 
   let connectCount = 0;
   const fakeClient = {
     query: async (text: string) => {
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 246 }] };
       }
       return { rows: [{ id: "rainier" }] };
@@ -602,7 +614,8 @@ test("runSearchQuery starts backend cancellation when response closes during the
   const canceledPids: number[] = [];
   const fakeClient = {
     query: async (text: string) => {
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 654 }] };
       }
       queryStarted.resolve();
@@ -643,7 +656,8 @@ test("runSearchQuery waits for backend cancellation to settle before releasing t
   const events: string[] = [];
   const fakeClient = {
     query: async (text: string) => {
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 777 }] };
       }
       queryStarted.resolve();
@@ -693,7 +707,8 @@ test("runSearchQuery does not cancel after a successful open response", async ()
   let cancelCount = 0;
   const fakeClient = {
     query: async (text: string) => {
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 321 }] };
       }
       return { rows: [{ id: "rainier" }] };
@@ -726,7 +741,8 @@ test("runSearchQuery does not write JSON after the response is closed", async ()
   let releaseCount = 0;
   const fakeClient = {
     query: async (text: string) => {
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 888 }] };
       }
       queryStarted.resolve();
@@ -763,7 +779,8 @@ test("runSearchQuery suppresses PostgreSQL cancellation errors after response cl
   const errorMock = t.mock.method(console, "error", () => undefined);
   const fakeClient = {
     query: async (text: string) => {
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 999 }] };
       }
       queryStarted.resolve();
@@ -798,7 +815,8 @@ test("runSearchQuery returns 500 for unexpected DB errors while response is open
   let releaseCount = 0;
   const fakeClient = {
     query: async (text: string) => {
-      if (text === "SELECT pg_backend_pid() AS pid") {
+      if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+      if (text === SEARCH_SESSION_SQL) {
         return { rows: [{ pid: 123 }] };
       }
       throw new Error("database unavailable");
@@ -855,4 +873,44 @@ test("runSearchQuery releases without PID or search query work if response close
   assert.deepEqual(executedSql, []);
   assert.equal(releaseCount, 1);
   assert.equal(res.jsonBody, undefined);
+});
+
+test("search turns sequential scans off for its queries and restores them before release", async () => {
+  const events: string[] = [];
+  const fakeClient = {
+    query: async (text: string) => {
+      events.push(text === SEARCH_SESSION_SQL ? "configure" : text === SEARCH_SESSION_RESET_SQL ? "reset" : "search");
+      return { rows: text === SEARCH_SESSION_SQL ? [{ pid: 55 }] : [] };
+    },
+    release: (destroy?: boolean) => {
+      events.push(destroy ? "destroy" : "release");
+    },
+  };
+  const res = new FakeResponse();
+
+  await runSearchQuery({} as never, res as never, { text: "SELECT 1", values: [] }, { connect: async () => fakeClient }, async () => undefined);
+
+  assert.match(SEARCH_SESSION_SQL, /set_config\('enable_seqscan', 'off', false\)/);
+  assert.deepEqual(events, ["configure", "search", "reset", "release"]);
+  assert.deepEqual(res.jsonBody, []);
+});
+
+test("search destroys the connection when restoring planner settings fails", async (t) => {
+  t.mock.method(console, "error", () => undefined);
+  const releases: Array<boolean | undefined> = [];
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === SEARCH_SESSION_RESET_SQL) throw new Error("connection lost");
+      return { rows: text === SEARCH_SESSION_SQL ? [{ pid: 55 }] : [] };
+    },
+    release: (destroy?: boolean) => {
+      releases.push(destroy);
+    },
+  };
+  const res = new FakeResponse();
+
+  await runSearchQuery({} as never, res as never, { text: "SELECT 1", values: [] }, { connect: async () => fakeClient }, async () => undefined);
+
+  assert.deepEqual(releases, [true]);
+  assert.deepEqual(res.jsonBody, []);
 });
