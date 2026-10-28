@@ -24,3 +24,15 @@ export async function hasColumn(table: string, column: string): Promise<boolean>
   cache.set(key, { value, at: Date.now() });
   return value;
 }
+
+/** The catalog transaction can precede the engine transaction during rollout. */
+export async function hasGlacierSupport(): Promise<boolean> {
+  const key="glacier-engine-v1";
+  const hit=cache.get(key);
+  if (hit && Date.now()-hit.at<TTL_MS) return hit.value;
+  const result=await db.query(`SELECT to_regprocedure('public.refresh_session_glacier_crossings(text,boolean)') IS NOT NULL
+    AND to_regprocedure('public.refresh_route_glacier_crossings(text,boolean)') IS NOT NULL AS ready`);
+  const value=result.rows[0]?.ready === true;
+  cache.set(key,{value,at:Date.now()});
+  return value;
+}

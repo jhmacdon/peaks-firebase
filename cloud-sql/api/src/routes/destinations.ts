@@ -7,8 +7,11 @@ import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
 import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/catalog-limits";
-import { hasColumn } from "../lib/schema-features";
+import { hasColumn, hasGlacierSupport } from "../lib/schema-features";
 import { normalizeStartAccess, startAccessSql } from "../lib/start-access";
+
+import { supportsGlaciers, glacierVisibilitySql } from "../lib/glacier-capability";
+import { buildGlacierDetailQuery, buildGlacierFactsQuery, mapGlacierDetailRow } from "../lib/glacier-detail";
 
 const router = Router();
 
@@ -160,6 +163,7 @@ type NearbyDestinationsQueryOptions = {
   limit: number;
   eye?: number;
   publicOnly?: boolean;
+  glaciers?: boolean;
 };
 
 /** Build the nearby query with explicit PostgreSQL types for optional values. */
@@ -179,6 +183,7 @@ export function buildNearbyDestinationsQuery(
         FROM destinations
         WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
           AND ${publicCatalogSql("destinations", options.publicOnly)}
+          AND ${glacierVisibilitySql("destinations",options.glaciers!==false)}
           AND elevation IS NOT NULL
       ) c
       WHERE c.distance_m <= 4123 * (
@@ -201,6 +206,7 @@ export function buildNearbyDestinationsQuery(
       FROM destinations
       WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
           AND ${publicCatalogSql("destinations", options.publicOnly)}
+          AND ${glacierVisibilitySql("destinations",options.glaciers!==false)}
       ORDER BY distance_m
       LIMIT $4`,
     values: [lat, lng, radius, limit],
@@ -252,6 +258,7 @@ router.get("/nearby", asyncRoute(async (req, res: Response) => {
     radius,
     limit,
     eye: useApparent ? eye : undefined,
+    glaciers: supportsGlaciers(req),
     publicOnly: !getUid(req),
   });
   const result = await db.query(query.text, query.values);
@@ -280,6 +287,7 @@ router.get("/viewport", asyncRoute(async (req, res: Response) => {
      WHERE ST_Intersects(location,
        ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography)
        AND ${publicCatalogSql("destinations", !getUid(req))}
+       AND ${glacierVisibilitySql("destinations",supportsGlaciers(req))}
      LIMIT $5`,
     [minLng, minLat, maxLng, maxLat, limit]
   );
@@ -458,12 +466,20 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
     res.status(404).json({ error: "Destination not found" });
     return;
   }
-  res.json(mapDestinationDetailRow(result.rows[0]));
+  const row=mapDestinationDetailRow(result.rows[0]);
+  if (supportsGlaciers(req) && row.features?.includes("glacier")) {
+    if (!await hasGlacierSupport()) { res.status(503).json({error:"Glacier migration not installed"}); return; }
+    const facts=buildGlacierFactsQuery(id,getUid(req));
+    const result=await db.query(facts.text,facts.values);
+    row.glacier=result.rows[0]?.glacier ?? null;
+  }
+  res.json(row);
 }));
 
 export function buildDestinationRoutesQuery(
   id: string,
-  uid: string
+  uid: string,
+  glaciers=false
 ): { text: string; values: unknown[] } {
   return {
     text: `SELECT r.id, r.name, r.polyline6, r.owner,
@@ -480,7 +496,9 @@ export function buildDestinationRoutesQuery(
             ${routeCoverSelectSql()},
             COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
-     JOIN route_destinations rd ON rd.route_id = r.id
+     JOIN (${glaciers ? `SELECT route_id,destination_id FROM route_destinations
+       UNION SELECT c.route_id,c.destination_id FROM route_glacier_crossings c
+         JOIN routes matched ON matched.id=c.route_id WHERE matched.glacier_match_input_hash IS NOT NULL` : "SELECT route_id,destination_id FROM route_destinations"}) rd ON rd.route_id = r.id
      ${routeCoverJoinSql("r", "cover", "id", !uid)}
      LEFT JOIN LATERAL (
        -- Same areas exposure as buildRouteDetailQuery: dedup PAD-US fragments
@@ -516,9 +534,22 @@ export function buildDestinationRoutesQuery(
   };
 }
 
+// Full glacier sheet, with the same personal totals and pages as area detail.
+router.get("/:id/glacier", asyncRoute(async (req,res: Response) => {
+  if (!supportsGlaciers(req)) { res.status(404).json({error:"Destination not found"}); return; }
+  if (!await hasGlacierSupport()) { res.status(503).json({error:"Glacier migration not installed"}); return; }
+  const parse=(v: unknown, fallback: number) => typeof v==="string" && /^\d+$/.test(v) ? Number(v):fallback;
+  const limit=Math.min(50,Math.max(1,parse(req.query.session_limit,25)));
+  const offset=Math.min(1_000_000,parse(req.query.session_offset,0));
+  const query=buildGlacierDetailQuery(req.params.id,getUid(req),limit,offset);
+  const result=await db.query(query.text,query.values);
+  if (!result.rows.length) { res.status(404).json({error:"Glacier not found"}); return; }
+  res.json(mapGlacierDetailRow(result.rows[0]));
+}));
+
 // GET /api/destinations/:id/routes — routes for this destination
 router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
-  const query = buildDestinationRoutesQuery(req.params.id, getUid(req));
+  const query = buildDestinationRoutesQuery(req.params.id, getUid(req),supportsGlaciers(req) && await hasGlacierSupport());
   const result = await db.query(query.text, query.values);
   res.json(
     result.rows.map((row: any) => {

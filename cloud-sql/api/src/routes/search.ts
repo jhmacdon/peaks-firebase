@@ -9,6 +9,9 @@ import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/cat
 import { CATALOG_LIMITS, clampCatalogLimit } from "../lib/catalog-limits";
 import { rankSearchResults, searchMinorPlacePenaltySql, searchPopularityScoreSql, searchTextScoreSql, SearchBuckets, summarizeSearchResults } from "../lib/search-ranking";
 
+import { supportsGlaciers, glacierVisibilitySql } from "../lib/glacier-capability";
+import { hasGlacierSupport } from "../lib/schema-features";
+
 const router = Router();
 
 const destinationSearchText = "search_name";
@@ -68,6 +71,7 @@ export interface DestinationSearchQueryInput {
   limit: number;
   uid?: string;
   publicOnly?: boolean;
+  glaciers?: boolean;
 }
 
 interface SearchSqlQuery {
@@ -219,6 +223,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
          FROM destinations
          WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
            AND ${publicCatalogSql("destinations", input.publicOnly)}
+           AND ${glacierVisibilitySql("destinations",input.glaciers!==false)}
          ORDER BY score DESC
          LIMIT $8
        )
@@ -251,6 +256,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
          FROM destinations
          WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
            AND ${publicCatalogSql("destinations", input.publicOnly)}
+           AND ${glacierVisibilitySql("destinations",input.glaciers!==false)}
          ORDER BY score DESC
          LIMIT $6
        )
@@ -269,6 +275,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
 }
 
 export function buildDestinationSearchQuery(input: DestinationSearchQueryInput): { text: string; values: unknown[] } {
+  if (input.glaciers) return buildRankedDestinationSearchQuery(input);
   const shortQuery = buildShortDestinationSearchQuery(input);
   if (shortQuery) {
     return shortQuery;
@@ -295,6 +302,7 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
          WHERE (${destinationSearchText} % $1
             OR ${destinationSearchText} LIKE $4)
            AND ${publicCatalogSql("destinations", input.publicOnly)}
+           AND ${glacierVisibilitySql("destinations",input.glaciers!==false)}
          ORDER BY score DESC
          LIMIT $5
        )
@@ -327,6 +335,7 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
          WHERE (${destinationSearchText} % $1
             OR ${destinationSearchText} LIKE $2)
            AND ${publicCatalogSql("destinations", input.publicOnly)}
+           AND ${glacierVisibilitySql("destinations",input.glaciers!==false)}
          ORDER BY score DESC
          LIMIT $3
        )
@@ -365,7 +374,7 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
   const fuzzyMatch = short ? "false" : "(ds.search_name % $1 OR ds.search_name LIKE $2)";
   const distance = geo ? "ST_Distance(ds.location, ST_MakePoint($6, $5)::geography)" : "NULL::double precision";
   const proximity = geo ? `COALESCE(EXP(-1.0 * ${distance} / 500000.0) * 0.05, 0)` : "0";
-  const publicRow = publicCatalogSql("ds", input.publicOnly);
+  const publicRow = `(${publicCatalogSql("ds", input.publicOnly)}) AND ${glacierVisibilitySql("ds",input.glaciers!==false)}`;
   const candidateColumns = "ds.id, ds.name, ds.search_name, ds.owner, ds.features, ds.session_count_offset, ds.location";
 
   return {
@@ -840,6 +849,7 @@ router.get("/", asyncRoute(async (req: Request, res: Response) => {
       lng: requestGeo ? lng : undefined,
       limit,
       publicOnly: !getUid(req),
+      glaciers: supportsGlaciers(req),
     });
     await runSearchQuery(req, res, query);
   } finally {
@@ -876,6 +886,7 @@ router.get("/all", asyncRoute(async (req: Request, res: Response) => {
       limit,
       uid: getUid(req),
       publicOnly: !getUid(req),
+      glaciers: supportsGlaciers(req),
     });
 
     const results = await runMixedSearchQueries(res, queries);
@@ -896,6 +907,10 @@ router.get("/all", asyncRoute(async (req: Request, res: Response) => {
 // Filter by features/activities with optional spatial constraint
 router.get("/features", asyncRoute(async (req, res: Response) => {
   const features = (req.query.features as string || "").split(",").filter(Boolean);
+  if (features.includes("glacier")) {
+    if (!supportsGlaciers(req)) { res.json([]); return; }
+    if (!await hasGlacierSupport()) { res.status(503).json({error:"Glacier migration not installed"}); return; }
+  }
   const activities = (req.query.activities as string || "").split(",").filter(Boolean);
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
@@ -930,6 +945,7 @@ router.get("/features", asyncRoute(async (req, res: Response) => {
   }
 
   conditions.push(publicCatalogSql("destinations", !getUid(req)));
+  conditions.push(glacierVisibilitySql("destinations",supportsGlaciers(req)));
   params.push(limit);
 
   const result = await db.query(

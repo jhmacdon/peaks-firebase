@@ -38,6 +38,7 @@ export function pathPlacesCtes(options: { nearby: boolean; linked: string; baseM
     JOIN LATERAL (SELECT id,name,features,owner,boundary,location FROM destinations
       WHERE id=bp.destination_id OFFSET 0) d ON true
     WHERE d.boundary IS NOT NULL AND ${owner}
+      ${options.nearby ? "AND NOT ('glacier'=ANY(d.features::text[]))" : ""}
       AND ST_DWithin(bp.boundary_part,track.piece,${boundaryRadius})
       ${options.nearby ? `AND NULLIF(btrim(d.name),'') IS NOT NULL AND (NOT d.features && ARRAY['summit','volcano']::destination_feature[] OR (${options.linked}))` : ""}
   ), edge_hits AS MATERIALIZED (

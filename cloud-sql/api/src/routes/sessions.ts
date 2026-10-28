@@ -34,6 +34,10 @@ import {
   perUserConcurrencyGuard,
 } from "../lib/rate-guard";
 
+import { glacierCrossingsSql, glacierMatchStatusSql } from "../lib/glacier-crossings";
+import { supportsGlaciers } from "../lib/glacier-capability";
+import { hasGlacierSupport } from "../lib/schema-features";
+
 const router = Router();
 const PROCESSING_STATES = ["idle", "pending", "processing", "completed", "failed"] as const;
 
@@ -244,7 +248,8 @@ export function buildSessionAreasQuery(
 /** Build a session detail query that keeps owner-only import and health data private. */
 export function buildSessionDetailQuery(
   id: string,
-  uid: string
+  uid: string,
+  options: { glaciers?: boolean } = {}
 ): { text: string; values: unknown[] } {
   return {
     text: `SELECT s.id,
@@ -276,11 +281,20 @@ export function buildSessionDetailQuery(
             ${DESTINATION_GOALS_SQL} AS destination_goals,
             ${SESSION_ROUTES_SQL} AS routes,
             ${SESSION_SEGMENTS_SQL} AS segments,
+            ${options.glaciers ? `${glacierCrossingsSql("session","s")} AS glacier_crossings,
+              ${glacierMatchStatusSql("s")} AS glacier_crossings_status,` : ""}
             ${SESSION_AREAS_SQL} AS areas
      FROM tracking_sessions s
      WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
     values: [id, uid],
   };
+}
+
+export function buildSessionRouteFactsQuery(id: string, uid: string, glaciers=false) {
+  return {text:`SELECT s.id AS session_id,${SESSION_SEGMENTS_SQL} AS segments
+    ${glaciers ? `,${glacierCrossingsSql("session","s")} AS glacier_crossings,
+      ${glacierMatchStatusSql("s")} AS glacier_crossings_status` : ""}
+    FROM tracking_sessions s WHERE s.id=$1 AND (s.user_id=$2 OR s.is_public=true)`,values:[id,uid]};
 }
 
 export const ALTITUDE_TIME_THRESHOLDS_METERS = {
@@ -1008,12 +1022,24 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
 
   // Inline destinations and routes match the shape returned by /changes and /api/sessions
   // so iOS pollProcessingSessions doesn't wipe locally-known destinations on every refresh.
-  const query = buildSessionDetailQuery(id, uid);
+  const glacierReady=supportsGlaciers(req) && await hasGlacierSupport();
+  const query = buildSessionDetailQuery(id, uid, {glaciers:glacierReady});
   const result = await db.query(query.text, query.values);
   if (result.rows.length === 0) {
     res.status(404).json({ error: "Session not found" });
     return;
   }
+  if (supportsGlaciers(req) && !glacierReady) Object.assign(result.rows[0],{glacier_crossings:[],glacier_crossings_status:"unavailable"});
+  res.json(result.rows[0]);
+}));
+
+// Track-based facts remain available without a primary route.
+router.get("/:id/route-facts", asyncRoute(async (req,res: Response) => {
+  const ready=supportsGlaciers(req) && await hasGlacierSupport();
+  const query=buildSessionRouteFactsQuery(req.params.id,getUid(req),ready);
+  const result=await db.query(query.text,query.values);
+  if (!result.rows.length) { res.status(404).json({error:"Session not found"}); return; }
+  if (supportsGlaciers(req) && !ready) Object.assign(result.rows[0],{glacier_crossings:[],glacier_crossings_status:"unavailable"});
   res.json(result.rows[0]);
 }));
 
