@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { Grid, hash, length, lineIndex, midpoint, nearest, pointDistance, samples, unique, type Primitive } from './geo';
 import { vertexIndex, type SourceFeature } from './features';
-import { classify, glacierIndex, provenance, refresh, SOURCES } from './topology';
+import { classifyTerrain, glacierIndex, provenance, refresh, SOURCES } from './topology';
 import type { AltSource, Coord, Glacier, Segment, Tags } from './types';
 import { geojsonFeatures } from './io';
 import { displayName } from './display-names';
@@ -90,10 +90,10 @@ export function conflate(segments: Segment[], agencies: AgencyLine[], glaciers: 
         const set = cuts.get(hit.value.segment) ?? new Set<number>(); set.add(hit.value.vertex); cuts.set(hit.value.segment, set);
       }
     }
-    const kind = classify({ id: 0, nodes: [], tags: { highway: 'path' }, relations: [] }, midpoint(coords), ice);
+    const { kind, terrain } = classifyTerrain({ id: 0, nodes: [], tags: { highway: 'path' }, relations: [] }, midpoint(coords), ice);
     const segment = refresh({ id: '', name: a.name, trail_names: a.names, kind, sac_scale: null, trail_visibility: null,
       osm_way_ids: [], osm_edge_way_ids: [], relation_names: [], relations: [], start_node: '', end_node: '', coords, node_ids: ids, length_m: 0,
-      provenance: provenance([], a.retrieved_at, a.source, a.id), alt_sources: [{ source: a.source, id: a.id, name: a.name, number: a.number, ...(a.tags ? { tags: a.tags } : {}) }] });
+      provenance: provenance([], a.retrieved_at, a.source, a.id), ...(terrain ? { terrain } : {}), alt_sources: [{ source: a.source, id: a.id, name: a.name, number: a.number, ...(a.tags ? { tags: a.tags } : {}) }] });
     added.push(segment); stats.agency_only_segments++; stats.agency_only_length_m += segment.length_m;
   }
   const split: Segment[] = [];

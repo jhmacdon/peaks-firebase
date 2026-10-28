@@ -39,12 +39,26 @@ export function glacierIndex(glaciers: Glacier[]): Grid<Glacier> {
     grid.add([minX, minY], [maxX, maxY], glacier);
   } return grid;
 }
-export function classify(way: Way, point: Coord, glaciers: Grid<Glacier>): Kind {
-  for (const g of glaciers.near(point, 0)) if (g.polygons.some(rings => insidePolygon(point, rings))) return /snowfield/i.test(g.name) ? 'snowfield' : 'glacier';
+export function classifyTerrain(way: Way, point: Coord, glaciers: Grid<Glacier>): { kind: Kind; terrain?: Segment['terrain'] } {
+  const matches = glaciers.near(point, 0).filter(g => g.polygons.some(rings => insidePolygon(point, rings)));
+  if (matches.length) {
+    // OSM may export an unnamed member way before its named multipolygon.
+    // Prefer the named footprint only when the containing names agree.
+    const named = matches.filter(g => g.name.trim());
+    const names = new Set(named.map(g => g.name.trim().toLowerCase()));
+    const candidates = names.size === 1 ? named : matches;
+    const g = [...candidates].sort((a, b) => (a.osm_id ?? '').localeCompare(b.osm_id ?? ''))[0];
+    const name = names.size === 1 ? g.name.trim() : null;
+    const kind = name && /snowfield/i.test(name) ? 'snowfield' : 'glacier';
+    return { kind, terrain: { kind, name, ...(names.size <= 1 && g.osm_id ? { osm_id: g.osm_id } : {}) } };
+  }
   // sac_scale never sets a kind: mappers grade a whole way by its hardest move and grade glacier
   // routes by crevasse risk. It still splits segments (see the signature below) and feeds difficulty.
-  if (way.tags.highway === 'track' && ['motor_vehicle', 'motorcar', 'vehicle', 'motorcycle'].some(k => ['yes', 'designated', 'permissive', 'destination'].includes(way.tags[k]))) return 'road';
-  return 'trail';
+  if (way.tags.highway === 'track' && ['motor_vehicle', 'motorcar', 'vehicle', 'motorcycle'].some(k => ['yes', 'designated', 'permissive', 'destination'].includes(way.tags[k]))) return { kind: 'road' };
+  return { kind: 'trail' };
+}
+export function classify(way: Way, point: Coord, glaciers: Grid<Glacier>): Kind {
+  return classifyTerrain(way, point, glaciers).kind;
 }
 export function buildTopology(ways: Way[], nodes: Map<number, Coord>, glaciers: Glacier[], retrievedAt: string, state: StateCode = 'WA'): Segment[] {
   const uses = new Map<number, number>(), grid = glacierIndex(glaciers);
@@ -52,17 +66,19 @@ export function buildTopology(ways: Way[], nodes: Map<number, Coord>, glaciers: 
   const edges: Segment[] = [], signatures: string[] = [];
   for (const w of ways) {
     const repeated = new Map<number, number>(); w.nodes.forEach(id => repeated.set(id, (repeated.get(id) ?? 0) + 1));
-    const kinds: Kind[] = [];
-    for (let i = 1; i < w.nodes.length; i++) kinds.push(classify(w, interpolate(nodes.get(w.nodes[i - 1])!, nodes.get(w.nodes[i])!, 0.5), grid));
+    const terrain: ReturnType<typeof classifyTerrain>[] = [];
+    for (let i = 1; i < w.nodes.length; i++) terrain.push(classifyTerrain(w, interpolate(nodes.get(w.nodes[i - 1])!, nodes.get(w.nodes[i])!, 0.5), grid));
+    const terrainKeys = terrain.map(value => JSON.stringify(value));
     const names = unique([w.tags.name, ...(w.tags.alt_name?.split(';') ?? []), ...(w.tags.official_name ? [w.tags.official_name] : [])].filter((s): s is string => !!s?.trim()));
     let start = 0;
     for (let i = 1; i < w.nodes.length; i++) {
-      if (i !== w.nodes.length - 1 && (uses.get(w.nodes[i]) ?? 0) < 2 && (repeated.get(w.nodes[i]) ?? 0) < 2 && kinds[i - 1] === kinds[i]) continue;
+      if (i !== w.nodes.length - 1 && (uses.get(w.nodes[i]) ?? 0) < 2 && (repeated.get(w.nodes[i]) ?? 0) < 2 && terrainKeys[i - 1] === terrainKeys[i]) continue;
       const ids = w.nodes.slice(start, i + 1), coords = ids.map(id => nodes.get(id)!);
-      const segment: Segment = { id: '', name: w.tags.name ?? null, trail_names: names, kind: kinds[start], state_code: state, sac_scale: w.tags.sac_scale ?? null,
+      const segment: Segment = { id: '', name: w.tags.name ?? null, trail_names: names, kind: terrain[start].kind, state_code: state, sac_scale: w.tags.sac_scale ?? null,
         trail_visibility: w.tags.trail_visibility ?? null, informal: w.tags.informal ?? null, osm_access: Object.fromEntries(['access', 'foot'].filter(key => w.tags[key] !== undefined).map(key => [key, w.tags[key]])), osm_way_ids: [w.id], relation_names: unique(w.relations.map(r => r.name).filter((s): s is string => !!s)), relations: w.relations,
-        start_node: '', end_node: '', node_ids: ids.map(String), osm_edge_way_ids: ids.slice(1).map(() => w.id), coords, length_m: 0, provenance: provenance([w.id], retrievedAt, 'usfs', undefined, state), alt_sources: [] };
-      if (length(coords) > 0) { edges.push(refresh(segment)); signatures.push(JSON.stringify([names, w.tags.ref ?? null, w.relations, segment.kind, segment.sac_scale, segment.trail_visibility, segment.informal, segment.osm_access])); }
+        start_node: '', end_node: '', node_ids: ids.map(String), osm_edge_way_ids: ids.slice(1).map(() => w.id), coords, length_m: 0,
+        provenance: provenance([w.id], retrievedAt, 'usfs', undefined, state), ...(terrain[start].terrain ? { terrain: terrain[start].terrain } : {}), alt_sources: [] };
+      if (length(coords) > 0) { edges.push(refresh(segment)); signatures.push(JSON.stringify([names, w.tags.ref ?? null, w.relations, segment.kind, segment.terrain, segment.sac_scale, segment.trail_visibility, segment.informal, segment.osm_access])); }
       start = i;
     }
   }
@@ -70,7 +86,7 @@ export function buildTopology(ways: Way[], nodes: Map<number, Coord>, glaciers: 
 }
 /** Walk maximal same-identity chains; a degree-3 junction always stops a chain. */
 export function joinDegreeTwo(edges: Segment[], signatures?: string[]): Segment[] {
-  const keys = signatures ?? edges.map(s => JSON.stringify([s.trail_names, s.relations, s.kind, s.sac_scale, s.trail_visibility, s.informal, s.osm_access]));
+  const keys = signatures ?? edges.map(s => JSON.stringify([s.trail_names, s.relations, s.kind, s.terrain, s.sac_scale, s.trail_visibility, s.informal, s.osm_access]));
   const adjacency = new Map<string, number[]>();
   edges.forEach((s, i) => { for (const id of [s.start_node, s.end_node]) { const a = adjacency.get(id) ?? []; a.push(i); adjacency.set(id, a); } });
   const canContinue = (node: string, i: number) => { const a = adjacency.get(node)!; return a.length === 2 && a[0] !== a[1] && keys[a[0]] === keys[a[1]] && keys[a[0]] === keys[i]; };

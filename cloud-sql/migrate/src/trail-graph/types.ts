@@ -19,6 +19,8 @@ export interface AltSource { source: string; id: string; name: string | null; nu
 export interface Segment {
   id: string; name: string | null; trail_names: string[]; kind: Kind;
   state_code?: import('./state').StateCode;
+  /** Source polygon identity for naming; retained in the offline segment manifest. */
+  terrain?: { kind: 'glacier' | 'snowfield'; name: string | null; osm_id?: string };
   display_name?: string | null; description?: string | null; description_source_url?: string | null;
   source_segment_ids?: string[]; informal?: string | null;
   /** Identical OSM pedestrian access tags throughout this segment. */
@@ -43,4 +45,4 @@ export interface NamedFeature {
   boundary?: { type: 'MultiPolygon'; coordinates: Coord[][][] };
   graph_coord?: Coord;
 }
-export interface Glacier { name: string; polygons: Coord[][][] }
+export interface Glacier { name: string; osm_id?: string; polygons: Coord[][][] }

@@ -43,9 +43,9 @@ export async function readFeatures(path: string, bbox?: Bbox): Promise<{ records
   for await (const f of ndjson<SourceFeature>(path)) {
     input++; const t = f.properties, g = f.geometry; if (!g) continue;
     if (bbox && !(g.type === 'Point' ? withinBbox(g.coordinates, bbox) : boundaryLines(g).some(coords => intersectsBbox(coords, bbox)))) continue;
-    if (t.natural === 'glacier' && ['Polygon', 'MultiPolygon'].includes(g.type)) glaciers.push({ name: t.name ?? '', polygons: g.type === 'Polygon' ? [g.coordinates] : g.coordinates });
-    const feature = featureType(t); if (!feature || !t.name?.trim() && feature !== 'trailhead') continue;
     const id = `${t['@type'] ?? (g.type === 'Point' ? 'node' : 'way')}/${t['@id'] ?? f.id}`;
+    if (t.natural === 'glacier' && ['Polygon', 'MultiPolygon'].includes(g.type)) glaciers.push({ name: t.name ?? '', osm_id: id, polygons: g.type === 'Polygon' ? [g.coordinates] : g.coordinates });
+    const feature = featureType(t); if (!feature || !t.name?.trim() && feature !== 'trailhead') continue;
     // Osmium emits both a closed way and its area. Keep its area footprint once.
     if (records.has(id) && !['Polygon', 'MultiPolygon'].includes(g.type)) continue;
     const [lon, lat] = representative(g), rawEle = String(t.ele ?? ''), parsed = parseFloat(rawEle.replace(/,/g, ''));

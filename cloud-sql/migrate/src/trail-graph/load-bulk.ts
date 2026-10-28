@@ -8,7 +8,7 @@ import { DestinationResolver, IMPORT_MARKER, osmExternalIds } from './load-match
 import { readBulkPreflight, type BulkPreflight } from './load-bulk-preflight';
 import { withoutElevation, sourceLeaves, unionProvenance, validSource } from './source-provenance';
 import { sampleBulkSegments } from './bulk-elevation';
-import { displayName } from './display-names';
+import { segmentDisplayName } from './segment-names';
 import type { ComposedRoute, PlaceRef } from './catalog-types';
 import type { Provenance, Segment } from './types';
 import { parseBulkState, type BulkState } from './state';
@@ -103,7 +103,7 @@ export function buildBulkBatch(plan: BulkPlan, profiles?: Map<string, number[][]
     const rights = s.frozen_catalog ? s.provenance : elevated(s.provenance);
     const provenance = old?.provenance ?? { ...rights, wa_catalog: { loader: IMPORT_MARKER, state_code: state, ...(s.summit_connector ? { notes: ['summit connector'] } : {}) } };
     provenances.set(s.id, provenance);
-    const record = { id: s.id, name: s.name, display_name: s.display_name === undefined ? displayName(s.trail_names[0] || s.relation_names[0] || null) : s.display_name,
+    const record = { id: s.id, name: s.name, display_name: segmentDisplayName(s),
       description: s.description ?? null, kind: s.kind, state_code: state, trail_names: s.trail_names, distance: s.length_m,
       geometry: JSON.stringify({ type: 'LineString', coordinates: xyz }), provenance };
     checks.push({ ...record, geometry: JSON.stringify({ type: 'LineString', coordinates: s.frozen_catalog?.coords_xyz ?? s.coords }),

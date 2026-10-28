@@ -1,4 +1,6 @@
 import { displayName } from './display-names';
+import { principalName } from './segment-names';
+export { principalName } from './segment-names';
 import { hash, haversine, interpolate, length, pointDistance, samples, unique } from './geo';
 import { featureCompatible, placeKey } from './names';
 import { refresh } from './topology';
@@ -12,7 +14,6 @@ export interface Curation { routes: CuratedRoute[] }
 export interface NamingConflict { segment_id: string; selected: string | null; votes: { name: string | null; routes: string[] }[]; curated?: string }
 export interface StretchAudit { conflicts: NamingConflict[]; splits: { parent: string; parts: string[]; waypoint: string; gap_m: number }[]; remapped: { requested: string; resolved: string[] }[]; deferred: string[] }
 export const DESTINATION_FEATURES = new Set(['volcano', 'fire-lookout', 'summit', 'trailhead', 'hut', 'lookout', 'lake', 'landform', 'viewpoint', 'waterfall', 'campsite']);
-export const principalName = (s: Segment): string | null => s.legacy_tail ? null : s.trail_names[0] || s.relation_names[0] || null;
 
 /** Work on whole runs: several short segments together can exceed 300 m. */
 export function smoothNames(refs: ComposedRoute['segments'], byId: Map<string, Segment>): (string | null)[] {
@@ -23,7 +24,10 @@ export function smoothNames(refs: ComposedRoute['segments'], byId: Map<string, S
     for (let from = 0; from < names.length;) {
       let to = from + 1, metres = byId.get(refs[from].id)!.length_m;
       while (to < names.length && names[to] === names[from]) metres += byId.get(refs[to++].id)!.length_m;
-      if (names[from] && from > 0 && to < names.length && metres < 300 && names[from - 1] === names[to] && names[to]) {
+      const kind = byId.get(refs[from].id)!.kind;
+      const sameGround = kind !== 'glacier' && kind !== 'snowfield' && from > 0 && to < names.length
+        && refs.slice(from - 1, to + 1).every(ref => byId.get(ref.id)!.kind === kind);
+      if (sameGround && names[from] && metres < 300 && names[from - 1] === names[to] && names[to]) {
         names.fill(names[to], from, to); changed = true;
       }
       from = to;

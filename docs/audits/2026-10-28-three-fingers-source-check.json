@@ -1,0 +1,52 @@
+{
+  "source": "private/wa-trail-data/extract/features.geojsonseq",
+  "result": [
+    {
+      "id": "wa-osm-2135eef70c65bb4e4579",
+      "stored_name": "Three Fingers summit trail",
+      "matches": [
+        {
+          "kind": "glacier",
+          "terrain": {
+            "kind": "glacier",
+            "name": null,
+            "osm_id": "way/572504963"
+          },
+          "meters": 159
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-25823a55845dd742faa0",
+      "stored_name": "Three Fingers summit trail",
+      "matches": [
+        {
+          "kind": "glacier",
+          "terrain": {
+            "kind": "glacier",
+            "name": null,
+            "osm_id": "way/572504963"
+          },
+          "meters": 17.1
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-d05d5f7caa8e53172405",
+      "stored_name": "Three Fingers summit trail",
+      "matches": [
+        {
+          "kind": "glacier",
+          "terrain": {
+            "kind": "glacier",
+            "name": null,
+            "osm_id": "way/572504961"
+          },
+          "meters": 60.6
+        }
+      ]
+    }
+  ],
+  "source_sha256": "2d08c0bbdaced917fb620efe8c4e2f7d35289ce15177079bdfd09399843b9456",
+  "production_changed": false
+}
