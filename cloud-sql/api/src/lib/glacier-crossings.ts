@@ -1,6 +1,12 @@
 import type { Pool, PoolClient } from "pg";
 import { hasGlacierSupport } from "./schema-features";
 
+/** Crossing times are interpolated to microseconds. Serialize them as the
+ * contract's UTC millisecond ISO form, independent of the server time zone. */
+export function isoUtcSql(column: string): string {
+  return `to_char(${column} AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
+}
+
 /** The SQL engine serves route triggers, processSession and repairs. Reads
  * only serialize stored intervals; they never clip geometry.
  */
@@ -11,7 +17,7 @@ export function glacierCrossingsSql(kind: "route" | "session", alias: string): s
     'pass_index',c.pass_index,'segment_number',c.segment_number,
     'entered_distance_m',c.entered_distance_m,'exited_distance_m',c.exited_distance_m,
     'crossed_distance_m',c.crossed_distance_m,
-    'entered_at',c.entered_at,'exited_at',c.exited_at,
+    'entered_at',${isoUtcSql("c.entered_at")},'exited_at',${isoUtcSql("c.exited_at")},
     'entry_elevation_m',c.entry_elevation_m,'exit_elevation_m',c.exit_elevation_m,
     'min_elevation_m',c.min_elevation_m,'max_elevation_m',c.max_elevation_m,
     'starts_inside',c.starts_inside,'ends_inside',c.ends_inside,

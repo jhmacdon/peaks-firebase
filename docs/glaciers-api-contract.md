@@ -324,7 +324,8 @@ with `[]` means no current result exists; reload after processing. `unavailable`
 means schema support is absent. A failed canonical session process retains its
 existing `processing_state` / `processing_error`; no fabricated empty completion
 replaces it. Route times are null and `segment_number` is zero. Session segment
-numbers are the saved recording segment, not a route segment ID.
+numbers are the saved recording segment, not a route segment ID. Crossing times,
+here and in glacier session summaries, are UTC ISO 8601 with milliseconds, as above.
 
 Spans sort by entry distance, glacier ID and pass index. Pass indices start at
 zero **per glacier per route/session**; keep separate return passes and multipart

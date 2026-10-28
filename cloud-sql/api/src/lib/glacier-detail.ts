@@ -1,5 +1,6 @@
 import { buildRouteAccessSql } from "./route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "./route-cover";
+import { isoUtcSql } from "./glacier-crossings";
 
 /** Facts contain no geometry. Dates, SI units, source scope and nulls travel
  * with every value; a combined history must never become an individual one.
@@ -65,7 +66,7 @@ export function buildGlacierDetailQuery(id: string, uid: string, limit=25, offse
           'features',place.features,'lat',ST_Y(place.location::geometry),'lng',ST_X(place.location::geometry)) ORDER BY place.name,place.id)
           FROM session_destinations sd JOIN destinations place ON place.id=sd.destination_id
           WHERE sd.session_id=s.id AND sd.relation='reached'),'[]'::json) AS destinations_reached,
-        (SELECT json_agg(json_build_object('pass_index',c.pass_index,'entered_at',c.entered_at,'exited_at',c.exited_at,
+        (SELECT json_agg(json_build_object('pass_index',c.pass_index,'entered_at',${isoUtcSql("c.entered_at")},'exited_at',${isoUtcSql("c.exited_at")},
           'entered_distance_m',c.entered_distance_m,'exited_distance_m',c.exited_distance_m,
           'min_elevation_m',c.min_elevation_m,'max_elevation_m',c.max_elevation_m) ORDER BY c.entered_distance_m,c.pass_index)
           FROM session_glacier_crossings c WHERE c.session_id=s.id AND c.destination_id=$1) AS glacier_crossings

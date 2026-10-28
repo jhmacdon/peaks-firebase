@@ -186,6 +186,7 @@ test("shared glacier engine: clipping, gaps, interpolation, write maintenance, s
       const detail=buildSessionDetailQuery(session,owner,{glaciers:true});
       const row=(await c.query(detail.text,detail.values)).rows[0];
       assert.deepEqual(row.segments,[]);assert.equal(row.glacier_crossings.length,2);
+      assert.equal(row.glacier_crossings[0].entered_at,"2023-11-14T22:15:00.000Z","UTC millisecond ISO, whatever the server zone");
       const glacierDetail=buildGlacierDetailQuery(glacier,owner);
       const own=(await c.query(glacierDetail.text,glacierDetail.values)).rows[0];
       assert.equal(own.session_count,1);assert.equal(own.route_count,1);assert.equal(own.sessions.length,1);
