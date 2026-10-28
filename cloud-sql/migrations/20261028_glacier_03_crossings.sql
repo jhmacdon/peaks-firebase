@@ -181,11 +181,18 @@ BEGIN
     WHERE public.ST_DWithin(bp.outline_part,route_path::public.geography,1)) THEN
     total_vertices := public.ST_NPoints(route_path);
     WHILE first_vertex<total_vertices LOOP
+      -- The window offset must sum the same 2D geodesic edge lengths that
+      -- glacier_edges measures. ST_Length on a LineStringZ geography adds the
+      -- vertical component and would shift every later window's distances.
       SELECT jsonb_agg(jsonb_build_object('x',public.ST_X(pt),'y',public.ST_Y(pt),'z',public.ST_Z(pt),'s',0) ORDER BY i),
-        public.ST_Length(public.ST_MakeLine(array_agg(pt ORDER BY i))::public.geography)
+        COALESCE(sum(public.ST_Distance(
+          public.ST_SetSRID(public.ST_MakePoint(public.ST_X(pt),public.ST_Y(pt)),4326)::public.geography,
+          public.ST_SetSRID(public.ST_MakePoint(public.ST_X(nxt),public.ST_Y(nxt)),4326)::public.geography))
+          FILTER (WHERE nxt IS NOT NULL),0)
         INTO vertices,window_length
-      FROM generate_series(first_vertex,LEAST(first_vertex+512,total_vertices)) i
-      CROSS JOIN LATERAL (SELECT public.ST_PointN(route_path,i) AS pt) p;
+      FROM (SELECT i,pt,lead(pt) OVER (ORDER BY i) AS nxt
+        FROM generate_series(first_vertex,LEAST(first_vertex+512,total_vertices)) i
+        CROSS JOIN LATERAL (SELECT public.ST_PointN(route_path,i) AS pt) p) w;
       edges := edges || COALESCE((SELECT jsonb_agg(e || jsonb_build_object(
         'edge',(e->>'edge')::int+first_vertex-1,'along_m',(e->>'along_m')::float8+base_m,
         'first',first_vertex=1 AND (e->>'first')::boolean,

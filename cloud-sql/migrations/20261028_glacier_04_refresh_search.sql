@@ -50,7 +50,7 @@ BEGIN
       AND public.ST_DWithin(s.path,bp.outline_part,50) WHERE bp.destination_id=did
     ON CONFLICT(session_id) DO UPDATE SET reason=EXCLUDED.reason,queued_at=now();
   INSERT INTO public.session_rematch_queue(session_id,reason)
-    SELECT session_id,'glacier:'||did FROM public.session_glacier_crossings WHERE destination_id=did
+    SELECT DISTINCT session_id,'glacier:'||did FROM public.session_glacier_crossings WHERE destination_id=did
     ON CONFLICT(session_id) DO UPDATE SET reason=EXCLUDED.reason,queued_at=now();
   UPDATE public.tracking_sessions s SET glacier_match_input_hash=NULL,server_updated_at=now()
     WHERE s.glacier_match_input_hash IS NOT NULL AND EXISTS(

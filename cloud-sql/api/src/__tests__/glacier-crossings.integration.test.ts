@@ -32,8 +32,8 @@ test("shared glacier engine: clipping, gaps, interpolation, write maintenance, s
       WHERE destination_id=$3 ORDER BY entered_distance_m,pass_index`,[JSON.stringify(vertices),recording,glacier])).rows;
   try {
     await c.query("BEGIN");
-    await c.query(`INSERT INTO destinations(id,name,owner,features,location)
-      VALUES($1,'Synthetic Parent','peaks','{summit}',ST_SetSRID(ST_MakePoint(-121.76,46.85,0),4326)::geography)`,[parent]);
+    await c.query(`INSERT INTO destinations(id,name,search_name,owner,features,location)
+      VALUES($1,'Synthetic Parent','synthetic parent','peaks','{summit}',ST_SetSRID(ST_MakePoint(-121.76,46.85,0),4326)::geography)`,[parent]);
     await c.query(`INSERT INTO destinations(id,name,search_name,owner,type,features,location,boundary)
       VALUES($1,'Inter Glacier','inter glacier','peaks','region','{glacier}',
         ST_SetSRID(ST_MakePoint(-121.759,46.851,0),4326)::geography,ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography)`,
@@ -170,6 +170,11 @@ test("shared glacier engine: clipping, gaps, interpolation, write maintenance, s
       const dense={type:"LineString",coordinates:Array.from({length:1001},(_,i)=>[...xy(-2+i*.01,2),100+i*.1])};
       await c.query("UPDATE routes SET path=ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography WHERE id=$1",[route,JSON.stringify(dense)]);
       assert.equal((await c.query("SELECT count(*)::int n FROM route_glacier_crossings WHERE route_id=$1",[route])).rows[0].n,1,"a 512-edge window seam must not split a crossing");
+      // Later windows offset by 2D edge lengths; a 3D length would shift them by the climb.
+      const span=(await c.query(`SELECT c.entered_distance_m,c.crossed_distance_m,
+          ST_Distance(ST_SetSRID(ST_MakePoint($2::float8,$3::float8),4326)::geography,ST_SetSRID(ST_MakePoint($4::float8,$3::float8),4326)::geography) AS width
+        FROM route_glacier_crossings c WHERE route_id=$1`,[route,xy(0,2)[0],xy(0,2)[1],xy(4,2)[0]])).rows[0];
+      close(span.crossed_distance_m,span.width,1e-3);close(span.entered_distance_m,span.width/2,1e-3);
       await c.query("UPDATE routes SET path=ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography WHERE id=$1",[route,JSON.stringify(line)]);
     });
     await t.test("track crossings need no primary route, obey rejections, and count a session once",async()=>{
