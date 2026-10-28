@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { app, signedOutCatalogPaths } from "../index";
 import db from "../db";
+import { SEARCH_SESSION_RESET_SQL, SEARCH_SESSION_SQL } from "../routes/search";
 import { appRequest } from "./helpers/app-request";
 
 const allowed = [
@@ -62,7 +63,8 @@ test("allowlist edge paths follow Express matching without opening private handl
   const logs = mock.method(console, "log", () => undefined);
   const queries: { text: string; values?: unknown[] }[] = [];
   const query = async (text: string, values?: unknown[]) => {
-    if (text === "SELECT pg_backend_pid() AS pid") return { rows: [{ pid: 123 }] };
+    if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+    if (text === SEARCH_SESSION_SQL) return { rows: [{ pid: 123 }] };
     queries.push({ text, values });
     return { rows: [{ id: "public", owner: "peaks" }] };
   };
@@ -96,7 +98,8 @@ test("mixed search and destination routes apply catalog filters only when signed
   mock.method(console, "log", () => undefined);
   const queries: { text: string; values?: unknown[] }[] = [];
   const query = async (text: string, values?: unknown[]) => {
-    if (text === "SELECT pg_backend_pid() AS pid") return { rows: [{ pid: 123 }] };
+    if (text === SEARCH_SESSION_RESET_SQL) return { rows: [] };
+    if (text === SEARCH_SESSION_SQL) return { rows: [{ pid: 123 }] };
     queries.push({ text, values });
     return { rows: [{ id: "public" }] };
   };
