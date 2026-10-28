@@ -10,6 +10,8 @@ import searchRouter, {
   clampSearchLimit,
   runMixedSearchQueries,
   runSearchQuery,
+  SEARCH_CANDIDATE_CAP,
+  wordPrefixTsQuery,
 } from "../routes/search";
 
 function deferred<T>() {
@@ -214,7 +216,7 @@ test("mixed destination search scores narrow rows before loading destinations", 
       assert.match(ranked, /ds\.owner = 'peaks'/);
       assert.match(sql.slice(ranked.length), /destinations\.owner = 'peaks'/, "the full row is rechecked");
     } else {
-      assert.doesNotMatch(sql, /owner = 'peaks'/);
+      assert.doesNotMatch(sql, /\b(ds|destinations)\.owner = 'peaks'/, "signed-in search reads every place");
     }
   }
 });
@@ -225,8 +227,8 @@ test("mixed search keeps two-letter abbreviation input as a token prefix", () =>
     assert.equal(query.values[0], "br");
     assert.equal(query.values[1], "br%");
   }
-  assert.equal(queries.routes.values[2], "br:*");
-  assert.match(queries.routes.text, /to_tsvector\('simple', t\.term\) @@ to_tsquery\('simple', \$3::text\)/);
+  assert.equal(queries.routes.values[5], "br:*");
+  assert.match(queries.routes.text, /to_tsvector\('simple', t\.term\) @@ to_tsquery\('simple', \$6::text\)/);
   const abbreviation = buildMixedSearchQueries({ normalizedQuery: "mount", rawQuery: "Mt", limit: 20 });
   assert.equal(abbreviation.routes.values[0], "mount", "an abbreviation with a different prefix still expands");
   const phrase = buildMixedSearchQueries({ normalizedQuery: "mount si", rawQuery: "Mt Si", limit: 20 });
@@ -250,7 +252,10 @@ test("route search scores narrow term rows before loading route rows", () => {
   assert.ok(scoredIndex >= 0, "expected a materialized scored route set");
   assert.ok(shortlistIndex > scoredIndex, "expected a shortlist after scoring");
   assert.ok(routeJoinIndex > shortlistIndex, "expected route rows only after the shortlist");
-  assert.match(sql, /t\.term % \$1 OR t\.term %> \$1 OR t\.term LIKE \$3/);
+  assert.match(sql, /to_tsvector\('simple', t\.term\) @@ to_tsquery\('simple', \$6::text\)/);
+  assert.match(sql, /NOT EXISTS \(SELECT 1 FROM word_terms w WHERE .*\)\)\n\s+AND \(t\.term % \$1 OR t\.term %> \$1 OR t\.term LIKE \$3\)/,
+    "trigram candidates only when no name holds every word");
+  assert.equal(queries.routes.values[5], "silver & peak:*");
   assert.match(sql, /LIMIT 200/);
   assert.match(sql, /r\.status = 'active'/);
   assert.match(sql, /s\.owner = 'peaks'/, "access narrows the shortlist");
@@ -260,7 +265,7 @@ test("route search scores narrow term rows before loading route rows", () => {
   const shortlist = sql.slice(shortlistIndex, sql.indexOf("ranked_routes AS MATERIALIZED"));
   assert.doesNotMatch(shortlist, /ST_Distance/, "proximity is measured only after the shortlist cut");
   assert.doesNotMatch(sql, /t\.public/, "signed-in search reads every term");
-  assert.match(sql, /ST_Distance\(s\.anchor, ST_MakePoint\(\$7, \$6\)::geography\)/);
+  assert.match(sql, /ST_Distance\(s\.anchor, ST_MakePoint\(\$8, \$7\)::geography\)/);
   assert.doesNotMatch(sql, /r\.path/, "proximity never reads the route path");
 });
 
@@ -272,8 +277,9 @@ test("route text scores carry each term's source weight", () => {
 
 test("signed-out route search skips private destination names", () => {
   const query = buildMixedSearchQueries({ normalizedQuery: "hidden tarn", rawQuery: "hidden tarn", limit: 20, publicOnly: true }).routes;
+  const candidates = query.text.slice(0, query.text.indexOf("scored_routes"));
+  assert.equal(candidates.match(/AND t\.public/g)?.length, 2, "word and trigram candidates both skip private names");
   const scored = query.text.slice(query.text.indexOf("scored_routes"), query.text.indexOf("shortlist AS"));
-  assert.match(scored, /AND t\.public/);
   assert.match(scored, /\* COALESCE\(t\.public_weight, 0\)\) AS text_score/, "private sources never weigh a signed-out score");
 });
 
@@ -284,15 +290,15 @@ test("2-character route search uses token prefixes instead of trigram scans", ()
     limit: 20,
   });
 
-  const scored = queries.routes.text.slice(0, queries.routes.text.indexOf("shortlist AS"));
-  const matched = scored.slice(scored.indexOf("WHERE"), scored.indexOf("GROUP BY"));
-  assert.match(matched, /to_tsvector\('simple', t\.term\) @@ to_tsquery\('simple', \$3::text\)/);
+  const matched = queries.routes.text.slice(0, queries.routes.text.indexOf("scored_routes"));
+  assert.match(matched, /to_tsvector\('simple', t\.term\) @@ to_tsquery\('simple', \$6::text\)/);
   assert.doesNotMatch(matched, /% \$1/);
+  assert.match(matched, /AND \$3::text IS NULL/, "two-letter queries never fall back to trigram matching");
   // Candidate selection must stay index-backed. The word-start bonus may use an
   // infix LIKE only when scoring matched routes.
   assert.doesNotMatch(matched, /LIKE \('% '/);
   assert.match(queries.routes.text, /LIMIT 200/);
-  assert.equal(queries.routes.values[2], "ra:*");
+  assert.equal(queries.routes.values[5], "ra:*");
 });
 
 test("2-character area search uses contiguous prefix parameters", () => {
@@ -310,11 +316,11 @@ test("2-character area search uses contiguous prefix parameters", () => {
 
 test("route search scores each route by its best matching term and keeps the access check", () => {
   const query = buildMixedSearchQueries({ normalizedQuery: "ingalls way", rawQuery: "Ingalls Way", limit: 20 }).routes;
-  assert.match(query.text, /FROM route_search_terms t\s+WHERE \(t\.term % \$1/);
+  assert.match(query.text, /FROM candidates t\s+GROUP BY t\.route_id/);
   assert.match(query.text, /GROUP BY t\.route_id/);
   assert.match(query.text, /bool_or\(t\.term = \$1\) AS exact_match/);
   assert.match(query.text, /r\.owner = 'peaks'\s+OR \(\$5 <> '' AND r\.owner = \$5\)/);
-  assert.deepEqual(query.values, ["ingalls way", "ingalls way%", "%ingalls way%", 20, ""]);
+  assert.deepEqual(query.values, ["ingalls way", "ingalls way%", "%ingalls way%", 20, "", "ingalls & way:*"]);
 });
 
 test("list search excludes another user's private lists", () => {
@@ -855,4 +861,56 @@ test("runSearchQuery releases without PID or search query work if response close
   assert.deepEqual(executedSql, []);
   assert.equal(releaseCount, 1);
   assert.equal(res.jsonBody, undefined);
+});
+
+test("word candidates split on punctuation and keep tsquery syntax out", () => {
+  assert.equal(wordPrefixTsQuery("mount stu"), "mount & stu:*");
+  assert.equal(wordPrefixTsQuery("o'neil  peak"), "o & neil & peak:*");
+  assert.equal(wordPrefixTsQuery("mönch"), "mönch:*");
+  assert.equal(wordPrefixTsQuery("mo\u0308nch"), "mo\u0308nch:*", "decomposed accents stay in the word");
+  assert.equal(wordPrefixTsQuery("a & !b | (c):*"), "a & b & c:*");
+  assert.equal(wordPrefixTsQuery("--"), null);
+  const query = buildMixedSearchQueries({ normalizedQuery: "--", rawQuery: "--", limit: 20 });
+  assert.match(query.routes.text, /WHERE \$6::text IS NULL/, "no words means no word candidates");
+  assert.match(query.destinations.text, /WHERE \$4::text IS NULL/);
+});
+
+test("broad word matches are capped to the shortest and most popular catalog names", () => {
+  const queries = buildMixedSearchQueries({ normalizedQuery: "trail", rawQuery: "trail", limit: 20 });
+  assert.match(queries.routes.text, new RegExp(`ORDER BY length\\(term\\), term, route_id LIMIT ${SEARCH_CANDIDATE_CAP}`));
+  assert.match(queries.routes.text, new RegExp(`ORDER BY popularity DESC, length\\(term\\), term, route_id LIMIT ${SEARCH_CANDIDATE_CAP}`));
+  assert.match(queries.routes.text, /WHERE t\.owner <> 'peaks'\s+OR \(t\.route_id, t\.term\) IN/, "user-owned names are never capped");
+  assert.match(queries.destinations.text, new RegExp(`ORDER BY length\\(search_name\\), search_name, id LIMIT ${SEARCH_CANDIDATE_CAP}`));
+  assert.match(queries.destinations.text, new RegExp(`ORDER BY session_count_offset DESC, length\\(search_name\\), search_name, id LIMIT ${SEARCH_CANDIDATE_CAP}`));
+  assert.match(queries.destinations.text, /NOT EXISTS \(SELECT 1 FROM word_rows\)\s+AND \(ds\.search_name % \$1 OR ds\.search_name LIKE \$2\)/);
+});
+
+test("every search query references exactly the parameters it sends", () => {
+  // node-postgres sends untyped values; Postgres rejects a value the text
+  // never references ("could not determine data type" or a bind count error).
+  for (const raw of ["mount stuart", "ra", "Br", "--", "é1", "12.4", "mönch"]) {
+    for (const geo of [{}, { lat: 47.6, lng: -122.3 }]) {
+      for (const signedIn of [false, true]) {
+        const queries = buildMixedSearchQueries({
+          normalizedQuery: raw.toLowerCase(), rawQuery: raw, limit: 20, ...geo,
+          uid: signedIn ? "user-1" : undefined, publicOnly: !signedIn,
+        });
+        for (const [bucket, query] of Object.entries(queries)) {
+          if (typeof query === "number") continue;
+          const used = new Set([...query.text.matchAll(/\$(\d+)/g)].map((match) => Number(match[1])));
+          const expected = query.values.map((_, index) => index + 1);
+          assert.deepEqual([...used].sort((a, b) => a - b), expected, `${bucket} for ${JSON.stringify(raw)} ${JSON.stringify(geo)}`);
+        }
+      }
+    }
+  }
+});
+
+test("broad word matches near a location keep the nearest catalog names", () => {
+  const near = buildMixedSearchQueries({ normalizedQuery: "trail", rawQuery: "trail", lat: 47.6, lng: -122.3, limit: 20 });
+  assert.match(near.routes.text, /ORDER BY anchor::geometry <-> ST_SetSRID\(ST_MakePoint\(\$8, \$7\), 4326\)/);
+  assert.match(near.destinations.text, /ORDER BY location::geometry <-> ST_SetSRID\(ST_MakePoint\(\$6, \$5\), 4326\)/);
+  const anywhere = buildMixedSearchQueries({ normalizedQuery: "trail", rawQuery: "trail", limit: 20 });
+  assert.doesNotMatch(anywhere.routes.text, /<->/);
+  assert.doesNotMatch(anywhere.destinations.text, /<->/);
 });
