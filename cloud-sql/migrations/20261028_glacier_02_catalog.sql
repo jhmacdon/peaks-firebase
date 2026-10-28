@@ -3,21 +3,12 @@
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 
--- Keep existing Polygon values. Do not rewrite them all as MultiPolygon.
-ALTER TABLE public.destinations ALTER COLUMN boundary TYPE geography(Geometry,4326)
-  USING boundary::geography(Geometry,4326);
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='destinations_glacier_shape') THEN
-    ALTER TABLE public.destinations ADD CONSTRAINT destinations_glacier_shape CHECK (
-      NOT ('glacier'::destination_feature=ANY(features)) OR
-      (type='region' AND boundary IS NOT NULL AND GeometryType(boundary::geometry) IN ('POLYGON','MULTIPOLYGON'))
-    ) NOT VALID;
-  END IF;
-END $$;
-
+-- Leave destinations.boundary and its triggers unchanged. It holds the
+-- largest polygon; the extension stores every OSM component and hole.
 CREATE TABLE IF NOT EXISTS public.destination_glacier_facts (
   destination_id TEXT PRIMARY KEY REFERENCES public.destinations(id) ON DELETE CASCADE,
   parent_mountain_id TEXT NOT NULL REFERENCES public.destinations(id),
+  outline geography(MultiPolygon,4326) NOT NULL,
   kind TEXT NOT NULL CHECK (kind IN ('glacier','snowfield')),
   nps_name TEXT,
   observed_year SMALLINT CHECK (observed_year BETWEEN 1800 AND 2200),
@@ -51,6 +42,35 @@ CREATE TABLE IF NOT EXISTS public.destination_glacier_facts (
   CHECK (head_elevation_m IS NULL OR terminus_elevation_m IS NULL OR head_elevation_m >= terminus_elevation_m)
 );
 CREATE INDEX IF NOT EXISTS destination_glacier_facts_parent_idx ON public.destination_glacier_facts(parent_mountain_id);
+CREATE INDEX IF NOT EXISTS destination_glacier_facts_outline_idx ON public.destination_glacier_facts USING GIST(outline);
+
+-- Keep glacier pieces apart from destination_boundary_parts: its existing
+-- trigger rebuilds only the largest polygon used by older clients/writers.
+CREATE TABLE IF NOT EXISTS public.glacier_outline_parts (
+  destination_id TEXT NOT NULL REFERENCES public.destination_glacier_facts(destination_id) ON DELETE CASCADE,
+  ordinal INTEGER NOT NULL,
+  outline_part geography(Polygon,4326) NOT NULL,
+  PRIMARY KEY(destination_id,ordinal)
+);
+CREATE INDEX IF NOT EXISTS glacier_outline_parts_outline_idx ON public.glacier_outline_parts USING GIST(outline_part);
+
+CREATE OR REPLACE FUNCTION public.refresh_glacier_outline_parts()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
+BEGIN
+  IF TG_OP='UPDATE' AND public.ST_AsEWKB(OLD.outline::public.geometry)
+    IS NOT DISTINCT FROM public.ST_AsEWKB(NEW.outline::public.geometry) THEN RETURN NULL; END IF;
+  DELETE FROM public.glacier_outline_parts WHERE destination_id=NEW.destination_id;
+  INSERT INTO public.glacier_outline_parts(destination_id,ordinal,outline_part)
+    SELECT NEW.destination_id,(row_number() OVER ()-1)::int,piece
+    FROM public.ST_Dump(NEW.outline::public.geometry) component
+    CROSS JOIN LATERAL public.destination_boundary_pieces(component.geom::public.geography) piece;
+  RETURN NULL;
+END $$;
+ALTER FUNCTION public.refresh_glacier_outline_parts() OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.refresh_glacier_outline_parts() FROM PUBLIC;
+DROP TRIGGER IF EXISTS trg_glacier_outline_parts ON public.destination_glacier_facts;
+CREATE TRIGGER trg_glacier_outline_parts AFTER INSERT OR UPDATE OF outline ON public.destination_glacier_facts
+  FOR EACH ROW EXECUTE FUNCTION public.refresh_glacier_outline_parts();
 
 -- Parent links for areas use areas.parent_area_id. Destinations have no generic
 -- parent relation: the extension's FK is the mountain link, not destination_areas.
@@ -93,30 +113,10 @@ CREATE TABLE IF NOT EXISTS public.route_glacier_rematch_queue (
   queued_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Preserve every component and hole, even for small/thin outlines. Two metres
--- is a conservative pilot display tolerance. Matching always uses exact parts.
-CREATE OR REPLACE FUNCTION public.destinations_refresh_boundary_display()
-RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public,pg_temp AS $$
-BEGIN
-  IF TG_OP='UPDATE' AND OLD.features IS NOT DISTINCT FROM NEW.features
-    AND public.ST_AsBinary(OLD.boundary) IS NOT DISTINCT FROM public.ST_AsBinary(NEW.boundary) THEN RETURN NEW; END IF;
-  IF 'glacier'::public.destination_feature=ANY(NEW.features) AND NEW.boundary IS NOT NULL THEN
-    NEW.boundary_display := public.ST_Multi(public.ST_Transform(public.ST_SimplifyPreserveTopology(
-      public.ST_Transform(NEW.boundary::public.geometry,32610),2),4326))::public.geography;
-  ELSE NEW.boundary_display := public.destination_display_boundary(NEW.boundary);
-  END IF;
-  RETURN NEW;
-END $$;
-ALTER FUNCTION public.destinations_refresh_boundary_display() OWNER TO postgres;
-DROP TRIGGER IF EXISTS trg_destinations_boundary_display ON public.destinations;
-CREATE TRIGGER trg_destinations_boundary_display BEFORE INSERT OR UPDATE OF boundary,features ON public.destinations
-  FOR EACH ROW EXECUTE FUNCTION public.destinations_refresh_boundary_display();
-
 DO $$ DECLARE tbl text; BEGIN
-  FOREACH tbl IN ARRAY ARRAY['destination_glacier_facts','route_glacier_crossings','session_glacier_crossings','route_glacier_rematch_queue'] LOOP
+  FOREACH tbl IN ARRAY ARRAY['destination_glacier_facts','glacier_outline_parts','route_glacier_crossings','session_glacier_crossings','route_glacier_rematch_queue'] LOOP
     EXECUTE format('ALTER TABLE public.%I OWNER TO postgres',tbl);
     EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON public.%I TO "peaks-api"',tbl);
   END LOOP;
 END $$;
 COMMIT;
-ALTER TABLE public.destinations VALIDATE CONSTRAINT destinations_glacier_shape;

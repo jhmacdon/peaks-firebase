@@ -37,14 +37,18 @@ RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public
 DECLARE affected text[];
 BEGIN
   WITH queued AS (INSERT INTO public.route_glacier_rematch_queue(route_id)
-    SELECT DISTINCT r.id FROM public.destination_boundary_parts bp JOIN public.routes r
-      ON r.path IS NOT NULL AND public.ST_DWithin(r.path,bp.boundary_part,1) WHERE bp.destination_id=did
+    SELECT DISTINCT r.id FROM public.glacier_outline_parts bp JOIN public.routes r
+      ON r.path IS NOT NULL AND public.ST_DWithin(r.path,bp.outline_part,1) WHERE bp.destination_id=did
     UNION SELECT route_id FROM public.route_glacier_crossings WHERE destination_id=did
     ON CONFLICT(route_id) DO UPDATE SET queued_at=now() RETURNING route_id)
     SELECT array_agg(route_id) INTO affected FROM queued;
   UPDATE public.routes r SET glacier_match_input_hash=NULL WHERE r.glacier_match_input_hash IS NOT NULL AND r.id=ANY(affected);
   PERFORM public.refresh_route_search_terms(affected);
-  PERFORM public.queue_sessions_near_boundary_parts(did,'glacier:'||did);
+  INSERT INTO public.session_rematch_queue(session_id,reason)
+    SELECT DISTINCT s.id,'glacier:'||did FROM public.glacier_outline_parts bp
+    JOIN public.tracking_sessions s ON s.ended=true AND s.path IS NOT NULL
+      AND public.ST_DWithin(s.path,bp.outline_part,50) WHERE bp.destination_id=did
+    ON CONFLICT(session_id) DO UPDATE SET reason=EXCLUDED.reason,queued_at=now();
   INSERT INTO public.session_rematch_queue(session_id,reason)
     SELECT session_id,'glacier:'||did FROM public.session_glacier_crossings WHERE destination_id=did
     ON CONFLICT(session_id) DO UPDATE SET reason=EXCLUDED.reason,queued_at=now();
@@ -82,12 +86,34 @@ DROP TRIGGER IF EXISTS trg_zz_glacier_boundary_after ON public.destinations;
 CREATE TRIGGER trg_zz_glacier_boundary_after AFTER UPDATE OF boundary,features,owner ON public.destinations
   FOR EACH ROW EXECUTE FUNCTION public.glacier_boundary_after_change();
 
-CREATE OR REPLACE FUNCTION public.glacier_facts_on_insert()
+-- Queue the old pieces before replacing them, including cached empty matches.
+-- An outline-only edit also advances the geometry revision.
+CREATE OR REPLACE FUNCTION public.glacier_outline_before_change()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
-BEGIN PERFORM public.queue_glacier_matches(NEW.destination_id); RETURN NULL; END $$;
-DROP TRIGGER IF EXISTS trg_glacier_facts_insert ON public.destination_glacier_facts;
-CREATE TRIGGER trg_glacier_facts_insert AFTER INSERT ON public.destination_glacier_facts
-  FOR EACH ROW EXECUTE FUNCTION public.glacier_facts_on_insert();
+BEGIN
+  IF public.ST_AsEWKB(OLD.outline::public.geometry) IS DISTINCT FROM public.ST_AsEWKB(NEW.outline::public.geometry) THEN
+    PERFORM public.queue_glacier_matches(OLD.destination_id);
+    NEW.outline_revision := OLD.outline_revision+1;
+    NEW.updated_at := now();
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_glacier_outline_before ON public.destination_glacier_facts;
+CREATE TRIGGER trg_glacier_outline_before BEFORE UPDATE OF outline ON public.destination_glacier_facts
+  FOR EACH ROW EXECUTE FUNCTION public.glacier_outline_before_change();
+
+CREATE OR REPLACE FUNCTION public.glacier_outline_after_change()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
+BEGIN
+  IF TG_OP='UPDATE' AND public.ST_AsEWKB(OLD.outline::public.geometry)
+    IS NOT DISTINCT FROM public.ST_AsEWKB(NEW.outline::public.geometry) THEN RETURN NULL; END IF;
+  PERFORM public.queue_glacier_matches(NEW.destination_id);
+  RETURN NULL;
+END $$;
+-- PostgreSQL runs same-event triggers by name: the new pieces must exist first.
+DROP TRIGGER IF EXISTS trg_zz_glacier_outline_after ON public.destination_glacier_facts;
+CREATE TRIGGER trg_zz_glacier_outline_after AFTER INSERT OR UPDATE OF outline ON public.destination_glacier_facts
+  FOR EACH ROW EXECUTE FUNCTION public.glacier_outline_after_change();
 
 -- Deletion must invalidate saved match markers before cascades remove spans.
 CREATE OR REPLACE FUNCTION public.glacier_facts_before_delete()
@@ -113,7 +139,8 @@ REVOKE ALL ON FUNCTION public.route_search_terms_on_destination_change() FROM PU
 
 DO $$ DECLARE f regprocedure; BEGIN
   FOR f IN SELECT oid::regprocedure FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname IN (
-    'queue_glacier_matches','glacier_boundary_before_change','glacier_boundary_after_change','glacier_facts_on_insert','glacier_facts_before_delete') LOOP
+    'queue_glacier_matches','glacier_boundary_before_change','glacier_boundary_after_change',
+    'glacier_outline_before_change','glacier_outline_after_change','glacier_facts_before_delete') LOOP
     EXECUTE format('ALTER FUNCTION %s OWNER TO postgres',f);
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',f);
   END LOOP;

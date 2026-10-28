@@ -472,6 +472,7 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
     const facts=buildGlacierFactsQuery(id,getUid(req));
     const result=await db.query(facts.text,facts.values);
     row.glacier=result.rows[0]?.glacier ?? null;
+    row.boundary=result.rows[0]?.boundary ?? row.boundary;
   }
   res.json(row);
 }));

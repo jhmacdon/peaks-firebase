@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Pool } from "pg";
-import { parseGlaciers, parseRainierFacts, sha256, SNAPSHOT_SHA256, SNAPSHOT_DATE, REPORT_URL, GEOMETRY_CREDIT, FACTS_CREDIT } from "./glaciers/rainier";
+import { parseGlaciers, parseRainierFacts, sha256, SNAPSHOT_SHA256, SNAPSHOT_DATE, GEOMETRY_CREDIT, FACTS_CREDIT } from "./glaciers/rainier";
 
 export const DATA_DIR = resolve(__dirname, "../data/glaciers-rainier-2026-10-28");
 export function loadRainierPackage(dir = DATA_DIR) {
@@ -81,10 +81,12 @@ export async function importRainierGlaciers(args: string[]) {
             bbox_min_lat,bbox_max_lat,bbox_min_lng,bbox_max_lng,external_ids,metadata,
             description,description_source_name,description_source_url,description_source_license)
           SELECT $1,$2,peaks_search_name($2),'region',ARRAY['glacier']::destination_feature[],ARRAY['outdoor-trek','ski']::activity_type[],
-            'peaks','US','WA',ST_Force3DZ(ST_PointOnSurface(g))::geography,g::geography,
+            'peaks','US','WA',ST_Force3DZ(ST_PointOnSurface(largest.geom))::geography,largest.geom::geography,
             ST_YMin(g),ST_YMax(g),ST_XMin(g),ST_XMax(g),$3::jsonb,$5::jsonb,$6,
             CASE WHEN $6::text IS NULL THEN NULL ELSE 'National Park Service' END,$7,
             CASE WHEN $6::text IS NULL THEN NULL ELSE 'U.S. Government work' END FROM shape
+          CROSS JOIN LATERAL (SELECT geom FROM ST_Dump(g)
+            ORDER BY ST_Area(geom::geography) DESC,path LIMIT 1) largest
           ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,search_name=EXCLUDED.search_name,type=EXCLUDED.type,
             features=EXCLUDED.features,boundary=EXCLUDED.boundary,location=EXCLUDED.location,elevation=EXCLUDED.elevation,
             bbox_min_lat=EXCLUDED.bbox_min_lat,bbox_max_lat=EXCLUDED.bbox_max_lat,bbox_min_lng=EXCLUDED.bbox_min_lng,bbox_max_lng=EXCLUDED.bbox_max_lng,
@@ -109,11 +111,14 @@ export async function importRainierGlaciers(args: string[]) {
         const facts = { ...f, provenance: { ...f.provenance, report_sha256:pkg.report_sha256,
           mountain_context: pkg.mountain_context, source_snapshot_sha256: SNAPSHOT_SHA256 }};
         const parameters: unknown[] = [place.id,parentId,...factColumns.map(c => ["area_history","provenance"].includes(c) ? JSON.stringify(facts[c]) : facts[c]),SNAPSHOT_DATE,
-          `https://www.openstreetmap.org/${place.osm_key.replace(":","/")}`,SNAPSHOT_SHA256];
-        const columns = ["destination_id","parent_mountain_id",...factColumns,"outline_observed_at","outline_source_url","outline_source_sha256"];
-        await client.query(`INSERT INTO destination_glacier_facts(${columns.join(",")}) VALUES(${parameters.map((_,i)=>`$${i+1}`).join(",")})
+          `https://www.openstreetmap.org/${place.osm_key.replace(":","/")}`,SNAPSHOT_SHA256,JSON.stringify(place.boundary)];
+        const columns = ["destination_id","parent_mountain_id",...factColumns,"outline_observed_at","outline_source_url","outline_source_sha256","outline"];
+        await client.query(`INSERT INTO destination_glacier_facts(${columns.join(",")}) VALUES(${columns.map((c,i)=>
+          c==="outline" ? `ST_SetSRID(ST_GeomFromGeoJSON($${i+1}),4326)::geography` : `$${i+1}`).join(",")})
           ON CONFLICT(destination_id) DO UPDATE SET ${columns.slice(1).map(c=>`${c}=EXCLUDED.${c}`).join(",")},updated_at=now()
-          WHERE ${columns.slice(1).map(c=>`destination_glacier_facts.${c} IS DISTINCT FROM EXCLUDED.${c}`).join(" OR ")}`,parameters);
+          WHERE ${columns.slice(1).map(c=>c==="outline"
+            ? "ST_AsEWKB(destination_glacier_facts.outline::geometry) IS DISTINCT FROM ST_AsEWKB(EXCLUDED.outline::geometry)"
+            : `destination_glacier_facts.${c} IS DISTINCT FROM EXCLUDED.${c}`).join(" OR ")}`,parameters);
         await client.query(`INSERT INTO destination_areas(destination_id,area_id,relation,source) VALUES($1,$2,'contained_by','postgis')
           ON CONFLICT(destination_id,area_id) DO NOTHING`,[place.id,parkId]);
         await client.query("COMMIT");

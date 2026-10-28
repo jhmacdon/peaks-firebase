@@ -5,7 +5,7 @@ import { routeCoverJoinSql, routeCoverSelectSql } from "./route-cover";
  * with every value; a combined history must never become an individual one.
  */
 export function glacierFactsSql(): string {
-  return `(to_jsonb(gf)-'destination_id'-'parent_mountain_id'-'updated_at') || jsonb_build_object(
+  return `(to_jsonb(gf)-'destination_id'-'parent_mountain_id'-'updated_at'-'outline') || jsonb_build_object(
     'parent_mountain',jsonb_build_object('id',pm.id,'name',pm.name),
     'mountain_context',gf.provenance->'mountain_context',
     'facts_source_url','https://doi.org/10.36967/2299328',
@@ -14,7 +14,8 @@ export function glacierFactsSql(): string {
     'description_credit',d.description_source_name,'description_source_url',d.description_source_url)`;
 }
 export function buildGlacierFactsQuery(id: string, uid: string) {
-  return { text: `SELECT ${glacierFactsSql()} AS glacier FROM destination_glacier_facts gf
+  return { text: `SELECT ${glacierFactsSql()} AS glacier,ST_AsGeoJSON(gf.outline,9)::json AS boundary
+    FROM destination_glacier_facts gf
     JOIN destinations d ON d.id=gf.destination_id JOIN destinations pm ON pm.id=gf.parent_mountain_id
     WHERE gf.destination_id=$1 AND 'glacier'=ANY(d.features::text[])
       AND (d.owner='peaks' OR d.owner=$2) AND (pm.owner='peaks' OR pm.owner=$2)`, values:[id,uid] };
@@ -26,7 +27,8 @@ export function buildGlacierFactsQuery(id: string, uid: string) {
 export function buildGlacierDetailQuery(id: string, uid: string, limit=25, offset=0) {
   return { text:`WITH glacier_sessions AS MATERIALIZED (
     SELECT s.id,s.user_id,s.name,s.start_time,s.end_time,s.distance,s.gain,s.total_time,s.activity_type,
-      s.highest_point,s.ascent_time,s.descent_time,s.still_time,s.processing_state,s.group_id,s.ended,s.is_public,
+      s.highest_point,s.ascent_time,s.descent_time,s.still_time,s.pace,s.source,s.external_id,
+      s.processing_state,s.processing_error,s.processed_at,s.group_id,s.ended,s.is_public,
       s.updated_at,s.server_updated_at,s.path_preview
     FROM tracking_sessions s WHERE s.user_id=$2 AND $2<>'' AND s.glacier_match_input_hash IS NOT NULL
       AND EXISTS(SELECT 1 FROM session_glacier_crossings c WHERE c.session_id=s.id AND c.destination_id=$1
@@ -41,7 +43,7 @@ export function buildGlacierDetailQuery(id: string, uid: string, limit=25, offse
   SELECT d.id,d.name,d.type,d.features,d.activities,d.owner,d.country_code,d.state_code,
     gf.kind,ST_Y(d.location::geometry) AS lat,ST_X(d.location::geometry) AS lng,
     d.bbox_min_lat,d.bbox_max_lat,d.bbox_min_lng,d.bbox_max_lng,
-    ST_AsGeoJSON(d.boundary_display,6)::json AS boundary,
+    ST_AsGeoJSON(gf.outline,9)::json AS boundary,
     d.description,d.description_source_name,d.description_source_url,d.description_source_license,
     gf.geometry_credit,${glacierFactsSql()} AS glacier,
     json_build_object('id',pm.id,'name',pm.name) AS parent_mountain,
@@ -55,9 +57,14 @@ export function buildGlacierDetailQuery(id: string, uid: string, limit=25, offse
     ((SELECT count(*) FROM glacier_sessions)>$3::int+$4::int) AS sessions_has_more,($3::int+$4::int)::int AS sessions_next_offset,
     COALESCE((SELECT json_agg(item ORDER BY item.start_time DESC,item.id) FROM (
       SELECT s.id,s.user_id,s.name,s.start_time,s.end_time,s.distance,s.gain,s.total_time,s.activity_type,
-        s.highest_point AS high_point,s.ascent_time,s.descent_time,s.still_time,s.processing_state,s.group_id,
+        s.highest_point AS high_point,s.ascent_time,s.descent_time,s.still_time,s.pace,s.source,s.external_id,
+        s.processing_state,s.processing_error,s.processed_at,s.group_id,
         s.ended,s.is_public,s.updated_at,s.server_updated_at,
         ST_AsGeoJSON(s.path_preview,6)::json AS path_preview,
+        COALESCE((SELECT json_agg(json_build_object('id',place.id,'name',place.name,'elevation',place.elevation,
+          'features',place.features,'lat',ST_Y(place.location::geometry),'lng',ST_X(place.location::geometry)) ORDER BY place.name,place.id)
+          FROM session_destinations sd JOIN destinations place ON place.id=sd.destination_id
+          WHERE sd.session_id=s.id AND sd.relation='reached'),'[]'::json) AS destinations_reached,
         (SELECT json_agg(json_build_object('pass_index',c.pass_index,'entered_at',c.entered_at,'exited_at',c.exited_at,
           'entered_distance_m',c.entered_distance_m,'exited_distance_m',c.exited_distance_m,
           'min_elevation_m',c.min_elevation_m,'max_elevation_m',c.max_elevation_m) ORDER BY c.entered_distance_m,c.pass_index)

@@ -19,6 +19,8 @@ test("snapshot hash and complete named roster: 28 glaciers plus Muir Snowfield",
   assert.equal(new Set(pkg.places.map(p=>p.id)).size,29);
   assert.equal(pkg.places.find(p=>p.name==="Muir Snowfield")!.kind,"snowfield");
   assert.ok(pkg.places.every(p=>p.boundary.type==="MultiPolygon" && p.boundary.coordinates.length>0));
+  assert.deepEqual(pkg.places.filter(p=>p.boundary.coordinates.length>1).map(p=>[p.name,p.boundary.coordinates.length]).sort(),
+    [["Columbia Crest Glacier",2],["Flett Glacier",3],["Kautz Glacier",2]]);
   assert.equal(pkg.places.find(p=>p.name==="Emmons Glacier")!.external_ids.wikidata,"Q5373601");
   assert.equal(loadRainierPackage().manifest_sha256,pkg.manifest_sha256,"replay is deterministic");
 });

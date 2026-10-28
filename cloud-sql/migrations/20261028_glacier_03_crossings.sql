@@ -51,11 +51,11 @@ RETURNS jsonb LANGUAGE sql STABLE SET search_path=pg_catalog,public,pg_temp AS $
   -- Candidate edges only enter the clipping engine. Distances still include
   -- all valid preceding edges. An indexed 1 m gate is a superset, not a buffer
   -- for crossing evidence. The actual intersection below has zero tolerance.
-  WHERE EXISTS (SELECT 1 FROM public.destination_boundary_parts bp
+  WHERE EXISTS (SELECT 1 FROM public.glacier_outline_parts bp
     JOIN public.destination_glacier_facts gf ON gf.destination_id=bp.destination_id
     JOIN public.destinations d ON d.id=gf.destination_id
     WHERE 'glacier'::public.destination_feature=ANY(d.features)
-      AND public.ST_DWithin(bp.boundary_part,public.ST_MakeLine(e.p,e.b)::public.geography,1));
+      AND public.ST_DWithin(bp.outline_part,public.ST_MakeLine(e.p,e.b)::public.geography,1));
 $$;
 
 CREATE OR REPLACE FUNCTION public.glacier_crossing_intervals(edge_inputs jsonb)
@@ -77,15 +77,15 @@ RETURNS TABLE (
     WHERE length_m>0
   ), clips AS MATERIALIZED (
     SELECT e.*,gf.destination_id,gf.outline_revision,part.geom AS clip
-    FROM edges e JOIN public.destination_boundary_parts bp
-      ON public.ST_DWithin(bp.boundary_part,e.geom::public.geography,1)
+    FROM edges e JOIN public.glacier_outline_parts bp
+      ON public.ST_DWithin(bp.outline_part,e.geom::public.geography,1)
     JOIN public.destination_glacier_facts gf ON gf.destination_id=bp.destination_id
     JOIN public.destinations d ON d.id=gf.destination_id AND 'glacier'::public.destination_feature=ANY(d.features)
     CROSS JOIN LATERAL public.ST_Dump(public.ST_CollectionExtract(
-      public.ST_Difference(public.ST_Intersection(e.geom,bp.boundary_part::public.geometry),
-        public.ST_Boundary(d.boundary::public.geometry)),2)) part
+      public.ST_Difference(public.ST_Intersection(e.geom,bp.outline_part::public.geometry),
+        public.ST_Boundary(gf.outline::public.geometry)),2)) part
     WHERE NOT public.ST_IsEmpty(part.geom) AND public.ST_Length(part.geom)>0
-      AND public.ST_Contains(d.boundary::public.geometry,public.ST_LineInterpolatePoint(part.geom,0.5))
+      AND public.ST_Contains(gf.outline::public.geometry,public.ST_LineInterpolatePoint(part.geom,0.5))
   ), fractions AS (
     SELECT *,LEAST(public.ST_LineLocatePoint(geom,public.ST_StartPoint(clip)),
                    public.ST_LineLocatePoint(geom,public.ST_EndPoint(clip))) AS lo,
@@ -103,21 +103,22 @@ RETURNS TABLE (
     FROM islands GROUP BY destination_id,edge,island
   ), spans AS MATERIALIZED (
     SELECT u.destination_id,u.revision,e.line,e.segment_number,e.edge,e.first,e.last,u.lo,u.hi,e.start_min_z,e.start_max_z,e.end_min_z,e.end_max_z,
-      public.ST_Contains(d.boundary::public.geometry,public.ST_StartPoint(e.geom)) AS a_inside,
-      public.ST_Contains(d.boundary::public.geometry,public.ST_EndPoint(e.geom)) AS b_inside,
+      public.ST_Contains(gf.outline::public.geometry,public.ST_StartPoint(e.geom)) AS a_inside,
+      public.ST_Contains(gf.outline::public.geometry,public.ST_EndPoint(e.geom)) AS b_inside,
       e.along_m+e.length_m*u.lo AS entry_m,e.along_m+e.length_m*u.hi AS exit_m,
-      CASE WHEN e.first AND u.lo<1e-10 AND public.ST_Contains(d.boundary::public.geometry,public.ST_StartPoint(e.geom)) THEN start_z
+      CASE WHEN e.first AND u.lo<1e-10 AND public.ST_Contains(gf.outline::public.geometry,public.ST_StartPoint(e.geom)) THEN start_z
         WHEN z0 IS NOT NULL AND z1 IS NOT NULL THEN z0+(z1-z0)*u.lo END AS z_entry,
-      CASE WHEN e.last AND u.hi>1-1e-10 AND public.ST_Contains(d.boundary::public.geometry,public.ST_EndPoint(e.geom)) THEN end_z
+      CASE WHEN e.last AND u.hi>1-1e-10 AND public.ST_Contains(gf.outline::public.geometry,public.ST_EndPoint(e.geom)) THEN end_z
         WHEN z0 IS NOT NULL AND z1 IS NOT NULL THEN z0+(z1-z0)*u.hi END AS z_exit,
-      CASE WHEN e.first AND u.lo<1e-10 AND public.ST_Contains(d.boundary::public.geometry,public.ST_StartPoint(e.geom))
+      CASE WHEN e.first AND u.lo<1e-10 AND public.ST_Contains(gf.outline::public.geometry,public.ST_StartPoint(e.geom))
           THEN CASE WHEN start_t>0 THEN to_timestamp(start_t) END
         WHEN t0>0 AND t1>=t0 THEN to_timestamp(t0+(t1-t0)*u.lo) END AS t_entry,
-      CASE WHEN e.last AND u.hi>1-1e-10 AND public.ST_Contains(d.boundary::public.geometry,public.ST_EndPoint(e.geom))
+      CASE WHEN e.last AND u.hi>1-1e-10 AND public.ST_Contains(gf.outline::public.geometry,public.ST_EndPoint(e.geom))
           THEN CASE WHEN end_t>0 THEN to_timestamp(end_t) END
         WHEN t0>0 AND t1>=t0 THEN to_timestamp(t0+(t1-t0)*u.hi) END AS t_exit,
       public.ST_LineInterpolatePoint(e.geom,u.lo) AS p_entry,public.ST_LineInterpolatePoint(e.geom,u.hi) AS p_exit
-    FROM united u JOIN edges e ON e.edge=u.edge JOIN public.destinations d ON d.id=u.destination_id
+    FROM united u JOIN edges e ON e.edge=u.edge
+    JOIN public.destination_glacier_facts gf ON gf.destination_id=u.destination_id
   ), visits AS (
     SELECT *,CASE WHEN lag(line) OVER w=line AND entry_m<=lag(exit_m) OVER w+0.000001
       THEN 0 ELSE 1 END AS new_pass
@@ -175,9 +176,9 @@ BEGIN
   -- Far-away routes never expand their vertices. Near routes read windows of
   -- 512 original edges; only candidate edges survive into the interval engine.
   -- Window endpoints overlap, but edges never do. No continent-sized JSON.
-  IF route_path IS NOT NULL AND EXISTS(SELECT 1 FROM public.destination_boundary_parts bp
+  IF route_path IS NOT NULL AND EXISTS(SELECT 1 FROM public.glacier_outline_parts bp
     JOIN public.destination_glacier_facts gf ON gf.destination_id=bp.destination_id
-    WHERE public.ST_DWithin(bp.boundary_part,route_path::public.geography,1)) THEN
+    WHERE public.ST_DWithin(bp.outline_part,route_path::public.geography,1)) THEN
     total_vertices := public.ST_NPoints(route_path);
     WHILE first_vertex<total_vertices LOOP
       SELECT jsonb_agg(jsonb_build_object('x',public.ST_X(pt),'y',public.ST_Y(pt),'z',public.ST_Z(pt),'s',0) ORDER BY i),
@@ -219,7 +220,7 @@ BEGIN
     SELECT string_agg(destination_id,',' ORDER BY destination_id) FROM public.session_destination_rejections WHERE session_id=target_id),''));
   IF NOT force_match AND input_hash=saved_hash THEN
     INSERT INTO public.session_destinations(session_id,destination_id,relation,source)
-      SELECT DISTINCT target_id,destination_id,'reached','auto' FROM public.session_glacier_crossings
+      SELECT DISTINCT target_id,destination_id,'reached'::public.session_destination_relation,'auto'::text FROM public.session_glacier_crossings
       WHERE session_id=target_id ON CONFLICT(session_id,destination_id) DO NOTHING;
     RETURN 0;
   END IF;
@@ -246,7 +247,7 @@ BEGIN
     AND sd.destination_id=d.id AND sd.source='auto' AND 'glacier'::public.destination_feature=ANY(d.features)
     AND NOT EXISTS(SELECT 1 FROM public.session_glacier_crossings c WHERE c.session_id=sd.session_id AND c.destination_id=sd.destination_id);
   INSERT INTO public.session_destinations(session_id,destination_id,relation,source)
-    SELECT DISTINCT target_id,destination_id,'reached','auto' FROM public.session_glacier_crossings
+    SELECT DISTINCT target_id,destination_id,'reached'::public.session_destination_relation,'auto'::text FROM public.session_glacier_crossings
     WHERE session_id=target_id ON CONFLICT(session_id,destination_id) DO NOTHING;
   RETURN n;
 END $$;

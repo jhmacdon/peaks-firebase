@@ -47,7 +47,8 @@ test("facts serialization keeps source dates, nulls, numeric wire fields and com
   assert.match(q.text,/s.user_id=\$2 AND \$2<>''/);
   assert.match(q.text,/session_destination_rejections/);
   assert.match(q.text,/EXISTS\(SELECT 1 FROM session_glacier_crossings/);
-  assert.match(q.text,/ST_AsGeoJSON\(d.boundary_display,6\)/);
+  assert.match(q.text,/ST_AsGeoJSON\(gf.outline,9\)/);
+  assert.match(q.text,/to_jsonb\(gf\).*-'outline'/);
   assert.doesNotMatch(q.text,/ST_AsGeoJSON\(d.boundary[,)]|ST_Simplify|SELECT s\.\*/);
   assert.match(buildGlacierFactsQuery("g","me").text,/pm.owner='peaks' OR pm.owner=\$2/);
 });

@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import db from "../db";
 import { dbSkipReason } from "./helpers/test-db";
-import { buildGlacierDetailQuery } from "../lib/glacier-detail";
+import { buildGlacierDetailQuery, buildGlacierFactsQuery } from "../lib/glacier-detail";
 import { buildRankedDestinationSearchQuery } from "../routes/search";
 import { buildRouteDetailQuery } from "../routes/routes";
 import { buildSessionDetailQuery, applyDestinationRejections } from "../routes/sessions";
@@ -20,7 +20,13 @@ const close=(actual:number,expected:number,tolerance=1e-5)=>assert.ok(Math.abs(a
 test("shared glacier engine: clipping, gaps, interpolation, write maintenance, search and privacy",{skip:dbSkipReason??undefined},async(t)=>{
   const c=await db.connect(), token=randomUUID(), parent=`glacier-parent-${token}`, glacier=`glacier-${token}`;
   const route=`glacier-route-${token}`, session=`glacier-session-${token}`, owner=`glacier-owner-${token}`;
-  const setShape=async(polygons:number[][][][])=>c.query(`UPDATE destinations SET boundary=ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography WHERE id=$1`,[glacier,shape(polygons)]);
+  const setShape=async(polygons:number[][][][])=>{
+    await c.query(`UPDATE destinations SET boundary=(SELECT geom::geography
+      FROM ST_Dump(ST_SetSRID(ST_GeomFromGeoJSON($2),4326)) ORDER BY ST_Area(geom::geography) DESC,path LIMIT 1)
+      WHERE id=$1`,[glacier,shape(polygons)]);
+    return c.query(`UPDATE destination_glacier_facts SET outline=ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography
+      WHERE destination_id=$1`,[glacier,shape(polygons)]);
+  };
   const match=async(vertices:ReturnType<typeof vertex>[],recording=false)=>
     (await c.query(`SELECT * FROM glacier_crossing_intervals(glacier_edges($1::jsonb,$2))
       WHERE destination_id=$3 ORDER BY entered_distance_m,pass_index`,[JSON.stringify(vertices),recording,glacier])).rows;
@@ -30,9 +36,11 @@ test("shared glacier engine: clipping, gaps, interpolation, write maintenance, s
       VALUES($1,'Synthetic Parent','peaks','{summit}',ST_SetSRID(ST_MakePoint(-121.76,46.85,0),4326)::geography)`,[parent]);
     await c.query(`INSERT INTO destinations(id,name,search_name,owner,type,features,location,boundary)
       VALUES($1,'Inter Glacier','inter glacier','peaks','region','{glacier}',
-        ST_SetSRID(ST_MakePoint(-121.759,46.851,0),4326)::geography,ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography)`,[glacier,shape([[ring()]])]);
-    await c.query(`INSERT INTO destination_glacier_facts(destination_id,parent_mountain_id,kind,outline_observed_at,outline_source_url,outline_source_sha256)
-      VALUES($1,$2,'glacier','2026-10-28','https://example.test/synthetic',repeat('a',64))`,[glacier,parent]);
+        ST_SetSRID(ST_MakePoint(-121.759,46.851,0),4326)::geography,ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography)`,
+      [glacier,JSON.stringify({type:"Polygon",coordinates:[ring()]})]);
+    await c.query(`INSERT INTO destination_glacier_facts(destination_id,parent_mountain_id,kind,outline_observed_at,outline_source_url,outline_source_sha256,outline)
+      VALUES($1,$2,'glacier','2026-10-28','https://example.test/synthetic',repeat('a',64),ST_SetSRID(ST_GeomFromGeoJSON($3),4326)::geography)`,
+      [glacier,parent,shape([[ring()]])]);
 
     await t.test("both endpoints outside, directed entry/exit and repeat passes",async()=>{
       const rows=await match([vertex(-1,2,100,1700000000),vertex(5,2,400,1700000600),vertex(-1,2,800,1700001200)],true);
@@ -53,9 +61,63 @@ test("shared glacier engine: clipping, gaps, interpolation, write maintenance, s
       await setShape([[ring(),ring(1,1,3,3)],[ring(6,0,8,4)]]);
       const rows=await match([vertex(-1),vertex(9)]);
       assert.equal(rows.length,3);assert.deepEqual(rows.map(r=>r.pass_index),[0,1,2]);
-      const display=(await c.query(`SELECT ST_NumGeometries(boundary_display::geometry) AS components,
-        ST_NumInteriorRings(ST_GeometryN(boundary_display::geometry,1)) AS holes FROM destinations WHERE id=$1`,[glacier])).rows[0];
-      assert.equal(display.components,2);assert.equal(display.holes,1);
+      const legacy=(await c.query(`SELECT GeometryType(boundary::geometry) AS type,
+        ST_NumInteriorRings(boundary::geometry) AS holes FROM destinations WHERE id=$1`,[glacier])).rows[0];
+      assert.equal(legacy.type,"POLYGON");assert.equal(legacy.holes,1);
+      for (const q of [buildGlacierDetailQuery(glacier,owner),buildGlacierFactsQuery(glacier,owner)]) {
+        const detail=(await c.query(q.text,q.values)).rows[0];
+        assert.equal(detail.boundary.type,"MultiPolygon");assert.equal(detail.boundary.coordinates.length,2);
+        assert.equal(detail.boundary.coordinates[0].length,2);assert.equal(detail.glacier.outline,undefined);
+      }
+      await setShape([[ring()]]);
+    });
+    await t.test("smaller parts maintain route/session crossings and queue old and new footprints on outline-only edits",async()=>{
+      await setShape([[ring(),ring(1,1,3,3)],[ring(6,1,7,3)]]);
+      const contained=await match([vertex(6.2),vertex(6.8)],true);
+      assert.equal(contained.length,1);assert.equal(contained[0].starts_inside,true);assert.equal(contained[0].ends_inside,true);
+      const ids=[`${route}-small-old`,`${route}-small-new`],sessions=[`${session}-small-old`,`${session}-small-new`];
+      const paths=[[[5.5,2],[7.5,2]],[[9.5,2],[11.5,2]]].map(points=>JSON.stringify({type:"LineString",
+        coordinates:points.map(([x,y])=>[...xy(x,y),100])}));
+      for (let i=0;i<2;i++) {
+        await c.query(`INSERT INTO routes(id,name,owner,path) VALUES($1,'Small part route',$2,
+          ST_SetSRID(ST_GeomFromGeoJSON($3),4326)::geography)`,[ids[i],owner,paths[i]]);
+        await c.query(`INSERT INTO tracking_sessions(id,user_id,start_time,ended,path) VALUES($1,$2,to_timestamp(1700000000),true,
+          ST_SetSRID(ST_GeomFromGeoJSON($3),4326)::geography)`,[sessions[i],owner,paths[i]]);
+        for (const [j,[x,y]] of [[5.5+i*4,2],[7.5+i*4,2]].entries()) {
+          const v=vertex(x,y,100,1700000000+j*100);
+          await c.query(`INSERT INTO tracking_points(session_id,time,segment_number,elevation,location)
+            VALUES($1,$2,0,100,ST_SetSRID(ST_MakePoint($3,$4,100),4326)::geography)`,[sessions[i],v.t,v.x,v.y]);
+        }
+        await c.query("SELECT refresh_session_glacier_crossings($1)",[sessions[i]]);
+        assert.equal((await c.query("SELECT count(*)::int n FROM route_glacier_crossings WHERE route_id=$1",[ids[i]])).rows[0].n,1-i);
+        assert.equal((await c.query("SELECT count(*)::int n FROM session_glacier_crossings WHERE session_id=$1",[sessions[i]])).rows[0].n,1-i);
+        assert.equal((await c.query(`SELECT ST_Intersects(d.boundary,r.path) AS hit FROM destinations d
+          JOIN routes r ON r.id=$2 WHERE d.id=$1`,[glacier,ids[i]])).rows[0].hit,false);
+      }
+      const before=(await c.query(`SELECT ST_AsEWKB(d.boundary::geometry) AS boundary,gf.outline_revision AS revision
+        FROM destinations d JOIN destination_glacier_facts gf ON gf.destination_id=d.id WHERE d.id=$1`,[glacier])).rows[0];
+      await c.query("DELETE FROM route_glacier_rematch_queue WHERE route_id=ANY($1)",[ids]);
+      await c.query("DELETE FROM session_rematch_queue WHERE session_id=ANY($1)",[sessions]);
+      await setShape([[ring(),ring(1,1,3,3)],[ring(10,1,11,3)]]);
+      const after=(await c.query(`SELECT ST_AsEWKB(d.boundary::geometry) AS boundary,gf.outline_revision AS revision
+        FROM destinations d JOIN destination_glacier_facts gf ON gf.destination_id=d.id WHERE d.id=$1`,[glacier])).rows[0];
+      assert.deepEqual(after.boundary,before.boundary);assert.equal(after.revision,before.revision+1);
+      assert.equal((await c.query("SELECT count(*)::int n FROM route_glacier_rematch_queue WHERE route_id=ANY($1)",[ids])).rows[0].n,2);
+      assert.equal((await c.query("SELECT count(*)::int n FROM session_rematch_queue WHERE session_id=ANY($1) AND reason=$2",[sessions,`glacier:${glacier}`])).rows[0].n,2);
+      for (let i=0;i<2;i++) {
+        assert.equal((await c.query("SELECT glacier_match_input_hash FROM routes WHERE id=$1",[ids[i]])).rows[0].glacier_match_input_hash,null);
+        assert.equal((await c.query("SELECT glacier_match_input_hash FROM tracking_sessions WHERE id=$1",[sessions[i]])).rows[0].glacier_match_input_hash,null);
+        await c.query("SELECT refresh_route_glacier_crossings($1)",[ids[i]]);
+        await c.query("SELECT refresh_session_glacier_crossings($1)",[sessions[i]]);
+        assert.equal((await c.query("SELECT count(*)::int n FROM route_glacier_crossings WHERE route_id=$1",[ids[i]])).rows[0].n,i);
+        assert.equal((await c.query("SELECT count(*)::int n FROM session_glacier_crossings WHERE session_id=$1",[sessions[i]])).rows[0].n,i);
+      }
+      const revision=after.revision;
+      await setShape([[ring(),ring(1,1,3,3)],[ring(10,1,11,3)]]);
+      assert.equal((await c.query("SELECT outline_revision FROM destination_glacier_facts WHERE destination_id=$1",[glacier])).rows[0].outline_revision,revision);
+      assert.equal((await c.query("SELECT count(*)::int n FROM route_glacier_rematch_queue WHERE route_id=ANY($1)",[ids])).rows[0].n,0);
+      await c.query("DELETE FROM tracking_sessions WHERE id=ANY($1)",[sessions]);
+      await c.query("DELETE FROM routes WHERE id=ANY($1)",[ids]);
       await setShape([[ring()]]);
     });
     await t.test("recording segments and 20 minute/1 km gaps are never connected",async()=>{
@@ -76,9 +138,9 @@ test("shared glacier engine: clipping, gaps, interpolation, write maintenance, s
       const partial=await match([vertex(-1,0,100),vertex(5,0,700)]);
       assert.equal(partial.length,1);close(partial[0].entry_elevation_m,400);
       await setShape([[ring()]]);
-      await c.query("DELETE FROM destination_boundary_parts WHERE destination_id=$1",[glacier]);
+      await c.query("DELETE FROM glacier_outline_parts WHERE destination_id=$1",[glacier]);
       for (const [i,r] of [ring(0,0,2,4),ring(2,0,4,4)].entries())
-        await c.query(`INSERT INTO destination_boundary_parts(destination_id,ordinal,boundary_part)
+        await c.query(`INSERT INTO glacier_outline_parts(destination_id,ordinal,outline_part)
           VALUES($1,$2,ST_SetSRID(ST_GeomFromGeoJSON($3),4326)::geography)`,[glacier,i,JSON.stringify({type:"Polygon",coordinates:[r]})]);
       assert.equal((await match([vertex(-1),vertex(5)])).length,1);
       assert.equal((await match([vertex(2,-1),vertex(2,5)])).length,1);

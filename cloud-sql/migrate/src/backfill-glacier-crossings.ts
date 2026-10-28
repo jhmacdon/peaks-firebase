@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { createRequire } from "node:module";
 import { Pool } from "pg";
 
 export interface GlacierBackfillOptions { apply: boolean; seed: boolean; limit: number; kind: "routes" | "sessions" | "both" }
@@ -10,14 +11,15 @@ export function parseGlacierBackfillOptions(args: string[]): GlacierBackfillOpti
   return {apply:args.includes("--apply"),seed:args.includes("--seed"),limit,kind:kind as GlacierBackfillOptions["kind"]};
 }
 
-/** Queues are the durable resume cursor. One connection and work item at a
- * time. A failed transaction leaves its item pending for the next invocation.
+/** Queues are the durable resume cursor. One work item at a time; the session
+ * processor needs a second connection for its post-commit work. A failed
+ * transaction leaves its item pending for the next invocation.
  */
 export async function backfillGlacierCrossings(args: string[]): Promise<void> {
   const options=parseGlacierBackfillOptions(args);
   const url=process.env.GLACIER_DATABASE_URL;
   if (!url) throw new Error("Supply GLACIER_DATABASE_URL explicitly; this command never chooses a database");
-  const pool=new Pool({connectionString:url,max:1,statement_timeout:120_000,connectionTimeoutMillis:5000});
+  const pool=new Pool({connectionString:url,max:2,statement_timeout:120_000,connectionTimeoutMillis:5000});
   try {
     if (!options.apply) {
       const counts=await pool.query(`SELECT
@@ -46,7 +48,7 @@ export async function backfillGlacierCrossings(args: string[]): Promise<void> {
       // Reuse the whole canonical processor: route facts, rejections, areas
       // and popularity remain consistent. Build api first. Requiring built JS
       // keeps migrate's TypeScript rootDir within its own source tree.
-      const api = require(resolve(__dirname,"../../api/dist/processing.js")) as {
+      const api = createRequire(__filename)(resolve(__dirname,"../../api/dist/processing.js")) as {
         processSession(id: string,uid: string,opts: {force: boolean;pool: Pool}): Promise<{skipped?: boolean}>;
       };
       for (;processed<options.limit;processed++) {

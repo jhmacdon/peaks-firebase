@@ -213,10 +213,17 @@ summit). Missing codes remain null. Volume is a statistical estimate, not a surv
 `outline_observed_at` is the **OSM snapshot date**, not a claim that the outline
 was surveyed that day. Physical facts describe 2021. Every historic route/session
 uses this same OSM snapshot; these are not date-matched historic ice extents.
-The exact MultiPolygon keeps all components and holes. Display uses a stored,
-topology-preserving two-metre simplification in UTM zone 10N, served as GeoJSON
-`[longitude,latitude]`. Never reduce a MultiPolygon to its largest ring. A null
-display boundary indicates missing derived data; the API does not simplify on read.
+Both capable detail endpoints return `destination_glacier_facts.outline` as the
+`boundary`: a MultiPolygon with every OSM component, hole and vertex, in GeoJSON
+`[longitude,latitude]` order. The `glacier` facts object omits the stored geometry;
+clients read it from `boundary`. The API does not simplify it on read.
+
+`destinations.boundary` stays `geography(Polygon,4326)`. For a glacier it holds
+the largest polygon part by geodesic area, including that part's holes. Its pin
+lies in that polygon; its bounding box covers the full outline. Existing display,
+boundary-parts and rematch triggers keep their behavior. Other destination detail
+responses keep their existing boundary shape. Only Flett (3), Kautz (2) and
+Columbia Crest (2) have multiple parts; the other 26 outlines have one polygon.
 
 The `glacier` object on `/destinations/:id` is identical. The destination's
 existing global session counts on that older endpoint keep their old meaning;
@@ -230,12 +237,14 @@ do not count. `session_limit` clamps to 1–50, default 25; `session_offset` def
 to zero and caps at 1,000,000. `sessions_next_offset` is offset + limit.
 
 Each session summary contains `id,user_id,name,start_time,end_time,distance,gain,
-total_time,activity_type,high_point,ascent_time,descent_time,still_time,
-processing_state,group_id,ended,is_public,updated_at,server_updated_at,path_preview`
+total_time,activity_type,high_point,ascent_time,descent_time,still_time,pace,
+source,external_id,processing_state,processing_error,processed_at,group_id,ended,
+is_public,updated_at,server_updated_at,path_preview,destinations_reached`
 and `glacier_crossings`. The latter is a small list for this glacier only, with
 `pass_index,entered_at,exited_at,entered_distance_m,exited_distance_m,
 min_elevation_m,max_elevation_m`. Timestamps are ISO 8601 or null. Preview paths
-are the existing small GeoJSON LineStrings.
+are the existing small GeoJSON LineStrings. `destinations_reached` uses the area
+summary shape: `id,name,elevation,features,lat,lng`.
 
 `route_count` counts distinct active routes the caller can read. The full sheet
 returns at most 15, sorted by popularity then name/id. Each has
@@ -354,14 +363,19 @@ processing; unchanged samples and unrelated sample metadata keep their markers.
 The matcher stores intervals in `route_glacier_crossings` and
 `session_glacier_crossings`; it does not alter route objectives or split segments.
 
-`destination_boundary_parts` supplies indexed candidates; interval midpoints
-must lie in the original polygon interior. A database guard covers every old
+`glacier_outline_parts` supplies indexed candidates from **all** parts of
+`destination_glacier_facts.outline`. Both tables have GiST geometry indexes.
+An outline-write trigger dumps each component and uses the existing exact
+256-point subdivision helper; it leaves `destination_boundary_parts` unchanged.
+Interval midpoints must lie in the full outline's interior. A database guard covers every old
 automatic reach writer, including the web backfill and destination-insert
 trigger: an approximate glacier hit queues processing, and only positive stored
 crossings may create an automatic reached row. Manual assertions remain separate.
 
-Boundary/feature/owner changes queue both old and new footprints and prior
-crossings. Changed result sets update session sync timestamps; unchanged inputs
+Outline/boundary/feature/owner changes queue both old and new footprints and prior
+crossings, including routes and ended sessions near a smaller part. An outline
+edit advances `outline_revision` even when the largest polygon stays fixed;
+an unchanged outline keeps its revision and queues nothing. Changed result sets update session sync timestamps; unchanged inputs
 skip matching. Internal match marker updates alone do not cause sync churn.
 Crossing glacier names refresh `route_search_terms`, including renames and owner
 changes. Pending matches contribute no borrowed glacier names. The existing sweep processes at most two queued route repairs per call;
@@ -371,13 +385,13 @@ CPU and cold/warm query latency still need measurement on representative data.
 
 ## Runbook for the main session
 
-These commands describe later, authorized work. This task applied no migrations,
-connected to no database, imported no rows, deployed nothing and pushed nothing.
-Use the repo's normal backup and deployment procedure for any later production
-run. DDL runs as postgres; the runtime role receives DML and narrow function calls.
+Use a disposable `_test` DB for local verification. Production changes need
+separate authorization and the repo's backup and deployment procedure.
+DDL runs as postgres; the runtime role receives DML and narrow function calls.
 
-1. Rehearse the boundary typmod change and indexes in a disposable `_test` DB;
-   measure lock time and disk use. Apply and **commit** the enum file first,
+1. Rehearse the new tables and indexes in a disposable `_test` DB.
+   No migration changes the destinations boundary typmod, rewrites that table,
+   or replaces its display/parts/rematch triggers. Apply and **commit** the enum file first,
    then the remaining files in order (all prior main migrations are required):
 
    ```sh
@@ -389,8 +403,8 @@ run. DDL runs as postgres; the runtime role receives DML and narrow function cal
 
    `cloud-sql/test-db/provision.sh` applies the baseline, migrations and test-role
    grants. Do not apply only `schema.sql`. The enum addition is its own file;
-   the core schema uses a five-second lock timeout. No source polygons are dropped
-   to fit the old Polygon typmod.
+   the core schema uses a five-second lock timeout. Full source outlines live in
+   glacier facts; the importer selects the largest part for the existing Polygon column.
 
 2. Run offline checks from each package:
 
@@ -426,9 +440,9 @@ run. DDL runs as postgres; the runtime role receives DML and narrow function cal
    The engine cases cover outside endpoints, repeat visits, holes, multipart,
    gap splits, tangent/border contact, piece seams, missing Z/time, timestamps,
    route refresh, rejections, search rows, private reads and distinct-session
-   totals. No PostGIS case ran in this implementation task. Full HTTP/CLI test
-   runs need a host where local socket binding is allowed; this sandbox returns
-   `listen EPERM`. Migrate tests importing web helpers also need `sharp` resolvable
+   totals. Smaller-part cases cover both route and session writes, old/new
+   queue footprints, and cached empty matches after an outline-only edit.
+   Full HTTP/CLI test runs need local socket access. Migrate tests importing web helpers also need `sharp` resolvable
    via the shown `NODE_PATH` or installed web dependencies.
 
 3. Preview the immutable package **without a database**:
@@ -476,7 +490,8 @@ run. DDL runs as postgres; the runtime role receives DML and narrow function cal
 
 6. Build the API, then repair in small, serial batches. The repair command loads
    the built canonical session processor, so session route/area/popularity facts
-   stay consistent too. Use `--seed` once for repair of old/cleared queue state,
+   stay consistent too. The CLI runs one item at a time with a two-connection
+   pool for the session processor's post-commit work. Use `--seed` once for repair of old/cleared queue state,
    then repeat without it until `processed` is zero. Each invocation handles at
    most `--limit` work items (default 10; allowed 1–100). Routes drain first;
    `--kind=routes` or `--kind=sessions` narrows a run.
@@ -515,22 +530,29 @@ run. DDL runs as postgres; the runtime role receives DML and narrow function cal
    WHERE pm.id IS NULL OR ds.id IS NULL
       OR NOT EXISTS(SELECT 1 FROM destination_areas da JOIN areas a ON a.id=da.area_id
         WHERE da.destination_id=d.id AND a.name='Mount Rainier National Park')
-      OR NOT EXISTS(SELECT 1 FROM destination_boundary_parts bp WHERE bp.destination_id=d.id);
+      OR NOT EXISTS(SELECT 1 FROM destination_boundary_parts bp WHERE bp.destination_id=d.id)
+      OR NOT EXISTS(SELECT 1 FROM glacier_outline_parts gp WHERE gp.destination_id=d.id);
 
-   SELECT d.name,GeometryType(d.boundary::geometry) AS exact_type,
-          ST_IsValid(d.boundary::geometry) AS exact_valid,
-          ST_IsValid(d.boundary_display::geometry) AS display_valid,
-          ST_NumGeometries(d.boundary::geometry) AS components,
-          ST_NPoints(d.boundary::geometry) AS exact_vertices,
-          ST_NPoints(d.boundary_display::geometry) AS display_vertices,
-          pg_column_size(d.boundary) AS exact_bytes,
-          ST_HausdorffDistance(ST_Transform(d.boundary::geometry,32610),
-            ST_Transform(d.boundary_display::geometry,32610)) AS display_error_m
+   SELECT d.name,GeometryType(d.boundary::geometry) AS legacy_type,
+          GeometryType(gf.outline::geometry) AS outline_type,
+          ST_IsValid(gf.outline::geometry) AS outline_valid,
+          ST_NumGeometries(gf.outline::geometry) AS components,
+          ST_NPoints(gf.outline::geometry) AS outline_vertices,
+          gf.area_km2 AS nps_2021_area_km2,ST_Area(gf.outline)/1e6 AS osm_area_km2,
+          pg_column_size(gf.outline) AS outline_bytes
    FROM destinations d JOIN destination_glacier_facts gf ON gf.destination_id=d.id;
 
    SELECT d.id,d.name FROM destinations d JOIN destination_glacier_facts gf ON gf.destination_id=d.id
    WHERE NOT ST_Equals(d.boundary::geometry,(SELECT ST_UnaryUnion(ST_Collect(bp.boundary_part::geometry))
      FROM destination_boundary_parts bp WHERE bp.destination_id=d.id));
+
+   SELECT d.id,d.name FROM destinations d JOIN destination_glacier_facts gf ON gf.destination_id=d.id
+   WHERE NOT ST_Equals(gf.outline::geometry,(SELECT ST_UnaryUnion(ST_Collect(gp.outline_part::geometry))
+     FROM glacier_outline_parts gp WHERE gp.destination_id=d.id))
+      OR NOT ST_Equals(d.boundary::geometry,(SELECT geom FROM ST_Dump(gf.outline::geometry)
+        ORDER BY ST_Area(geom::geography) DESC,path LIMIT 1));
+   -- Expected: no missing parts or wrong largest polygons. NPS and OSM areas
+   -- describe different dates/sources; Emmons NPS area is 10.959203 km2.
 
    SELECT c.* FROM session_glacier_crossings c
    JOIN session_destination_rejections r USING(session_id,destination_id);

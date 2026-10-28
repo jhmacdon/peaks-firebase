@@ -54,3 +54,23 @@ test("legacy destination detail hides glacier objects while preserving existing 
   const lake=await appRequest(app,"GET","/api/destinations/place",{"X-Test-User":"reader"});
   assert.equal(lake.status,200);assert.equal(lake.body.boundary.type,"Polygon");
 });
+
+test("capable destination detail replaces the legacy polygon with the full outline",async()=>{
+  const outline={type:"MultiPolygon",coordinates:[[[[0,0],[2,0],[2,2],[0,0]]],[[[3,0],[4,0],[4,1],[3,0]]]]};
+  let feature="glacier";
+  mock.method(console,"log",()=>{});
+  mock.method(db,"query",async(sql:string)=>{
+    if (sql.includes("to_regprocedure")) return {rows:[{ready:true}],rowCount:1};
+    if (sql.includes("information_schema")) return {rows:[{}],rowCount:1};
+    if (sql.includes("FROM destination_glacier_facts gf"))
+      return {rows:[{glacier:{kind:"glacier",area_km2:1},boundary:outline}],rowCount:1};
+    return {rows:[{id:"place",features:[feature],boundary:{type:"Polygon",coordinates:outline.coordinates[0]}}],rowCount:1};
+  });
+  const glacier=await appRequest(app,"GET","/api/destinations/place",headers);
+  assert.equal(glacier.status,200);assert.deepEqual(glacier.body.boundary,outline);
+  assert.equal(glacier.body.glacier.kind,"glacier");
+  feature="lake";
+  const lake=await appRequest(app,"GET","/api/destinations/place",headers);
+  assert.equal(lake.status,200);assert.equal(lake.body.boundary.type,"Polygon");
+  assert.equal(lake.body.glacier,undefined);
+});
