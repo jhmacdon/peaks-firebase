@@ -65,12 +65,10 @@ jobs:
 
     services:
       postgres:
-        # Production is PostgreSQL 15.17 + PostGIS 3.6.0. The postgis images
-        # stop at 3.5 for PG 15; matching the Postgres major matters more here
-        # than the PostGIS minor, since every spatial function the suite touches
-        # (ST_DWithin, ST_Covers, ST_MakeLine, ST_Subdivide, ST_HausdorffDistance)
-        # is unchanged between 3.5 and 3.6.
-        image: postgis/postgis:15-3.5
+        # Production is PostgreSQL 15 + PostGIS 3.6. Keep both in step: the
+        # glacier crossing engine returned no spans for fully contained paths
+        # under PostGIS 3.5 while 3.6 (production) was correct.
+        image: postgis/postgis:15-3.6
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: peaks_test
