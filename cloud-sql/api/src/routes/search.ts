@@ -85,7 +85,7 @@ interface MixedSearchSqlQueries {
 
 interface SearchDbClient {
   query(text: string, values?: unknown[]): Promise<{ rows: any[] }>;
-  release(destroy?: boolean): void;
+  release(): void;
 }
 
 interface SearchDbPool {
@@ -554,16 +554,6 @@ export function buildMixedSearchQueries(input: DestinationSearchQueryInput): Mix
   };
 }
 
-// pg_trgm's operator functions carry the default COST 1, so the planner prices
-// a trigram compare like an equality check and prefers scanning every row of
-// route_search_terms or destination_search_rows over their trigram indexes. On
-// the db-f1-micro that scan took 25-35 s for "mount stuart"; the index plan
-// took 0.3 s. Search connections turn sequential scans off for their checkout
-// (tables without a usable index still scan) and restore the default before
-// going back to the pool. The pid lookup sets it so it costs no extra trip.
-export const SEARCH_SESSION_SQL = "SELECT pg_backend_pid() AS pid, set_config('enable_seqscan', 'off', false)";
-export const SEARCH_SESSION_RESET_SQL = "RESET enable_seqscan";
-
 export function isPgQueryCanceled(error: unknown): boolean {
   return typeof error === "object"
     && error !== null
@@ -589,7 +579,6 @@ async function withCancellableSearchClient<T>(
 ): Promise<T | undefined> {
   let client: SearchDbClient | undefined;
   let released = false;
-  let sessionConfigured = false;
   let responseClosed = Boolean(res.destroyed || res.writableEnded);
   let queryInFlight = false;
   let cancelStarted = false;
@@ -597,20 +586,10 @@ async function withCancellableSearchClient<T>(
   let pid: number | undefined;
 
   const isClosed = () => responseClosed || Boolean(res.destroyed || res.writableEnded);
-  const releaseOnce = async () => {
-    if (released || !client) return;
-    released = true;
-    if (!sessionConfigured) {
+  const releaseOnce = () => {
+    if (!released && client) {
+      released = true;
       client.release();
-      return;
-    }
-    try {
-      await client.query(SEARCH_SESSION_RESET_SQL);
-      client.release();
-    } catch (error) {
-      // Never pool a connection that may still have sequential scans off.
-      console.error("Failed to reset search session settings", error);
-      client.release(true);
     }
   };
   const maybeCancel = () => {
@@ -634,8 +613,7 @@ async function withCancellableSearchClient<T>(
     client = await pool.connect();
     if (isClosed()) return undefined;
 
-    sessionConfigured = true;
-    const pidResult = await client.query(SEARCH_SESSION_SQL);
+    const pidResult = await client.query("SELECT pg_backend_pid() AS pid");
     const rawPid = pidResult.rows[0]?.pid;
     const parsedPid = typeof rawPid === "number" ? rawPid : parseInt(String(rawPid), 10);
     pid = Number.isFinite(parsedPid) ? parsedPid : undefined;
@@ -672,7 +650,7 @@ async function withCancellableSearchClient<T>(
     if (cancelPromise) {
       await cancelPromise;
     }
-    await releaseOnce();
+    releaseOnce();
   }
 }
 
