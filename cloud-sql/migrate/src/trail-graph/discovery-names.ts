@@ -97,7 +97,13 @@ export function cleanDiscoveryName(value: string | null | undefined, options: Di
   const road = isRoadName(original) || isRoadName(name), rawJunk = isJunkDiscoveryName(name);
   name = name.replace(/\bNRT\b/gi, 'National Recreation Trail').replace(/\bNST\b/gi, 'National Scenic Trail')
     .replace(/(?:^|\s)(?:x{2,}|tbd|todo)(?=\s|$)/gi, ' ')
-    .replace(/\s*#\s*(?:[a-z]+[- ]*)?\d+[\w]*(?:\s*[-.]\s*[\w]+)*/gi, '')
+    .replace(/\s*#\s*(?:[a-z]+[- ]*)?\d+[\w]*(?:\s*[-.]\s*[\w]+)*/gi,
+      (number, offset: number, source: string) => {
+        // Compact network codes need the number to identify the trail. Removing
+        // #22-Easy from Buf-#22-Easy collapses distinct numbered trails to Buf-.
+        const prefix = source.slice(0, offset).trimEnd();
+        return /(?:^|[^A-Za-z])[A-Za-z]{2,6}[-_]$/.test(prefix) ? number : '';
+      })
     .replace(/\b(trail|path|route)\s*(?:(?:number|no\.?)\s*)?\d+[a-z0-9]*(?:[./-]\d+[a-z0-9]*)*$/gi, '$1')
     .replace(/([\p{L}])(\s*[-‐‑‒–—−]\s*)([\p{Ll}])/gu, (_whole, a: string, separator: string, b: string) => a + separator + b.toLocaleUpperCase('en-US'))
     .replace(/\s+/g, ' ').trim();

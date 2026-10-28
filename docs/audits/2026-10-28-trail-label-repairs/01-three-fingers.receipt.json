@@ -1,0 +1,18 @@
+{
+  "status": "committed",
+  "apply": true,
+  "plan_sha256": "416c18f1cbbe554424b87fe171a62790d8d81ed3235f0b3167e77f49b8f5a84c",
+  "backup_id": "1793170232146",
+  "started_at": "2026-10-28T07:03:16.466Z",
+  "finished_at": "2026-10-28T07:03:20.378Z",
+  "rows": [
+    {"id":"wa-osm-00950bd8d4ba741f399a","kind":"trail","name":"Three Fingers-Goat Flats-Saddle Lake Trail #641","links":[{"ordinal":1,"route_id":"wa-catalog-29050878f0c18b27331bedc3","direction":"forward"}],"distance":3500.6659397156313,"protected":false,"stable_hash":"9988c45619981e72a742eb23b3e6931c","trail_names":["THREE FINGERS/ SADDLE LAKE","THREE FINGERS/ SADDLE LAKE Trail #641","Three Fingers-Goat Flats-Saddle Lake Trail #641"],"catalog_only":true,"display_name":"Three Fingers Trail #641"},
+    {"id":"wa-osm-03e659b67030d6f971ce","kind":"trail","name":"Three Fingers summit trail","links":[{"ordinal":3,"route_id":"wa-catalog-29050878f0c18b27331bedc3","direction":"reverse"}],"distance":89.89429403128278,"protected":false,"stable_hash":"3b1e7d2b3d90e72a0356be096a5db6b7","trail_names":["Three Fingers summit trail"],"catalog_only":true,"display_name":"Summit Approach"},
+    {"id":"wa-osm-158d4a833cb7c9585cfd","kind":"trail","name":"Three Fingers-Goat Flats-Saddle Lake Trail #641","links":[{"ordinal":0,"route_id":"wa-catalog-29050878f0c18b27331bedc3","direction":"reverse"}],"distance":3624.138012705341,"protected":false,"stable_hash":"516ca2cab6ed887a4a32b1cad5db2aea","trail_names":["Three Fingers-Goat Flats-Saddle Lake Trail #641"],"catalog_only":true,"display_name":"Three Fingers Trail #641"},
+    {"id":"wa-osm-2135eef70c65bb4e4579","kind":"glacier","name":"Three Fingers summit trail","links":[{"ordinal":7,"route_id":"wa-catalog-29050878f0c18b27331bedc3","direction":"reverse"}],"distance":158.973942427737,"protected":false,"stable_hash":"335e9783dd673aaf27ab5f267aa980fc","trail_names":["Three Fingers summit trail"],"catalog_only":true,"display_name":"Summit Ice Crossing"},
+    {"id":"wa-osm-25823a55845dd742faa0","kind":"glacier","name":"Three Fingers summit trail","links":[{"ordinal":6,"route_id":"wa-catalog-29050878f0c18b27331bedc3","direction":"reverse"}],"distance":17.08789183120451,"protected":false,"stable_hash":"56e4e5593288428f1c8f41bab088a7ce","trail_names":["Three Fingers summit trail"],"catalog_only":true,"display_name":"Summit Ice Crossing"},
+    {"id":"wa-osm-6426f447e560da4c0e34","kind":"trail","name":"Three Fingers-Goat Flats-Saddle Lake Trail #641","links":[{"ordinal":2,"route_id":"wa-catalog-29050878f0c18b27331bedc3","direction":"reverse"}],"distance":2257.1471379888512,"protected":false,"stable_hash":"c1107796e9275fe4ca90ef537cc85ce1","trail_names":["THREE FINGERS/ SADDLE LAKE","THREE FINGERS/ SADDLE LAKE Trail #641","Three Fingers-Goat Flats-Saddle Lake Trail #641"],"catalog_only":true,"display_name":"Three Fingers Trail #641"},
+    {"id":"wa-osm-ba5fc368314c4824fda7","kind":"trail","name":"Three Fingers summit trail","links":[{"ordinal":5,"route_id":"wa-catalog-29050878f0c18b27331bedc3","direction":"reverse"}],"distance":1594.403676951335,"protected":false,"stable_hash":"0959a9b6fe29bc65becae51eafb39280","trail_names":["Three Fingers summit trail"],"catalog_only":true,"display_name":"Ridge Traverse"},
+    {"id":"wa-osm-d05d5f7caa8e53172405","kind":"glacier","name":"Three Fingers summit trail","links":[{"ordinal":4,"route_id":"wa-catalog-29050878f0c18b27331bedc3","direction":"reverse"}],"distance":60.63816757441008,"protected":false,"stable_hash":"bd8831ffcc7b87925e9dad57355aef45","trail_names":["Three Fingers summit trail"],"catalog_only":true,"display_name":"Lower Ice Crossing"}
+  ]
+}

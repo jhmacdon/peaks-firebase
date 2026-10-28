@@ -6,6 +6,15 @@ import { length } from '../trail-graph/geo';
 import { provenance } from '../trail-graph/topology';
 import type { NamedFeature, Segment } from '../trail-graph/types';
 
+test('compact network codes retain the number that distinguishes trails', () => {
+  assert.equal(cleanDiscoveryName('Buf-#22-Easy', { kind: 'trail' }).name, 'Buf-#22-Easy');
+  assert.equal(cleanDiscoveryName('BUF_#20-Easy', { kind: 'trail' }).name, 'BUF_#20-Easy');
+  assert.equal(cleanDiscoveryName('Buf-#22-Easy and Buf-#55-Med Loop', { kind: 'route' }).name,
+    'Buf-#22-Easy and Buf-#55-Med Loop');
+  assert.notEqual(cleanDiscoveryName('Buf-#22-Easy').name, cleanDiscoveryName('Buf-#55-Med').name);
+  assert.equal(cleanDiscoveryName('Diamond Peak Trail #3699').name, 'Diamond Peak Trail');
+});
+
 test('road words cannot hide before trail, viewpoint or connector suffixes', () => {
   for (const name of ['Old Road Trail', 'Cedar Lane Trail', 'Pebble-wood Rd Connector', 'Stunt Road Viewpoint', 'Bpa Road / Skyline Blvd', 'Forest Road 4103-087', 'United States Forest Service Road 5800-7', 'National Forest Development Road 056 Trail', 'NFR #12', 'FDR #610']) {
     assert.equal(isRoadName(name), true, name);

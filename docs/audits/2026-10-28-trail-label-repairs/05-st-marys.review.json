@@ -1,0 +1,82 @@
+{
+  "segment_id": "co-osm-248cf2f44584ef1c340c",
+  "before": {
+    "display_name": "St. Mary's Glacier Trail",
+    "kind": "glacier"
+  },
+  "after": {
+    "display_name": "Saint Mary's Glacier",
+    "kind": "snowfield"
+  },
+  "stable_hash": "93de0318fad5598c0c10066ad01cf7ba",
+  "links": [
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-2f3a0af3af92b0e6732c2d39",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-3d100b4c3375d95c074ef866",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-4c3631c036d2e1838450ef04",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-6fa6f44c8a78a037808079e4",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-785f56cbf0caf79239a54479",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-ab3389b8d230d134043d2e86",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-b20d1b8a2273d857b76ce3ff",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-c0d7c331a82926e09e59a3d9",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-c7de698fc12f4055cea33ab8",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-cbaa1138484032443464919c",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-db58aa9fe559c1214b536825",
+      "direction": "forward"
+    },
+    {
+      "ordinal": 39,
+      "route_id": "co-catalog-fd822056e6b9eb8b8e777e9c",
+      "direction": "forward"
+    }
+  ],
+  "sources": [
+    "https://www.clearcreekcounty.org/st-marys-glacier/",
+    "https://www.cmc.org/education-adventure/trips/routes-places/st-marys-glacier",
+    "https://www.openstreetmap.org/way/175382199"
+  ],
+  "reason": "Keep the mapped geographic name. Clear Creek County and Colorado Mountain Club identify this feature as a semi-permanent snowfield, not moving glacial ice. This is a terrain classification, not a claim of current snow cover. Existing route summaries already describe the snow gully and gear; retain them.",
+  "reviewed_by": "Codex terrain reconciliation, authorized by Josiah",
+  "backup_id": "1793170232146"
+}

@@ -1,0 +1,14 @@
+{
+  "reviewed_by": "Codex",
+  "date": "2026-10-28",
+  "segment_ids": [
+    "ca-osm-5c23f9f1238b645e444e",
+    "ca-osm-bd2b3402a65a7ede48d7"
+  ],
+  "decision": "keep_named_winter_routes",
+  "reason": "NPS identifies Dewey Meadow (#18) and Dewey Ridge (#14) as winter travel routes. Their names describe designated snow routes, not named ice bodies. Retain the source names and snowfield kinds.",
+  "sources": [
+    "https://www.nps.gov/yose/planyourvisit/trailheads.htm",
+    "https://home.nps.gov/yose/planyourvisit/wildwinter.htm"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "verified_labels": 2989,
+  "unchanged_non_label_fields": 2988,
+  "reviewed_kind_changes": 1,
+  "all_shared_route_links_unchanged": true,
+  "linked_routes_including_superseded": 3066,
+  "active_and_pending_routes": {
+    "active": 2973,
+    "pending": 86
+  },
+  "method": "Independent post-commit SELECT of every target; compare final labels, full stable row hashes, and all route links with the latest reviewed plan for each segment. St Marys kind change has separate transactional preservation checks."
+}

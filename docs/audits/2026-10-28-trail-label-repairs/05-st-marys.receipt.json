@@ -1,0 +1,97 @@
+{
+  "kind": "snowfield",
+  "routes": [
+    {
+      "id": "co-catalog-2f3a0af3af92b0e6732c2d39",
+      "name": "James Peak via James Peak South Trail",
+      "difficulty": "strenuous",
+      "stats_hash": "938e8f3b4889dd2443a6981bb9137943",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-3d100b4c3375d95c074ef866",
+      "name": "Steuart Lake via St. Mary's Glacier Trail",
+      "difficulty": "hard",
+      "stats_hash": "739d61683fc763b6cfa164faf1e4dbc3",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-4c3631c036d2e1838450ef04",
+      "name": "Heart Lake via Continental Divide National Scenic Trail",
+      "difficulty": "strenuous",
+      "stats_hash": "d9a2d65010d420af5737455f5ad6ee93",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-6fa6f44c8a78a037808079e4",
+      "name": "Reynolds Lake via St. Mary's Glacier Trail",
+      "difficulty": "hard",
+      "stats_hash": "2eca27654040ec207616c41c7f8d0d40",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-785f56cbf0caf79239a54479",
+      "name": "James Peak Overlook via James Peak Trail",
+      "difficulty": "strenuous",
+      "stats_hash": "4d9b14019d1005c8e44229f25dc42795",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-ab3389b8d230d134043d2e86",
+      "name": "Rogers Pass Lake via Continental Divide National Scenic Trail",
+      "difficulty": "strenuous",
+      "stats_hash": "efd4ca8fce12686f69913b08585f2dc1",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-b20d1b8a2273d857b76ce3ff",
+      "name": "Ohman Lake via St. Mary's Glacier Trail",
+      "difficulty": "hard",
+      "stats_hash": "2db9fa95808c239f95142cd387f41822",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-c0d7c331a82926e09e59a3d9",
+      "name": "Loch Lomond via St. Mary's Glacier Trail",
+      "difficulty": "hard",
+      "stats_hash": "bb57b9b44f018c8cb8468e11a0bbe62a",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-c7de698fc12f4055cea33ab8",
+      "name": "James Peak Lake via James Peak Lake Trail",
+      "difficulty": "strenuous",
+      "stats_hash": "17876e859652f9d8aa151a1afa35eba1",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-cbaa1138484032443464919c",
+      "name": "Rogers Pass via Continental Divide National Scenic Trail",
+      "difficulty": "strenuous",
+      "stats_hash": "511dd8ed2a90853b164995702b0ca38d",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-db58aa9fe559c1214b536825",
+      "name": "Yankee Hill via Kingston Peak Spur Trail",
+      "difficulty": "strenuous",
+      "stats_hash": "5948919afa4e12df2787df93a85e1552",
+      "terrain_category": null
+    },
+    {
+      "id": "co-catalog-fd822056e6b9eb8b8e777e9c",
+      "name": "Little Echo Lake via Kingston Peak Spur Trail",
+      "difficulty": "strenuous",
+      "stats_hash": "adfa819f809624b23700f0ad24066143",
+      "terrain_category": null
+    }
+  ],
+  "segment": "co-osm-248cf2f44584ef1c340c",
+  "backup_id": "1793170232146",
+  "plan_sha256": "253b44318069683282065445f34a8dfb24ba3e4d9d17917565e09a1135787b9c",
+  "verified_at": "2026-10-28T07:20:38.841469+00:00",
+  "display_name": "Saint Mary's Glacier",
+  "preserved_hash": "f39ed4f8ae6c71939527caa264af2cce",
+  "status": "committed",
+  "route_stats_unchanged": true
+}

@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-10-28T08:00:31.554Z",
+  "snapshot_sha256": "9e36c5a6207ad8b3affa68c5dd9e4023eea5e2cd12245e81c8658522e280bc13",
+  "scope": "All Peaks-owned active and pending routes; superseded and private routes excluded.",
+  "limitation": "This checks stored labels, not terrain accuracy or outside-source identity. Findings require review; no names or terrain types are changed.",
+  "summary": {
+    "routes": 19169,
+    "by_status": {
+      "active": 18621,
+      "pending": 548
+    },
+    "segment_links": 252959,
+    "unique_segments": 93803,
+    "routes_without_segments": 93,
+    "routes_with_label_findings": 3064,
+    "routes_with_findings": 3157,
+    "findings_by_code": {
+      "missing_segments": 93,
+      "unnamed_ice": 19,
+      "name_repeated_across_kinds": 938,
+      "adjacent_trail_aliases": 4491,
+      "ice_named_as_trail": 14
+    }
+  }
+}
