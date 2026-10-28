@@ -79,7 +79,8 @@
     "terrain:verify": "./scripts/run-tsx.sh src/terrain-facts/cli.ts verify",
     "terrain:review": "./scripts/run-tsx.sh src/terrain-facts/cli.ts review",
     "terrain:compare": "./scripts/run-tsx.sh src/terrain-facts/cli.ts compare",
-    "terrain:apply": "./scripts/run-tsx.sh src/terrain-facts/cli.ts apply"
+    "terrain:apply": "./scripts/run-tsx.sh src/terrain-facts/cli.ts apply",
+    "audit:trail-stretch-names": "./scripts/run-tsx.sh src/audit-trail-stretch-names.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "^1.5.5-r.4",

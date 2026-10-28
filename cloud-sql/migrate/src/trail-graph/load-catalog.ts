@@ -8,6 +8,7 @@ import { databaseFeature } from './names';
 import { haversine } from './geo';
 import { assertDisplayName } from './display-names';
 import { segmentValues } from './load-segments';
+import { segmentDisplayName } from './segment-names';
 import { DestinationResolver, IMPORT_MARKER, checkSupersede, claimSupersedes, forbiddenPlace, osmExternalIds, placeIdentity, type SupersedeDecision } from './load-matching';
 import { bindExistingSegments, readPreflight, type ExistingOverlap } from './load-preflight';
 import { pruneOnly } from './load-prune';
@@ -147,7 +148,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
       OR (wa_catalog_provenance_elevation(s.provenance,'{}'::jsonb)-'wa_catalog') IS DISTINCT FROM(item->'provenance')
       OR NOT COALESCE(ST_OrderingEquals(ST_Force2D(s.path::geometry),ST_GeomFromGeoJSON(item->>'geometry')),false)) AS valid FROM routes r WHERE r.id=$1`,
     [row.route_id, JSON.stringify({ name: row.name, owner: 'peaks', kind: row.kind, aliases: row.aliases, shape: row.shape, state_code: state, country_code: 'US', trailhead_destination_id: thId, objective_destination_id: objectiveId, external_links: row.wta_url ? [{ type: 'wta', id: row.wta_url }] : [], provenance, description: null }),
-      JSON.stringify(refs), JSON.stringify(ordered), JSON.stringify(plan.segment_ids.map(id => { const s = segments.get(id)!; return { id, name: s.name, display_name: s.display_name === undefined ? s.trail_names[0] || s.relation_names[0] || null : s.display_name, description: s.description ?? null, kind: s.kind, provenance: withoutElevation(s.provenance), geometry: { type: 'LineString', coordinates: s.coords } }; }))]);
+      JSON.stringify(refs), JSON.stringify(ordered), JSON.stringify(plan.segment_ids.map(id => { const s = segments.get(id)!; return { id, name: s.name, display_name: segmentDisplayName(s), description: s.description ?? null, kind: s.kind, provenance: withoutElevation(s.provenance), geometry: { type: 'LineString', coordinates: s.coords } }; }))]);
   if (options.elevation) for (const id of plan.segment_ids) {
     add('elevation_guard', `SELECT EXISTS(${PROTECTED}) AS protected,
       gain IS NOT NULL AND gain_loss IS NOT NULL AND NOT EXISTS(SELECT 1 FROM ST_DumpPoints(path::geometry) p WHERE ST_Z((p).geom) IS NULL OR ST_Z((p).geom)=0) AS complete
