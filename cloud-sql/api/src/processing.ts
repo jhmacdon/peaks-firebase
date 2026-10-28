@@ -12,6 +12,7 @@ import {
 } from "./route-coverage";
 import { segmentPasses, type SegmentCorridorRow, type SegmentPass } from "./segment-passes";
 import { pathPlacesCtes, planTrackVerticesSql } from "./lib/path-places";
+import { refreshSessionGlacierCrossings } from "./lib/glacier-crossings";
 import { planSourceFingerprintSql } from "./lib/plan-repair";
 
 export function generateId(): string {
@@ -224,6 +225,7 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
   return `SELECT d.id
        FROM destinations d
        WHERE d.boundary IS NULL
+         AND NOT ('glacier'=ANY(d.features::text[]))
          AND (d.owner = 'peaks' OR d.owner = ${ownerExpr})
          AND ST_DWithin(d.location, ${pathExpr}, ${MAX_DESTINATION_MATCH_RADIUS_M})
          AND ST_DWithin(d.location, ${pathExpr}, destination_match_radius(d.features))
@@ -248,6 +250,7 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
          ON ST_DWithin(bp.boundary_part, track.piece, ${MAX_BOUNDARY_MATCH_RADIUS_M})
        JOIN destinations d ON d.id = bp.destination_id
        WHERE d.boundary IS NOT NULL
+         AND NOT ('glacier'=ANY(d.features::text[]))
          AND (d.owner = 'peaks' OR d.owner = ${ownerExpr})
          AND ST_DWithin(bp.boundary_part, track.piece, destination_boundary_match_radius(d.features))`;
 }
@@ -978,7 +981,8 @@ export async function processSession(
     );
 
     // Step 2: Destination matching
-    const destinationsMatched = await matchDestinations(client, sessionId);
+    const destinationsMatched = await matchDestinations(client, sessionId)
+      + await refreshSessionGlacierCrossings(client, sessionId);
 
     // Step 3: Route matching
     const routesMatched = await matchRoutes(client, sessionId);

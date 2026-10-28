@@ -1,3 +1,4 @@
+import { glacierCrossingsSql, glacierMatchStatusSql } from "./glacier-crossings";
 import { buildRouteAccessSql } from "./route-access";
 import { pathPlacesCtes } from "./path-places";
 
@@ -22,10 +23,11 @@ export function decodeRoutePlaceCursor(raw: unknown): RoutePlaceCursor {
 /** Page through original vertices, with a second cursor for dense result sets.
  * Long indexed trails never read their full path. No route-length exclusion.
  */
-export function buildRouteLandmarksQuery(id: string,uid: string,cursor=decodeRoutePlaceCursor(undefined)) {
+export function buildRouteLandmarksQuery(id: string,uid: string,cursor=decodeRoutePlaceCursor(undefined), glaciers=false) {
   return {
     text:`WITH source AS MATERIALIZED (
-      SELECT r.id,r.path,r.owner AS user_id,r.updated_at::text AS version,
+      SELECT r.id,r.path,r.owner,r.owner AS user_id,r.updated_at::text AS version,
+        ${glaciers ? "r.glacier_match_input_hash," : ""}
         CASE WHEN r.id IN ${INDEXED} THEN
           (SELECT idx+1 FROM triple_crown_route_points WHERE route_id=r.id ORDER BY idx DESC LIMIT 1)
         ELSE ST_NPoints(r.path::geometry) END AS total_vertices
@@ -46,6 +48,8 @@ export function buildRouteLandmarksQuery(id: string,uid: string,cursor=decodeRou
       FROM unique_places ORDER BY distance_along_m,id LIMIT ${ROUTE_PLACE_PAGE_SIZE+1} OFFSET $5
     )
     SELECT s.version,s.total_vertices,
+      ${glaciers ? `${glacierCrossingsSql("route","s")} AS glacier_crossings,
+        ${glacierMatchStatusSql("s")} AS glacier_crossings_status,` : ""}
       (SELECT max(vertex) FROM track_vertices) AS last_vertex,
       COALESCE((SELECT max(along_m+length_m) FROM edges),$4) AS end_m,
       COALESCE((SELECT json_agg(page ORDER BY distance_along_m,id) FROM page),'[]'::json) AS items
@@ -64,6 +68,7 @@ export function routePlacePage(row: any,cursor: RoutePlaceCursor) {
   let next: RoutePlaceCursor|null=null;
   if (all.length>ROUTE_PLACE_PAGE_SIZE) next={...cursor,row:cursor.row+ROUTE_PLACE_PAGE_SIZE,version:row.version};
   else if (row.last_vertex<row.total_vertices) next={vertex:row.last_vertex,along:row.end_m,row:0,version:row.version};
-  return {items,nextCursor:next?Buffer.from(JSON.stringify(next)).toString("base64url"):null,
+  return {...(Object.prototype.hasOwnProperty.call(row,"glacier_crossings")
+    ? {glacier_crossings:row.glacier_crossings,glacier_crossings_status:row.glacier_crossings_status}:{}),items,nextCursor:next?Buffer.from(JSON.stringify(next)).toString("base64url"):null,
     distanceThroughMeters:row.end_m};
 }

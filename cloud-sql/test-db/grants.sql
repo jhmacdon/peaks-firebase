@@ -47,3 +47,10 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 -- same narrow call right.
 GRANT EXECUTE ON FUNCTION settle_route_integrity_replacement(TEXT, TEXT, TEXT)
   TO :"test_role";
+
+-- Glacier engine unit/integration suites call the same functions as the API.
+GRANT EXECUTE ON FUNCTION glacier_edges(JSONB, BOOLEAN),
+  glacier_crossing_intervals(JSONB), glacier_catalog_revision(),
+  refresh_route_glacier_crossings(TEXT, BOOLEAN),
+  refresh_session_glacier_crossings(TEXT, BOOLEAN), queue_glacier_matches(TEXT)
+  TO :"test_role";

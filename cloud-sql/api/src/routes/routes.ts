@@ -12,6 +12,10 @@ import { CamsFetcher, fetchCams } from "../open-meteo";
 import { startAccessSql, withStartAccess } from "../lib/start-access";
 import { buildRouteLandmarksQuery, decodeRoutePlaceCursor, routePlacePage } from "../lib/route-landmarks";
 
+import { glacierCrossingsSql, glacierMatchStatusSql } from "../lib/glacier-crossings";
+import { supportsGlaciers } from "../lib/glacier-capability";
+import { hasGlacierSupport } from "../lib/schema-features";
+
 const router = Router();
 
 /** Route-start forecast; only visible linked places can supply a missing path. */
@@ -72,7 +76,8 @@ export async function handleRouteAirQuality(
 
 export function buildRouteDetailQuery(
   id: string,
-  uid: string
+  uid: string,
+  options: { glaciers?: boolean } = {}
 ): { text: string; values: unknown[] } {
   return {
     text: `SELECT r.id, r.name, r.polyline6, r.owner,
@@ -87,6 +92,8 @@ export function buildRouteDetailQuery(
             r.description, r.description_source_name,
             r.description_source_url, r.description_source_license,
             r.created_at, r.updated_at,
+            ${options.glaciers ? `${glacierCrossingsSql("route","r")} AS glacier_crossings,
+              ${glacierMatchStatusSql("r")} AS glacier_crossings_status,` : ""}
             ${routeCoverSelectSql()},
             COALESCE(area_rows.areas, '[]'::json) AS areas,
             COALESCE(section_rows.sections, '[]'::json) AS sections,
@@ -305,7 +312,8 @@ router.get("/near", asyncRoute(async (req, res: Response) => {
 router.get("/:id", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const uid = getUid(req);
-  const query = buildRouteDetailQuery(id, uid);
+  const glacierReady = supportsGlaciers(req) && await hasGlacierSupport();
+  const query = buildRouteDetailQuery(id, uid, {glaciers:glacierReady});
   const destinationsQuery = buildRouteDestinationsQuery(id, uid);
   const [result, destinations] = await Promise.all([
     db.query(query.text, query.values),
@@ -315,6 +323,7 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
     res.status(404).json({ error: "Route not found" });
     return;
   }
+  if (supportsGlaciers(req) && !glacierReady) Object.assign(result.rows[0],{glacier_crossings:[],glacier_crossings_status:"unavailable"});
   res.json(mapRouteDetailRow(result.rows[0], destinations.rows));
 }));
 
@@ -333,9 +342,11 @@ router.get("/:id/landmarks", asyncRoute(async (req, res: Response) => {
   let cursor;
   try { cursor = decodeRoutePlaceCursor(req.query.cursor); }
   catch { res.status(400).json({error:"Invalid place cursor"}); return; }
-  const query = buildRouteLandmarksQuery(req.params.id, getUid(req), cursor);
+  const glacierReady = supportsGlaciers(req) && await hasGlacierSupport();
+  const query = buildRouteLandmarksQuery(req.params.id, getUid(req), cursor, glacierReady);
   const result = await db.query(query.text, query.values);
   if (!result.rows.length) { res.status(404).json({error:"Route not found or missing geometry"}); return; }
+  if (supportsGlaciers(req) && !glacierReady) Object.assign(result.rows[0],{glacier_crossings:[],glacier_crossings_status:"unavailable"});
   try { res.json(routePlacePage(result.rows[0], cursor)); }
   catch (error) {
     if (error instanceof Error && error.message === "Route changed; reload its places")

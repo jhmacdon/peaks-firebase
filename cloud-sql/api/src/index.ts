@@ -18,6 +18,8 @@ import adminRoutes from "./routes/admin";
 import publicAirQuality from "./routes/public-air-quality";
 import pool, { processingPool } from "./db";
 import { drainSessionRematchQueue, sweepStuckSessions } from "./processing";
+import { drainRouteGlacierQueue } from "./lib/glacier-crossings";
+import { glacierCapabilityGuard } from "./lib/glacier-capability";
 import { refreshDestinationWeather } from "./weather-refresh";
 
 export const app = express();
@@ -94,6 +96,7 @@ app.post("/internal/sweep", asyncRoute(async (req, res) => {
     // Catalog changes (destination moved/retyped, route added/changed) queue
     // the sessions near them; re-match a batch each sweep.
     await drainSessionRematchQueue(processingPool);
+    await drainRouteGlacierQueue(processingPool);
     await drainTripReportPhotoDeletions(processingPool);
     res.json({ status: "ok" });
   } catch (err) {
@@ -134,7 +137,7 @@ app.post("/internal/weather-refresh", asyncRoute(async (req, res) => {
 // Exact GET allowlist. New endpoints and all other methods require auth.
 export const signedOutCatalogPaths = [
   "/destinations/nearby", "/destinations/viewport", "/destinations/averages",
-  "/destinations/:id", "/destinations/:id/lists", "/destinations/:id/routes",
+  "/destinations/:id", "/destinations/:id/glacier", "/destinations/:id/lists", "/destinations/:id/routes",
   "/lists/popular", "/lists/by-destinations", "/lists/:id", "/lists/:id/destinations",
   "/search", "/search/all", "/search/features",
   "/routes/near", "/routes/:id", "/routes/:id/destinations", "/routes/:id/landmarks",
@@ -167,6 +170,7 @@ app.use("/api", (req, res, next) => {
   });
 });
 
+app.use("/api", glacierCapabilityGuard);
 app.use("/api/destinations", destinations);
 app.use("/api/routes", routes);
 app.use("/api/areas", areas);

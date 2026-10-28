@@ -37,6 +37,8 @@ const ABBREVIATIONS: Record<string, string> = {
 export function normalizeSearchName(name: string): string {
   return name
     .toLowerCase()
+    // A compound like "Interglacier" also finds "Inter Glacier".
+    .replace(/\b([a-z]+)glacier\b/g, "$1 glacier")
     // "mt." is "mt": drop a period after a letter ("12.4" keeps its own).
     // Mirrors peaks_search_name() in SQL.
     .replace(/(\p{L})\./gu, "$1")
