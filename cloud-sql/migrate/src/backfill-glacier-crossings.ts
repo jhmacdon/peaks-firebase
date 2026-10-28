@@ -52,15 +52,16 @@ export async function backfillGlacierCrossings(args: string[]): Promise<void> {
         processSession(id: string,uid: string,opts: {force: boolean;pool: Pool}): Promise<{skipped?: boolean}>;
       };
       for (;processed<options.limit;processed++) {
-        const next=await pool.query(`SELECT q.session_id,q.queued_at,s.user_id FROM session_rematch_queue q
+        const next=await pool.query(`SELECT q.session_id,q.queued_at::text AS queued_at,s.user_id FROM session_rematch_queue q
           JOIN tracking_sessions s ON s.id=q.session_id
           WHERE q.reason LIKE 'glacier:%' OR q.reason LIKE 'glacier-rejection:%'
           ORDER BY q.queued_at,q.session_id LIMIT 1`);
         const row=next.rows[0]; if (!row) break;
         const result=await api.processSession(row.session_id,row.user_id,{force:true,pool});
         if (result.skipped) break;
-        // Do not remove work queued by a concurrent catalog edit.
-        await pool.query("DELETE FROM session_rematch_queue WHERE session_id=$1 AND queued_at=$2",[row.session_id,row.queued_at]);
+        // Do not remove work queued by a concurrent catalog edit. The marker stays
+        // text: a JS Date drops microseconds and would never match the stored value.
+        await pool.query("DELETE FROM session_rematch_queue WHERE session_id=$1 AND queued_at=$2::timestamptz",[row.session_id,row.queued_at]);
         console.log(`session ${row.session_id}`);
       }
     }
