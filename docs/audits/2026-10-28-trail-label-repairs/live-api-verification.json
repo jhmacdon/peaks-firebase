@@ -1,0 +1,120 @@
+{
+  "three_fingers": {
+    "route_id": "wa-catalog-29050878f0c18b27331bedc3",
+    "segments": [
+      {
+        "id": "wa-osm-158d4a833cb7c9585cfd",
+        "ordinal": 0,
+        "display_name": "Three Fingers Trail #641",
+        "kind": "trail",
+        "distance": 3624.138012705341
+      },
+      {
+        "id": "wa-osm-00950bd8d4ba741f399a",
+        "ordinal": 1,
+        "display_name": "Three Fingers Trail #641",
+        "kind": "trail",
+        "distance": 3500.6659397156313
+      },
+      {
+        "id": "wa-osm-6426f447e560da4c0e34",
+        "ordinal": 2,
+        "display_name": "Three Fingers Trail #641",
+        "kind": "trail",
+        "distance": 2257.1471379888512
+      },
+      {
+        "id": "wa-osm-03e659b67030d6f971ce",
+        "ordinal": 3,
+        "display_name": "Summit Approach",
+        "kind": "trail",
+        "distance": 89.89429403128278
+      },
+      {
+        "id": "wa-osm-d05d5f7caa8e53172405",
+        "ordinal": 4,
+        "display_name": "Lower Ice Crossing",
+        "kind": "glacier",
+        "distance": 60.63816757441008
+      },
+      {
+        "id": "wa-osm-ba5fc368314c4824fda7",
+        "ordinal": 5,
+        "display_name": "Ridge Traverse",
+        "kind": "trail",
+        "distance": 1594.403676951335
+      },
+      {
+        "id": "wa-osm-25823a55845dd742faa0",
+        "ordinal": 6,
+        "display_name": "Summit Ice Crossing",
+        "kind": "glacier",
+        "distance": 17.08789183120451
+      },
+      {
+        "id": "wa-osm-2135eef70c65bb4e4579",
+        "ordinal": 7,
+        "display_name": "Summit Ice Crossing",
+        "kind": "glacier",
+        "distance": 158.973942427737
+      },
+      {
+        "id": "wa-osm-8e887ec2628569b8acb9",
+        "ordinal": 8,
+        "display_name": "Summit block and ladders",
+        "kind": "scramble",
+        "distance": 52.219274574233495
+      },
+      {
+        "id": "wa-summit-connector-66d92c2be8f65ba3d750",
+        "ordinal": 9,
+        "display_name": "Summit block and ladders",
+        "kind": "scramble",
+        "distance": 15.775213516207158
+      }
+    ]
+  },
+  "st_marys": {
+    "route_id": "co-catalog-2f3a0af3af92b0e6732c2d39",
+    "segment": {
+      "id": "co-osm-248cf2f44584ef1c340c",
+      "display_name": "Saint Mary's Glacier",
+      "kind": "snowfield",
+      "distance": 210.6760790886907
+    },
+    "terrain_category": null,
+    "difficulty": "strenuous"
+  },
+  "buffalo_mountain": [
+    {
+      "id": "wv-catalog-10563e8b00db29d1218726fa",
+      "name": "Buffalo Mountain Loop via Trail 11",
+      "labels": [
+        "Buffalo Mountain Trail #11",
+        "Buffalo Mountain Trail #12",
+        "Buffalo Mountain Trail #15",
+        "Buffalo Mountain Trail #20",
+        "Buffalo Mountain Trail #22",
+        "Buffalo Mountain Trail #42",
+        "Buffalo Mountain Trail #48",
+        "Buffalo Mountain Trail #55",
+        "Buffalo Mountain Trail #58",
+        "Buffalo Mountain Unnumbered Trail"
+      ]
+    },
+    {
+      "id": "wv-catalog-9ff041ff3229f8ae6736be67",
+      "name": "Buffalo Mountain Loop via Trail 19",
+      "labels": [
+        "Buffalo Mountain Trail #12",
+        "Buffalo Mountain Trail #15",
+        "Buffalo Mountain Trail #19",
+        "Buffalo Mountain Trail #20",
+        "Buffalo Mountain Trail #42",
+        "Buffalo Mountain Trail #48",
+        "Buffalo Mountain Trail #55",
+        "Buffalo Mountain Unnumbered Trail"
+      ]
+    }
+  ]
+}

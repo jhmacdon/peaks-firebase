@@ -1,0 +1,723 @@
+{
+  "method": "Every stored edge midpoint, with source polygon holes respected. This checks source labels, not current ice extent or terrain safety.",
+  "features_files": [
+    "private/wa-trail-data/extract/features.geojsonseq",
+    "private/west-trail-data/california/extract/features.geojsonseq",
+    "../../.cache/trail-label-repairs/colorado-features-with-ids.geojsonseq"
+  ],
+  "segments": [
+    {
+      "id": "ca-osm-5c23f9f1238b645e444e",
+      "kind": "snowfield",
+      "total_m": 1218.174053061977,
+      "outside_m": 1218.174053061977,
+      "source_polygons": []
+    },
+    {
+      "id": "ca-osm-bd2b3402a65a7ede48d7",
+      "kind": "snowfield",
+      "total_m": 3244.6569036298124,
+      "outside_m": 3244.6569036298124,
+      "source_polygons": []
+    },
+    {
+      "id": "co-osm-248cf2f44584ef1c340c",
+      "kind": "glacier",
+      "total_m": 210.6760790886907,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "way/175382199",
+          "name": "Saint Mary's Glacier",
+          "meters": 210.6760790886907
+        }
+      ]
+    },
+    {
+      "id": "itjwDNloNDgAlcWS4hkO-t54349c2",
+      "kind": "glacier",
+      "total_m": 3813.797387262294,
+      "outside_m": 3813.797387262294,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-1c4ff9300dbb45adea55-t38ea931",
+      "kind": "glacier",
+      "total_m": 986.9973708383537,
+      "outside_m": 262.31790411044307,
+      "source_polygons": [
+        {
+          "id": "relation/15310454",
+          "name": "Sholes Glacier",
+          "meters": 724.6794667279106
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-1d5f40d73c191f220d6c",
+      "kind": "glacier",
+      "total_m": 33.06965055107738,
+      "outside_m": 33.06965055107738,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-37c86eab066d4056d562",
+      "kind": "glacier",
+      "total_m": 57.67272184945795,
+      "outside_m": 10.65492753333759,
+      "source_polygons": [
+        {
+          "id": "relation/4773348",
+          "name": "",
+          "meters": 47.01779431612036
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-3c9eeff1194b20eaa018",
+      "kind": "glacier",
+      "total_m": 10.65492753333759,
+      "outside_m": 10.65492753333759,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-3f60a026e8986e75e747",
+      "kind": "glacier",
+      "total_m": 11.495841904827298,
+      "outside_m": 11.495841904827298,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-471c5f85e8fed02185bd",
+      "kind": "glacier",
+      "total_m": 439.14036726685043,
+      "outside_m": 439.14036726685043,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-4dfcc6fee0fea61334dc",
+      "kind": "glacier",
+      "total_m": 830.4694123583608,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4733048",
+          "name": "Deming Glacier",
+          "meters": 529.5177333887958
+        },
+        {
+          "id": "relation/4773345",
+          "name": "Easton Glacier",
+          "meters": 300.951678969565
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-59f8c6e6c3be34bca211",
+      "kind": "glacier",
+      "total_m": 5.173970237446595,
+      "outside_m": 5.173970237446595,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-73903ddf06506acb7d64",
+      "kind": "glacier",
+      "total_m": 3226.9359640584166,
+      "outside_m": 202.17974628542373,
+      "source_polygons": [
+        {
+          "id": "relation/4777570",
+          "name": "Rainbow Glacier",
+          "meters": 2739.059431223935
+        },
+        {
+          "id": "relation/2439493",
+          "name": "Park Glacier",
+          "meters": 285.69678654905783
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-7497ee0cfd951f76f36e",
+      "kind": "glacier",
+      "total_m": 8.229647255990816,
+      "outside_m": 8.229647255990816,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-78416db7b605654daddf",
+      "kind": "glacier",
+      "total_m": 4835.317234234028,
+      "outside_m": 1241.461497578398,
+      "source_polygons": [
+        {
+          "id": "relation/4773347",
+          "name": "Squak Glacier",
+          "meters": 2420.711936034545
+        },
+        {
+          "id": "relation/4733048",
+          "name": "Deming Glacier",
+          "meters": 652.8755625776382
+        },
+        {
+          "id": "relation/4773345",
+          "name": "Easton Glacier",
+          "meters": 520.2682380434466
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-a32029166ad37da28876",
+      "kind": "glacier",
+      "total_m": 1609.273704883032,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/2439493",
+          "name": "Park Glacier",
+          "meters": 1497.4726559752737
+        },
+        {
+          "id": "relation/4773348",
+          "name": "",
+          "meters": 111.80104890775819
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-a33ce76373228f7f1a4e",
+      "kind": "glacier",
+      "total_m": 461.51267538619066,
+      "outside_m": 461.51267538619066,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-a510430ff0a200d61eee",
+      "kind": "glacier",
+      "total_m": 3.681380277708272,
+      "outside_m": 3.681380277708272,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-abf5ddeaf188740416b2-t2e54771",
+      "kind": "glacier",
+      "total_m": 516.0002515403999,
+      "outside_m": 229.42420908532333,
+      "source_polygons": [
+        {
+          "id": "way/373139306",
+          "name": "Sahale Glacier",
+          "meters": 286.5760424550765
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-b8e2e177adb7f1add7aa",
+      "kind": "glacier",
+      "total_m": 3.6583386766026864,
+      "outside_m": 3.6583386766026864,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-bb421389eeba61aa202b",
+      "kind": "glacier",
+      "total_m": 51.265167932158704,
+      "outside_m": 11.495841904827298,
+      "source_polygons": [
+        {
+          "id": "relation/4773348",
+          "name": "",
+          "meters": 39.7693260273314
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-cddab32462271f709c9c",
+      "kind": "glacier",
+      "total_m": 1230.20242953725,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4773345",
+          "name": "Easton Glacier",
+          "meters": 1230.20242953725
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-e0a0b01d7b35aeb25f8d",
+      "kind": "glacier",
+      "total_m": 9.95786132273402,
+      "outside_m": 9.95786132273402,
+      "source_polygons": []
+    },
+    {
+      "id": "wa-legacy-tail-e55158f0040930457c7c",
+      "kind": "glacier",
+      "total_m": 2019.6078780148664,
+      "outside_m": 1490.3831168199276,
+      "source_polygons": [
+        {
+          "id": "relation/4773345",
+          "name": "Easton Glacier",
+          "meters": 529.2247611949389
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-fa5025c10a20d7a1e337",
+      "kind": "glacier",
+      "total_m": 1609.789983096422,
+      "outside_m": 65.28524098678227,
+      "source_polygons": [
+        {
+          "id": "relation/5552412",
+          "name": "Winthrop Glacier",
+          "meters": 1291.403797157177
+        },
+        {
+          "id": "relation/5535843",
+          "name": "Emmons Glacier",
+          "meters": 253.1009449524629
+        }
+      ]
+    },
+    {
+      "id": "wa-legacy-tail-fd9f88f2d7a0f506d381",
+      "kind": "glacier",
+      "total_m": 13.779595730830213,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4773348",
+          "name": "",
+          "meters": 13.779595730830213
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-0a34bd11189f1ed4c08e",
+      "kind": "glacier",
+      "total_m": 126.56099601311566,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/9690999",
+          "name": "Swift Glacier",
+          "meters": 126.56099601311566
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-2135eef70c65bb4e4579",
+      "kind": "glacier",
+      "total_m": 158.973942427737,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "way/572504963",
+          "name": "",
+          "meters": 158.973942427737
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-25823a55845dd742faa0",
+      "kind": "glacier",
+      "total_m": 17.08789183120451,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "way/572504963",
+          "name": "",
+          "meters": 17.08789183120451
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-2e4be864676f0e54b83e",
+      "kind": "glacier",
+      "total_m": 74.45368751643846,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/9690999",
+          "name": "Swift Glacier",
+          "meters": 74.45368751643846
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-307fade8f60e98bbbbe6",
+      "kind": "glacier",
+      "total_m": 553.1359501228575,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/18735239",
+          "name": "Mazama Glacier",
+          "meters": 553.1359501228575
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-348817fc370433f8f35b",
+      "kind": "glacier",
+      "total_m": 220.0138030836376,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "way/307338639",
+          "name": "",
+          "meters": 220.0138030836376
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-40af7038f1da8571c66b",
+      "kind": "glacier",
+      "total_m": 99.19282515159863,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/13209365",
+          "name": "Hinman Glacier",
+          "meters": 99.19282515159863
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-489ecca7c5db6789b2f4",
+      "kind": "glacier",
+      "total_m": 125.3276405752083,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4104275",
+          "name": "Klickitat Glacier",
+          "meters": 125.3276405752083
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-5b2a698f1e71453528da",
+      "kind": "glacier",
+      "total_m": 439.6632386465853,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4733048",
+          "name": "Deming Glacier",
+          "meters": 372.19135333760653
+        },
+        {
+          "id": "relation/4773341",
+          "name": "Coleman Glacier",
+          "meters": 67.47188530897876
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-684750b0ffcbc0dd78a5",
+      "kind": "glacier",
+      "total_m": 74.52887771750302,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "way/307338639",
+          "name": "",
+          "meters": 74.52887771750302
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-6d362d559ebe5b6e9b8e",
+      "kind": "glacier",
+      "total_m": 85.15810263441995,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "way/307338639",
+          "name": "",
+          "meters": 85.15810263441995
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-747f26522a4a60d397cd",
+      "kind": "glacier",
+      "total_m": 721.6659578399269,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/18735198",
+          "name": "Crescent Glacier",
+          "meters": 721.6659578399269
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-9f7c4ac9d426550e8c46",
+      "kind": "glacier",
+      "total_m": 436.02142592035335,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/16019635",
+          "name": "Gerdine Glacier",
+          "meters": 436.02142592035335
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-a05ec8169a7268e96ecb",
+      "kind": "glacier",
+      "total_m": 161.5044131912852,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/11863063",
+          "name": "",
+          "meters": 161.5044131912852
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-a94c2f009384d9e67ba6",
+      "kind": "glacier",
+      "total_m": 1590.7640889889192,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/16019635",
+          "name": "Gerdine Glacier",
+          "meters": 1040.364363519144
+        },
+        {
+          "id": "relation/11867912",
+          "name": "Cool Glacier",
+          "meters": 550.3997254697747
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-c2e6eaecbcb07987b443",
+      "kind": "glacier",
+      "total_m": 165.63338435805662,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/11863063",
+          "name": "",
+          "meters": 165.63338435805662
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-d05d5f7caa8e53172405",
+      "kind": "glacier",
+      "total_m": 60.63816757441008,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "way/572504961",
+          "name": "",
+          "meters": 60.63816757441008
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-dd363a6751f6749a41eb",
+      "kind": "glacier",
+      "total_m": 87.77438866265715,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "way/307338639",
+          "name": "",
+          "meters": 87.77438866265715
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-e6285227436540d6398c",
+      "kind": "glacier",
+      "total_m": 243.78184751035155,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/18735239",
+          "name": "Mazama Glacier",
+          "meters": 243.78184751035155
+        }
+      ]
+    },
+    {
+      "id": "wa-osm-f6e4a6552617ceac66b3",
+      "kind": "glacier",
+      "total_m": 37.97740605259292,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4104273",
+          "name": "Adams Glacier",
+          "meters": 37.97740605259292
+        }
+      ]
+    },
+    {
+      "id": "wa-span-215b4d8a64c770898bb9",
+      "kind": "glacier",
+      "total_m": 344.6362001857748,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4773340",
+          "name": "Roosevelt Glacier",
+          "meters": 344.6362001857748
+        }
+      ]
+    },
+    {
+      "id": "wa-span-4b75c76dd266055c84bd",
+      "kind": "glacier",
+      "total_m": 779.4691298712745,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4773340",
+          "name": "Roosevelt Glacier",
+          "meters": 601.7663738004302
+        },
+        {
+          "id": "relation/4773341",
+          "name": "Coleman Glacier",
+          "meters": 177.7027560708443
+        }
+      ]
+    },
+    {
+      "id": "wa-span-93ce6e7c78012d2f618e",
+      "kind": "glacier",
+      "total_m": 441.53056931401284,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4773340",
+          "name": "Roosevelt Glacier",
+          "meters": 441.53056931401284
+        }
+      ]
+    },
+    {
+      "id": "wa-span-9425f37c5bf270d62836",
+      "kind": "glacier",
+      "total_m": 824.3087757993451,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/5552412",
+          "name": "Winthrop Glacier",
+          "meters": 751.6515453760487
+        },
+        {
+          "id": "relation/5535843",
+          "name": "Emmons Glacier",
+          "meters": 72.65723042329641
+        }
+      ]
+    },
+    {
+      "id": "wa-span-95c01d0dae561645fe7b",
+      "kind": "glacier",
+      "total_m": 80.19860869178095,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "way/300727802",
+          "name": "",
+          "meters": 80.19860869178095
+        }
+      ]
+    },
+    {
+      "id": "wa-span-ad900f2d31cc92e4b03e",
+      "kind": "glacier",
+      "total_m": 131.57717595272405,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4104273",
+          "name": "Adams Glacier",
+          "meters": 131.57717595272405
+        }
+      ]
+    },
+    {
+      "id": "wa-span-b5debed685b4a808e39d",
+      "kind": "glacier",
+      "total_m": 393.06025042485226,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4773340",
+          "name": "Roosevelt Glacier",
+          "meters": 393.06025042485226
+        }
+      ]
+    },
+    {
+      "id": "wa-span-b6e422b376851c2c66c7",
+      "kind": "glacier",
+      "total_m": 89.25377430757065,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4773348",
+          "name": "",
+          "meters": 89.25377430757065
+        }
+      ]
+    },
+    {
+      "id": "wa-span-bd39e8a7572490fd3c74",
+      "kind": "glacier",
+      "total_m": 237.512999292098,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/16664543",
+          "name": "Foss Glacier",
+          "meters": 237.512999292098
+        }
+      ]
+    },
+    {
+      "id": "wa-span-cee151725a939af60ea8",
+      "kind": "glacier",
+      "total_m": 404.45958222656276,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4773341",
+          "name": "Coleman Glacier",
+          "meters": 404.45958222656276
+        }
+      ]
+    },
+    {
+      "id": "wa-span-eb51da78c536a2d64db3",
+      "kind": "glacier",
+      "total_m": 16.39050583547611,
+      "outside_m": 0,
+      "source_polygons": [
+        {
+          "id": "relation/4104273",
+          "name": "Adams Glacier",
+          "meters": 16.39050583547611
+        }
+      ]
+    }
+  ]
+}

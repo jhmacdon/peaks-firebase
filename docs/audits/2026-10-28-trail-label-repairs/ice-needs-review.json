@@ -1,0 +1,116 @@
+[
+  {
+    "id": "itjwDNloNDgAlcWS4hkO-t54349c2",
+    "reason": "This review has no French ice polygons. Obtain the local source footprint before assigning a glacier name.",
+    "outside_m": 3813.797387262294,
+    "total_m": 3813.797387262294
+  },
+  {
+    "id": "wa-legacy-tail-1c4ff9300dbb45adea55-t38ea931",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 262.31790411044307,
+    "total_m": 986.9973708383537
+  },
+  {
+    "id": "wa-legacy-tail-1d5f40d73c191f220d6c",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 33.06965055107738,
+    "total_m": 33.06965055107738
+  },
+  {
+    "id": "wa-legacy-tail-37c86eab066d4056d562",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 10.65492753333759,
+    "total_m": 57.67272184945795
+  },
+  {
+    "id": "wa-legacy-tail-3c9eeff1194b20eaa018",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 10.65492753333759,
+    "total_m": 10.65492753333759
+  },
+  {
+    "id": "wa-legacy-tail-3f60a026e8986e75e747",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 11.495841904827298,
+    "total_m": 11.495841904827298
+  },
+  {
+    "id": "wa-legacy-tail-471c5f85e8fed02185bd",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 439.14036726685043,
+    "total_m": 439.14036726685043
+  },
+  {
+    "id": "wa-legacy-tail-59f8c6e6c3be34bca211",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 5.173970237446595,
+    "total_m": 5.173970237446595
+  },
+  {
+    "id": "wa-legacy-tail-73903ddf06506acb7d64",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 202.17974628542373,
+    "total_m": 3226.9359640584166
+  },
+  {
+    "id": "wa-legacy-tail-7497ee0cfd951f76f36e",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 8.229647255990816,
+    "total_m": 8.229647255990816
+  },
+  {
+    "id": "wa-legacy-tail-78416db7b605654daddf",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 1241.461497578398,
+    "total_m": 4835.317234234028
+  },
+  {
+    "id": "wa-legacy-tail-a33ce76373228f7f1a4e",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 461.51267538619066,
+    "total_m": 461.51267538619066
+  },
+  {
+    "id": "wa-legacy-tail-a510430ff0a200d61eee",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 3.681380277708272,
+    "total_m": 3.681380277708272
+  },
+  {
+    "id": "wa-legacy-tail-abf5ddeaf188740416b2-t2e54771",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 229.42420908532333,
+    "total_m": 516.0002515403999
+  },
+  {
+    "id": "wa-legacy-tail-b8e2e177adb7f1add7aa",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 3.6583386766026864,
+    "total_m": 3.6583386766026864
+  },
+  {
+    "id": "wa-legacy-tail-bb421389eeba61aa202b",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 11.495841904827298,
+    "total_m": 51.265167932158704
+  },
+  {
+    "id": "wa-legacy-tail-e0a0b01d7b35aeb25f8d",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 9.95786132273402,
+    "total_m": 9.95786132273402
+  },
+  {
+    "id": "wa-legacy-tail-e55158f0040930457c7c",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 1490.3831168199276,
+    "total_m": 2019.6078780148664
+  },
+  {
+    "id": "wa-legacy-tail-fa5025c10a20d7a1e337",
+    "reason": "Source polygons do not cover the full stored ice stretch; terrain or winter-route review needed before assigning a feature name.",
+    "outside_m": 65.28524098678227,
+    "total_m": 1609.789983096422
+  }
+]
