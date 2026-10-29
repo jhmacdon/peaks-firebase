@@ -199,3 +199,14 @@ test("a roster label correction renames the place, drops OSM's Wikidata tag and 
   assert.throws(() => loadRegionOsmPackage(relabel("Park Glacier")), /uniquely named/);
   assert.throws(() => loadRegionOsmPackage(relabel("Thunder Glacier")), /Invalid label correction/);
 });
+
+test("an inventory crosswalk note lands in provenance; keep_osm needs outline rule 2", () => {
+  const note = "PSU/GNIS name for this outline is Bastile Glacier; name follows OSM";
+  const spec = { ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
+    "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], inventory_note: note } } };
+  assert.equal(loadRegionOsmPackage(spec).places.find(p => p.osm_key === "relation:4778054")!.facts.provenance.inventory_crosswalk, note);
+  const keep = { ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
+    "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], keep_osm: "reviewed" } } };
+  assert.throws(() => loadRegionOutlineReview(keep), /keep_osm needs outline rule 2/);
+  assert.equal(loadRegionOutlineReview({ ...keep, outline_rule: 2 }).report.decisions.length, 14);
+});
