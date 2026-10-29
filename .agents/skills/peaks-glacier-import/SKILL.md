@@ -154,6 +154,10 @@ Add two files and one npm script. Do not edit `import-glacier-manifest.ts`.
      from `./glaciers/osm`. The roster is the explicit list of `osm_key`s for
      this mountain (missing keys fail); `snowfields` lists OSM names to mark
      kind=snowfield. `import-baker-glaciers.ts` is the second worked example.
+   - When facts come from the PSU cohort and RGI 7.0, skip the hand-written
+     builder: a `RegionSpec` (`glaciers/region-builder.ts`) plus an
+     `InventoryConfig` (`glaciers/psu-inventory.ts`) is the whole builder; see
+     `import-baker-glaciers.ts`.
    - When one area cannot contain every outline, use `container_areas` and a
      per-place `container_area_key` (null allowed); for glaciers of another
      summit, `parents` and `parent_key`. See "Adding another mountain" in the
