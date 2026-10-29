@@ -9,7 +9,7 @@ import {
   isAreaIndexDesignation,
 } from "../../../lib/area-types";
 import { subdivisionName } from "../../../lib/regions";
-import { absoluteUrl, siteConfig } from "../../../lib/seo";
+import { catalogPageMetadata, catalogPageNumber, catalogPagePath, firstSearchValue, type CatalogSearchParams } from "../../../lib/catalog-seo";
 import { PageHeader } from "../../../components/ui/page-header";
 import { SectionHeading } from "../../../components/ui/section-heading";
 import { AreaDesignationChips } from "../../../components/area/area-designation-chips";
@@ -36,36 +36,37 @@ export const revalidate = 3600;
 const DESCRIPTION =
   "Browse national parks, forests, wilderness areas, and other protected land in the Peaks catalog.";
 
-export const metadata: Metadata = {
-  title: "Protected areas",
-  description: DESCRIPTION,
-  alternates: { canonical: absoluteUrl("/areas") },
-  openGraph: {
-    title: "Protected areas",
-    description: DESCRIPTION,
-    url: absoluteUrl("/areas"),
-    siteName: siteConfig.name,
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Protected areas",
-    description: DESCRIPTION,
-  },
-};
-
-export default async function AreasIndexPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; type?: string; state?: string; page?: string }>;
-}) {
-  const params = await searchParams;
-  const search = params.q?.trim() ?? "";
-  const designation = isAreaIndexDesignation(params.type) ? params.type.toUpperCase() : "";
-  const requestedState = (params.state ?? "").trim().toUpperCase();
+function areaFilters(params: CatalogSearchParams) {
+  const search = firstSearchValue(params.q).trim();
+  const type = firstSearchValue(params.type);
+  const designation = isAreaIndexDesignation(type) ? type.toUpperCase() : "";
+  const requestedState = firstSearchValue(params.state).trim().toUpperCase();
   const stateName = subdivisionName("US", requestedState);
   const stateCode = stateName ? requestedState : "";
-  const page = Math.max(1, Math.min(10000, Number.parseInt(params.page ?? "1", 10) || 1));
+  return { search, designation, stateName, stateCode };
+}
+
+export async function generateMetadata({ searchParams }: {
+  searchParams: Promise<CatalogSearchParams>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const { search, designation, stateCode } = areaFilters(params);
+  return catalogPageMetadata({
+    path: "/areas",
+    title: "Protected areas: national parks, forests & wilderness",
+    description: DESCRIPTION,
+    page: catalogPageNumber(params.page),
+    filters: { q: search, type: designation, state: stateCode },
+    noindex: Boolean(search || designation || stateCode),
+  });
+}
+
+export default async function AreasIndexPage({ searchParams }: {
+  searchParams: Promise<CatalogSearchParams>;
+}) {
+  const params = await searchParams;
+  const { search, designation, stateName, stateCode } = areaFilters(params);
+  const page = catalogPageNumber(params.page);
   const isFiltered = Boolean(search || designation || stateCode);
 
   const { areas, states, totalMatching, totalAreas, totalStates } = await getAreasIndex({
@@ -79,7 +80,7 @@ export default async function AreasIndexPage({
   });
 
   const pageCount = Math.max(1, Math.ceil(stateCode ? totalMatching / 24 : totalStates / 8));
-  const pageHref = (value: number) => `/areas?${new URLSearchParams({ ...(search ? { q: search } : {}), ...(designation ? { type: designation } : {}), ...(stateCode ? { state: stateCode } : {}), page: String(value) })}`;
+  const pageHref = (value: number) => catalogPagePath("/areas", value, { q: search, type: designation, state: stateCode });
 
   if (page > pageCount) redirect(pageHref(pageCount));
 

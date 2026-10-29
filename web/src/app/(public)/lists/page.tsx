@@ -1,3 +1,6 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { catalogPageMetadata, catalogPageNumber, catalogPagePath, firstSearchValue, type CatalogSearchParams } from "../../../lib/catalog-seo";
 import { Suspense } from "react";
 import { getLists } from "../../../lib/actions/lists";
 import { PageHeader } from "../../../components/ui/page-header";
@@ -7,15 +10,30 @@ import { CatalogPagination } from "../../../components/catalog-pagination";
 
 export const revalidate = 3600;
 const PAGE_SIZE = 24;
-export default async function ListsIndexPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
+export async function generateMetadata({ searchParams }: {
+  searchParams: Promise<CatalogSearchParams>;
+}): Promise<Metadata> {
   const params = await searchParams;
-  const query = params.q?.trim() ?? "";
-  const requestedPage = Math.max(1, Math.min(10000, Number.parseInt(params.page ?? "1", 10) || 1));
-  let { lists, total } = await getLists(query || undefined, PAGE_SIZE, (requestedPage - 1) * PAGE_SIZE);
+  const query = firstSearchValue(params.q).trim();
+  return catalogPageMetadata({
+    path: "/lists",
+    title: "Peak-bagging lists & mountain challenges",
+    description: "Browse curated mountain and destination lists, then track your progress across the Peaks guide.",
+    page: catalogPageNumber(params.page),
+    filters: { q: query },
+    noindex: Boolean(query),
+  });
+}
+
+export default async function ListsIndexPage({ searchParams }: { searchParams: Promise<CatalogSearchParams> }) {
+  const params = await searchParams;
+  const query = firstSearchValue(params.q).trim();
+  const requestedPage = catalogPageNumber(params.page);
+  const { lists, total } = await getLists(query || undefined, PAGE_SIZE, (requestedPage - 1) * PAGE_SIZE);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(requestedPage, pageCount);
-  if (page !== requestedPage) ({ lists, total } = await getLists(query || undefined, PAGE_SIZE, (page - 1) * PAGE_SIZE));
-  const pageHref = (value: number) => `/lists?${new URLSearchParams({ ...(query ? { q: query } : {}), page: String(value) })}`;
+  const pageHref = (value: number) => catalogPagePath("/lists", value, { q: query });
+  if (page !== requestedPage) redirect(pageHref(page));
   return <div className="mx-auto max-w-[1200px] px-6 py-8">
     <PageHeader title="Find your next peak list" meta={<p>Explore classic challenges and keep track of the places you’ve reached.</p>} />
     <Suspense fallback={<div className="mt-6 h-12" />}><div className="mt-6 max-w-lg"><SearchBar placeholder="Search lists" /></div></Suspense>

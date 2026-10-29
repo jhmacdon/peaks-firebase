@@ -74,40 +74,31 @@ export async function generateMetadata({
   const canonicalPath = `/activities/${type}`;
   const imageUrl = absoluteUrl(`${canonicalPath}/opengraph-image`);
 
-  try {
-    const data = await getActivityLandingDataCached(type);
-    const description = summarizeText([data.paragraph]) ?? siteConfig.description;
+  const data = await settled(getActivityLandingDataCached(type), emptyLandingData(type));
+  const description = summarizeText([data.paragraph]) ?? siteConfig.description;
 
-    return {
-      title: config.title,
+  return {
+    title: config.title,
+    description,
+    alternates: { canonical: absoluteUrl(canonicalPath) },
+    ...(!config.hasLiveContent
+      ? { robots: { index: false, follow: true } }
+      : {}),
+    openGraph: {
+      title: config.h1,
       description,
-      alternates: { canonical: absoluteUrl(canonicalPath) },
-      ...(!config.hasLiveContent
-        ? { robots: { index: false, follow: true } }
-        : {}),
-      openGraph: {
-        title: config.h1,
-        description,
-        url: absoluteUrl(canonicalPath),
-        siteName: siteConfig.name,
-        type: "website",
-        images: [{ url: imageUrl, width: 1200, height: 630, alt: config.h1 }],
-      },
-      twitter: {
-        card: "summary_large_image",
-        title: config.h1,
-        description,
-        images: [imageUrl],
-      },
-    };
-  } catch {
-    return {
-      title: config.title,
-      description: siteConfig.description,
-      alternates: { canonical: absoluteUrl(canonicalPath) },
-      robots: { index: false, follow: false },
-    };
-  }
+      url: absoluteUrl(canonicalPath),
+      siteName: siteConfig.name,
+      type: "website",
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: config.h1 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: config.h1,
+      description,
+      images: [imageUrl],
+    },
+  };
 }
 
 export default async function ActivityLandingPage({
