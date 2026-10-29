@@ -65,6 +65,7 @@ export const ALPINE_LAKES_SPEC: RegionSpec = {
     rgi_absent: ["Ice Worm Glacier"],
   },
   activities: ["outdoor-trek", "ski"],
+  country_code: "US", state_code: "WA",
 };
 
 export const loadAlpineLakesOsmPackage = () => loadRegionOsmPackage(ALPINE_LAKES_SPEC);
