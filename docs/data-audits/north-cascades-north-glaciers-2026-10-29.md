@@ -1,6 +1,6 @@
 # North Cascades (north) glaciers — review packet, 2026-10-29
 
-**25 glaciers. Flags: 2 ratio (2 of 25, 8%), 8 no facts, 0 held.** Under the 2026-10-29 policy only ratio and outline-quality flags
+**25 glaciers. Flags: 0 ratio, 8 no facts, 0 held.** Outline rule 2 (#290): Whatcom and West Nooksack take the dated PSU 2015 outline. Under the 2026-10-29 policy only ratio and outline-quality flags
 count towards the 15% stop rule; glaciers with no inventory row are imported
 with null facts; the Noisy Creek / Green Lake pair stays held until verified
 identities arrive. (Update: identities arrived; both are imported under
@@ -10,7 +10,7 @@ their OSM labels, see Roster.) Spec:
 [JSON](north-cascades-north-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`9f0f55c8b18cce55f8f4561e1a18c180649504ab374d76412263368e1a26f8b4`.
+`4c21c07488922bde302ed22087f9b4942d92668f6ab5a0c3ff40d6996e63e646`.
 
 North Cascades split: this package (Shuksan, Pickets, Spickard, Redoubt,
 Jack and Crater mountains, Bacon, Ruth/Icy, Colonial, Table Mountain, Twin
@@ -52,10 +52,11 @@ Diobsud Glacier, so it was not used.
 
 ## Outline decisions
 
-All 25 keep OSM. Flagged:
-- **Ratio (2, counted):** outside the band, no dated evidence and no better
-  candidate: Whatcom (OSM/facts 1.720), West Nooksack (5.512; the cohort's
-  "West Nooksack Glacier" is a 0.019 km² part).
+23 keep OSM; Whatcom and West Nooksack take the PSU 2015 outline. Flagged:
+- **Ratio (0).** Whatcom (OSM/facts 1.720) and West Nooksack (5.512; the
+  cohort's "West Nooksack Glacier" is a 0.019 km² part) switch to the PSU
+  2015 outline under outline rule 2 (OSM extents are undated; the inventory
+  is dated and closer to the facts area).
 - **No facts (8, not counted):** no usable named row in any cleared PSU
   cohort; imported with null facts: Table Mountain, Sisters, Ruth, Diobsud,
   Spillway, Lower Price, Noisy Creek, Green Lake.
@@ -78,8 +79,8 @@ All 25 keep OSM. Flagged:
 | White Salmon Glacier | 0.399 | 0.334 | 0.334 | 1.192 | 0.802 / 0.976 | osm |
 | Silver Glacier | 0.411 | 0.329 | 0.329 | 1.249 | 0.767 / 0.976 | osm |
 | Jerry Glacier | 0.144 | 0.188 | 0.188 | 0.763 | 0.718 / 0.737 | osm |
-| Whatcom Glacier | 0.250 | 0.145 | 0.145 | 1.720 | 0.564 / 0.981 | osm ⚑ ratio |
-| West Nooksack Glacier | 0.104 | 0.019 | 0.019 | 5.512 | 0.166 / 0.929 | osm ⚑ ratio |
+| Whatcom Glacier | 0.250 | 0.145 | 0.145 | 1.720 | 0.564 / 0.981 | **GLIMS 2015** (rule 2) |
+| West Nooksack Glacier | 0.104 | 0.019 | 0.019 | 5.512 | 0.166 / 0.929 | **GLIMS 2015** (rule 2) |
 | Table Mountain Glacier | 0.033 | — | — | — | — / — | osm ⚑ no facts |
 | Sisters Glacier | 0.873 | — | — | — | — / — | osm ⚑ no facts |
 | Ruth Glacier | 0.211 | — | — | — | — / — | osm ⚑ no facts |
@@ -93,20 +94,20 @@ All 25 keep OSM. Flagged:
 
 | Parent (GNIS lat, lng) | Glaciers (distance head→summit) | Calls |
 | --- | --- | --- |
-| Mount Shuksan (48.8311, -121.6030), 3000 m | Sulphide 137 m, Crystal 224 m, Hanging 255 m, Upper Curtis 374 m, Price 781 m, East Nooksack 944 m, White Salmon 864 m, Lower Curtis (The Hourglass 586 m), West Nooksack (Nooksack Tower 841 m), Lower Price (Nooksack Tower 1.0 km) | ⚑ Lower Curtis, West Nooksack, Lower Price, East Nooksack: heads low or nearer a Shuksan satellite |
+| Mount Shuksan (48.8311, -121.6030), 3000 m | Sulphide 137 m, Crystal 224 m, Hanging 255 m, Upper Curtis 374 m, Price 781 m, East Nooksack 944 m, White Salmon 864 m, Lower Curtis (The Hourglass 586 m), West Nooksack (Nooksack Tower 841 m), Lower Price (Nooksack Tower 1.0 km) | checked: Lower Curtis, West Nooksack, Lower Price, East Nooksack (heads low or nearer a Shuksan satellite) |
 | Ruth Mountain (48.8600, -121.5328) | Ruth 18 m | clear |
 | Icy Peak (48.8364, -121.5281) | Spillway 185 m | clear |
 | Mount Redoubt (48.9578, -121.3010) | Redoubt 227 m | clear |
 | Mount Spickard (48.9695, -121.2405) | Silver 66 m | clear |
 | Mount Challenger (48.8364, -121.3421) | Challenger 136 m | clear |
 | Whatcom Peak (48.8576, -121.3742) | Whatcom 183 m | clear |
-| Mount Degenhardt (48.7715, -121.2946) | Terror 147 m | ⚑ icefield below Degenhardt, Terror and Inspiration |
+| Mount Degenhardt (48.7715, -121.2946) | Terror 147 m | checked (icefield below Degenhardt, Terror and Inspiration) |
 | Jack Mountain (48.7728, -120.9565) | Nohokomeen 208 m | clear |
 | Crater Mountain (48.7391, -120.9202) | Jerry 174 m | clear |
 | Bacon Peak (48.6641, -121.5192) | Diobsud 131 m, Green Lake 331 m, Noisy Creek 805 m | clear (both on Bacon Peak's north side) |
-| Colonial Peak (48.6615, -121.1221) | Colonial 958 m | ⚑ head 958 m from the summit |
+| Colonial Peak (48.6615, -121.1221) | Colonial 958 m | checked (head 958 m from the summit) |
 | Table Mountain (48.8480, -121.7133) | Table Mountain 372 m | clear |
-| South Twin (48.7049, -121.9876) | Sisters 103 m | ⚑ GNIS also has "Twin Sisters Mountain" 206 m away; the Peaks row may use either |
+| South Twin (48.7049, -121.9876) | Sisters 103 m | checked (GNIS also has "Twin Sisters Mountain" 206 m away; the Peaks row may use either) |
 
 Radius 1,500 m except Shuksan. Features checked: `summit`. "Of N": Shuksan 9;
 every other parent with a cohort row 1; Ruth, Icy, Table Mountain and Twin
@@ -131,8 +132,8 @@ missing-row queries empty; container links match the manifest exactly.
 
 1. The six unnamed-in-PSU glaciers are imported with null facts, flagged
    "no facts", not counted. No other cleared PSU cohort names them.
-2. Whatcom and West Nooksack keep OSM with the flag (no better candidate).
+2. Whatcom and West Nooksack take the PSU 2015 outline (outline rule 2).
 3. Noisy Creek / Green Lake imported under their OSM labels, which match the
    reviewed sides of Bacon Peak; null facts.
-4. Parents (including Sisters: currently South Twin) keep the DEM-head
-   method; researched corrections will be applied when they arrive.
+4. Parents: the reviewed research checked every flagged call and agreed;
+   none is unclear.

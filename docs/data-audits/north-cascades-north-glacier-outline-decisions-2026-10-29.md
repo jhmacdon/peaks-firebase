@@ -1,12 +1,12 @@
 # Glacier outline decisions
 
-Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).
+Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).
 
 Areas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Overlap is IoU / candidate share. ⚑ means review remains due. Historical fits infer extent age; they do not date OSM imagery.
 
 Input manifest: `8c85772625cfcb666396a5d1faf7197ca98f9d6b73e263cfa7210128a580bb57`
 
-Output manifest: `9f0f55c8b18cce55f8f4561e1a18c180649504ab374d76412263368e1a26f8b4`
+Output manifest: `4c21c07488922bde302ed22087f9b4942d92668f6ab5a0c3ff40d6996e63e646`
 
 | Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
@@ -15,9 +15,9 @@ Output manifest: `9f0f55c8b18cce55f8f4561e1a18c180649504ab374d76412263368e1a26f8
 | Table Mountain Glacier | 0.033 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
 | Challenger Glacier | 4.187 | 3.592 | 3.592 | 1.166 | 1.000 | 0.826 / 0.980 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Terror Glacier | 0.519 | 0.477 | 0.477 | 1.088 | 1.000 | 0.823 / 0.943 | osm | OSM/facts ratio is within [0.67, 1.5] |
-| Whatcom Glacier | 0.250 | 0.145 | 0.145 | 1.720 | 1.000 | 0.564 / 0.981 | osm ⚑ | OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent |
+| Whatcom Glacier | 0.250 | 0.145 | 0.145 | 1.720 | 1.000 | 0.564 / 0.981 | glims-2015-09-09 | OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2) |
 | Sisters Glacier | 0.873 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
-| West Nooksack Glacier | 0.104 | 0.019 | 0.019 | 5.512 | 1.000 | 0.166 / 0.929 | osm ⚑ | OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent |
+| West Nooksack Glacier | 0.104 | 0.019 | 0.019 | 5.512 | 1.000 | 0.166 / 0.929 | glims-2015-09-09 | OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2) |
 | Ruth Glacier | 0.211 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
 | Diobsud Glacier | 1.108 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
 | Sulphide Glacier | 3.439 | 3.145 | 3.145 | 1.094 | 1.000 | 0.893 / 0.988 | osm | OSM/facts ratio is within [0.67, 1.5] |

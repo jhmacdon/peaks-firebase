@@ -46,10 +46,10 @@ test("facts and decisions", () => {
   const [nx, ny] = centre("Noisy Creek Glacier"), [gx, gy] = centre("Green Lake Glacier");
   assert.ok(ny > 48.66405 && nx < -121.51917 && gy > 48.66405 && gx > -121.51917);
   assert.equal(placeParent(m, place("Green Lake Glacier")).parent.name, "Bacon Peak");
-  assert.deepEqual(review.report.decisions.filter(d => d.chosen_source !== "osm"), []);
+  assert.deepEqual(review.report.decisions.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(),
+    ["West Nooksack Glacier", "Whatcom Glacier"], "rule 2: OSM outside the band gives way to the dated 2015 outline");
   assert.deepEqual(review.report.decisions.filter(d => d.flagged).map(d => d.glacier).sort(), ["Diobsud Glacier", "Green Lake Glacier",
-    "Lower Price Glacier", "Noisy Creek Glacier", "Ruth Glacier", "Sisters Glacier", "Spillway Glacier", "Table Mountain Glacier",
-    "West Nooksack Glacier", "Whatcom Glacier"]);
+    "Lower Price Glacier", "Noisy Creek Glacier", "Ruth Glacier", "Sisters Glacier", "Spillway Glacier", "Table Mountain Glacier"]);
 });
 
 test("apply needs every keyed parent", async () => {
