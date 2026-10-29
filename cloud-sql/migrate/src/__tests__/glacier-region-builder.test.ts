@@ -222,7 +222,10 @@ test("an inventory crosswalk note lands in provenance; keep_osm needs outline ru
   const keep = { ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
     "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], keep_osm: "reviewed" } } };
   assert.throws(() => loadRegionOutlineReview(keep), /keep_osm needs outline rule 2/);
-  assert.equal(loadRegionOutlineReview({ ...keep, outline_rule: 2 }).report.decisions.length, 14);
+  // Keeping Thunder on OSM blocks the all-inventory option for Baker's one
+  // touching group, so the switched Talum would be clipped against Squak; that
+  // removes 17.5% of it, so the build holds instead.
+  assert.throws(() => loadRegionOutlineReview({ ...keep, outline_rule: 2 }), /Talum Glaciers: clipping against Squak Glacier changes its area by 17\.5%/);
 });
 
 test("facts under another inventory name need a reviewed note even without a label", () => {
