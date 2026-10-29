@@ -372,6 +372,38 @@ async function deleteAuthUser(uid: string): Promise<void> {
   }
 }
 
+/** Older report uploads used reports/<uuid>.jpg, without a user prefix. */
+export function legacyReportPhotoPath(downloadUrl: string): string | undefined {
+  try {
+    const url = new URL(downloadUrl);
+    const prefix = `/v0/b/${STORAGE_BUCKET}/o/`;
+    if (url.origin !== "https://firebasestorage.googleapis.com" || !url.pathname.startsWith(prefix)) return;
+    const path = decodeURIComponent(url.pathname.slice(prefix.length));
+    if (/^reports\/[^/]+$/.test(path)) return path;
+  } catch {
+    // External and invalid URLs do not name objects in our bucket.
+  }
+}
+
+async function deleteLegacyReportPhotos(pool: Pool, uid: string): Promise<void> {
+  // Keep the SQL references until Storage confirms deletion, so a failed
+  // request can find the same objects on retry. Shared photos stay available.
+  const { rows } = await pool.query<{ download_url: string; user_id: string }>(`
+    SELECT photos.download_url, reports.user_id
+    FROM trip_report_photos photos JOIN trip_reports reports ON reports.id = photos.report_id
+    WHERE reports.user_id = $1 OR reports.legacy_record = true`, [uid]);
+  const owned = new Set<string>();
+  const shared = new Set<string>();
+  for (const row of rows) {
+    const path = legacyReportPhotoPath(row.download_url);
+    if (path) (row.user_id === uid ? owned : shared).add(path);
+  }
+  const bucket = admin.storage().bucket(STORAGE_BUCKET);
+  for (const path of owned) {
+    if (!shared.has(path)) await bucket.file(path).delete({ ignoreNotFound: true });
+  }
+}
+
 export async function deleteSqlOwnership(pool: Pool, uid: string): Promise<void> {
   const client = await pool.connect();
   try {
@@ -445,7 +477,14 @@ export async function deleteFirestoreOwnership(firestore: Firestore, uid: string
     for (;;) {
       const snapshot = await firestore.collection(collection).where(field, "==", uid).limit(100).get();
       if (snapshot.empty) break;
-      for (const document of snapshot.docs) await deleteFirestoreDocument(firestore, document.ref);
+      for (const document of snapshot.docs) {
+        if (collection === "sessions") {
+          // Legacy GPS points are siblings, not session subcollections. Keep
+          // the session's owner until these points are gone so retries find them.
+          await deleteFirestoreDocument(firestore, firestore.collection("points").doc(document.id));
+        }
+        await deleteFirestoreDocument(firestore, document.ref);
+      }
     }
   }
   const partyPlans = await firestore.collection("plans").where("party", "array-contains", uid).get();
@@ -511,6 +550,7 @@ router.delete("/", asyncRoute(async (request, res: Response) => {
 
   try {
     await deauthorizeStrava(firestore, uid);
+    await deleteLegacyReportPhotos(db, uid);
     await deleteSqlOwnership(db, uid);
     await deleteSourceStorageObjects(uid);
     await deleteFirestoreOwnership(firestore, uid);
