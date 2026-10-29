@@ -37,9 +37,29 @@ keeps OSM (ratio 1.292, in band) and no decision, geometry or fact changed.
 "White Salmon  Glacier" (double space) is counted as a third White Salmon
 part (normalised names, #277).
 
-Held back (flagged; need an OSM fix). The swapped pair stays held until
-verified identities arrive (policy 2026-10-29); the duplicate Mazama is an
-outline-quality flag:
+Held back (flagged). The duplicate Mazama is an outline-quality flag.
+
+**Avalanche / White Salmon: still held, because the sources disagree.** The
+reviewed decision was to rename relation:4104274 to White Salmon and
+relation:4104279 to Avalanche, "if each GNIS point falls inside the polygon
+you rename". Checked against the GNIS Domestic Names file:
+
+| Evidence | relation:4104274 (OSM "Avalanche"; lower, centroid 46.188,-121.507) | relation:4104279 (OSM "White Salmon"; upper, centroid 46.194,-121.516) |
+| --- | --- | --- |
+| GNIS 1528088 White Salmon Glacier (46.18294,-121.50859) | inside | — |
+| GNIS 1515991 Avalanche Glacier (46.19993,-121.50402) | — | inside |
+| PSU 2019 "White Salmon" parts | 57–98% inside | — |
+| PSU 2019 "Avalanche" | — | 94% inside |
+| Decision text: White Salmon is the UPPER glacier (given as 46.19984,-121.50286) | — | inside (so White Salmon = 4104279) |
+| Decision text: Avalanche is the LOWER glacier (given as 46.18457,-121.51008) | inside (so Avalanche = 4104274) | — |
+
+GNIS and the PSU inventory support the requested rename. The decision's own
+coordinates and its upper/lower description support OSM's current labels:
+its coordinates for the two GNIS ids are the other id's GNIS position. Per
+the rule ("if not, hold and say so") both stay held until one reading is
+confirmed. If GNIS/PSU is right, the change is two roster entries with
+`label` corrections (#288); if the upper/lower description is right, the
+OSM labels stand and only the inventory crosswalk changes.
 
 | OSM | Name | Why |
 | --- | --- | --- |
@@ -101,9 +121,15 @@ For checking — the sources disagree with "Crater only":
 | RGI 7.0 (1980) | Ape, Dryer, Forsyth, Nelson, Shoestring, Swift, Talus, Toutle |
 | GNIS | the same names plus Leschi, Loowit, Wishbone (marked historical) |
 
-None is imported. If some remnants still count as glaciers, they can be added
-to this package with the 2015 cohort (a separate decision: two cohorts on one
-mountain).
+Reviewed decision (2026-10-29): **Crater Glacier only** (USGS Cascades
+Volcano Observatory; officially named 2006). Not imported, by reason:
+
+| Name | Reason |
+| --- | --- |
+| Shoestring, Forsyth, Nelson, Ape | Below 0.01 km²; excluded by Fountain et al. (2023), Table A1 |
+| Talus, Dryer | Classified as perennial snowfields |
+| Wishbone, Loowit, Leschi | Destroyed in 1980 |
+| Swift, Toutle | Held: current status unverified |
 
 ## Disposable-DB check
 
