@@ -2,8 +2,8 @@
   "schema_version": 1,
   "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=48.8311 +lon_0=-121.603 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-  "input_manifest_sha256": "40bc4573fd1dcb3329691d0db098cc5101484adb28dd8734d5c70429f092b2a8",
-  "output_manifest_sha256": "fae62d072007f11fe4b6699094afaa34fba666185b256e8651b0eb368fc36a77",
+  "input_manifest_sha256": "8c85772625cfcb666396a5d1faf7197ca98f9d6b73e263cfa7210128a580bb57",
+  "output_manifest_sha256": "9f0f55c8b18cce55f8f4561e1a18c180649504ab374d76412263368e1a26f8b4",
   "sources": [
     {
       "key": "glims-2015-09-09",
@@ -2781,7 +2781,7 @@
             "feature_ids": [
               "1013559"
             ],
-            "reason": "No name/alias crosswalk"
+            "reason": "Name matches but spatial overlap fails (IoU <0.1 and candidate share <0.5)"
           },
           {
             "name": "Neve Glacier",
@@ -4766,6 +4766,24 @@
               "candidate_share": 0.636889447
             },
             "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "61D629544D88A008E8AB",
+            "name": "Noisy Creek Glacier",
+            "feature_ids": [
+              "762623"
+            ],
+            "glacier_ids": [
+              "G238497E48673N"
+            ],
+            "area_km2": 2.818502698,
+            "overlap": {
+              "intersection_km2": 0.412763503,
+              "iou": 0.146358316,
+              "osm_share": 0.995842738,
+              "candidate_share": 0.146447794
+            },
+            "parts_without_osm_overlap": []
           }
         ],
         "unmatched": [
@@ -6483,13 +6501,6 @@
               "762492"
             ],
             "reason": "No name/alias crosswalk"
-          },
-          {
-            "name": "Noisy Creek Glacier",
-            "feature_ids": [
-              "762623"
-            ],
-            "reason": "No name/alias crosswalk"
           }
         ],
         "ambiguous": [],
@@ -8079,6 +8090,34 @@
       "id": "1A58818C7EC5FF2D2EDC",
       "glacier": "Lower Price Glacier",
       "osm_area_km2": 0.444074746,
+      "glims_area_km2": null,
+      "facts_area_km2": null,
+      "osm_ratio": null,
+      "glims_ratio": null,
+      "candidates": [],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": true,
+      "reason": "No individual facts area; retain OSM for review"
+    },
+    {
+      "id": "61D629544D88A008E8AB",
+      "glacier": "Noisy Creek Glacier",
+      "osm_area_km2": 0.414486632,
+      "glims_area_km2": null,
+      "facts_area_km2": null,
+      "osm_ratio": null,
+      "glims_ratio": null,
+      "candidates": [],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": true,
+      "reason": "No individual facts area; retain OSM for review"
+    },
+    {
+      "id": "C0534D36558DCA6E6122",
+      "glacier": "Green Lake Glacier",
+      "osm_area_km2": 1.468123926,
       "glims_area_km2": null,
       "facts_area_km2": null,
       "osm_ratio": null,

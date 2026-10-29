@@ -4,9 +4,9 @@ Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, 
 
 Areas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Overlap is IoU / candidate share. ⚑ means review remains due. Historical fits infer extent age; they do not date OSM imagery.
 
-Input manifest: `40bc4573fd1dcb3329691d0db098cc5101484adb28dd8734d5c70429f092b2a8`
+Input manifest: `8c85772625cfcb666396a5d1faf7197ca98f9d6b73e263cfa7210128a580bb57`
 
-Output manifest: `fae62d072007f11fe4b6699094afaa34fba666185b256e8651b0eb368fc36a77`
+Output manifest: `9f0f55c8b18cce55f8f4561e1a18c180649504ab374d76412263368e1a26f8b4`
 
 | Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
@@ -33,12 +33,14 @@ Output manifest: `fae62d072007f11fe4b6699094afaa34fba666185b256e8651b0eb368fc36a
 | Jerry Glacier | 0.144 | 0.188 | 0.188 | 0.763 | 1.000 | 0.718 / 0.737 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Silver Glacier | 0.411 | 0.329 | 0.329 | 1.249 | 1.000 | 0.767 / 0.976 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Lower Price Glacier | 0.444 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
+| Noisy Creek Glacier | 0.414 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
+| Green Lake Glacier | 1.468 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
 
 - glims-2015-09-09: 17 matched systems; 345 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1985-09-09-reference: 0 matched systems; 32 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1983-09-09-reference: 4 matched systems; 161 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1975-09-09-reference: 0 matched systems; 43 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
-- glims-1974-09-09-reference: 10 matched systems; 246 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
+- glims-1974-09-09-reference: 11 matched systems; 245 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1968-09-09-reference: 2 matched systems; 92 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1959-09-09-reference: 1 matched systems; 6 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1958-09-09-reference: 1 matched systems; 18 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.

@@ -14,11 +14,12 @@ const PARK = "north-cascades-np", PASAYTEN = "pasayten-wilderness";
 const summit = (name: string, lat: number, lng: number, radius_m = 1500): GlacierParent =>
   ({ name, features: ["summit"], country_code: "US", state_code: "WA", lat, lng, radius_m });
 
-/** 23 of the 25 named OSM glaciers outside the Baker package (whose 14
- * share this box). Held back: "Noisy Creek Glacier" (relation:15353262) and
- * "Green Lake Glacier" (relation:15353766) — the inventory's Noisy Creek lies
- * 91% on OSM's Green Lake polygon and GNIS names neither, so no source settles
- * the names. Neve Glacier also reaches this box; it belongs to the south
+/** All 25 named OSM glaciers outside the Baker package (whose 14 share this
+ * box). Noisy Creek and Green Lake keep their OSM labels: Noisy Creek lies
+ * northwest of Bacon Peak and Green Lake northeast, as the reviewed
+ * identities say. Neither takes inventory facts: the inventory's only named
+ * row there ("Noisy Creek Glacier") lies 91% on Green Lake, a name the
+ * inventory gets wrong. Neve Glacier also reaches this box; it belongs to the south
  * package, whose GLIMS snapshot holds all three of its parts. */
 export const NORTH_CASCADES_NORTH_SPEC: RegionSpec = {
   label: "North Cascades (north)", data_dir: DATA_DIR, outline_dir: OUTLINE_DATA_DIR,
@@ -51,6 +52,8 @@ export const NORTH_CASCADES_NORTH_SPEC: RegionSpec = {
     "way:184105839": { parent: "jack", inventory: "Nohokomeen Glacier", container: PASAYTEN },
     "relation:14488217": { parent: "crater", inventory: "Jerry Glacier", container: PASAYTEN },
     "relation:2468999": { parent: "bacon", inventory: null, container: PARK },
+    "relation:15353262": { parent: "bacon", inventory: null, container: PARK }, // Noisy Creek Glacier (NW of Bacon Peak)
+    "relation:15353766": { parent: "bacon", inventory: null, container: PARK }, // Green Lake Glacier (NE of Bacon Peak)
     "relation:8052701": { parent: "colonial", inventory: "Colonial Glacier", container: PARK },
     "way:303268527": { parent: "table", inventory: null, container: null },
     "way:427944613": { parent: "twin-sisters", inventory: null, container: null },
@@ -85,7 +88,7 @@ export const NORTH_CASCADES_NORTH_SPEC: RegionSpec = {
       degenhardt: { label: "Mount Degenhardt", names: { "Terror Glacier": 1 } },
       jack: { label: "Jack Mountain", names: { "Nohokomeen Glacier": 2 } },
       crater: { label: "Crater Mountain", names: { "Jerry Glacier": 2 } },
-      /** Noisy Creek (on OSM's "Green Lake" polygon) counts here; neither OSM place is imported. */
+      /** The inventory's "Noisy Creek Glacier" (on the Green Lake polygon) counts here; no place takes its facts. */
       bacon: { label: "Bacon Peak", names: { "Noisy Creek Glacier": 1 } },
       colonial: { label: "Colonial Peak", names: { "Colonial Glacier": 1 } },
     },
