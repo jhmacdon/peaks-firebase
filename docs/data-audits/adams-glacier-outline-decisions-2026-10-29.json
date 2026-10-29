@@ -3,7 +3,7 @@
   "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=46.2024 +lon_0=-121.4908 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
   "input_manifest_sha256": "0f4ea3f5fed43b9f040623358016b377a78ce4f3238fa2f82e847819502e1209",
-  "output_manifest_sha256": "fdf14e82b155fed3eac939c7535e093217ce8449b3ad0aaed2aa865b9d384771",
+  "output_manifest_sha256": "c1108988a040ecede5ffd1f81c4a27e1bd0ae6da078af210f7868c5b4e4f3967",
   "sources": [
     {
       "key": "glims-2019-08-31",
@@ -508,24 +508,6 @@
       "purpose": "historical_reference",
       "audit": {
         "matches": [
-          {
-            "place_id": "A056434E9C33DF752011",
-            "name": "Pinnacle Glacier",
-            "feature_ids": [
-              "762530"
-            ],
-            "glacier_ids": [
-              "G238465E46212N"
-            ],
-            "area_km2": 1.374568449,
-            "overlap": {
-              "intersection_km2": 1.11154395,
-              "iou": 0.68117749,
-              "osm_share": 0.812073062,
-              "candidate_share": 0.808649399
-            },
-            "parts_without_osm_overlap": []
-          },
           {
             "place_id": "B2603D3CCAE1A0919E11",
             "name": "Adams Glacier",
@@ -1171,7 +1153,15 @@
           }
         ],
         "ambiguous": [],
-        "invalid": []
+        "invalid": [
+          {
+            "name": "Pinnacle Glacier",
+            "feature_ids": [
+              "762530"
+            ],
+            "reason": "Error: Outline rings touch so the interior splits"
+          }
+        ]
       }
     }
   ],
@@ -1525,13 +1515,7 @@
           "parts_without_osm_overlap": []
         }
       ],
-      "extent_evidence": {
-        "observed_at": "1969-09-09",
-        "source_key": "glims-1969-09-09-reference",
-        "iou": 0.68117749,
-        "candidate_iou": 0.54036273,
-        "basis": "Inferred older extent: OSM fits the dated historical inventory substantially better than the newer inventory; not a verified OSM observation date"
-      },
+      "extent_evidence": null,
       "chosen_source": "osm",
       "flagged": false,
       "reason": "OSM/facts ratio is within [0.67, 1.5]"

@@ -1,7 +1,9 @@
 # Mount Adams and Mount St. Helens glaciers — review packet, 2026-10-29
 
-**Draft: Adams holds back 3 of 13 named OSM glaciers (23%, over the 15% stop
-line) for OSM data errors.** Two packages, one apply each:
+**Adams: 10 glaciers; flags 0 ratio, 0 no facts, 3 held** (1 outline-quality
+problem counted: 1 of 13, 8%; the Avalanche/White Salmon pair stays held
+until their identities are verified). **St. Helens: 1 glacier, no flags.**
+Two packages, one apply each:
 `import-adams-glaciers.ts` and `import-st-helens-glaciers.ts`. Both read
 byte-identical copies of one snapshot set (box 46.13,-122.26,46.27,-121.38).
 Decisions: [Adams](adams-glacier-outline-decisions-2026-10-29.md),
@@ -9,8 +11,13 @@ Decisions: [Adams](adams-glacier-outline-decisions-2026-10-29.md),
 
 | Package | Reviewed manifest SHA-256 (platform-stable) |
 | --- | --- |
-| Mount Adams | `fdf14e82b155fed3eac939c7535e093217ce8449b3ad0aaed2aa865b9d384771` |
-| Mount St. Helens | `d159232353a890bdc50c4c589566c7b327ceab619982f35b86e1b8a1224eb642` |
+| Mount Adams | `c1108988a040ecede5ffd1f81c4a27e1bd0ae6da078af210f7868c5b4e4f3967` |
+| Mount St. Helens | `71c1d7fe95dee1a238685ccae4c44c67b801e5464947a5c153d9786e6eee31b7` |
+
+Both hashes changed with the hole-contact fix (#285): the 1969 Pinnacle
+Glacier reference outline (GLIMS feature 762530) touches its exterior twice
+and is now rejected as invalid. It was dated extent evidence only; Pinnacle
+keeps OSM (ratio 1.292, in band) and no decision, geometry or fact changed.
 
 ## Sources and licences
 
@@ -30,7 +37,9 @@ Decisions: [Adams](adams-glacier-outline-decisions-2026-10-29.md),
 "White Salmon  Glacier" (double space) is counted as a third White Salmon
 part (normalised names, #277).
 
-Held back (flagged; need an OSM fix):
+Held back (flagged; need an OSM fix). The swapped pair stays held until
+verified identities arrive (policy 2026-10-29); the duplicate Mazama is an
+outline-quality flag:
 
 | OSM | Name | Why |
 | --- | --- | --- |

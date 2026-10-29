@@ -3,7 +3,7 @@
   "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=46.1912 +lon_0=-122.1944 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
   "input_manifest_sha256": "ed6c3241d40c015a75d2a3829206e36c5e0977eb14b54f6e77af13f43e86863e",
-  "output_manifest_sha256": "d159232353a890bdc50c4c589566c7b327ceab619982f35b86e1b8a1224eb642",
+  "output_manifest_sha256": "71c1d7fe95dee1a238685ccae4c44c67b801e5464947a5c153d9786e6eee31b7",
   "sources": [
     {
       "key": "glims-2019-09-09",
@@ -606,13 +606,6 @@
             "reason": "Unnamed inventory feature; no name crosswalk"
           },
           {
-            "name": "Pinnacle Glacier",
-            "feature_ids": [
-              "762530"
-            ],
-            "reason": "No name/alias crosswalk"
-          },
-          {
             "name": "White Salmon-Avalanche Glacier WA",
             "feature_ids": [
               "762573",
@@ -701,7 +694,15 @@
           }
         ],
         "ambiguous": [],
-        "invalid": []
+        "invalid": [
+          {
+            "name": "Pinnacle Glacier",
+            "feature_ids": [
+              "762530"
+            ],
+            "reason": "Error: Outline rings touch so the interior splits"
+          }
+        ]
       }
     }
   ],
