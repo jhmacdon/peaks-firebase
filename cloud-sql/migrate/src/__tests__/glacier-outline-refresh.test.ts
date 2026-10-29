@@ -239,3 +239,15 @@ test("holes and parts may touch at a shared vertex; a hole outside its exterior 
   assert.equal(parsed[0].boundary.coordinates[0].length, 2, "the touching hole stays with its outer ring");
 });
 
+test("WFS rows that share an anlys_id form one multi-part analysis; conflicting rows fail", () => {
+  const row = (fid: string, anlys_id: number, glac_id: string, name: string, x: number) => ({ id: fid, type: "Feature",
+    geometry: { type: "Polygon", coordinates: square(x) }, properties: { line_type: "glac_bound", anlys_id, glac_id, glac_name: name,
+      db_area: .01, src_date: "1987-09-09T00:00:00Z", subm_id: 744, chief_affl: "Portland State University" } });
+  const fc = (rows: ReturnType<typeof row>[]) => ({ type: "FeatureCollection", features: rows, numberMatched: rows.length, numberReturned: rows.length });
+  const cohort = { observed_at: "1987-09-09", submission_id: "744", chief_affl: "Portland State University" };
+  const parsed = parseGlimsFeatures(fc([row("a", 1, "G1", "WA", -121.76), row("b", 1, "G1", "WA", -121.70), row("c", 2, "G2", "X", -121.6)]), cohort);
+  assert.deepEqual(parsed.map(f => [f.id, f.boundary.coordinates.length]), [["1", 2], ["2", 1]]);
+  assert.deepEqual(parsed[0].boundary.coordinates[1], square(-121.70), "WFS order kept");
+  assert.throws(() => parseGlimsFeatures(fc([row("a", 1, "G1", "WA", -121.76), row("b", 1, "G9", "WA", -121.70)]), cohort), /Conflicting GLIMS rows/);
+});
+
