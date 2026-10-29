@@ -32,11 +32,11 @@ test("parents, of-N, pinned RGI rows and containers", () => {
     ["Cache Glacier", "Lyall Glacier", "S Glacier", "Sandalee Glacier"]);
 });
 
-test("decisions: no switches; 4 ratio flags, 7 without facts; four glaciers from the 2017 cohort", () => {
-  assert.deepEqual(review.report.decisions.filter(d => d.chosen_source !== "osm"), []);
-  const flagged = review.report.decisions.filter(d => d.flagged);
-  assert.deepEqual(flagged.filter(d => d.facts_area_km2 !== null).map(d => d.glacier).sort(),
+test("decisions: rule 2 switches the four out-of-band outlines; 7 without facts; four glaciers from the 2017 cohort", () => {
+  assert.deepEqual(review.report.decisions.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(),
     ["Douglas Glacier", "Lyall Glacier", "Thunder Glacier", "Yawning Glacier"]);
+  const flagged = review.report.decisions.filter(d => d.flagged);
+  assert.deepEqual(flagged.filter(d => d.facts_area_km2 !== null), []);
   assert.equal(flagged.filter(d => d.facts_area_km2 === null).length, 7);
   for (const n of ["Goode Glacier", "Le Conte Glacier", "Sandalee Glacier"]) {
     assert.equal(place(n).facts.observed_year, 2017, n);

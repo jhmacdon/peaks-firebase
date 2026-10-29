@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
+  "rule": "Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=48.5376 +lon_0=-121.1343 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
   "input_manifest_sha256": "eeb1d954c4ed29983ea55a1185b5d4546ce5027d65c15cc7968c6e43546d48f2",
-  "output_manifest_sha256": "65ce3140a971e15321a56c1849076a9bc621d1c63256489fb237c749bac4a3c9",
+  "output_manifest_sha256": "8e9103e4bd23bac7993e62ab5c97396ef8e0bffd34e22b18782a0187884f52f6",
   "sources": [
     {
       "key": "glims-2015-09-09",
@@ -6491,9 +6491,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
-      "flagged": true,
-      "reason": "OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent"
+      "chosen_source": "glims-2015-09-09",
+      "flagged": false,
+      "reason": "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2)"
     },
     {
       "id": "DD720820667A312265ED",
@@ -6829,9 +6829,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
-      "flagged": true,
-      "reason": "OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent"
+      "chosen_source": "glims-2015-09-09",
+      "flagged": false,
+      "reason": "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2)"
     },
     {
       "id": "C03F5ED5313E5FA1D03F",
@@ -6994,9 +6994,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
-      "flagged": true,
-      "reason": "OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent"
+      "chosen_source": "glims-2015-09-09",
+      "flagged": false,
+      "reason": "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2)"
     },
     {
       "id": "C5312ED256D33EB7FA39",
@@ -7129,9 +7129,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
-      "flagged": true,
-      "reason": "OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent"
+      "chosen_source": "glims-2015-09-09",
+      "flagged": false,
+      "reason": "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2)"
     },
     {
       "id": "3DFCB9161276A6E40D3B",

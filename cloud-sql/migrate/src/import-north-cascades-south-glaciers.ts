@@ -156,6 +156,7 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
   },
   activities: ["outdoor-trek", "ski"],
   country_code: "US", state_code: "WA",
+  outline_rule: 2,
 };
 
 export const loadNorthCascadesSouthOsmPackage = () => loadRegionOsmPackage(NORTH_CASCADES_SOUTH_SPEC);
