@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
+  "rule": "Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=48.7768 +lon_0=-121.8144 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
   "input_manifest_sha256": "3be5a8502c6a0a424f72283e5b5d36d430a0d03b2c27c11ef5510baf8d62db08",
-  "output_manifest_sha256": "ecca694dbab15a7614ad06a83c963e8827a8d65fd9d9eeaba0f3be410c20c833",
+  "output_manifest_sha256": "05f2ef2e0fa9ec7a247ef09253a0308bb957abf2556afe870b20b4993be16c7e",
   "sources": [
     {
       "key": "glims-2015-09-09",
@@ -1467,9 +1467,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
-      "flagged": true,
-      "reason": "OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent"
+      "chosen_source": "glims-2015-09-09",
+      "flagged": false,
+      "reason": "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2); neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory"
     },
     {
       "id": "69406CFC889FA7FBF622",
@@ -1499,9 +1499,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
+      "chosen_source": "glims-2015-09-09",
       "flagged": false,
-      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+      "reason": "OSM/facts ratio is within [0.67, 1.5]; neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory (overlap between sources)"
     },
     {
       "id": "39AC24A5AF47435BC9C1",
@@ -1531,9 +1531,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
+      "chosen_source": "glims-2015-09-09",
       "flagged": false,
-      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+      "reason": "OSM/facts ratio is within [0.67, 1.5]; neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory (overlap between sources)"
     },
     {
       "id": "D1EB1D72746B71D41018",
@@ -1563,9 +1563,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
+      "chosen_source": "glims-2015-09-09",
       "flagged": false,
-      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+      "reason": "OSM/facts ratio is within [0.67, 1.5]; neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory (overlap between sources)"
     },
     {
       "id": "03354EE8D3ED28A9E196",
@@ -1595,9 +1595,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
+      "chosen_source": "glims-2015-09-09",
       "flagged": false,
-      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+      "reason": "OSM/facts ratio is within [0.67, 1.5]; neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory (overlap between sources)"
     },
     {
       "id": "9B1487D24157E3D0C06C",
@@ -1627,9 +1627,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
+      "chosen_source": "glims-2015-09-09",
       "flagged": false,
-      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+      "reason": "OSM/facts ratio is within [0.67, 1.5]; neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory (overlap between sources)"
     },
     {
       "id": "7F79DB14C041E8427C41",
@@ -1659,9 +1659,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
-      "flagged": true,
-      "reason": "OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent"
+      "chosen_source": "glims-2015-09-09",
+      "flagged": false,
+      "reason": "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2); neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory"
     },
     {
       "id": "9046ABA1DBF2D13B563A",
@@ -1691,9 +1691,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
+      "chosen_source": "glims-2015-09-09",
       "flagged": false,
-      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+      "reason": "OSM/facts ratio is within [0.67, 1.5]; neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory (overlap between sources)"
     },
     {
       "id": "DBC431E7D862718FDA97",
@@ -1728,9 +1728,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
+      "chosen_source": "glims-2015-09-09",
       "flagged": false,
-      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+      "reason": "OSM/facts ratio is within [0.67, 1.5]; neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory (overlap between sources)"
     },
     {
       "id": "B9EE32A28C8747D5DFFE",
@@ -1764,9 +1764,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
+      "chosen_source": "glims-2015-09-09",
       "flagged": false,
-      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+      "reason": "OSM/facts ratio is within [0.67, 1.5]; neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory (overlap between sources)"
     },
     {
       "id": "0A63EE8B979CF780E4A3",
@@ -1837,9 +1837,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
+      "chosen_source": "glims-2015-09-09",
       "flagged": false,
-      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+      "reason": "OSM/facts ratio is within [0.67, 1.5]; neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory (overlap between sources)"
     },
     {
       "id": "99FA03C8B03187E62003",
@@ -1912,9 +1912,41 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
+      "chosen_source": "glims-2015-09-09",
       "flagged": false,
-      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+      "reason": "OSM/facts ratio is within [0.67, 1.5]; neighbour group Park Glacier, Boulder Glacier, Deming Glacier, Roosevelt Glacier, Coleman Glacier, Easton Glacier, Talum Glaciers, Squak Glacier, Mazama Glacier, Rainbow Glacier, Thunder Glacier, Sholes Glacier resolved all-inventory (overlap between sources)"
+    }
+  ],
+  "neighbour_overlaps": [
+    {
+      "glaciers": [
+        "Park Glacier",
+        "Boulder Glacier",
+        "Deming Glacier",
+        "Roosevelt Glacier",
+        "Coleman Glacier",
+        "Easton Glacier",
+        "Talum Glaciers",
+        "Squak Glacier",
+        "Mazama Glacier",
+        "Rainbow Glacier",
+        "Thunder Glacier",
+        "Sholes Glacier"
+      ],
+      "pairs": [
+        {
+          "a": "Talum Glaciers",
+          "b": "Squak Glacier",
+          "intersection_km2": 0.330700025,
+          "share_of_smaller": 0.17518633
+        }
+      ],
+      "resolution": "all-inventory",
+      "in_band": {
+        "osm": 10,
+        "inventory": 12
+      },
+      "note": "All 12 on the inventory: 12 of 12 ratios in band (OSM 10, inventory 12)"
     }
   ]
 }

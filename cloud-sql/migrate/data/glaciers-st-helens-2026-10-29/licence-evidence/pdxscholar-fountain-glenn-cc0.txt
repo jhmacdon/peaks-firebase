@@ -1,0 +1,7 @@
+URL: https://pdxscholar.library.pdx.edu/geology_data/3/
+Fetched: 2026-10-29 (User-Agent: PeaksApp-glacier-import/1.0; plain record page, no bot check)
+SHA-256 of fetched HTML: ac9111fcb2013f09f43e4f2343b0bb69fde63be0390ab325e7a67b51e73fbd9f
+Verbatim excerpts:
+  "Rights This work is marked with CC0 1.0 Universal"
+  "Imagery dates range from 2013 to 2020. Most (70%) of the outlines were acquired from 2015 imagery."
+  "Recommended Citation Fountain, Andrew G. and Glenn, Bryce, "Data From: Inventory of Glaciers and Perennial Snowfields of the Coterminous USA" (2022). Geology Faculty Datasets. 3. https://doi.org/10.15760/geology-data.03"

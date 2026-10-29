@@ -7,6 +7,7 @@ import { isTransientDatabaseError } from "./lib/database-error";
 import { getUid, optionalAuth, requireAuth } from "./auth";
 import destinations from "./routes/destinations";
 import routes from "./routes/routes";
+import map from "./routes/map";
 import areas from "./routes/areas";
 import sessions from "./routes/sessions";
 import lists from "./routes/lists";
@@ -140,6 +141,7 @@ export const signedOutCatalogPaths = [
   "/destinations/:id", "/destinations/:id/glacier", "/destinations/:id/lists", "/destinations/:id/routes",
   "/lists/popular", "/lists/by-destinations", "/lists/:id", "/lists/:id/destinations",
   "/search", "/search/all", "/search/features",
+  "/map/viewport",
   "/routes/near", "/routes/:id", "/routes/:id/destinations", "/routes/:id/landmarks",
   "/routes/:id/sections", "/routes/:id/elevation", "/routes/:id/air-quality",
   "/areas/:id",
@@ -173,6 +175,7 @@ app.use("/api", (req, res, next) => {
 app.use("/api", glacierCapabilityGuard);
 app.use("/api/destinations", destinations);
 app.use("/api/routes", routes);
+app.use("/api/map", map);
 app.use("/api/areas", areas);
 app.use("/api/sessions", sessions);
 app.use("/api/lists", lists);

@@ -5,6 +5,7 @@ import {
 import { usStateSlugFromCode } from "../../../lib/regions";
 import { absoluteUrl } from "../../../lib/seo";
 import { glacierMountainPath } from "../../../lib/glaciers";
+import { GUIDES } from "../../../lib/guides";
 import {
   DESTINATION_SITEMAP_CHUNK_SIZE,
   buildUrlSetXml,
@@ -27,12 +28,10 @@ const STATIC_URLS = [
   "/",
   "/discover",
   "/guides",
-  "/guides/washington-waterfalls",
   "/features",
   "/peaks",
   "/glaciers",
-  "/fire-lookouts/washington",
-  "/fire-lookouts/california",
+  ...GUIDES.map((guide) => guide.href).filter((href) => !href.startsWith("/lists/")),
   "/areas",
   "/lists",
   "/about",
@@ -153,6 +152,20 @@ export async function GET(
           lastModified: row.updatedAt,
         }))
       );
+    }
+
+    if (id === "reports") {
+      const result = await db.query<SitemapRow>(`
+        SELECT id, updated_at AS "updatedAt"
+        FROM trip_reports
+        WHERE moderation_state = 'published'
+        ORDER BY id ASC
+        LIMIT 50001
+      `);
+      return xmlResponse(result.rows.map((row) => ({
+        url: absoluteUrl(`/reports/${encodeURIComponent(row.id)}`),
+        lastModified: row.updatedAt,
+      })));
     }
 
     const result = await db.query<SitemapRow>(`

@@ -87,18 +87,25 @@ test("inventory parser fails closed on a missing part or row", () => {
   assert.throws(() => parseBakerInventory({ ...glims, numberReturned: 1 }, rgi), /Incomplete GLIMS/);
 });
 
-test("outline decisions: OSM retained everywhere; Park and Talum flagged; cohort pinned", () => {
+test("outline decisions (rule 2 + neighbour check): one touching group of 12 takes the 2015 inventory; cohort pinned", () => {
   const { sources, references } = loadOutlineSources(join(OUTLINE_DATA_DIR, "outline-sources.json"));
   assert.deepEqual(sources.map(s => [s.observed_at, s.submission_id, s.features.length]), [["2015-09-09", "814", 75]]);
   assert.deepEqual(references.map(s => [s.observed_at, s.license_ok]), [["1975-09-09", false], ["1974-09-09", false]]);
   const { report, manifest } = review;
-  assert.ok(report.decisions.every(d => d.chosen_source === "osm"));
-  assert.deepEqual(report.decisions.filter(d => d.flagged).map(d => d.glacier).sort(), ["Park Glacier", "Talum Glaciers"]);
+  assert.deepEqual(report.decisions.filter(d => d.chosen_source === "osm").map(d => d.glacier).sort(), ["Hadley Glacier", "No Name Glacier"]);
+  assert.deepEqual(report.decisions.filter(d => d.flagged), []);
+  // Park (1.506) and Talum (0.623) switch under rule 2; Talum's inventory
+  // outline then overlaps Squak's OSM outline by 17.5%, so the whole touching
+  // group of 12 goes to the inventory (12 of 12 ratios in band against 10).
+  const [group] = report.neighbour_overlaps!;
+  assert.equal(report.neighbour_overlaps!.length, 1);
+  assert.deepEqual([group.resolution, group.glaciers.length, group.in_band], ["all-inventory", 12, { osm: 10, inventory: 12 }]);
+  assert.deepEqual(group.pairs.map(p => [p.a, p.b]), [["Talum Glaciers", "Squak Glacier"]]);
   assert.deepEqual(report.sources[0].audit.invalid, [], "No Name's holes touch their exterior at a vertex: valid");
   assert.equal(report.decisions.find(d => d.glacier === "No Name Glacier")!.glims_ratio !== null, true);
   assert.deepEqual(report.sources[0].audit.unmatched.filter(u => u.name.trim() && u.name !== "WA").map(u => u.name).sort(),
     ["Bastile Glacier", "Camp Kiser", "Coleman Pinnacle"]);
-  for (const p of manifest.places) {
+  for (const p of manifest.places.filter(x => ["Hadley Glacier", "No Name Glacier"].includes(x.name))) {
     assert.deepEqual(p.boundary, base.places.find(x => x.id === p.id)!.boundary);
     assert.equal(p.geometry!.snapshot_at, "2026-06-01");
     assert.equal(p.geometry!.observed_at, null);
