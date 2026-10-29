@@ -34,6 +34,7 @@ export const ST_HELENS_SPEC: RegionSpec = {
     rgi_absent: ["Crater Glacier"],
   },
   activities: ["outdoor-trek", "ski"],
+  country_code: "US", state_code: "WA",
 };
 
 export const loadStHelensOsmPackage = () => loadRegionOsmPackage(ST_HELENS_SPEC);

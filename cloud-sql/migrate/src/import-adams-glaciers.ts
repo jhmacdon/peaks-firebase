@@ -51,6 +51,7 @@ export const ADAMS_SPEC: RegionSpec = {
     rgi_absent: ["Avalanche Glacier"],
   },
   activities: ["outdoor-trek", "ski"],
+  country_code: "US", state_code: "WA",
 };
 
 export const loadAdamsOsmPackage = () => loadRegionOsmPackage(ADAMS_SPEC);
