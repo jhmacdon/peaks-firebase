@@ -163,6 +163,11 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
     if (preflight.rows.length) throw new Error(`Invalid/out-of-area source package: ${preflight.rows.map(r=>r.name).join(", ")}`);
     for (const place of pkg.places) {
       await client.query("BEGIN");
+      // Generic destination rematch triggers queue every session near the
+      // old and new outline; on Rainier that hit the statement timeout. The
+      // glacier triggers (queue_glacier_matches) ignore this setting and own
+      // glacier enqueueing, and the boundary pieces still rebuild.
+      await client.query("SET LOCAL peaks.defer_rematch = 'on'");
       try {
         const shape = await client.query(`SELECT ST_IsValid(g) AS valid,ST_IsEmpty(g) AS empty,
           ST_Covers(a.boundary,g) AS inside FROM (SELECT ST_SetSRID(ST_GeomFromGeoJSON($1),4326) AS g) s
