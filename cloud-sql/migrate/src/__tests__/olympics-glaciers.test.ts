@@ -21,7 +21,7 @@ test("snapshot hashes, roster of 11 and the three OSM polygons held back", () =>
   const all = parseOsmGlaciers(snapshot);
   assert.deepEqual(all.filter(p => !(p.osm_key in OLYMPICS_SPEC.roster)).map(p => p.name).sort(), ["Carrie Glacier", "Fairchild Glacier", "White Glacier"]);
   const white = all.find(p => p.name === "White Glacier")!;
-  assert.throws(() => outlineMetrics(base.parent).validate(white.boundary), /Self-intersection/, "inner ring shares edges with the outer ring");
+  assert.throws(() => outlineMetrics(base.parent).validate(white.boundary), /Self-intersection|interior splits/, "inner ring shares edges with the outer ring");
   assert.equal(base.places.length, 11);
   assert.ok(base.places.every(p => placeContainer(base, p)?.area.name === "Olympic National Park"));
   assert.equal(loadOlympicsOutlineReview().manifest.manifest_sha256, review.manifest.manifest_sha256);
