@@ -87,9 +87,9 @@ Expected Peaks summits (the privileged step resolves IDs):
 | Mount Carrie | 47.8942, -123.6491 | summit | 1500 m |
 
 "Of N": Mount Olympus 6 (Blue, Hoh, Hubert, Humes, Ice River, Jeffers),
-Mount Anderson 3, Mount Queets 1, Mount Cameron 1. White Glacier heads on
-Mount Tom (159 m from its head), Carrie and Fairchild on Mount Carrie; none is
-imported, so those parents are not in this package.
+Mount Anderson 3, Mount Queets 1, Mount Cameron 1, Mount Carrie 1 (Carrie).
+White Glacier heads on Mount Tom (159 m from its head) and is held, so Mount
+Tom is not a parent here.
 
 ## Containing area
 
