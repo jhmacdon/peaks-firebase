@@ -1,0 +1,6 @@
+URL: https://essd.copernicus.org/articles/15/4077/2023/
+Fetched: 2026-10-29 (User-Agent: PeaksApp-glacier-import/1.0)
+SHA-256 of fetched HTML: eaf58a3d73bfb1e26e14c41b61afa2bd1ea2ea414f525a11bc7454c3a7b0056a
+Verbatim excerpts:
+  "The earliest date is 2013 and the latest is 2020, but more than 73 % of the outlines were acquired from 2015 imagery."
+  "© Author(s) 2023. This work is distributed under the Creative Commons Attribution 4.0 License."
