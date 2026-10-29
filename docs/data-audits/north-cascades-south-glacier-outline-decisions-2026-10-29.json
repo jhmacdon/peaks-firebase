@@ -2,8 +2,8 @@
   "schema_version": 1,
   "rule": "Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=48.5376 +lon_0=-121.1343 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-  "input_manifest_sha256": "eeb1d954c4ed29983ea55a1185b5d4546ce5027d65c15cc7968c6e43546d48f2",
-  "output_manifest_sha256": "8e9103e4bd23bac7993e62ab5c97396ef8e0bffd34e22b18782a0187884f52f6",
+  "input_manifest_sha256": "bd10c33d43077db746795b18b46d178d97214cc374d14c95569ab24f2f13a967",
+  "output_manifest_sha256": "cd919987e45ca535890e9c37a86c7b772cf4da8a5e4165810d3139b4e23deb93",
   "sources": [
     {
       "key": "glims-2015-09-09",

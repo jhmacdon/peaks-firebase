@@ -55,6 +55,9 @@ test("South Cascade: USGS benchmark 2021 DEM area, PSU 2017 kept as a cross-chec
   assert.ok(Math.abs(area.cohort_cross_check.area_km2 - 1.777) < 1e-3);
   assert.equal(placeParent(m, place("South Cascade Glacier")).mountain_context.observed_year, 2021);
   assert.match(m.facts_credit, /U\.S\. Geological Survey Glacier Project/);
+  assert.equal(place("South Cascade Glacier").facts_source_url, "https://doi.org/10.5066/F7HD7SRF", "this glacier's own facts source");
+  assert.match(place("South Cascade Glacier").facts_credit!, /^U\.S\. Geological Survey Glacier Project/);
+  assert.equal(place("Goode Glacier").facts_credit, undefined);
 });
 
 test("apply gate", async () => {
