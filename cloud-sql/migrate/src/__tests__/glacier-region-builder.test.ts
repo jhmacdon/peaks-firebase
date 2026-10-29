@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { BAKER_SPEC, DATA_DIR, OUTLINE_DATA_DIR, loadBakerPackage } from "../import-baker-glaciers";
 import { BAKER_INVENTORY } from "../glaciers/baker";
-import { inventoryFacts, inventoryMountainContext, parseInventory, type InventoryConfig } from "../glaciers/psu-inventory";
+import { PSU_CREDIT, PSU_URL, inventoryFacts, inventoryMountainContext, parseInventory, type InventoryConfig } from "../glaciers/psu-inventory";
 import { loadRegionOsmPackage, loadRegionOutlineReview, type RegionSpec } from "../glaciers/region-builder";
-import { placeParent, sha256 } from "../import-glacier-manifest";
+import { placeParent, sha256, validateGlacierManifest } from "../import-glacier-manifest";
 import { usgsBenchmarkArea } from "../glaciers/usgs-benchmark";
 
 const glims = JSON.parse(readFileSync(join(OUTLINE_DATA_DIR, "glims-wfs-baker.json"), "utf8"));
@@ -158,6 +158,11 @@ test("an area source replaces the cohort area per glacier, keeps it as a cross-c
   assert.equal(ctx.area_km2, Number((9 + inv.areas.get("Bastile Glacier")!.area_km2).toFixed(3)));
   assert.match(ctx.scope, /2015 Portland State inventory cohort areas, except Thunder Glacier \(USGS test, 2021\)/);
   assert.match(ctx.source, /USGS test/);
+  assert.equal(ctx.source_url, null, "no single URL covers a mixed total");
+  const sources = (ctx as { sources?: { credit: string; url: string; glaciers: string[] }[] }).sources!;
+  assert.deepEqual([...sources].sort((a, b) => a.credit.localeCompare(b.credit)), [
+    { credit: PSU_CREDIT, url: PSU_URL, glaciers: ["Bastile Glacier"] },
+    { credit: "USGS test", url: "https://example.org/usgs", glaciers: ["Thunder Glacier"] }].sort((a, b) => a.credit.localeCompare(b.credit)));
   const config = { ...split, area_sources: { "Thunder Glacier": source(.1), "Bastile Glacier": source(.2) } };
   const f = inventoryFacts(inv, config, "colfax", thunder, "Thunder Glacier");
   assert.deepEqual([f.area_km2, f.observed_year, f.rank_on_mountain], [.1, 2021, 2]);
@@ -250,4 +255,8 @@ test("a glacier whose area comes from another source carries that source as its 
   assert.equal(thunder.facts_source_url, "https://doi.org/x");
   assert.match(thunder.facts_credit!, /^USGS test/);
   assert.ok(m.places.filter(p => p !== thunder).every(p => p.facts_credit === undefined));
+  for (const bad of ["doi:10.1/x", "javascript:alert(1)", "", 7])
+    assert.throws(() => validateGlacierManifest({ ...m, places: m.places.map(p => p === thunder ? { ...p, facts_source_url: bad as string } : p) }),
+      /facts_source_url for Thunder Glacier/);
+  assert.doesNotThrow(() => validateGlacierManifest({ ...m, places: m.places.map(p => p === thunder ? { ...p, facts_source_url: null } : p) }));
 });
