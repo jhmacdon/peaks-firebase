@@ -12,6 +12,8 @@ export type GlacierGeometryProvenance = {
   license: string; license_url: string; credit: string;
   method: string; geometry_sha256: string;
   analysis_ids?: string[]; glacier_ids?: string[]; submission_id?: string;
+  /** Neighbours whose OSM outline this inventory outline was clipped against. */
+  clipped_against?: string[];
   review?: Record<string, unknown>;
 };
 
@@ -133,18 +135,19 @@ export function validateGlacierManifest(m: GlacierManifest): GlacierManifest {
   if (m.outline_refresh && (m.outline_refresh.schema_version !== 1 || !/^[0-9a-f]{64}$/.test(m.outline_refresh.input_manifest_sha256)
     || !/^[0-9a-f]{64}$/.test(m.outline_refresh.review_sha256))) fail("outline_refresh review hash");
   if (new Set(m.places.map(p => p.id)).size !== m.places.length || new Set(m.places.map(p => p.name)).size !== m.places.length) fail("duplicate place");
+  const url = (value: unknown) => { try { return typeof value === "string" && ["https:", "http:"].includes(new URL(value).protocol); } catch { return false; } };
   for (const p of m.places) {
     if (!["glacier", "snowfield"].includes(p.kind) || p.facts?.kind !== p.kind) fail(`kind for ${p.name}`);
     if (p.boundary?.type !== "MultiPolygon" || !p.boundary.coordinates?.length) fail(`boundary for ${p.name}`);
     if (!Array.isArray(p.aliases)) fail(`aliases for ${p.name}`);
     if (own(p, "facts_credit") && !p.facts_credit?.trim()) fail(`facts_credit for ${p.name}`);
+    if (own(p, "facts_source_url") && p.facts_source_url !== null && !url(p.facts_source_url)) fail(`facts_source_url for ${p.name}`);
     if (p.parent_key !== undefined && !own(m.parents, p.parent_key)) fail(`parent_key for ${p.name}`);
     if (m.container_areas ? !own(p, "container_area_key") || (p.container_area_key !== null && !own(m.container_areas, p.container_area_key!))
       : own(p, "container_area_key")) fail(`container_area_key for ${p.name}`);
     const g = placeGeometry(m, p);
     const date = (value: string | null) => value === null || /^\d{4}-\d{2}-\d{2}$/.test(value) &&
       !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
-    const url = (value: string) => { try { return ["https:", "http:"].includes(new URL(value).protocol); } catch { return false; } };
     if (g.schema_version !== 1 || !g.geometry_source?.trim() || !g.credit?.trim() || !g.license?.trim()
       || !g.method?.trim() || !url(g.source_url) || !url(g.license_url)
       || !date(g.observed_at) || !date(g.snapshot_at) || !(g.observed_at ?? g.snapshot_at)

@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { BAKER_SPEC, DATA_DIR, OUTLINE_DATA_DIR, loadBakerPackage } from "../import-baker-glaciers";
 import { BAKER_INVENTORY } from "../glaciers/baker";
-import { inventoryFacts, inventoryMountainContext, parseInventory, type InventoryConfig } from "../glaciers/psu-inventory";
+import { PSU_CREDIT, PSU_URL, inventoryFacts, inventoryMountainContext, parseInventory, type InventoryConfig } from "../glaciers/psu-inventory";
 import { loadRegionOsmPackage, loadRegionOutlineReview, type RegionSpec } from "../glaciers/region-builder";
-import { placeParent, sha256 } from "../import-glacier-manifest";
+import { placeParent, sha256, validateGlacierManifest } from "../import-glacier-manifest";
 import { usgsBenchmarkArea } from "../glaciers/usgs-benchmark";
 
 const glims = JSON.parse(readFileSync(join(OUTLINE_DATA_DIR, "glims-wfs-baker.json"), "utf8"));
@@ -158,6 +158,11 @@ test("an area source replaces the cohort area per glacier, keeps it as a cross-c
   assert.equal(ctx.area_km2, Number((9 + inv.areas.get("Bastile Glacier")!.area_km2).toFixed(3)));
   assert.match(ctx.scope, /2015 Portland State inventory cohort areas, except Thunder Glacier \(USGS test, 2021\)/);
   assert.match(ctx.source, /USGS test/);
+  assert.equal(ctx.source_url, null, "no single URL covers a mixed total");
+  const sources = (ctx as { sources?: { credit: string; url: string; glaciers: string[] }[] }).sources!;
+  assert.deepEqual([...sources].sort((a, b) => a.credit.localeCompare(b.credit)), [
+    { credit: PSU_CREDIT, url: PSU_URL, glaciers: ["Bastile Glacier"] },
+    { credit: "USGS test", url: "https://example.org/usgs", glaciers: ["Thunder Glacier"] }].sort((a, b) => a.credit.localeCompare(b.credit)));
   const config = { ...split, area_sources: { "Thunder Glacier": source(.1), "Bastile Glacier": source(.2) } };
   const f = inventoryFacts(inv, config, "colfax", thunder, "Thunder Glacier");
   assert.deepEqual([f.area_km2, f.observed_year, f.rank_on_mountain], [.1, 2021, 2]);
@@ -214,6 +219,20 @@ test("a roster label correction renames the place, drops OSM's Wikidata tag and 
   assert.throws(() => loadRegionOsmPackage(relabel("Thunder Glacier")), /Invalid label correction/);
 });
 
+test("an inventory crosswalk note lands in provenance; keep_osm needs outline rule 2", () => {
+  const note = "PSU/GNIS name for this outline is Bastile Glacier; name follows OSM";
+  const spec = { ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
+    "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], inventory_note: note } } };
+  assert.equal(loadRegionOsmPackage(spec).places.find(p => p.osm_key === "relation:4778054")!.facts.provenance.inventory_crosswalk, note);
+  const keep = { ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
+    "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], keep_osm: "reviewed" } } };
+  assert.throws(() => loadRegionOutlineReview(keep), /keep_osm needs outline rule 2/);
+  // Keeping Thunder on OSM blocks the all-inventory option for Baker's one
+  // touching group, so the switched Talum would be clipped against Squak; that
+  // removes 17.5% of it, so the build holds instead.
+  assert.throws(() => loadRegionOutlineReview({ ...keep, outline_rule: 2 }), /Talum Glaciers: clipping against Squak Glacier changes its area by 17\.5%/);
+});
+
 test("facts under another inventory name need a reviewed note even without a label", () => {
   const roster = (note?: string) => ({ ...BAKER_SPEC.roster,
     "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], inventory: null } ,
@@ -236,4 +255,8 @@ test("a glacier whose area comes from another source carries that source as its 
   assert.equal(thunder.facts_source_url, "https://doi.org/x");
   assert.match(thunder.facts_credit!, /^USGS test/);
   assert.ok(m.places.filter(p => p !== thunder).every(p => p.facts_credit === undefined));
+  for (const bad of ["doi:10.1/x", "javascript:alert(1)", "", 7])
+    assert.throws(() => validateGlacierManifest({ ...m, places: m.places.map(p => p === thunder ? { ...p, facts_source_url: bad as string } : p) }),
+      /facts_source_url for Thunder Glacier/);
+  assert.doesNotThrow(() => validateGlacierManifest({ ...m, places: m.places.map(p => p === thunder ? { ...p, facts_source_url: null } : p) }));
 });

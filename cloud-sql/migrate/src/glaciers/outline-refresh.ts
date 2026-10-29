@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
-import { union } from "polyclip-ts";
+import { difference, union } from "polyclip-ts";
 import { manifestSha256, placeGeometry, sha256, validateGlacierManifest, type GlacierGeometryProvenance,
   type GlacierManifest, type GlacierManifestPlace } from "../import-glacier-manifest";
 import { outlineMetrics, stableMetric, stabilizeMetrics, type OutlineMetrics, type Outline, type Overlap } from "./outline-geometry";
@@ -76,12 +76,21 @@ export function matchOutlineSource(places: GlacierManifestPlace[], source: Outli
 
 export type ExtentEvidence = { observed_at: string; source_key: string; iou: number; candidate_iou: number; basis: string };
 export type SelectionCandidate = { key: string; area_km2: number; observed_at: string; license_ok: boolean };
-export function chooseOutline(osmArea: number, factsArea: number | null, candidates: SelectionCandidate[], evidence: ExtentEvidence | null) {
+/** Rule 2: OSM extents carry no observation date, while an inventory outline
+ * does. Without dated evidence of OSM's age, an out-of-band OSM outline gives
+ * way to a dated licence-OK candidate whose ratio is closer to 1. Rule 1
+ * (the applied Rainier, Baker and Glacier Peak packages) needs that evidence.
+ * `keepOsm` is a reviewed decision to keep OSM anyway; it stays flagged. */
+export type OutlineRuleOptions = { rule?: 1 | 2; keepOsm?: Record<string, string> };
+export function chooseOutline(osmArea: number, factsArea: number | null, candidates: SelectionCandidate[], evidence: ExtentEvidence | null,
+  rule: 1 | 2 = 1, keepOsm: string | null = null) {
   const ratio = ratioOf(osmArea, factsArea);
   if (ratio === null) return { chosen_source: "osm", flagged: true, reason: "No individual facts area; retain OSM for review" };
   if (ratio >= 0.67 && ratio <= 1.5) return { chosen_source: "osm", flagged: false, reason: "OSM/facts ratio is within [0.67, 1.5]" };
+  if (keepOsm !== null) return { chosen_source: "osm", flagged: true, reason: `OSM ratio outside band; reviewed decision keeps OSM: ${keepOsm}` };
   const error = (c: SelectionCandidate) => Math.abs(ratioOf(c.area_km2, factsArea)! - 1);
-  const eligible = candidates.filter(c => c.license_ok && evidence && c.observed_at > evidence.observed_at
+  const undated = rule === 2 && !evidence;
+  const eligible = candidates.filter(c => c.license_ok && (undated || (evidence && c.observed_at > evidence.observed_at))
     && error(c) < Math.abs(ratio - 1))
     .sort((a, b) => b.observed_at.localeCompare(a.observed_at) || error(a) - error(b) || a.key.localeCompare(b.key));
   if (!eligible.length) return { chosen_source: "osm", flagged: true,
@@ -89,7 +98,8 @@ export function chooseOutline(osmArea: number, factsArea: number | null, candida
       : "OSM ratio outside band; no licence-OK, newer candidate has a ratio closer to 1" };
   const selected = eligible[0], newRatio = ratioOf(selected.area_km2, factsArea)!;
   return { chosen_source: selected.key, flagged: newRatio < 0.67 || newRatio > 1.5,
-    reason: "OSM ratio outside band; newest licence-OK candidate newer than evident OSM extent has a ratio closer to 1" +
+    reason: (undated ? "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2)"
+      : "OSM ratio outside band; newest licence-OK candidate newer than evident OSM extent has a ratio closer to 1") +
       (newRatio < 0.67 || newRatio > 1.5 ? "; selected ratio still outside band" : "") };
 }
 
@@ -106,10 +116,22 @@ export type OutlineRefreshReport = {
     source_url: string; credit: string; license: string; license_ok: boolean; purpose: string;
     audit: Omit<SourceMatches, "matches"> & { matches: Omit<OutlineMatch, "boundary">[] } }[];
   decisions: RefreshDecision[];
+  /** Rule 2 only: pairs of final outlines that overlap, and how each
+   * connected group of touching glaciers was resolved. */
+  neighbour_overlaps?: NeighbourGroup[];
 };
+export type NeighbourPair = { a: string; b: string; intersection_km2: number; share_of_smaller: number };
+export type NeighbourGroup = { glaciers: string[]; pairs: NeighbourPair[]; resolution: "all-inventory" | "all-osm" | "clipped" | "unresolved";
+  in_band: { osm: number; inventory: number | null }; note: string };
+/** Overlap between two final outlines worth acting on (rule 2). */
+export const NEIGHBOUR_OVERLAP = { share: 0.01, km2: 0.01 };
+/** Clipping may not change a switched outline's area by more than this. */
+export const MAX_CLIP_CHANGE = 0.1;
 /** `rawMetrics` exists for tests; outputs are always rounded to METRIC_DECIMALS. */
 export function refreshGlacierOutlines(manifest: GlacierManifest, sources: OutlineSource[], references: OutlineSource[] = [],
-  aliases: Record<string, string[]> = {}, rawMetrics: Metrics = outlineMetrics(manifest.parent)) {
+  aliases: Record<string, string[]> = {}, rawMetrics: Metrics = outlineMetrics(manifest.parent), options: OutlineRuleOptions = {}) {
+  const rule = options.rule ?? 1, keepOsm = options.keepOsm ?? {};
+  for (const key of Object.keys(keepOsm)) if (!manifest.places.some(p => p.osm_key === key)) throw new Error(`keepOsm names no place: ${key}`);
   validateGlacierManifest(manifest);
   if (manifest.places.some(p => p.geometry && p.geometry.geometry_source !== manifest.geometry_source))
     throw new Error("Outline refresh requires the original default-source manifest, not an already mixed-source output");
@@ -118,13 +140,15 @@ export function refreshGlacierOutlines(manifest: GlacierManifest, sources: Outli
   const metrics = stabilizeMetrics(rawMetrics);
   const audits = [...sources, ...references].map(source => ({ source, audit: matchOutlineSource(manifest.places, source, metrics, aliases) }));
   const report: OutlineRefreshReport = { schema_version: 1,
-    rule: "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
+    rule: (rule === 2 ? "Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. " : "")
+      + "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
     crs: metrics.crs, input_manifest_sha256: manifestSha256(manifest), output_manifest_sha256: "",
     sources: audits.map(({ source: s, audit }) => ({ key: s.key, observed_at: s.observed_at, submission_id: s.submission_id,
       source_sha256: s.source_sha256, source_url: s.source_url, credit: s.credit, license: s.license, license_ok: s.license_ok,
       purpose: sources.includes(s) ? "candidate" : "historical_reference",
       audit: { ...audit, matches: audit.matches.map(({ boundary: _boundary, ...match }) => match) } })), decisions: [] };
-  const places = manifest.places.map(p => {
+  const inBand = (r: number | null) => r !== null && r >= 0.67 && r <= 1.5;
+  const choices = manifest.places.map(p => {
     const osmArea = metrics.area(p.boundary), factsArea = p.facts.area_km2;
     const candidates = audits.filter(a => sources.includes(a.source)).flatMap(a => {
       const match = a.audit.matches.find(m => m.place_id === p.id);
@@ -146,7 +170,14 @@ export function refreshGlacierOutlines(manifest: GlacierManifest, sources: Outli
       iou: old.match.overlap.iou, candidate_iou: newest.match.overlap.iou,
       basis: "Inferred older extent: OSM fits the dated historical inventory substantially better than the newer inventory; not a verified OSM observation date" } : null;
     const choice = chooseOutline(osmArea, factsArea, candidates.map(({ source, match }) => ({ key: source.key,
-      area_km2: match.area_km2, observed_at: source.observed_at, license_ok: source.license_ok })), evidence);
+      area_km2: match.area_km2, observed_at: source.observed_at, license_ok: source.license_ok })), evidence, rule, keepOsm[p.osm_key] ?? null);
+    // The inventory option for a neighbour group: the newest licence-OK candidate.
+    const inventory = keepOsm[p.osm_key] ? undefined : candidates.filter(c => c.source.license_ok)
+      .sort((a, b) => b.source.observed_at.localeCompare(a.source.observed_at))[0];
+    return { p, osmArea, factsArea, candidates, evidence, choice, inventory, clipped: null as null | { against: string[]; boundary: Outline; change: number } };
+  });
+  if (rule === 2) report.neighbour_overlaps = resolveNeighbours(choices, metrics, inBand);
+  const places = choices.map(({ p, osmArea, factsArea, candidates, evidence, choice, clipped }) => {
     const decisionCandidates = candidates.map(({ source, match }) => ({ source_key: source.key, area_km2: match.area_km2,
       ratio: ratioOf(match.area_km2, factsArea), observed_at: source.observed_at, license_ok: source.license_ok,
       overlap: match.overlap, feature_ids: match.feature_ids, parts_without_osm_overlap: match.parts_without_osm_overlap }));
@@ -155,16 +186,18 @@ export function refreshGlacierOutlines(manifest: GlacierManifest, sources: Outli
       facts_area_km2: factsArea, osm_ratio: ratioOf(osmArea, factsArea), glims_ratio: glims ? ratioOf(glims.match.area_km2, factsArea) : null,
       candidates: decisionCandidates, extent_evidence: evidence, ...choice });
     const selected = candidates.find(c => c.source.key === choice.chosen_source);
-    const boundary = selected?.match.boundary ?? p.boundary;
+    const boundary = clipped?.boundary ?? selected?.match.boundary ?? p.boundary;
     const geometry: GlacierGeometryProvenance = selected ? {
       schema_version: 1, geometry_source: selected.source.geometry_source, source_url: selected.source.source_url,
       source_sha256: selected.source.source_sha256, observed_at: selected.source.observed_at, snapshot_at: selected.source.snapshot_at,
       credit: selected.source.credit, license: selected.source.license, license_url: selected.source.license_url,
-      method: "Independent inventory geometry; named parts dissolved with polyclip-ts 0.16.8, without clipping to OSM",
+      method: clipped ? `Independent inventory geometry; named parts dissolved with polyclip-ts 0.16.8; clipped against ${clipped.against.join(", ")} `
+        + `(area change ${(clipped.change * 100).toFixed(2)}%)` : "Independent inventory geometry; named parts dissolved with polyclip-ts 0.16.8, without clipping to OSM",
       geometry_sha256: sha256(JSON.stringify(boundary)), analysis_ids: selected.match.feature_ids,
       glacier_ids: selected.match.glacier_ids, submission_id: selected.source.submission_id,
+      ...(clipped ? { clipped_against: clipped.against } : {}),
     } : { ...placeGeometry(manifest, p) };
-    geometry.review = { rule_version: 1, chosen_source: choice.chosen_source, flagged: choice.flagged,
+    geometry.review = { rule_version: rule, chosen_source: choice.chosen_source, flagged: choice.flagged,
       reason: choice.reason, osm_area_km2: osmArea, facts_area_km2: factsArea,
       candidates: decisionCandidates, extent_evidence: evidence };
     return { ...p, boundary, geometry, facts: { ...p.facts, provenance: { ...p.facts.provenance, outline: geometry } } };
@@ -174,6 +207,115 @@ export function refreshGlacierOutlines(manifest: GlacierManifest, sources: Outli
     input_manifest_sha256: report.input_manifest_sha256, review_sha256: sha256(JSON.stringify(report)) }, places });
   report.output_manifest_sha256 = manifestSha256(refreshed);
   return { manifest: { ...refreshed, manifest_sha256: report.output_manifest_sha256 }, report };
+}
+
+type Choice = { p: GlacierManifest["places"][number]; osmArea: number; factsArea: number | null;
+  candidates: { source: OutlineSource; match: OutlineMatch }[]; choice: ReturnType<typeof chooseOutline>;
+  inventory: { source: OutlineSource; match: OutlineMatch } | undefined; clipped: null | { against: string[]; boundary: Outline; change: number } };
+type Box = [number, number, number, number];
+const boxOf = (o: Outline): Box => { const pts = o.coordinates.flat(2);
+  return [Math.min(...pts.map(q => q[0])), Math.min(...pts.map(q => q[1])), Math.max(...pts.map(q => q[0])), Math.max(...pts.map(q => q[1]))]; };
+const boxesMeet = (a: Box, b: Box) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
+
+/** Rule 2 neighbour check. When one glacier takes an inventory outline and a
+ * neighbour keeps OSM, the two sources draw their shared divide differently
+ * and the outlines can overlap. Every overlapping pair (more than 1% of the
+ * smaller outline or 0.01 km²) puts its connected group of possibly-touching
+ * glaciers on one source: all inventory or all OSM, whichever puts more of
+ * the group's ratios in the band (a tie goes to the dated inventory), if it
+ * removes the overlap. Otherwise a switched outline is clipped against its
+ * OSM neighbour, failing when that changes its area by more than 10%. */
+function resolveNeighbours(choices: Choice[], metrics: OutlineMetrics, inBand: (r: number | null) => boolean): NeighbourGroup[] {
+  const outlineOf = (c: Choice, source: "final" | "osm" | "inventory"): Outline | null => source === "osm" ? c.p.boundary
+    : source === "inventory" ? c.inventory?.match.boundary ?? null
+    : c.candidates.find(x => x.source.key === c.choice.chosen_source)?.match.boundary ?? c.p.boundary;
+  const cache = new Map<Outline, Box>(), box = (o: Outline) => { if (!cache.has(o)) cache.set(o, boxOf(o)); return cache.get(o)!; };
+  const pairOverlap = (a: Outline, b: Outline): NeighbourPair | null => {
+    if (!boxesMeet(box(a), box(b))) return null;
+    const km2 = stableMetric(metrics.overlap(a, b).intersection_km2), smaller = Math.min(metrics.area(a), metrics.area(b));
+    return km2 > 0 ? { a: "", b: "", intersection_km2: km2, share_of_smaller: stableMetric(km2 / smaller) } : null;
+  };
+  const counts = (pair: NeighbourPair | null) => !!pair && (pair.share_of_smaller > NEIGHBOUR_OVERLAP.share || pair.intersection_km2 > NEIGHBOUR_OVERLAP.km2);
+  const flaggedPairs = (members: number[], pick: (c: Choice) => Outline) => {
+    const out: (NeighbourPair & { i: number; j: number })[] = [];
+    for (let x = 0; x < members.length; x++) for (let y = x + 1; y < members.length; y++) {
+      const i = members[x], j = members[y], pair = pairOverlap(pick(choices[i]), pick(choices[j]));
+      if (counts(pair)) out.push({ ...pair!, a: choices[i].p.name, b: choices[j].p.name, i, j });
+    }
+    return out;
+  };
+  const all = choices.map((_, i) => i);
+  const found = flaggedPairs(all, c => outlineOf(c, "final")!);
+  if (!found.length) return [];
+  // Glaciers that could overlap under any choice of source are one group.
+  const links = new Map<number, Set<number>>(all.map(i => [i, new Set<number>()]));
+  for (let i = 0; i < choices.length; i++) for (let j = i + 1; j < choices.length; j++) {
+    // The final outline counts too: rule 1 can pick an older candidate than the inventory option.
+    const opts = (c: Choice) => [...new Set([outlineOf(c, "osm"), outlineOf(c, "inventory"), outlineOf(c, "final")])].filter((o): o is Outline => !!o);
+    if (opts(choices[i]).some(a => opts(choices[j]).some(b => pairOverlap(a, b)))) { links.get(i)!.add(j); links.get(j)!.add(i); }
+  }
+  const groups: NeighbourGroup[] = [], done = new Set<number>(), held = new Set<string>();
+  for (const start of new Set(found.flatMap(f => [f.i, f.j]))) {
+    if (done.has(start)) continue;
+    const members: number[] = [], queue = [start];
+    while (queue.length) { const i = queue.pop()!; if (done.has(i)) continue; done.add(i); members.push(i); queue.push(...links.get(i)!); }
+    members.sort((a, b) => a - b);
+    const names = members.map(i => choices[i].p.name), pairs = found.filter(f => members.includes(f.i))
+      .map(({ a, b, intersection_km2, share_of_smaller }) => ({ a, b, intersection_km2, share_of_smaller }));
+    const ratio = (i: number, o: Outline) => ratioOf(metrics.area(o), choices[i].factsArea);
+    const osmScore = members.filter(i => inBand(ratio(i, choices[i].p.boundary))).length;
+    const sameSource = new Set(members.map(i => choices[i].inventory?.source.key ?? "")).size === 1;
+    const inventoryOk = members.every(i => choices[i].inventory) && sameSource;
+    const invScore = inventoryOk ? members.filter(i => inBand(ratio(i, choices[i].inventory!.match.boundary))).length : null;
+    const clears = (pick: (c: Choice) => Outline) => !flaggedPairs(members, pick).length;
+    const options = ([["all-inventory", invScore], ["all-osm", osmScore]] as const)
+      .filter(([kind]) => kind === "all-osm" || inventoryOk)
+      .sort((a, b) => (b[1] ?? -1) - (a[1] ?? -1) || (a[0] === "all-inventory" ? -1 : 1));
+    // With the inventory lacking a member, every glacier keeps its own choice and is clipped.
+    const picked = inventoryOk ? options.find(([kind]) => clears(c => outlineOf(c, kind === "all-osm" ? "osm" : "inventory")!)) : undefined;
+    const label = `neighbour group ${names.join(", ")}`;
+    if (picked) {
+      const kind = picked[0];
+      for (const i of members) {
+        const c = choices[i], before = c.choice.chosen_source;
+        const key = kind === "all-osm" ? "osm" : c.inventory!.source.key, r = ratio(i, outlineOf(c, kind === "all-osm" ? "osm" : "inventory")!);
+        if (key !== before) c.choice = { chosen_source: key, flagged: !inBand(r) || (kind === "all-osm" && c.factsArea === null),
+          reason: `${c.choice.reason}; ${label} resolved ${kind} (overlap between sources)` };
+        else c.choice = { ...c.choice, reason: `${c.choice.reason}; ${label} resolved ${kind}` };
+      }
+      groups.push({ glaciers: names, pairs, resolution: kind, in_band: { osm: osmScore, inventory: invScore },
+        note: `All ${members.length} on ${kind === "all-osm" ? "OSM" : "the inventory"}: ${kind === "all-osm" ? osmScore : invScore} of ${members.length} ratios in band (OSM ${osmScore}, inventory ${invScore ?? "n/a"})` });
+      continue;
+    }
+    // Clip each switched outline against the OSM neighbours it overlaps.
+    const remaining = flaggedPairs(members, c => outlineOf(c, "final")!);
+    const unresolved: string[] = [];
+    for (const i of members) {
+      const c = choices[i];
+      if (c.choice.chosen_source === "osm") continue;
+      const against = remaining.flatMap(f => f.i === i ? [f.j] : f.j === i ? [f.i] : []).filter(j => choices[j].choice.chosen_source === "osm");
+      if (!against.length) continue;
+      const own = outlineOf(c, "final")!, cut = difference(own.coordinates, ...against.map(j => choices[j].p.boundary.coordinates));
+      const boundary: Outline = { type: "MultiPolygon", coordinates: cut as number[][][][] }, change = 1 - metrics.area(boundary) / metrics.area(own);
+      if (change > MAX_CLIP_CHANGE) throw new Error(`${c.p.name}: clipping against ${against.map(j => choices[j].p.name).join(", ")} `
+        + `changes its area by ${(change * 100).toFixed(1)}% (over ${MAX_CLIP_CHANGE * 100}%); hold it or record a reviewed decision`);
+      metrics.validate(boundary);
+      c.clipped = { against: against.map(j => choices[j].p.name), boundary, change: stableMetric(change) };
+      c.choice = { ...c.choice, reason: `${c.choice.reason}; ${label}: clipped against ${c.clipped.against.join(", ")}` };
+    }
+    for (const f of remaining) if (choices[f.i].choice.chosen_source === choices[f.j].choice.chosen_source || (choices[f.i].choice.chosen_source !== "osm" && choices[f.j].choice.chosen_source !== "osm")) {
+      unresolved.push(`${f.a}/${f.b}`); held.add(`${f.i}/${f.j}`);
+      for (const i of [f.i, f.j]) choices[i].choice = { ...choices[i].choice, flagged: true,
+        reason: `${choices[i].choice.reason}; overlaps ${i === f.i ? f.b : f.a} on the same source (unresolved)` };
+    }
+    groups.push({ glaciers: names, pairs, resolution: unresolved.length ? "unresolved" : "clipped", in_band: { osm: osmScore, inventory: invScore },
+      note: unresolved.length ? `Overlap on one source left flagged: ${unresolved.join(", ")}`
+        : `Inventory ${inventoryOk ? "option does not clear the overlap" : "lacks a member"}; switched outlines clipped against OSM neighbours` });
+  }
+  // Every overlap left among the final outlines must be one the groups flagged.
+  const missed = flaggedPairs(all, c => c.clipped?.boundary ?? outlineOf(c, "final")!).filter(f => !held.has(`${f.i}/${f.j}`));
+  if (missed.length) throw new Error(`Neighbour check left overlaps it did not flag: ${missed.map(f => `${f.a}/${f.b}`).join(", ")}`);
+  return groups;
 }
 
 /** Keep raw WFS bytes immutable. Filter the whole packet to one explicit
@@ -231,5 +373,13 @@ export function outlineReportMarkdown(report: OutlineRefreshReport): string {
     return `| ${escape(d.glacier)} | ${n(d.osm_area_km2)} | ${n(d.glims_area_km2)} | ${n(d.facts_area_km2)} | ${n(d.osm_ratio)} | ${n(d.glims_ratio)} | ${n(c?.overlap.iou ?? null)} / ${n(c?.overlap.candidate_share ?? null)} | ${d.chosen_source}${d.flagged ? " ⚑" : ""} | ${escape(d.reason)} |`;
   });
   const audits = report.sources.map(s => `- ${s.key}: ${s.audit.matches.length} matched systems; ${s.audit.unmatched.length} unmatched groups/features; ${s.audit.ambiguous.length} ambiguous; ${s.audit.invalid.length} invalid. Full identities and reasons are in JSON.`);
-  return `# Glacier outline decisions\n\n${report.rule}\n\nAreas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Overlap is IoU / candidate share. ⚑ means review remains due. Historical fits infer extent age; they do not date OSM imagery.\n\nInput manifest: \`${report.input_manifest_sha256}\`\n\nOutput manifest: \`${report.output_manifest_sha256}\`\n\n| Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |\n| --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |\n${rows.join("\n")}\n\n${audits.join("\n")}\n`;
+  return `# Glacier outline decisions\n\n${report.rule}\n\nAreas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Overlap is IoU / candidate share. ⚑ means review remains due. Historical fits infer extent age; they do not date OSM imagery.\n\nInput manifest: \`${report.input_manifest_sha256}\`\n\nOutput manifest: \`${report.output_manifest_sha256}\`\n\n| Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |\n| --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |\n${rows.join("\n")}\n\n${audits.join("\n")}\n${overlapsMarkdown(report)}`;
+}
+/** Rule 2 only: the neighbour-overlap groups and how each was resolved. */
+export function overlapsMarkdown(report: OutlineRefreshReport): string {
+  const groups = report.neighbour_overlaps;
+  if (!groups) return "";
+  if (!groups.length) return "\n## Outline overlaps\n\nNo pair of final outlines overlaps by more than 1% of the smaller or 0.01 km².\n";
+  const rows = groups.flatMap(g => g.pairs.map(p => `| ${p.a} / ${p.b} | ${p.intersection_km2.toFixed(3)} | ${(p.share_of_smaller * 100).toFixed(1)}% | ${g.resolution} | ${g.glaciers.length}: ${g.glaciers.join(", ")} | ${g.note} |`));
+  return `\n## Outline overlaps\n\n| Pair | Overlap km² | Of smaller | Resolution | Group | Note |\n| --- | ---: | ---: | --- | --- | --- |\n${rows.join("\n")}\n`;
 }

@@ -24,6 +24,8 @@ export type RegionPlace = {
    * (the inventory row lying on this polygon carries a name the reviewed
    * identity rejects). Required whenever the two names differ. */
   inventory_note?: string;
+  /** A reviewed decision to keep an out-of-band OSM outline (outline rule 2). */
+  keep_osm?: string;
 };
 /** Everything one region package needs. A region is a spec plus saved data;
  * the writer, schema, API and app stay unchanged. */
@@ -44,6 +46,8 @@ export type RegionSpec = {
   /** Cohort glaciers per parent key; parents without one get no "of N". */
   inventory: InventoryConfig;
   activities: string[];
+  /** Outline rule; 2 treats OSM extents as undated (see chooseOutline). */
+  outline_rule?: 1 | 2;
   /** ISO 3166-1 alpha-2 and the subdivision code every place gets. */
   country_code: string;
   state_code: string;
@@ -115,7 +119,9 @@ export function loadRegionOsmPackage(spec: RegionSpec) {
 export function loadRegionOutlineReview(spec: RegionSpec) {
   const { manifest_sha256: _hash, ...osm } = loadRegionOsmPackage(spec);
   const { sources, references, aliases } = loadOutlineSources(join(spec.outline_dir, "outline-sources.json"));
-  return refreshGlacierOutlines(osm, sources, references, aliases);
+  const keepOsm = Object.fromEntries(Object.entries(spec.roster).flatMap(([key, r]) => r.keep_osm ? [[key, r.keep_osm]] : []));
+  if (Object.keys(keepOsm).length && spec.outline_rule !== 2) throw new Error("keep_osm needs outline rule 2");
+  return refreshGlacierOutlines(osm, sources, references, aliases, undefined, { rule: spec.outline_rule ?? 1, keepOsm });
 }
 
 /** Dry run by default; the same flags as the Rainier and Baker builders. */
