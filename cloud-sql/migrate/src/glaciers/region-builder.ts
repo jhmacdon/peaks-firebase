@@ -1,10 +1,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseOsmGlaciers } from "./osm";
-import { FACTS_CREDIT, PSU_URL, inventoryFacts, inventoryMountainContext, parseInventory, type InventoryConfig } from "./psu-inventory";
+import { FACTS_CREDIT, PSU_URL, RGI_CREDIT, inventoryFacts, inventoryMountainContext, parseInventory, type InventoryConfig } from "./psu-inventory";
 import { applyGlacierManifest, manifestSha256, sha256, validateGlacierManifest, type GlacierContainerArea, type GlacierManifest,
   type GlacierParent } from "../import-glacier-manifest";
-import { loadOutlineSources, outlineReportMarkdown, refreshGlacierOutlines } from "./outline-refresh";
+import { loadOutlineSources, normalizeGlacierName, outlineReportMarkdown, refreshGlacierOutlines } from "./outline-refresh";
 
 /** One roster place: an OSM element chosen for this package. */
 export type RegionPlace = {
@@ -16,6 +16,14 @@ export type RegionPlace = {
   container: string | null;
   aliases?: string[];
   kind?: "glacier" | "snowfield";
+  /** Verified name when OSM labels this polygon as another glacier. The OSM
+   * name and its Wikidata tag describe that other glacier, so both are
+   * dropped; provenance records the correction and how it was verified. */
+  label?: { name: string; method: string };
+  /** A reviewed reason for taking `inventory` facts under a different name
+   * (the inventory row lying on this polygon carries a name the reviewed
+   * identity rejects). Required whenever the two names differ. */
+  inventory_note?: string;
 };
 /** Everything one region package needs. A region is a spec plus saved data;
  * the writer, schema, API and app stay unchanged. */
@@ -49,8 +57,15 @@ export function loadRegionOsmPackage(spec: RegionSpec) {
   };
   const keys = Object.keys(spec.roster);
   const snowfields = new Set(keys.filter(k => spec.roster[k].kind === "snowfield"));
-  const candidates = parseOsmGlaciers(read(spec.data_dir, spec.files.osm, spec.sha256.osm), { roster: keys })
-    .map(c => ({ ...c, kind: snowfields.has(c.osm_key) ? "snowfield" as const : "glacier" as const }));
+  const candidates = parseOsmGlaciers(read(spec.data_dir, spec.files.osm, spec.sha256.osm), { roster: keys }).map(c => {
+    const label = spec.roster[c.osm_key].label, kind = snowfields.has(c.osm_key) ? "snowfield" as const : "glacier" as const;
+    if (!label) return { ...c, kind };
+    if (!label.name.trim() || label.name === c.name || !label.method.trim()) throw new Error(`Invalid label correction for ${c.osm_key}`);
+    const { wikidata, ...external_ids } = c.external_ids;
+    return { ...c, kind, name: label.name, external_ids,
+      label: { corrected_from_osm_name: c.name, ...(wikidata ? { dropped_osm_wikidata: wikidata } : {}), method: label.method,
+        note: `Label corrected from OSM name "${c.name}"; OpenStreetMap itself is unchanged` } };
+  });
   if (candidates.length !== keys.length || new Set(candidates.map(c => c.name)).size !== keys.length)
     throw new Error(`Expected ${keys.length} uniquely named ${spec.label} places`);
   const inventory = parseInventory(read(spec.outline_dir, spec.files.glims, spec.sha256.glims),
@@ -62,7 +77,7 @@ export function loadRegionOsmPackage(spec: RegionSpec) {
   const manifest: GlacierManifest & { glims_sha256: string; rgi_sha256: string } = {
     source_sha256: spec.sha256.osm, glims_sha256: spec.sha256.glims, rgi_sha256: spec.sha256.rgi,
     geometry_observed_at: spec.snapshot_date, geometry_source: "OpenStreetMap", geometry_credit: "© OpenStreetMap contributors",
-    geometry_license: "ODbL-1.0", facts_credit: [FACTS_CREDIT, ...new Set(Object.values(spec.inventory.area_sources ?? {}).map(s => s.credit))].join("; "),
+    geometry_license: "ODbL-1.0", facts_credit: FACTS_CREDIT,
     facts_source_url: PSU_URL,
     description_source_name: null, description_source_license: null,
     country_code: spec.country_code, state_code: spec.state_code, activities: spec.activities,
@@ -70,17 +85,27 @@ export function loadRegionOsmPackage(spec: RegionSpec) {
     ...(others.length ? { parents: Object.fromEntries(others.map(k => [k, { ...spec.parents[k], mountain_context: context(k) }])) } : {}),
     container_areas: spec.container_areas,
     mountain_context: context(spec.default_parent),
-    places: candidates.map(c => {
+    places: candidates.map(candidate => {
+      const { label, ...c } = candidate as typeof candidate & { label?: Record<string, string> };
       const r = spec.roster[c.osm_key];
       if (!spec.parents[r.parent]) throw new Error(`Unknown parent for ${c.name}`);
       if (r.inventory !== null && used.has(r.inventory)) throw new Error(`Inventory glacier on two places: ${r.inventory}`);
       if (r.inventory !== null) used.add(r.inventory);
       if (r.inventory !== null && !(r.inventory in (spec.inventory.mountains[r.parent]?.names ?? {})))
         throw new Error(`${c.name}: ${r.inventory} is not listed under its parent ${r.parent}`);
+      // Facts must describe the glacier named here. A different inventory
+      // name needs a reviewed reason; a label correction never carries facts
+      // across names on its own.
+      if (r.inventory !== null && normalizeGlacierName(r.inventory) !== normalizeGlacierName(c.name) && !r.inventory_note?.trim())
+        throw new Error(`${c.name} takes inventory facts named ${r.inventory}; add a reviewed inventory_note`);
       const facts = inventoryFacts(inventory, spec.inventory, r.parent, c, r.inventory);
+      const source = r.inventory !== null ? spec.inventory.area_sources?.[r.inventory] : undefined;
       return { ...c, aliases: r.aliases ?? [], ...(r.parent === spec.default_parent ? {} : { parent_key: r.parent }),
         container_area_key: r.container,
-        facts: { ...facts, provenance: { ...facts.provenance, glims_sha256: spec.sha256.glims, rgi_sha256: spec.sha256.rgi } } };
+        facts: { ...facts, provenance: { ...facts.provenance, glims_sha256: spec.sha256.glims, rgi_sha256: spec.sha256.rgi,
+          ...(label ? { label } : {}), ...(r.inventory_note ? { inventory_crosswalk: r.inventory_note } : {}) } },
+        ...(source ? { facts_credit: [source.credit, ...(facts.head_elevation_m !== null ? [RGI_CREDIT] : [])].join("; "),
+          facts_source_url: source.url } : {}) };
     }),
   };
   validateGlacierManifest(manifest);

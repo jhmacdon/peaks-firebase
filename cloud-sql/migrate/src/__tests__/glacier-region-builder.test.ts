@@ -145,13 +145,19 @@ test("a mountain may take its names from another dated cohort of the cleared sub
     cohort: { ...cohort, submission_id: "744" } } } }), /outside the cleared submission/);
 });
 
-test("an area source replaces the cohort area, keeps it as a cross-check, and never mixes on one mountain", () => {
+test("an area source replaces the cohort area per glacier, keeps it as a cross-check, and says so in a mixed total", () => {
   const source = (area_km2: number) => ({ area_km2, observed_at: "2021-08-13", credit: "USGS test", url: "https://example.org/usgs",
     license: "CC0-1.0", license_url: "https://creativecommons.org/publicdomain/zero/1.0/", method: "test", files: {} });
   const inv = parseInventory(glims, rgi, split);
   const thunder = { id: "x", name: "Thunder Glacier", osm_key: "way:1", external_ids: {}, kind: "glacier" as const,
     boundary: { type: "MultiPolygon" as const, coordinates: [] } };
-  assert.throws(() => inventoryFacts(inv, { ...split, area_sources: { "Thunder Glacier": source(9) } }, "colfax", thunder, "Thunder Glacier"), /mixes area years or sources/);
+  const mixed = { ...split, area_sources: { "Thunder Glacier": source(9) } };
+  assert.equal(inventoryFacts(inv, mixed, "colfax", thunder, "Thunder Glacier").observed_year, 2021, "Thunder alone takes the USGS year");
+  const ctx = inventoryMountainContext(inv, mixed, "colfax");
+  assert.equal(ctx.observed_year, 2015);
+  assert.equal(ctx.area_km2, Number((9 + inv.areas.get("Bastile Glacier")!.area_km2).toFixed(3)));
+  assert.match(ctx.scope, /2015 Portland State inventory cohort areas, except Thunder Glacier \(USGS test, 2021\)/);
+  assert.match(ctx.source, /USGS test/);
   const config = { ...split, area_sources: { "Thunder Glacier": source(.1), "Bastile Glacier": source(.2) } };
   const f = inventoryFacts(inv, config, "colfax", thunder, "Thunder Glacier");
   assert.deepEqual([f.area_km2, f.observed_year, f.rank_on_mountain], [.1, 2021, 2]);
@@ -179,4 +185,55 @@ test("USGS benchmark area: latest DEM year, checked against the geodetic area an
     writeFileSync(join(dir, "geo.csv"), off);
     assert.throws(() => usgsBenchmarkArea(dir, files, { ...hashes, geodetics: sha256(Buffer.from(off)) }, release), /disagrees/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("a roster label correction renames the place, drops OSM's Wikidata tag and records the OSM name", () => {
+  const base = loadRegionOsmPackage(BAKER_SPEC), before = base.places.find(p => p.osm_key === "relation:4778054")!;
+  const relabel = (name: string, inventory: string | null = "Thunder Glacier", inventory_note?: string) => ({ ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
+    "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], inventory, ...(inventory_note ? { inventory_note } : {}),
+      label: { name, method: "GNIS point inside polygon" } } } });
+  // Facts never follow a label across names on their own.
+  assert.throws(() => loadRegionOsmPackage(relabel("Colfax Glacier")), /Colfax Glacier takes inventory facts named Thunder Glacier/);
+  // A label without facts, or with a reviewed crosswalk, is allowed.
+  const m = loadRegionOsmPackage(relabel("Colfax Glacier", null)), after = m.places.find(p => p.osm_key === "relation:4778054")!;
+  assert.equal(before.name, "Thunder Glacier");
+  assert.equal(after.name, "Colfax Glacier");
+  assert.equal(after.facts.area_km2, null);
+  assert.equal(after.id, before.id, "the destination id still follows the OSM element");
+  assert.equal(after.external_ids.osm_relation, before.external_ids.osm_relation);
+  assert.equal("wikidata" in after.external_ids, false);
+  assert.deepEqual(after.facts.provenance.label, { corrected_from_osm_name: "Thunder Glacier",
+    ...(before.external_ids.wikidata ? { dropped_osm_wikidata: before.external_ids.wikidata } : {}),
+    method: "GNIS point inside polygon", note: 'Label corrected from OSM name "Thunder Glacier"; OpenStreetMap itself is unchanged' });
+  assert.equal("label" in after, false, "the correction lives in provenance, not on the place");
+  const note = "PSU name for this outline is Thunder Glacier; name follows the reviewed identity";
+  const reviewed = loadRegionOsmPackage(relabel("Colfax Glacier", "Thunder Glacier", note)).places.find(p => p.osm_key === "relation:4778054")!;
+  assert.equal(reviewed.facts.area_km2, before.facts.area_km2);
+  assert.equal(reviewed.facts.provenance.inventory_crosswalk, note);
+  assert.throws(() => loadRegionOsmPackage(relabel("Park Glacier", null)), /uniquely named/);
+  assert.throws(() => loadRegionOsmPackage(relabel("Thunder Glacier")), /Invalid label correction/);
+});
+
+test("facts under another inventory name need a reviewed note even without a label", () => {
+  const roster = (note?: string) => ({ ...BAKER_SPEC.roster,
+    "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], inventory: null } ,
+    ...Object.fromEntries(Object.entries(BAKER_SPEC.roster).filter(([, r]) => r.inventory === "Coleman Glacier")
+      .map(([k, r]) => [k, { ...r, inventory: "Coleman Glacier", ...(note ? { inventory_note: note } : {}) }])) });
+  const key = Object.entries(BAKER_SPEC.roster).find(([, r]) => r.inventory === "Thunder Glacier")![0];
+  const swap = (note?: string) => ({ ...BAKER_SPEC, roster: { ...roster(), [key]: { ...BAKER_SPEC.roster[key], inventory: null },
+    ...Object.fromEntries(Object.entries(BAKER_SPEC.roster).filter(([, r]) => r.inventory === "Coleman Glacier")
+      .map(([k, r]) => [k, { ...r, inventory: "Thunder Glacier", ...(note ? { inventory_note: note } : {}) }])) } });
+  assert.throws(() => loadRegionOsmPackage(swap()), /Coleman Glacier takes inventory facts named Thunder Glacier/);
+  const m = loadRegionOsmPackage(swap("reviewed"));
+  assert.equal(m.places.find(p => p.name === "Coleman Glacier")!.facts.provenance.inventory_crosswalk, "reviewed");
+});
+
+test("a glacier whose area comes from another source carries that source as its facts credit", () => {
+  const source = { area_km2: .2, observed_at: "2021-08-13", credit: "USGS test", url: "https://doi.org/x", license: "CC0-1.0",
+    license_url: "https://creativecommons.org/publicdomain/zero/1.0/", method: "test", files: {} };
+  const spec = { ...BAKER_SPEC, inventory: { ...BAKER_SPEC.inventory, area_sources: { "Thunder Glacier": source } } };
+  const m = loadRegionOsmPackage(spec), thunder = m.places.find(p => p.name === "Thunder Glacier")!;
+  assert.equal(thunder.facts_source_url, "https://doi.org/x");
+  assert.match(thunder.facts_credit!, /^USGS test/);
+  assert.ok(m.places.filter(p => p !== thunder).every(p => p.facts_credit === undefined));
 });
