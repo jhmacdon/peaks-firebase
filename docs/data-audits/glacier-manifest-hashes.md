@@ -29,3 +29,22 @@ the outline bytes. Nothing needs replaying now: the stored rows are correct.
 
 Apply rule: rebuild the manifest on the apply machine and compare its printed
 `manifest_sha256` with the PR's before `--apply`.
+
+## Touching holes (2026-10-29, later PR)
+
+OSM and inventory holes may touch their exterior at a shared vertex (valid
+OGC geometry; Olympic White Glacier relation 18773387 does). The OSM parser
+and outline metrics now test a hole vertex that is not shared with the ring
+it is tested against. Baker's 2015 No Name inventory system was rejected as
+"Orphan outline hole" and is now a valid candidate; its decision is
+unchanged (OSM, ratio 0.726 in band), but the review and hash change:
+
+| Package | Hash after this change |
+| --- | --- |
+| Rainier | `3b7f23b88afd37b1c4d2e67fac6e67bb1591aa28a79b1ed67209637e3606fbcd` (unchanged) |
+| Mount Baker | `ecca694dbab15a7614ad06a83c963e8827a8d65fd9d9eeaba0f3be410c20c833` |
+| Glacier Peak | `9e183267f40c53f458a63c3a4be1ddf4dce23c0b1d34a02e639967a6b97ade02` (unchanged) |
+
+A Baker replay after this change uses `ecca694d…`; like the rounding change,
+it rewrites only provenance on the facts rows.
+

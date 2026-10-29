@@ -19,6 +19,12 @@ function contains(ring: Ring, p: Point): boolean {
   }
   return inside;
 }
+/** First vertex of `ring` that is not a vertex of `other`. Holes may touch
+ * their exterior, and parts each other, at a shared vertex. */
+function probe(ring: Ring, other: Ring): Point {
+  const shared = new Set(other.map(p => `${p[0]},${p[1]}`));
+  return ring.find(p => !shared.has(`${p[0]},${p[1]}`)) ?? ring[0];
+}
 function boxesTouch(a: Segment, b: Segment): boolean {
   return a.minX <= b.maxX && b.minX <= a.maxX && a.minY <= b.maxY && b.minY <= a.maxY;
 }
@@ -135,8 +141,8 @@ export function rawOutlineMetrics(origin: { lng: number; lat: number }) {
       });
       area += Math.abs(signedArea(projected[0])) - projected.slice(1).reduce((sum, r) => sum + Math.abs(signedArea(r)), 0);
       for (let i = 1; i < projected.length; i++) {
-        if (!contains(projected[0], projected[i][0])) throw new Error("Orphan outline hole");
-        for (let j = 1; j < i; j++) if (contains(projected[j], projected[i][0]) || contains(projected[i], projected[j][0]))
+        if (!contains(projected[0], probe(projected[i], projected[0]))) throw new Error("Orphan outline hole");
+        for (let j = 1; j < i; j++) if (contains(projected[j], probe(projected[i], projected[j])) || contains(projected[i], probe(projected[j], projected[i])))
           throw new Error("Nested outline holes");
       }
     }
@@ -153,8 +159,9 @@ export function rawOutlineMetrics(origin: { lng: number; lat: number }) {
     // as a MultiPolygon too. Holes in the containing part remain outside.
     const projectedParts = outline.coordinates.map(p => p.map(r => r.map(v => projection.forward(v) as Point)));
     for (let i = 0; i < projectedParts.length; i++) for (let j = 0; j < projectedParts.length; j++) {
-      if (i !== j && contains(projectedParts[i][0], projectedParts[j][0][0]) &&
-        !projectedParts[i].slice(1).some(r => contains(r, projectedParts[j][0][0]))) throw new Error("Overlapping outline components");
+      const point = probe(projectedParts[j][0], projectedParts[i][0]);
+      if (i !== j && contains(projectedParts[i][0], point) &&
+        !projectedParts[i].slice(1).some(r => contains(r, point))) throw new Error("Overlapping outline components");
     }
     const value = { rings, segments, area };
     cache.set(outline, value);

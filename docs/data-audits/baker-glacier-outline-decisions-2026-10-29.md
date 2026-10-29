@@ -6,7 +6,7 @@ Areas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Over
 
 Input manifest: `3be5a8502c6a0a424f72283e5b5d36d430a0d03b2c27c11ef5510baf8d62db08`
 
-Output manifest: `c082ef875e6d6bf8e3173183bf62c3c791a873bb87de0f3771ee596393694c13`
+Output manifest: `ecca694dbab15a7614ad06a83c963e8827a8d65fd9d9eeaba0f3be410c20c833`
 
 | Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
@@ -20,11 +20,11 @@ Output manifest: `c082ef875e6d6bf8e3173183bf62c3c791a873bb87de0f3771ee596393694c
 | Squak Glacier | 2.264 | 1.920 | 1.921 | 1.179 | 1.000 | 0.716 / 0.909 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Mazama Glacier | 3.834 | 4.424 | 4.423 | 0.867 | 1.000 | 0.782 / 0.819 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Rainbow Glacier | 1.676 | 2.004 | 2.004 | 0.836 | 1.000 | 0.757 / 0.791 | osm | OSM/facts ratio is within [0.67, 1.5] |
-| No Name Glacier | 0.272 | — | 0.375 | 0.726 | — | — / — | osm | OSM/facts ratio is within [0.67, 1.5] |
+| No Name Glacier | 0.272 | 0.375 | 0.375 | 0.726 | 1.000 | 0.685 / 0.702 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Thunder Glacier | 0.840 | 0.795 | 0.795 | 1.057 | 1.000 | 0.846 / 0.942 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Hadley Glacier | 0.672 | 0.663 | 0.663 | 1.014 | 1.000 | 0.824 / 0.910 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Sholes Glacier | 1.108 | 1.015 | 1.015 | 1.092 | 1.000 | 0.608 / 0.791 | osm | OSM/facts ratio is within [0.67, 1.5] |
 
-- glims-2015-09-09: 13 matched systems; 45 unmatched groups/features; 0 ambiguous; 1 invalid. Full identities and reasons are in JSON.
+- glims-2015-09-09: 14 matched systems; 45 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1975-09-09-reference: 13 matched systems; 30 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1974-09-09-reference: 1 matched systems; 43 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.

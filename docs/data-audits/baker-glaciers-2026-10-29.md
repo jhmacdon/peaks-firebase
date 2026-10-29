@@ -11,7 +11,7 @@ Applied manifest SHA-256 (2026-10-29):
 `3586a87dba5b42f0571af85bcc2cfc194e8381e3125d879590bfa7d8ec9baf78`. With
 platform-stable metrics the same package hashes to
 `c082ef875e6d6bf8e3173183bf62c3c791a873bb87de0f3771ee596393694c13`; a replay
-uses that hash ([record](glacier-manifest-hashes.md)).
+uses that hash ([record](glacier-manifest-hashes.md)). After touching holes became valid (No Name 2015 system, decision unchanged) it is `ecca694dbab15a7614ad06a83c963e8827a8d65fd9d9eeaba0f3be410c20c833`.
 
 ## Sources and licences
 
@@ -82,8 +82,9 @@ All 14 places keep OSM. Flagged (2 of 14, 14%):
 
 Also noted:
 
-- 2015 **No Name Glacier** parts are invalid as an inventory system ("Orphan
-  outline hole"). OSM is kept and is inside the band (0.726).
+- 2015 **No Name Glacier** parts were first rejected as "Orphan outline hole";
+  a hole touches its exterior at a vertex, which is valid, and the system is
+  now a candidate (GLIMS/facts 1.000). OSM is kept and is inside the band (0.726).
 - The 1974 reference matches only Easton; 1975 covers the rest.
 
 ## Parent mountain
