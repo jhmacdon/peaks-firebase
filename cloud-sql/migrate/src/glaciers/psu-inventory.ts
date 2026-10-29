@@ -17,15 +17,26 @@ export const FACTS_CREDIT = `${PSU_CREDIT}; ${RGI_CREDIT}`;
  * count plus the GLIMS glac_ids that belong here when its parts are several
  * GLIMS glaciers or the name recurs elsewhere in the box. */
 export type InventoryName = number | { parts: number; glac_ids: string[] };
+export type Cohort = { observed_at: string; submission_id: string; chief_affl: string };
 export type InventoryMountain = {
   /** Mountain name used in provenance text, e.g. "Mount Baker". */
   label: string;
+  /** Another dated cohort of the same cleared submission, for a mountain
+   * whose glaciers the region's cohort lacks. Every name on the mountain
+   * then comes from it: one cohort per mountain, so per glacier. */
+  cohort?: Cohort;
   /** Every named cohort glacier on this mountain, including ones with no OSM
    * polygon: they count towards "of N". Names are unique across mountains. */
   names: Record<string, InventoryName>;
 };
+/** A cited area that replaces a name's cohort area, e.g. a USGS benchmark
+ * glacier's DEM-measured area. The cohort row stays as a cross-check. */
+export type AreaSource = { area_km2: number; observed_at: string; credit: string; url: string; license: string;
+  license_url: string; method: string; files: Record<string, string> };
 export type InventoryConfig = {
-  cohort: { observed_at: string; submission_id: string; chief_affl: string };
+  cohort: Cohort;
+  /** Keyed by cohort name; see AreaSource. */
+  area_sources?: Record<string, AreaSource>;
   /** Keyed by the manifest parent key; the package `parent` uses any key. */
   mountains: Record<string, InventoryMountain>;
   /** RGI 7.0 rows by rgi_id when the RGI name differs or recurs. */
@@ -50,6 +61,20 @@ const features = (raw: unknown, what: string): Feature[] => {
 };
 const round = (x: number, digits: number) => Number(x.toFixed(digits));
 const cohortYear = (c: InventoryConfig) => Number(c.cohort.observed_at.slice(0, 4));
+/** The cohort a mountain's names come from. Only dates may differ: the
+ * submission and affiliation are what the licence was cleared for. */
+export function mountainCohort(config: InventoryConfig, mountain: string): Cohort {
+  const c = config.mountains[mountain]?.cohort ?? config.cohort;
+  if (c.submission_id !== config.cohort.submission_id || c.chief_affl !== config.cohort.chief_affl)
+    throw new Error(`Cohort of ${mountain} is outside the cleared submission`);
+  return c;
+}
+/** Area, year and citation of one name: its AreaSource, else its cohort. */
+function effectiveArea(inv: Inventory, config: InventoryConfig, mountain: string, name: string) {
+  const s = config.area_sources?.[name], c = mountainCohort(config, mountain);
+  return s ? { area_km2: s.area_km2, year: Number(s.observed_at.slice(0, 4)), credit: s.credit, url: s.url }
+    : { area_km2: inv.areas.get(name)!.area_km2, year: Number(c.observed_at.slice(0, 4)), credit: PSU_CREDIT, url: PSU_URL };
+}
 export function inventoryNames(config: InventoryConfig): Map<string, { mountain: string; expected: InventoryName }> {
   const all = new Map<string, { mountain: string; expected: InventoryName }>();
   for (const [mountain, m] of Object.entries(config.mountains)) for (const [name, expected] of Object.entries(m.names)) {
@@ -86,7 +111,8 @@ function clusters(boxes: Box[]): number {
 /** Reads the saved WFS bytes. Fails closed when the cohort lacks a named
  * glacier, a name's part count changes, or RGI 7.0 lacks an unlisted name. */
 export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: InventoryConfig): Inventory {
-  const names = inventoryNames(config), cohort = config.cohort;
+  const names = inventoryNames(config);
+  for (const name of Object.keys(config.area_sources ?? {})) if (!names.has(name)) throw new Error(`area_sources names no inventory glacier: ${name}`);
   // Cohort names match config names as the outline matcher does: case,
   // spacing, punctuation and "Glacier(s)" are ignored ("White Salmon  Glacier").
   const byKey = new Map<string, string>();
@@ -102,8 +128,8 @@ export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: Inven
   const boxes = new Map<string, Box[]>();
   for (const f of features(glimsRaw, "GLIMS")) {
     const p = f.properties, glimsName = String(p.glac_name ?? ""), name = byKey.get(normalizeGlacierName(glimsName)) ?? "";
-    const entry = names.get(name);
-    if (p.line_type !== "glac_bound" || String(p.src_date).slice(0, 10) !== cohort.observed_at
+    const entry = names.get(name), cohort = entry && mountainCohort(config, entry.mountain);
+    if (!entry || !cohort || p.line_type !== "glac_bound" || String(p.src_date).slice(0, 10) !== cohort.observed_at
       || String(p.subm_id) !== cohort.submission_id || p.chief_affl !== cohort.chief_affl || !entry) continue;
     if (typeof entry.expected === "object" && !entry.expected.glac_ids.includes(String(p.glac_id))) continue;
     if (typeof p.db_area !== "number" || !(p.db_area > 0)) throw new Error(`Invalid GLIMS db_area: ${name}`);
@@ -120,10 +146,10 @@ export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: Inven
     if (glimsName !== name && !row.glims_names.includes(glimsName)) row.glims_names.push(glimsName);
     areas.set(name, row);
   }
-  for (const [name, { expected }] of names) {
+  for (const [name, { mountain, expected }] of names) {
     const parts = typeof expected === "number" ? expected : expected.parts, row = areas.get(name);
     if (row?.analysis_ids.length !== parts)
-      throw new Error(`Incomplete ${cohortYear(config)} GLIMS cohort: ${name} has ${row?.analysis_ids.length ?? 0} of ${parts} parts`);
+      throw new Error(`Incomplete ${mountainCohort(config, mountain).observed_at.slice(0, 4)} GLIMS cohort: ${name} has ${row?.analysis_ids.length ?? 0} of ${parts} parts`);
     // A name can recur on unrelated ice in the same box. Parts are summed
     // when the config lists their glac_ids, or when they lie together.
     if (typeof expected === "number" && clusters(boxes.get(name)!) > 1)
@@ -158,12 +184,16 @@ export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: Inven
 }
 
 export function inventoryMountainContext(inv: Inventory, config: InventoryConfig, mountain: string) {
-  const m = config.mountains[mountain], year = cohortYear(config);
+  const m = config.mountains[mountain];
   if (!m) throw new Error(`Unknown inventory mountain ${mountain}`);
-  return { observed_year: year, named_glacier_count: Object.keys(m.names).length,
-    area_km2: round(Object.keys(m.names).reduce((s, n) => s + inv.areas.get(n)!.area_km2, 0), 3),
-    source: PSU_CREDIT, source_url: PSU_URL,
-    scope: `Named glaciers of ${m.label} in the ${year} Portland State inventory cohort; unnamed ice excluded` };
+  // One total needs one year and one source; mixed ones are not comparable.
+  const areas = Object.keys(m.names).map(n => effectiveArea(inv, config, mountain, n));
+  if (new Set(areas.map(a => `${a.year}|${a.credit}`)).size !== 1) throw new Error(`${m.label} mixes area years or sources`);
+  const { year, credit, url } = areas[0], cohort = credit === PSU_CREDIT;
+  return { observed_year: year, named_glacier_count: areas.length,
+    area_km2: round(areas.reduce((s, a) => s + a.area_km2, 0), 3), source: credit, source_url: url,
+    scope: cohort ? `Named glaciers of ${m.label} in the ${year} Portland State inventory cohort; unnamed ice excluded`
+      : `Named glaciers of ${m.label}, ${year} areas from ${credit}; unnamed ice excluded` };
 }
 
 /** One place's facts. `inventoryName` is the cohort name (null when the
@@ -174,15 +204,23 @@ export function inventoryFacts(inv: Inventory, config: InventoryConfig, mountain
     average_slope_deg: null, flow_direction_deg: null, flow_direction_label: null, type_code: null, type_label: null,
     estimated_volume_km3: null, volume_uncertainty_km3: null, area_history: [], area_history_scope: null,
     percent_change_since_earliest: null, description: null, description_source_url: null };
-  const m = config.mountains[mountain], year = cohortYear(config);
+  const m = config.mountains[mountain], year = m ? Number(mountainCohort(config, mountain).observed_at.slice(0, 4)) : cohortYear(config);
   if (inventoryName === null) return { kind: c.kind, inventory_name: null, observed_year: null, area_km2: null, rank_on_mountain: null,
     head_elevation_m: null, ...empty, provenance: { note: `No individual glacier with this name in the ${year} Portland State cohort; facts unknown` } };
   if (!m || !(inventoryName in m.names)) throw new Error(`${inventoryName} is not an inventory glacier of ${m?.label ?? mountain}`);
-  const a = inv.areas.get(inventoryName)!, r = inv.rgi.get(inventoryName)!;
-  const ranked = Object.keys(m.names).sort((x, y) => inv.areas.get(y)!.area_km2 - inv.areas.get(x)!.area_km2 || x.localeCompare(y, "en"));
+  const a = inv.areas.get(inventoryName)!, r = inv.rgi.get(inventoryName)!, cohort = mountainCohort(config, mountain);
+  const area = (n: string) => effectiveArea(inv, config, mountain, n).area_km2, source = config.area_sources?.[inventoryName];
+  inventoryMountainContext(inv, config, mountain);
+  const ranked = Object.keys(m.names).sort((x, y) => area(y) - area(x) || x.localeCompare(y, "en"));
+  const factsYear = effectiveArea(inv, config, mountain, inventoryName).year;
+  const cohortArea = { credit: PSU_CREDIT, url: PSU_URL, license: "CC0-1.0", observed_year: year,
+    cohort: { src_date: cohort.observed_at, submission_id: cohort.submission_id, chief_affl: cohort.chief_affl },
+    method: "Sum of GLIMS db_area (km²) over the cohort's parts with this glac_name; rounded to 6 decimals",
+    date_note: `GLIMS stores a nominal ${cohort.observed_at} date; the inventory used 2013–2020 imagery, mostly 2015`,
+    analysis_ids: a.analysis_ids, glims_ids: a.glacier_ids, ...(a.glims_names.length ? { glims_names: a.glims_names } : {}) };
   return {
-    kind: c.kind, inventory_name: inventoryName, observed_year: year,
-    area_km2: a.area_km2, area_uncertainty_km2: null,
+    kind: c.kind, inventory_name: inventoryName, observed_year: factsYear,
+    area_km2: area(inventoryName), area_uncertainty_km2: null,
     rank_on_mountain: ranked.indexOf(inventoryName) + 1,
     head_elevation_m: r ? Math.round(r.zmax_m) : null, terminus_elevation_m: null, elevation_range_m: null, length_km: null,
     average_slope_deg: null, flow_direction_deg: null, flow_direction_label: null, type_code: null, type_label: null,
@@ -190,17 +228,15 @@ export function inventoryFacts(inv: Inventory, config: InventoryConfig, mountain
     area_history: [], area_history_scope: null, percent_change_since_earliest: null,
     description: null, description_source_url: null,
     provenance: {
-      area: { credit: PSU_CREDIT, url: PSU_URL, license: "CC0-1.0", observed_year: year,
-        cohort: { src_date: config.cohort.observed_at, submission_id: config.cohort.submission_id, chief_affl: config.cohort.chief_affl },
-        method: "Sum of GLIMS db_area (km²) over the cohort's parts with this glac_name; rounded to 6 decimals",
-        date_note: `GLIMS stores a nominal ${config.cohort.observed_at} date; the inventory used 2013–2020 imagery, mostly 2015`,
-        analysis_ids: a.analysis_ids, glims_ids: a.glacier_ids, ...(a.glims_names.length ? { glims_names: a.glims_names } : {}) },
+      area: source ? { credit: source.credit, url: source.url, license: source.license, license_url: source.license_url,
+        observed_at: source.observed_at, observed_year: factsYear, method: source.method, files: source.files,
+        cohort_cross_check: { ...cohortArea, area_km2: a.area_km2 } } : cohortArea,
       head_elevation: r ? { credit: RGI_CREDIT, url: RGI_URL, license: "CC-BY-4.0", license_url: "https://creativecommons.org/licenses/by/4.0/",
         rgi_id: r.rgi_id, field: "zmax_m", dem_source: r.dem_source, outline_year: r.year,
         method: "RGI 7.0 maximum DEM elevation inside its outline, rounded to whole metres" } : null,
       history: { served: false,
         note: `No individual history: the ${config.rgi_outline_years} (USGS maps) and ${year} (imagery) inventories draw different ice divides, so per-glacier change is not comparable` },
-      rank_method: `Rank by ${year} area among ${ranked.length} named ${m.label} glaciers in the PSU cohort`,
+      rank_method: `Rank by ${factsYear} area among ${ranked.length} named ${m.label} glaciers ${source ? `(${source.credit})` : "in the PSU cohort"}`,
       rgi_older_extent: r ? { credit: RGI_CREDIT, license: "CC-BY-4.0", rgi_id: r.rgi_id, outline_year: r.year, area_km2: r.area_km2,
         zmin_m: r.zmin_m, zmed_m: r.zmed_m, slope_deg: r.slope_deg, lmax_m: r.lmax_m,
         note: `Describes the ${config.rgi_outline_years} outline; not served as area history, terminus, length or slope` } : null,
