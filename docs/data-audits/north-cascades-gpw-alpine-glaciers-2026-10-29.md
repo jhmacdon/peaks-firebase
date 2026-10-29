@@ -1,16 +1,15 @@
 # North Cascades (Glacier Peak Wilderness edges, Entiat/Chelan, Alpine Lakes) — review packet, 2026-10-29
 
-**27 glaciers in three packages. Flags: 1 ratio (Alpine Lakes, 1 of 10),
-7 no facts, 0 held.** Under the 2026-10-29 policy only ratio and
-outline-quality flags count towards the 15% stop rule (west 0%, Entiat–Chelan
-0%, Alpine Lakes 10%); glaciers with no inventory row are imported with null
-facts. Three packages, one apply each, because their PSU cohorts differ:
+**27 glaciers in three packages. Flags: 0 ratio, 7 no facts, 0 held.**
+Outline rule 2 (#290): Lynch takes the dated PSU 2015 outline; the other two
+packages' hashes change only because the review records rule 2.
+Three packages, one apply each, because their PSU cohorts differ:
 
 | Package | Spec | Places | Cohort | Reviewed manifest SHA-256 |
 | --- | --- | ---: | --- | --- |
-| Glacier Peak Wilderness west (Dakobed, Monte Cristo) | `import-glacier-peak-wilderness-west-glaciers.ts` | 8 | 2015-09-09 | `4bfd90c43328d320b2046645773782d5defb2150fb22f4ff94c48ed7316a61b0` |
-| Entiat and Chelan Mountains | `import-entiat-chelan-glaciers.ts` | 9 | 2017-09-09 | `c941fe42f13341022a353f7c9efcd0a1a513b1f79b7dcb8a4864b46f3e3abcea` |
-| Alpine Lakes and Stuart Range | `import-alpine-lakes-glaciers.ts` | 10 | 2015-09-09 | `f79d7db2a8493992eee7a110cb9a6380f459920decfbc77a2060a9dba74c4549` |
+| Glacier Peak Wilderness west (Dakobed, Monte Cristo) | `import-glacier-peak-wilderness-west-glaciers.ts` | 8 | 2015-09-09 | `dde4d158a51ad1fd58dae6d859f88e4f8181490b2462529f5e9c3467524792f9` |
+| Entiat and Chelan Mountains | `import-entiat-chelan-glaciers.ts` | 9 | 2017-09-09 | `b4208e7c77bf476a4ff153501fabb3e349ce1c748213f7f3b751afaa496e2f17` |
+| Alpine Lakes and Stuart Range | `import-alpine-lakes-glaciers.ts` | 10 | 2015-09-09 | `36c819766ba5b899689d77f6dd5cee81a7290db3937d25d86c5c5277cdd37a97` |
 
 The first two read byte-identical copies of one snapshot set (box
 47.90,-121.60,48.30,-120.50, OSM base 2026-07-28T02:16:18Z); in that box the
@@ -38,8 +37,8 @@ counted.
 
 ## Flags
 
-- **Ratio (1, counted):** Lynch (1.547), just outside the band with no better
-  candidate; OSM kept, flag kept.
+- **Ratio (0).** Lynch (1.547) takes the PSU 2015 outline under outline
+  rule 2 (OSM extents are undated; the inventory is dated and closer).
 - **No facts (7, not counted):** no named row in any cleared PSU cohort;
   imported with null facts: Tenpeak, Moth, Pride (west); Hanging (Entiat);
   Overcoat, Chimney, Foss (Alpine Lakes).
@@ -56,7 +55,7 @@ their points are OSM nodes 8826387283 (48.06063,-120.98489, 2,560 m) and
 8826387492 (48.07788,-121.02369, 2,464 m), base 2026-07-15. The Peaks
 catalog must hold both summits for the apply step.
 
-Flagged parents still standing (research agreed): Richardson (Clark
+Parent calls checked by the reviewed research, all agreed (none unclear): Richardson (Clark
 Mountain; its head is 769 m from Luahna Peak and 979 m from Clark), Columbia
 (Wilmans Peaks is nearer but lower), Isella (Bonanza 866 m), Lyman and
 Hanging (Chiwawa Mountain 0.8–1.7 km), Spider (Red Mountain 1.6 km),
@@ -83,7 +82,7 @@ Overcoat (head next to Chimney Rock; named after Overcoat Peak 586 m away).
 | Richardson Glacier | Clark Mountain | 2388 | Clark Mountain 982 m | glacier-peak-wilderness |
 | Columbia Glacier | Columbia Peak | 1719 | Wilmans Peaks 691 m | henry-m-jackson-wilderness |
 | Pride Glacier | Kyes Peak | 1936 | Kyes Peak 269 m | henry-m-jackson-wilderness |
-| Moth Glacier | Neyah Point ⚑ inferred | 2476 | Neyah Point 84 m (OSM node) | glacier-peak-wilderness |
+| Moth Glacier | Neyah Point ⚑ parent inferred | 2476 | Neyah Point 84 m (OSM node) | glacier-peak-wilderness |
 | Tenpeak Glaciers | Tenpeak Mountain | 2453 | Tenpeak Mountain 51 m | glacier-peak-wilderness |
 
 | Parent key | Name | lat, lng | radius | of N |
@@ -134,7 +133,7 @@ Overcoat (head next to Chimney Rock; named after Overcoat Peak 586 m away).
 
 | Glacier | OSM km² | GLIMS 2015 | Facts | OSM/facts | IoU / share | Chosen |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
-| Lynch Glacier | 0.742 | 0.480 | 0.480 | 1.547 | 0.580 / 0.935 | osm ⚑ |
+| Lynch Glacier | 0.742 | 0.480 | 0.480 | 1.547 | 0.580 / 0.935 | **GLIMS 2015** (rule 2) |
 | Hinman Glacier | 0.207 | 0.278 | 0.278 | 0.746 | 0.686 / 0.711 | osm |
 | Stuart Glacier | 0.102 | 0.113 | 0.113 | 0.902 | 0.887 / 0.894 | osm |
 | Colchuck Glacier | 0.200 | 0.112 | 0.112 | 1.788 | 0.531 / 0.967 | **GLIMS 2015-09-09** |
@@ -184,6 +183,7 @@ check there).
    "no facts", not counted. No other cleared PSU cohort names them.
 2. One cohort per package (2015 west and Alpine Lakes, 2017 Entiat–Chelan)
    stays; each glacier has one cohort.
-3. Lynch keeps OSM with the flag.
-4. Parents keep the DEM-head method; researched corrections will be applied
-   when they arrive.
+3. Lynch takes the PSU 2015 outline (outline rule 2).
+4. Parents: Pilz and Butterfly → Luahna Peak, Moth → Neyah Point (parent
+   inferred); every other flagged call checked by the reviewed research and
+   kept.

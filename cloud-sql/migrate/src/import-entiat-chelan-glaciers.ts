@@ -59,6 +59,7 @@ export const ENTIAT_CHELAN_SPEC: RegionSpec = {
   },
   activities: ["outdoor-trek", "ski"],
   country_code: "US", state_code: "WA",
+  outline_rule: 2,
 };
 
 export const loadEntiatChelanOsmPackage = () => loadRegionOsmPackage(ENTIAT_CHELAN_SPEC);

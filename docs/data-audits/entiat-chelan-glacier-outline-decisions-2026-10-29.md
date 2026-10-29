@@ -1,12 +1,12 @@
 # Glacier outline decisions
 
-Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).
+Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).
 
 Areas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Overlap is IoU / candidate share. ⚑ means review remains due. Historical fits infer extent age; they do not date OSM imagery.
 
 Input manifest: `9251462803afeb69c4e5b9cb100a84bbcbdc43fdfdcfeb12eaee5032eeab340a`
 
-Output manifest: `c941fe42f13341022a353f7c9efcd0a1a513b1f79b7dcb8a4864b46f3e3abcea`
+Output manifest: `b4208e7c77bf476a4ff153501fabb3e349ce1c748213f7f3b751afaa496e2f17`
 
 | Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |

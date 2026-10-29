@@ -46,6 +46,6 @@ test("decisions", () => {
   const [west, entiat, alpine] = packages.map(p => p.review.report.decisions);
   assert.deepEqual(west.filter(d => d.flagged).map(d => d.glacier).sort(), ["Moth Glacier", "Pride Glacier", "Tenpeak Glaciers"]);
   assert.deepEqual(entiat.filter(d => d.flagged).map(d => d.glacier), ["Hanging Glacier"]);
-  assert.deepEqual(alpine.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(), ["Colchuck Glacier", "Snow Creek Glacier"]);
-  assert.deepEqual(alpine.filter(d => d.flagged).map(d => d.glacier).sort(), ["Chimney Glacier", "Foss Glacier", "Lynch Glacier", "Overcoat Glacier"]);
+  assert.deepEqual(alpine.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(), ["Colchuck Glacier", "Lynch Glacier", "Snow Creek Glacier"]);
+  assert.deepEqual(alpine.filter(d => d.flagged).map(d => d.glacier).sort(), ["Chimney Glacier", "Foss Glacier", "Overcoat Glacier"]);
 });
