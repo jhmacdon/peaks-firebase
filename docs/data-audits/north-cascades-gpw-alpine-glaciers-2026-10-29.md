@@ -1,7 +1,10 @@
 # North Cascades (Glacier Peak Wilderness edges, Entiat/Chelan, Alpine Lakes) — review packet, 2026-10-29
 
-**Draft: 8 of 27 places flagged (30%).** Three packages, one apply each,
-because their PSU cohorts differ and a region uses one cohort:
+**27 glaciers in three packages. Flags: 1 ratio (Alpine Lakes, 1 of 10),
+7 no facts, 0 held.** Under the 2026-10-29 policy only ratio and
+outline-quality flags count towards the 15% stop rule (west 0%, Entiat–Chelan
+0%, Alpine Lakes 10%); glaciers with no inventory row are imported with null
+facts. Three packages, one apply each, because their PSU cohorts differ:
 
 | Package | Spec | Places | Cohort | Reviewed manifest SHA-256 |
 | --- | --- | ---: | --- | --- |
@@ -33,11 +36,14 @@ counted.
 | RGI 7.0 via GLIMS WFS | CC BY 4.0 | `6bb77ea5…bc6f` / `b44e64e1…f430` |
 | GNIS, Copernicus GLO-30 DEM, USFS EDW wilderness boundaries | analysis only | not committed |
 
-## Flags (8)
+## Flags
 
-- No cohort row, facts null: Tenpeak, Moth, Pride (west); Hanging (Entiat);
+- **Ratio (1, counted):** Lynch (1.547), just outside the band with no better
+  candidate; OSM kept, flag kept.
+- **No facts (7, not counted):** no named row in any cleared PSU cohort;
+  imported with null facts: Tenpeak, Moth, Pride (west); Hanging (Entiat);
   Overcoat, Chimney, Foss (Alpine Lakes).
-- Outside the band, no dated evidence: Lynch (1.547).
+- **Held (0).**
 - Switched to the 2015 inventory outline (1957 reference fits OSM better):
   Colchuck, Snow Creek (not flagged).
 
@@ -161,8 +167,12 @@ container links equal to the manifest. Fixture lines cross Clark Glacier
 (twice) and Stuart Glacier; the Entiat line missed the ice (no crossing to
 check there).
 
-## Questions
+## Decisions applied (2026-10-29)
 
-1. Import glaciers without a cohort row with null facts, or hold them?
-2. Accept a different cohort date per package (2015 west/Alpine, 2017
-   Entiat–Chelan), as here?
+1. Glaciers without a cohort row are imported with null facts, flagged
+   "no facts", not counted. No other cleared PSU cohort names them.
+2. One cohort per package (2015 west and Alpine Lakes, 2017 Entiat–Chelan)
+   stays; each glacier has one cohort.
+3. Lynch keeps OSM with the flag.
+4. Parents keep the DEM-head method; researched corrections will be applied
+   when they arrive.
