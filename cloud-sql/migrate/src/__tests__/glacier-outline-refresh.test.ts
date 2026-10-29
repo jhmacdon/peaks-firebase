@@ -270,3 +270,24 @@ test("WFS rows that share an anlys_id form one multi-part analysis; conflicting 
   assert.throws(() => parseGlimsFeatures(fc([row("a", 1, "G1", "WA", -121.76), row("b", 1, "G9", "WA", -121.70)]), cohort), /Conflicting GLIMS rows/);
 });
 
+test("rule 2: an undated out-of-band OSM outline gives way to a dated, closer candidate unless a review keeps it", () => {
+  const c = [{ key: "glims-2015", area_km2: 1, observed_at: "2015-09-09", license_ok: true }];
+  assert.equal(chooseOutline(2, 1, c, null).chosen_source, "osm", "rule 1 needs dated evidence");
+  const two = chooseOutline(2, 1, c, null, 2);
+  assert.deepEqual([two.chosen_source, two.flagged], ["glims-2015", false]);
+  assert.match(two.reason, /rule 2/);
+  assert.equal(chooseOutline(2, 1, [{ ...c[0], license_ok: false }], null, 2).chosen_source, "osm", "licence still required");
+  assert.equal(chooseOutline(2, 1, [{ ...c[0], area_km2: 3.5 }], null, 2).chosen_source, "osm", "must be closer to 1");
+  assert.equal(chooseOutline(1.2, 1, c, null, 2).chosen_source, "osm", "in band stays OSM");
+  const kept = chooseOutline(2, 1, c, null, 2, "reviewed");
+  assert.deepEqual([kept.chosen_source, kept.flagged], ["osm", true]);
+  assert.match(kept.reason, /reviewed decision keeps OSM: reviewed/);
+  const p = place("Test Glacier", outline(square(-121.76, 46.85, .02)));
+  const s = source([{ id: "1", glacier_id: "g1", name: "Test Glacier", boundary: outline(square(-121.76, 46.85, .01)) }]);
+  const m = { ...base, places: [{ ...p, facts: { ...p.facts, area_km2: metrics.area(outline(square(-121.76, 46.85, .01))) } }] };
+  assert.equal(refreshGlacierOutlines(m, [s]).report.decisions[0].chosen_source, "osm");
+  const r2 = refreshGlacierOutlines(m, [s], [], {}, undefined, { rule: 2 });
+  assert.equal(r2.report.decisions[0].chosen_source, "inventory");
+  assert.equal(r2.manifest.places[0].geometry!.review!.rule_version, 2);
+  assert.throws(() => refreshGlacierOutlines(m, [s], [], {}, undefined, { rule: 2, keepOsm: { "way:none": "x" } }), /keepOsm names no place/);
+});
