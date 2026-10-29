@@ -78,13 +78,24 @@ radius 3000 m).
 | North Guardian | 1,110 | 1,908 | 55 | 2,713 | clear |
 | Ermine | 1,321 | 2,403 | 14 | 2,830 | clear |
 | Vista | 1,784 | 2,695 | 359 | 2,563 | clear |
-| Ptarmigan | 2,333 | 3,398 | 340 | 2,512 | clear (NW flank) |
-| Gerdine | 932 | 2,762 | 159 | — | **flag**: no inventory row; between Cool and Suiattle |
+| Ptarmigan | 2,333 | 3,398 | 340 | 2,512 | **flag**: DEM head 35 m from Kennedy Peak (Glacier Peak sub-summit) |
+| Gerdine | 932 | 2,762 | 159 | — | **flag**: no inventory row; DEM head 156 m from Disappointment Peak (sub-summit) |
 | Suiattle | 3,563 | 4,625 | 159 | 2,482 | **flag**: southern icefield toward Kololo Peaks |
 | Milk Lake | 4,248 | 4,696 | 324 | 1,959 | **flag**: detached NW cirque near Milk Lake |
 | White Chuck | 4,930 | 5,645 | 177 | 2,463 | **flag**: southern icefield toward Kololo Peaks |
 | Honeycomb | 4,957 | 5,789 | 144 | 2,485 | **flag**: southern icefield toward Kololo Peaks |
 | White River | 5,519 | 5,988 | 166 | 2,490 | **flag**: southern icefield toward Kololo Peaks |
+
+DEM check (Copernicus GLO-30 heads against GNIS summits, analysis only, added
+after the first review): Chocolate, Kennedy, Sitkum, Cool, Scimitar, Dusty,
+North Guardian, Ermine and Vista head on Glacier Peak itself. **Ptarmigan**
+heads 35 m from Kennedy Peak (2,512 m) and **Gerdine** 156 m from
+Disappointment Peak (2,964 m); both are sub-summits on Glacier Peak's ridges,
+so Glacier Peak stays the proposal and both are flagged. Milk Lake heads at
+2,106 m with no summit within 1.7 km. The southern-icefield heads (2,426–2,495
+m) have no GNIS summit within 4 km. The Dakobed glaciers head on Clark
+Mountain (Clark, Richardson, Pilz, Butterfly) and Tenpeak Mountain (Tenpeak,
+Moth), confirming they belong to the North Cascades package.
 
 USGS and the inventory treat Honeycomb, Suiattle, White Chuck and White River
 as Glacier Peak glaciers; their heads lie on the icefield south of the cone,
