@@ -6,7 +6,7 @@ Decisions: [Markdown](goat-rocks-glacier-outline-decisions-2026-10-29.md),
 [JSON](goat-rocks-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`d174ac8c5f624da1251c2e466ba7c16daf5e5ce91c9ca8296899277c822cebc4`.
+`3b2b6cf9e68dc9a35da172a87a25f77f1def0f74f0be4f333817c81701fcfa49`.
 
 Scope: every named OSM `natural=glacier` in the box 46.40,-121.60,46.60,-121.35
 (Goat Rocks). OSM has five glacier relations there; one is unnamed and left
@@ -81,3 +81,11 @@ matching dated inventory outline closer to 1 switches. Conrad's parent is
 the nearer summit, flagged "near tie".
 
 The privileged apply block is in the PR description.
+
+## Outline overlaps (neighbour check, #290)
+
+After sources were chosen, every pair of final outlines in each package was
+measured. No pair overlaps by more than 1% of the smaller outline or 0.01 km²,
+so no group was moved to one source and nothing was clipped. Resolution:
+none needed. The decision reports' "Outline overlaps" section records the
+same result.
