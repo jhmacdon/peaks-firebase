@@ -129,8 +129,8 @@ test("mixed search and destination routes apply catalog filters only when signed
       // route_search_terms.public is false for a non-Peaks destination's name.
       assertVisibility(routes.text, /AND t\.public/);
       assertVisibility(routes.text, /cover_destination\.owner = 'peaks'/);
-      // The uid stays $5; geo searches append lat/lng after it.
-      assert.equal(routes.values?.[4], uid);
+      // The uid stays $4; geo searches append lat/lng after the word query.
+      assert.equal(routes.values?.[3], uid);
       assert.match(routes.text, /\$\d <> '' AND r\.owner = \$\d/);
       for (const sql of [destinations.text, routes.text, areas.text]) {
         assertVisibility(sql, /a\.source = 'padus' OR a\.owner = 'peaks'/);

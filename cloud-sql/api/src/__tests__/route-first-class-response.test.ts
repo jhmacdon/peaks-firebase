@@ -59,12 +59,15 @@ test("GET /:id/shared serves snake_case rows using the authenticated caller", as
 
 test("route search rows carry shape so clients total the same trip as est_moving_seconds", () => {
   const { routes } = buildMixedSearchQueries({ normalizedQuery: "ingalls", rawQuery: "Ingalls", limit: 20 });
-  assert.equal(routes.text.split("r.shape").length - 1 >= 2, true, "shape must reach the outer route rows");
+  const outer = routes.text.slice(routes.text.lastIndexOf("SELECT r.id, r.name"));
+  assert.match(outer, /JOIN routes r ON r\.id = ranked\.id/, "the page reads full rows for ranked routes only");
+  assert.match(outer, /\br\.shape\b/, "shape must reach the outer route rows");
 });
 
 test("route search rows carry the credited description the trail page shows", () => {
   const { routes } = buildMixedSearchQueries({ normalizedQuery: "ingalls", rawQuery: "Ingalls", limit: 20 });
   for (const field of ["description", "description_source_name", "description_source_url", "description_source_license"]) {
-    assert.equal(routes.text.split(`r.${field}`).length - 1 >= 2, true, `${field} must reach the outer route rows`);
+    const outer = routes.text.slice(routes.text.lastIndexOf("SELECT r.id, r.name"));
+    assert.match(outer, new RegExp(`\\br\\.${field}\\b`), `${field} must reach the outer route rows`);
   }
 });
