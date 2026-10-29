@@ -1,13 +1,17 @@
 import { resolve } from "node:path";
 import type { GlacierParent } from "./import-glacier-manifest";
 import { importRegionGlaciers, loadRegionOsmPackage, loadRegionOutlineReview, type RegionSpec } from "./glaciers/region-builder";
+import { usgsBenchmarkArea } from "./glaciers/usgs-benchmark";
 
 /** North Cascades, south: the national park's south unit, Lake Chelan and the
  * Dome/Chickamin and Snowking groups. Saved OSM, GLIMS (PSU 2015-09-09) and
- * RGI 7.0 files; see docs/data-audits/north-cascades-south-glaciers-2026-10-29.md. */
+ * RGI 7.0 files, and the USGS benchmark glacier release for South Cascade;
+ * see docs/data-audits/north-cascades-south-glaciers-2026-10-29.md. */
 export const DATA_DIR = resolve(__dirname, "../data/glaciers-north-cascades-south-2026-10-29");
 export const OUTLINE_DATA_DIR = resolve(__dirname, "../data/glaciers-north-cascades-south-glims-2026-10-29");
 const PARK = "north-cascades-np", GPW = "glacier-peak-wilderness";
+/** Same cleared PSU submission, dated 2017-09-09: the only cohort with these glaciers. */
+const PSU_2017 = { observed_at: "2017-09-09", submission_id: "814", chief_affl: "Portland State University" };
 /** GNIS summit points; parents are the summits each glacier's DEM head lies
  * on (Copernicus GLO-30, analysis only). */
 const summit = (name: string, lat: number, lng: number): GlacierParent =>
@@ -43,13 +47,13 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
     "relation:8052666": { parent: "forbidden-peak", inventory: "Forbidden Glacier", container: PARK }, // Forbidden Glacier
     "way:305189538": { parent: "mount-logan", inventory: "Fremont Glacier", container: PARK }, // Fremont Glacier
     "relation:15525556": { parent: "mount-buckindy", inventory: null, container: GPW }, // Goat Creek Glacier
-    "relation:14496306": { parent: "goode-mountain", inventory: null, container: PARK }, // Goode Glacier
+    "relation:14496306": { parent: "goode-mountain", inventory: "Goode Glacier", container: PARK }, // Goode Glacier
     "relation:4066857": { parent: "eldorado-peak", inventory: "Inspiration Glacier", container: PARK }, // Inspiration Glacier
     "way:305188569": { parent: "katsuk-peak", inventory: "Katsuk Glacier", container: PARK }, // Katsuk Glacier
     "way:305188593": { parent: "kimtah-peak", inventory: "Kimtah Glacier", container: PARK }, // Kimtah Glacier
     "relation:4068751": { parent: "mount-buckindy", inventory: null, container: GPW }, // Kindy Glacier
     "way:305096148": { parent: "klawatti-peak", inventory: "Klawatti Glacier", container: PARK }, // Klawatti Glacier
-    "relation:13218786": { parent: "old-guard-peak", inventory: null, container: GPW }, // Le Conte Glacier
+    "relation:13218786": { parent: "old-guard-peak", inventory: "LeConte Glacier", container: GPW }, // Le Conte Glacier
     "way:508039930": { parent: "frisco-mountain", inventory: "Lyall Glacier", container: null }, // Lyall Glacier
     "relation:8052697": { parent: "austera-peak", inventory: "McAllister Glacier", container: PARK }, // McAllister Glacier
     "way:305188585": { parent: "mesahchie-peak", inventory: "Mesahchie Glacier", container: PARK }, // Mesahchie Glacier
@@ -61,9 +65,9 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
     "way:302952419": { parent: "sahale-mountain", inventory: "Quien Sabe Glacier", container: PARK }, // Quien Sabe Glacier
     "relation:14488138": { parent: "hurry-up-peak", inventory: "S Glacier", container: null }, // S Glacier
     "way:373139306": { parent: "sahale-mountain", inventory: "Sahale Glacier", container: PARK }, // Sahale Glacier
-    "relation:14488195": { parent: "mcgregor-mountain", inventory: null, container: null }, // Sandalee Glacier
+    "relation:14488195": { parent: "mcgregor-mountain", inventory: "Sandalee Glacier", container: null }, // Sandalee Glacier
     "relation:13223395": { parent: "snowking-mountain", inventory: null, container: GPW }, // Snowking Glacier
-    "relation:15567191": { parent: "lizard-mountain", inventory: null, container: GPW }, // South Cascade Glacier
+    "relation:15567191": { parent: "lizard-mountain", inventory: "South Cascade Glacier", container: GPW }, // South Cascade Glacier
     "relation:13325689": { parent: "spider-mountain", inventory: "Spider Glacier", container: GPW }, // Spider Glacier
     "way:305203925": { parent: "dome-peak", inventory: "Spire Glacier", container: GPW }, // Spire Glacier
     "relation:9954625": { parent: "buckner-mountain", inventory: "Thunder Glacier", container: PARK }, // Thunder Glacier
@@ -109,9 +113,13 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
     rgi_outline_years: "1958–85",
     /** Cohort names ending in Glacier per parent. Lewis and South Glacier have
      * no OSM polygon and count with the nearest parent's glaciers. Goode,
-     * Le Conte, Sandalee and South Cascade are only in the 2017-09-09 cohort,
-     * which this package does not use (one cohort per region). */
+     * LeConte, Sandalee and South Cascade are only in the 2017-09-09 cohort;
+     * each is the only named 2017 glacier of its parent. */
     mountains: {
+      "goode-mountain": { label: "Goode Mountain", cohort: PSU_2017, names: { "Goode Glacier": 2 } },
+      "lizard-mountain": { label: "Lizard Mountain", cohort: PSU_2017, names: { "South Cascade Glacier": 2 } },
+      "mcgregor-mountain": { label: "McGregor Mountain", cohort: PSU_2017, names: { "Sandalee Glacier": 4 } },
+      "old-guard-peak": { label: "Old Guard Peak", cohort: PSU_2017, names: { "LeConte Glacier": 7 } },
       "austera-peak": { label: "Austera Peak", names: { "McAllister Glacier": 2, "North Klawatti Glacier": 2 } },
       "boston-peak": { label: "Boston Peak", names: { "Boston Glacier": 1, "Davenport Glacier": 1 } },
       "buckner-mountain": { label: "Buckner Mountain", names: { "Buckner Glacier": 2, "Thunder Glacier": 3 } },
@@ -133,9 +141,18 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
       "spider-mountain": { label: "Spider Mountain", names: { "Middle Cascade Glacier": 2, "Spider Glacier": 2 } },
       "storm-king": { label: "Storm King", names: { "Wyeth Glacier": 3 } },
     },
-    /** RGI 1958 splits Thunder and Yawning; the highest row gives the head. Banded has no RGI row. */
-    rgi_ids: { "Thunder Glacier": "RGI2000-v7.0-G-02-14320", "Yawning Glacier": "RGI2000-v7.0-G-02-14541" },
+    /** RGI 1958 splits Thunder, Yawning and Sandalee; the highest row gives the head. Banded has no RGI row. */
+    rgi_ids: { "Thunder Glacier": "RGI2000-v7.0-G-02-14320", "Yawning Glacier": "RGI2000-v7.0-G-02-14541",
+      "Sandalee Glacier": "RGI2000-v7.0-G-02-14232" },
     rgi_absent: ["Banded Glacier"],
+    /** USGS benchmark glacier: its DEM-measured area replaces the PSU one. */
+    area_sources: {
+      "South Cascade Glacier": usgsBenchmarkArea(resolve(DATA_DIR, "usgs-benchmark"),
+        { area_altitude: "Input_SouthCascade_Area_Altitude_Distribution.csv", geodetics: "Input_SouthCascade_Geodetics.csv" },
+        { area_altitude: "d4bc541b0ed404d08fb5b2e2360a12462ba98593837746aaa371d71394eab149",
+          geodetics: "50430e011b79f0a3e50c0ed0c61f03f0e78eea7e2b0e6331d2fe0580bc2dd611" },
+        { url: "https://doi.org/10.5066/F7HD7SRF", version: "ver 10.0, March 2026" }),
+    },
   },
   activities: ["outdoor-trek", "ski"],
   country_code: "US", state_code: "WA",

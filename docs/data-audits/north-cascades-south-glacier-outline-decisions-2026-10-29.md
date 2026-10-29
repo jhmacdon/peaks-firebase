@@ -4,9 +4,9 @@ Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, 
 
 Areas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Overlap is IoU / candidate share. ⚑ means review remains due. Historical fits infer extent age; they do not date OSM imagery.
 
-Input manifest: `e45e163db0080c7b89b3848bb2f14c7bc856b4b5abe5bc5c6fba4241dbda4ce1`
+Input manifest: `eeb1d954c4ed29983ea55a1185b5d4546ce5027d65c15cc7968c6e43546d48f2`
 
-Output manifest: `55bffe7431ffe0215069dde2ff619ef12f39d57104014ecaa7822d12baeba1a9`
+Output manifest: `65ce3140a971e15321a56c1849076a9bc621d1c63256489fb237c749bac4a3c9`
 
 | Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
@@ -36,7 +36,7 @@ Output manifest: `55bffe7431ffe0215069dde2ff619ef12f39d57104014ecaa7822d12baeba1
 | Chickamin Glacier | 3.811 | 3.970 | 3.970 | 0.960 | 1.000 | 0.911 / 0.934 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Blue Glacier | 0.234 | 0.225 | 0.225 | 1.044 | 1.000 | 0.918 / 0.978 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Dana Glacier | 2.010 | 2.141 | 2.141 | 0.939 | 1.000 | 0.904 / 0.921 | osm | OSM/facts ratio is within [0.67, 1.5] |
-| Le Conte Glacier | 1.819 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
+| Le Conte Glacier | 1.819 | — | 1.904 | 0.955 | — | — / — | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Snowking Glacier | 0.942 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
 | Douglas Glacier | 1.008 | 0.662 | 0.662 | 1.523 | 1.000 | 0.526 / 0.870 | osm ⚑ | OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent |
 | Banded Glacier | 0.284 | 0.277 | 0.277 | 1.024 | 1.000 | 0.824 / 0.914 | osm | OSM/facts ratio is within [0.67, 1.5] |
@@ -44,12 +44,12 @@ Output manifest: `55bffe7431ffe0215069dde2ff619ef12f39d57104014ecaa7822d12baeba1
 | Spider Glacier | 0.431 | 0.428 | 0.428 | 1.007 | 1.000 | 0.807 / 0.896 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Yawning Glacier | 0.201 | 0.124 | 0.124 | 1.621 | 1.000 | 0.469 / 0.837 | osm ⚑ | OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent |
 | S Glacier | 0.233 | 0.163 | 0.163 | 1.426 | 1.000 | 0.622 / 0.930 | osm | OSM/facts ratio is within [0.67, 1.5] |
-| Sandalee Glacier | 0.408 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
-| Goode Glacier | 0.388 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
+| Sandalee Glacier | 0.408 | — | 0.412 | 0.990 | — | — / — | osm | OSM/facts ratio is within [0.67, 1.5] |
+| Goode Glacier | 0.388 | — | 0.482 | 0.805 | — | — / — | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Wyeth Glacier | 0.487 | 0.523 | 0.523 | 0.932 | 1.000 | 0.785 / 0.849 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Mutchler Glacier | 0.819 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
 | Goat Creek Glacier | 0.567 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
-| South Cascade Glacier | 1.687 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
+| South Cascade Glacier | 1.687 | — | 1.800 | 0.937 | — | — / — | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Buckner Glacier | 0.460 | 0.452 | 0.452 | 1.016 | 1.000 | 0.885 / 0.946 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | North Klawatti Glacier | 1.424 | 1.335 | 1.335 | 1.067 | 1.000 | 0.899 / 0.978 | osm | OSM/facts ratio is within [0.67, 1.5] |
 

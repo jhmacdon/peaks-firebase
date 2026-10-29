@@ -32,14 +32,29 @@ test("parents, of-N, pinned RGI rows and containers", () => {
     ["Cache Glacier", "Lyall Glacier", "S Glacier", "Sandalee Glacier"]);
 });
 
-test("decisions: no switches; 15 flagged", () => {
+test("decisions: no switches; 4 ratio flags, 7 without facts; four glaciers from the 2017 cohort", () => {
   assert.deepEqual(review.report.decisions.filter(d => d.chosen_source !== "osm"), []);
-  const flagged = review.report.decisions.filter(d => d.flagged).map(d => d.glacier);
-  assert.equal(flagged.length, 15);
-  for (const n of ["South Cascade Glacier", "Goode Glacier", "Le Conte Glacier", "Sandalee Glacier"]) {
-    assert.ok(flagged.includes(n), n);
-    assert.equal(place(n).facts.area_km2, null, `${n} is only in the 2017 cohort`);
+  const flagged = review.report.decisions.filter(d => d.flagged);
+  assert.deepEqual(flagged.filter(d => d.facts_area_km2 !== null).map(d => d.glacier).sort(),
+    ["Douglas Glacier", "Lyall Glacier", "Thunder Glacier", "Yawning Glacier"]);
+  assert.equal(flagged.filter(d => d.facts_area_km2 === null).length, 7);
+  for (const n of ["Goode Glacier", "Le Conte Glacier", "Sandalee Glacier"]) {
+    assert.equal(place(n).facts.observed_year, 2017, n);
+    assert.equal((place(n).facts.provenance.area as { cohort: { src_date: string } }).cohort.src_date, "2017-09-09");
+    assert.equal(placeParent(m, place(n)).mountain_context.named_glacier_count, 1);
   }
+  assert.equal(place("Le Conte Glacier").facts.inventory_name, "LeConte Glacier");
+  assert.equal((place("Sandalee Glacier").facts.provenance.head_elevation as { rgi_id: string }).rgi_id, "RGI2000-v7.0-G-02-14232");
+});
+
+test("South Cascade: USGS benchmark 2021 DEM area, PSU 2017 kept as a cross-check", () => {
+  const f = place("South Cascade Glacier").facts, area = f.provenance.area as { observed_at: string; license: string;
+    cohort_cross_check: { area_km2: number; cohort: { src_date: string } } };
+  assert.deepEqual([f.area_km2, f.observed_year, area.observed_at, area.license], [1.799572, 2021, "2021-08-13", "CC0-1.0"]);
+  assert.equal(area.cohort_cross_check.cohort.src_date, "2017-09-09");
+  assert.ok(Math.abs(area.cohort_cross_check.area_km2 - 1.777) < 1e-3);
+  assert.equal(placeParent(m, place("South Cascade Glacier")).mountain_context.observed_year, 2021);
+  assert.match(m.facts_credit, /U\.S\. Geological Survey Glacier Project/);
 });
 
 test("apply gate", async () => {

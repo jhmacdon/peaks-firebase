@@ -1,0 +1,8 @@
+USGS Benchmark Glacier Project data release, as fetched 2026-10-29 with User-Agent PeaksApp-glacier-import/1.0
+ScienceBase item: https://www.sciencebase.gov/catalog/item/6441de03d34ee8d4ade7d2a5
+Citation (ScienceBase): U.S. Geological Survey Glacier Project, 2016, Compiled input data and glacier-wide mass balances (ver 10.0, March 2026): U.S. Geological Survey data release, https://doi.org/10.5066/F7HD7SRF.
+Rights (ScienceBase item 'rights' field): This work is marked with the Creative Commons Zero v1.0 (CC0-1.0) Universal public domain dedication; https://creativecommons.org/publicdomain/zero/1.0/
+Metadata <accconst>: No access constraints.
+Metadata <useconst>: No use constraints. These data are marked with a Creative Commons Zero v1.0 (CC0-1.0) Universal public domain dedication. It is requested that this USGS data release be cited for any subsequent publications that reference or utilize these data. Users are advised to read the dataset's metadata thoroughly to understand appropriate use and data limitations.
+glacier_massBalance_data.zip SHA-256: 74478815e53fb235943de5ce1adf466bf797f8fc9ad6d6c7ffbe31d841f7fc49
+Files below are copied byte for byte from SouthCascade/ in that zip.

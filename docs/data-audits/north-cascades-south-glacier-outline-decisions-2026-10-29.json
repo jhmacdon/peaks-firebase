@@ -2,8 +2,8 @@
   "schema_version": 1,
   "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=48.5376 +lon_0=-121.1343 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-  "input_manifest_sha256": "e45e163db0080c7b89b3848bb2f14c7bc856b4b5abe5bc5c6fba4241dbda4ce1",
-  "output_manifest_sha256": "55bffe7431ffe0215069dde2ff619ef12f39d57104014ecaa7822d12baeba1a9",
+  "input_manifest_sha256": "eeb1d954c4ed29983ea55a1185b5d4546ce5027d65c15cc7968c6e43546d48f2",
+  "output_manifest_sha256": "65ce3140a971e15321a56c1849076a9bc621d1c63256489fb237c749bac4a3c9",
   "sources": [
     {
       "key": "glims-2015-09-09",
@@ -6938,14 +6938,14 @@
       "glacier": "Le Conte Glacier",
       "osm_area_km2": 1.818933584,
       "glims_area_km2": null,
-      "facts_area_km2": null,
-      "osm_ratio": null,
+      "facts_area_km2": 1.904462,
+      "osm_ratio": 0.955090511,
       "glims_ratio": null,
       "candidates": [],
       "extent_evidence": null,
       "chosen_source": "osm",
-      "flagged": true,
-      "reason": "No individual facts area; retain OSM for review"
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
     },
     {
       "id": "577735D7AF86F7F77C3E",
@@ -7172,28 +7172,28 @@
       "glacier": "Sandalee Glacier",
       "osm_area_km2": 0.40781042,
       "glims_area_km2": null,
-      "facts_area_km2": null,
-      "osm_ratio": null,
+      "facts_area_km2": 0.411825,
+      "osm_ratio": 0.990251733,
       "glims_ratio": null,
       "candidates": [],
       "extent_evidence": null,
       "chosen_source": "osm",
-      "flagged": true,
-      "reason": "No individual facts area; retain OSM for review"
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
     },
     {
       "id": "D12F72E0B1F02A580BC0",
       "glacier": "Goode Glacier",
       "osm_area_km2": 0.388141047,
       "glims_area_km2": null,
-      "facts_area_km2": null,
-      "osm_ratio": null,
+      "facts_area_km2": 0.482332,
+      "osm_ratio": 0.804717595,
       "glims_ratio": null,
       "candidates": [],
       "extent_evidence": null,
       "chosen_source": "osm",
-      "flagged": true,
-      "reason": "No individual facts area; retain OSM for review"
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
     },
     {
       "id": "DDA4FE465BC9298DF03C",
@@ -7265,14 +7265,14 @@
       "glacier": "South Cascade Glacier",
       "osm_area_km2": 1.686847621,
       "glims_area_km2": null,
-      "facts_area_km2": null,
-      "osm_ratio": null,
+      "facts_area_km2": 1.799572,
+      "osm_ratio": 0.937360451,
       "glims_ratio": null,
       "candidates": [],
       "extent_evidence": null,
       "chosen_source": "osm",
-      "flagged": true,
-      "reason": "No individual facts area; retain OSM for review"
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
     },
     {
       "id": "A53FD87BDC20CBE85998",
