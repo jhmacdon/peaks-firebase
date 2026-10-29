@@ -130,7 +130,7 @@ export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: Inven
     const p = f.properties, glimsName = String(p.glac_name ?? ""), name = byKey.get(normalizeGlacierName(glimsName)) ?? "";
     const entry = names.get(name), cohort = entry && mountainCohort(config, entry.mountain);
     if (!entry || !cohort || p.line_type !== "glac_bound" || String(p.src_date).slice(0, 10) !== cohort.observed_at
-      || String(p.subm_id) !== cohort.submission_id || p.chief_affl !== cohort.chief_affl || !entry) continue;
+      || String(p.subm_id) !== cohort.submission_id || p.chief_affl !== cohort.chief_affl) continue;
     if (typeof entry.expected === "object" && !entry.expected.glac_ids.includes(String(p.glac_id))) continue;
     if (typeof p.db_area !== "number" || !(p.db_area > 0)) throw new Error(`Invalid GLIMS db_area: ${name}`);
     const id = String(p.anlys_id), seen = analyses.get(id);
@@ -186,9 +186,18 @@ export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: Inven
 export function inventoryMountainContext(inv: Inventory, config: InventoryConfig, mountain: string) {
   const m = config.mountains[mountain];
   if (!m) throw new Error(`Unknown inventory mountain ${mountain}`);
-  // One total needs one year and one source; mixed ones are not comparable.
-  const areas = Object.keys(m.names).map(n => effectiveArea(inv, config, mountain, n));
-  if (new Set(areas.map(a => `${a.year}|${a.credit}`)).size !== 1) throw new Error(`${m.label} mixes area years or sources`);
+  // Sources are chosen per glacier. A total that mixes them keeps the
+  // cohort's year and says which glaciers come from where.
+  const names = Object.keys(m.names), areas = names.map(n => effectiveArea(inv, config, mountain, n));
+  const cohortYear = Number(mountainCohort(config, mountain).observed_at.slice(0, 4));
+  if (new Set(areas.map(a => `${a.year}|${a.credit}`)).size > 1) {
+    const other = names.filter((_, i) => areas[i].credit !== PSU_CREDIT).map(n => {
+      const a = areas[names.indexOf(n)]; return `${n} (${a.credit}, ${a.year})`; });
+    return { observed_year: cohortYear, named_glacier_count: areas.length,
+      area_km2: round(areas.reduce((s, a) => s + a.area_km2, 0), 3),
+      source: [...new Set(areas.map(a => a.credit))].join("; "), source_url: PSU_URL,
+      scope: `Named glaciers of ${m.label}: ${cohortYear} Portland State inventory cohort areas, except ${other.join(", ")}; unnamed ice excluded` };
+  }
   const { year, credit, url } = areas[0], cohort = credit === PSU_CREDIT;
   return { observed_year: year, named_glacier_count: areas.length,
     area_km2: round(areas.reduce((s, a) => s + a.area_km2, 0), 3), source: credit, source_url: url,

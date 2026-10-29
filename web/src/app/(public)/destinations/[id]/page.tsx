@@ -14,6 +14,13 @@ import {
   getDestinationSessionCountCached,
 } from "../../../../lib/actions/cached-destinations";
 import { getNearbyDestinations } from "../../../../lib/actions/search";
+import {
+  getGlacierFacts,
+  getGlacierMountainById,
+  getMountainGlaciers,
+} from "../../../../lib/actions/cached-glaciers";
+import { GlacierDetailPage } from "../../../../components/glacier/glacier-page";
+import { MountainGlaciers } from "../../../../components/glacier/mountain-glaciers";
 import { getDestinationWeatherCached } from "../../../../lib/actions/cached-weather";
 import {
   getTripReportsForDestination,
@@ -96,6 +103,14 @@ export default async function DestinationDetailPage({
   const dest = await getDestinationCached(id);
   if (!dest) notFound();
 
+  // A glacier's catalog row carries no elevation or prominence; its page is
+  // built from the measured facts instead. Without a facts row (a failed
+  // read, or an unimported glacier) the generic page still renders.
+  if (dest.features.includes("glacier")) {
+    const facts = await settled(getGlacierFacts(id), null);
+    if (facts) return <GlacierDetailPage dest={dest} facts={facts} />;
+  }
+
   const hasCoords = dest.lat != null && dest.lng != null;
 
   const [routes, lists, sessionCount, tripReportCount, tripReports, nearbyRaw, weather, photoGroups] =
@@ -111,6 +126,13 @@ export default async function DestinationDetailPage({
       settled(getDestinationWeatherCached(id), null),
       getActivityPhotoGroups({ destinationId: id }),
     ]);
+
+  // A mountain with imported glaciers lists them; for every other place the
+  // aggregate lookup finds nothing and the section doesn't render.
+  const [glacierMountain, mountainGlaciers] = await Promise.all([
+    settled(getGlacierMountainById(id), null),
+    settled(getMountainGlaciers(id, false), []),
+  ]);
 
   const nearby = nearbyRaw.filter((n) => n.id !== id).slice(0, 6);
 
@@ -218,6 +240,7 @@ export default async function DestinationDetailPage({
         { id: "destination-facts", label: "Facts" },
         ...(photoGroups.length ? [{ id: "destination-photos", label: "Photos" }] : []),
         { id: "destination-routes", label: "Routes" },
+        ...(glacierMountain && mountainGlaciers.length ? [{ id: "mountain-glaciers", label: "Glaciers" }] : []),
         ...(tripReportCount ? [{ id: "destination-reports", label: "Trip reports" }] : []),
       ]} />
       <div className="mt-12 grid gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -266,6 +289,10 @@ export default async function DestinationDetailPage({
           <DestinationSessions />
 
           <DestinationRoutes routes={routes} />
+
+          {glacierMountain && mountainGlaciers.length > 0 ? (
+            <MountainGlaciers mountain={glacierMountain} glaciers={mountainGlaciers} />
+          ) : null}
 
           <DestinationReports
             destinationId={id}

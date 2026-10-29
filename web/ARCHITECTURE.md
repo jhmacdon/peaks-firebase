@@ -19,6 +19,8 @@ The Peaks web app serves two audiences from a single Next.js 16 deployment:
 /activities/[type]        → hiking and peak-bagging guides (public)
 /peaks                    → database-free index of state peak-bagging guides (public)
 /peaks/[state]            → catalog-backed US state mountain guides (public)
+/glaciers                 → glaciers grouped by mountain (public)
+/glaciers/[mountain]      → one mountain's glacier map, roster, and totals (public)
 /routes/[id]              → route detail (public)
 /lists                    → browse all lists (public)
 /lists/[id]               → list detail + progress (public)
@@ -65,6 +67,24 @@ icon on destination cards, detail pages, and map results. It takes priority over
 other features in compact cards and result rows. The map uses tower markers for
 these places and has a Fire lookouts filter, shared as `/map?types=fire-lookouts`.
 The badge does not imply that a tower is open, staffed, or available to rent.
+
+### Glaciers
+
+A glacier is a destination with the `glacier` feature plus a
+`destination_glacier_facts` row (see `../docs/glaciers-api-contract.md`).
+`/destinations/[id]` renders `GlacierDetailPage` when that row exists: measured
+area, elevations, length, slope, flow, volume, survey history chart, the full
+MultiPolygon outline on satellite imagery, routes from `route_glacier_crossings`,
+FAQ, and per-source credits. Its metadata and JSON-LD (Landform, BreadcrumbList,
+FAQPage) come from `lib/glaciers.ts`. Without a facts row the generic page renders.
+
+Reads live in `lib/actions/cached-glaciers.ts` (`server-only`, not server
+actions) and are public catalog only: glacier and parent mountain both owner
+`peaks`. A combined survey history scope such as `Cowlitz-Ingraham` is always
+labelled as combined. Mountain hubs at `/glaciers/[mountain]` use a name slug;
+a colliding name gets an id suffix. A parent mountain's own page lists its
+glaciers. The `glaciers` sitemap lists hubs; glacier pages are in the
+destination chunks.
 
 ### Two databases, one app
 
