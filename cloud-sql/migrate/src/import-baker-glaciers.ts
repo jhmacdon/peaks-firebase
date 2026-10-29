@@ -36,6 +36,7 @@ export const BAKER_SPEC: RegionSpec = {
   container_areas: { [WILDERNESS]: { kind: "wilderness", name: "Mount Baker Wilderness" } },
   inventory: BAKER_INVENTORY_CONFIG,
   activities: ["outdoor-trek", "ski"],
+  country_code: "US", state_code: "WA",
 };
 export const ROSTER = Object.keys(BAKER_SPEC.roster);
 
