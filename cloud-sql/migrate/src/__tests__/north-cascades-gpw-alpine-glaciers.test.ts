@@ -37,6 +37,8 @@ test("parents, of-N and facts", () => {
   assert.equal(placeParent(west, find(west, "Moth Glacier")).parent.name, "Neyah Point");
   assert.equal(find(west, "Pride Glacier").facts.area_km2, null);
   assert.equal(placeParent(entiat, find(entiat, "Company Glacier")).parent.name, "Bonanza Peak");
+  assert.equal(placeParent(entiat, find(entiat, "Spider Glacier")).parent.name, "Phelps Ridge", "Peaks has no Red Mountain here");
+  assert.equal(placeParent(west, find(west, "Tenpeak Glaciers")).parent.name, "Ten Peak Mountain", "the Peaks row's exact name");
   assert.equal(find(entiat, "Company Glacier").facts.observed_year, 2017);
   assert.equal(placeParent(alpine, find(alpine, "Lynch Glacier")).mountain_context.named_glacier_count, 2, "Ice Worm counts at Mount Daniel");
   assert.equal(placeParent(alpine, find(alpine, "Stuart Glacier")).parent.name, "Mount Stuart");

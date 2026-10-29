@@ -38,7 +38,7 @@ export const GLACIER_PEAK_WILDERNESS_WEST_SPEC: RegionSpec = {
   default_parent: "clark-mountain",
   parents: {
     "clark-mountain": summit("Clark Mountain", 48.0501, -120.9685),
-    "tenpeak-mountain": summit("Tenpeak Mountain", 48.0772, -121.0343),
+    "tenpeak-mountain": summit("Ten Peak Mountain", 48.0772, -121.0343), // Peaks name (checked 2026-10-29)
     "luahna-peak": summit("Luahna Peak", 48.0606, -120.9849),
     "neyah-point": summit("Neyah Point", 48.0779, -121.0237),
     "kyes-peak": summit("Kyes Peak", 47.9647, -121.3337),

@@ -31,7 +31,7 @@ export const ENTIAT_CHELAN_SPEC: RegionSpec = {
     "way:360221165": { parent: "mount-maude", inventory: "Entiat Glacier", container: GPW }, // Entiat Glacier
     "relation:12999522": { parent: "chiwawa-mountain", inventory: "Lyman Glacier", container: GPW }, // Lyman Glacier
     "way:966029693": { parent: "chiwawa-mountain", inventory: null, container: GPW }, // Hanging Glacier
-    "relation:13005722": { parent: "red-mountain", inventory: "Spider Glacier", container: GPW }, // Spider Glacier
+    "relation:13005722": { parent: "phelps-ridge", inventory: "Spider Glacier", container: GPW }, // Spider Glacier
   },
   default_parent: "bonanza-peak",
   parents: {
@@ -40,7 +40,7 @@ export const ENTIAT_CHELAN_SPEC: RegionSpec = {
     "dark-peak": summit("Dark Peak", 48.2546, -120.8818),
     "mount-maude": summit("Mount Maude", 48.1376, -120.8037),
     "chiwawa-mountain": summit("Chiwawa Mountain", 48.1634, -120.9075),
-    "red-mountain": summit("Red Mountain", 48.1542, -120.8817),
+    "phelps-ridge": summit("Phelps Ridge", 48.1659, -120.8882), // Peaks has no Red Mountain here; nearest Peaks summit, 556 m from the centroid (checked 2026-10-29)
   },
   container_areas: {
     [GPW]: { kind: "wilderness", name: "Glacier Peak Wilderness" },
@@ -54,7 +54,7 @@ export const ENTIAT_CHELAN_SPEC: RegionSpec = {
       "dark-peak": { label: "Dark Peak", names: { "Dark Glacier": 3 } },
       "mount-maude": { label: "Mount Maude", names: { "Entiat Glacier": 4 } },
       "chiwawa-mountain": { label: "Chiwawa Mountain", names: { "Lyman Glacier": 1 } },
-      "red-mountain": { label: "Red Mountain", names: { "Spider Glacier": 1 } },
+      "phelps-ridge": { label: "Phelps Ridge", names: { "Spider Glacier": 1 } },
     },
   },
   activities: ["outdoor-trek", "ski"],

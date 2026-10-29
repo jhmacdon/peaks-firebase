@@ -7,8 +7,8 @@ Three packages, one apply each, because their PSU cohorts differ:
 
 | Package | Spec | Places | Cohort | Reviewed manifest SHA-256 |
 | --- | --- | ---: | --- | --- |
-| Glacier Peak Wilderness west (Dakobed, Monte Cristo) | `import-glacier-peak-wilderness-west-glaciers.ts` | 8 | 2015-09-09 | `98909698899991c90979278e538bc98a18d371b7b42439b0215b6454c239eaee` |
-| Entiat and Chelan Mountains | `import-entiat-chelan-glaciers.ts` | 9 | 2017-09-09 | `5d3c95cd14ce615ca56f955ae92fbb5814a98767af0292008d1c693d51804a13` |
+| Glacier Peak Wilderness west (Dakobed, Monte Cristo) | `import-glacier-peak-wilderness-west-glaciers.ts` | 8 | 2015-09-09 | `9778343d582e9d8ef2367704d8fad61be172b99dc1f76f783d2fdfef719ddad2` |
+| Entiat and Chelan Mountains | `import-entiat-chelan-glaciers.ts` | 9 | 2017-09-09 | `bc317b8300376b81c05699c5b9dc9154b51fb7fda78f078bad9f85a285f806a8` |
 | Alpine Lakes and Stuart Range | `import-alpine-lakes-glaciers.ts` | 10 | 2015-09-09 | `7077914899279f0c8fa1129b42ffb2b3d088f2df296a9737e3c3793564e34ebc` |
 
 The first two read byte-identical copies of one snapshot set (box
@@ -25,6 +25,16 @@ David Glacier (2017 cohort) lies near Mount David, not a parent here, and is
 only listed; landmark-named patches (Columbia Peak, Kyes Peak, Vesper, Lemah,
 Diptop, East Daniels, Stuart West, West Lynch) and "… WA" names are not
 counted.
+
+## Apply-time parent check (2026-10-29)
+
+The production lookup found 18 of 20 parents by exact name. Two changed, so
+two hashes changed (Alpine Lakes is unchanged):
+
+| Package | Was | Now | Why |
+| --- | --- | --- | --- |
+| GPW west | Tenpeak Mountain | Ten Peak Mountain | Peaks name (6 m) |
+| Entiat–Chelan | Red Mountain (Spider Glacier) | Phelps Ridge | no Red Mountain in Peaks; nearest Peaks summit, 556 m from the centroid |
 
 ## Sources and licences
 
