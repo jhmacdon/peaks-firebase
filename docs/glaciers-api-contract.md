@@ -410,6 +410,10 @@ CPU and cold/warm query latency still need measurement on representative data.
 
 ## Adding another mountain
 
+Follow the step-by-step skill
+[`.agents/skills/peaks-glacier-import/SKILL.md`](../.agents/skills/peaks-glacier-import/SKILL.md).
+It marks which steps a cloud agent may run and which need the privileged session.
+
 No API, schema or app change is needed. The writer
 `cloud-sql/migrate/src/import-glacier-manifest.ts` takes one JSON manifest
 (type `GlacierManifest`) that carries everything mountain-specific:
