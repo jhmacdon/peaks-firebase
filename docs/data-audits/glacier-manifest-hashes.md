@@ -48,3 +48,24 @@ unchanged (OSM, ratio 0.726 in band), but the review and hash change:
 A Baker replay after this change uses `ecca694d…`; like the rounding change,
 it rewrites only provenance on the facts rows.
 
+
+## Hole contacts checked in full (2026-10-29, later PR)
+
+The touching-holes change tested one free hole vertex. That accepted a hole
+that leaves its exterior between two shared vertices (wrong area: 0.53 km²
+for 0.85) and a hole that touches its exterior twice, which cuts the interior
+in two. Every free hole vertex must now lie inside the exterior and outside
+the other holes, and the rings and their contact points must form no cycle
+(at most one shared point per ring pair, and no chain of touching holes from
+the exterior back to it). Multipolygon parts test every free vertex too. The
+same PR counts each GLIMS analysis once when its WFS rows repeat it, and sums
+a name's parts from several GLIMS glaciers only when they lie within 1 km of
+each other or the config lists their glac_ids.
+
+No applied package changes:
+
+| Package | Hash after this change |
+| --- | --- |
+| Rainier | `3b7f23b88afd37b1c4d2e67fac6e67bb1591aa28a79b1ed67209637e3606fbcd` (unchanged) |
+| Mount Baker | `ecca694dbab15a7614ad06a83c963e8827a8d65fd9d9eeaba0f3be410c20c833` (unchanged) |
+| Glacier Peak | `9e183267f40c53f458a63c3a4be1ddf4dce23c0b1d34a02e639967a6b97ade02` (unchanged) |

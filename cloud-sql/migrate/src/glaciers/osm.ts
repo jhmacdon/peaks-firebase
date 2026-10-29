@@ -27,11 +27,13 @@ function contains(r: Position[], p: Position): boolean {
   }
   return inside;
 }
-/** First vertex of `ring` that is not a vertex of `other`; rings that share
- * every vertex fall back to the first, which then fails the containment test. */
-function probe(ring: Position[], other: Position[]): Position {
-  const shared = new Set(other.map(p => `${p[0]},${p[1]}`));
-  return ring.find(p => !shared.has(`${p[0]},${p[1]}`)) ?? ring[0];
+/** Every vertex of `hole` that is not a node of `outer` lies inside it, and
+ * one such vertex exists. A hole may touch its outer ring at a shared node
+ * (valid OGC geometry); outline validation rejects contacts that split it. */
+function within(outer: Position[], hole: Position[]): boolean {
+  const shared = new Set(outer.map(p => `${p[0]},${p[1]}`));
+  const free = hole.filter(p => !shared.has(`${p[0]},${p[1]}`));
+  return free.length > 0 && free.every(p => contains(outer, p));
 }
 /** Stitch by shared OSM endpoints. Never close an incomplete ring or discard a member. */
 function rings(lines: Position[][]): Position[][] {
@@ -78,9 +80,7 @@ function linework(element: OverpassElement): Polygon[] {
   const polygons = rings(outer).map(r => [r]);
   if (!polygons.length) throw new Error("Multipolygon has no outer rings");
   for (const hole of rings(inner)) {
-    // Test a hole vertex that is not a node of the candidate outer ring: a
-    // hole may touch its outer ring at a shared node (valid OGC geometry).
-    const parent = polygons.filter(p => contains(p[0], probe(hole, p[0]))).sort((a, b) => Math.abs(ringArea(a[0])) - Math.abs(ringArea(b[0])))[0];
+    const parent = polygons.filter(p => within(p[0], hole)).sort((a, b) => Math.abs(ringArea(a[0])) - Math.abs(ringArea(b[0])))[0];
     if (!parent) throw new Error("Orphan multipolygon hole");
     parent.push(hole);
   }
