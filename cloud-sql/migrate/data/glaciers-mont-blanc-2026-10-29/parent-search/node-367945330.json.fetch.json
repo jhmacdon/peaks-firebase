@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=D%C3%B4mes+de+Miage&lat=45.8152681&lng=6.8002767&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:43.782228+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=D%C3%B4mes+de+Miage&lat=45.8152681&lng=6.8002767&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=103, reset=30",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"3af-DsXNKdp5ZA2ePX+GoxGrgGRofYQ\"",
+    "x-cloud-trace-context": "9032a3fb1e83658ecc979d5f83f0e78b",
+    "date": "Thu, 29 Oct 2026 18:41:44 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "943",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "e85888902090cce6c2f94cecfb2fd4b1db235ca4f2c1c9c6728dc243d8498bd5",
+  "bytes": 943
+}

@@ -3,12 +3,14 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { Pool } from "pg";
 import type { Outline } from "./glaciers/outline-geometry";
+import { validateGlacierCountries, type GlacierCountryAssignment } from "./glaciers/countries";
+import type { CombinedInventoryDecision } from "./glaciers/combined-inventory";
 
 /** observed_at is an ice observation; snapshot_at is a mapping/download date.
  * The API's legacy outline_observed_at uses observed_at ?? snapshot_at. */
 export type GlacierGeometryProvenance = {
   schema_version: 1; geometry_source: string; source_url: string; source_sha256: string;
-  observed_at: string | null; snapshot_at: string | null;
+  observed_at: string | null; observed_year?: number; observation_precision?: "year"; snapshot_at: string | null;
   license: string; license_url: string; credit: string;
   method: string; geometry_sha256: string;
   analysis_ids?: string[]; glacier_ids?: string[]; submission_id?: string;
@@ -37,6 +39,12 @@ export type GlacierParent = { name: string; features: string[]; country_code: st
 export type GlacierContainerArea = { kind: string; name: string };
 export type GlacierManifestPlace = {
   id: string; name: string; osm_key: string; external_ids: Record<string, string>; kind: "glacier" | "snowfield";
+  /** New packages assign countries per place. Omission preserves legacy
+   * package defaults and their reviewed hashes. */
+  osm_keys?: string[];
+  country_code?: string;
+  country_codes?: string[];
+  country_assignment?: GlacierCountryAssignment;
   /** Key into `parents`; omitted means the package `parent`. */
   parent_key?: string;
   /** Key into `container_areas`, or null when no single area covers the outline. */
@@ -73,6 +81,8 @@ export type GlacierManifest = {
   mountain_context: Record<string, unknown>;
   /** Binds the whole offline review (including unmatched features) to apply. */
   outline_refresh?: { schema_version: 1; input_manifest_sha256: string; review_sha256: string };
+  /** Audit data bound by the manifest hash, never written as catalog facts. */
+  decision_table?: { combined_inventory_rows?: CombinedInventoryDecision[] };
   places: GlacierManifestPlace[];
 };
 
@@ -110,7 +120,9 @@ export function glacierPlaceProvenance(m: GlacierManifest, p: GlacierManifestPla
   return { geometry,
     catalog: { source: geometry.geometry_source, license: geometry.license, credit: geometry.credit,
       snapshot_sha256: geometry.source_sha256, fetched_at: geometry.snapshot_at,
-      observed_at: geometry.observed_at, source_url: geometry.source_url, aliases: p.aliases },
+      observed_at: geometry.observed_at, source_url: geometry.source_url, aliases: p.aliases,
+      ...(p.osm_keys ? { osm_keys: p.osm_keys } : {}),
+      ...(p.country_codes ? { country_codes: p.country_codes, country_assignment: p.country_assignment } : {}) },
     facts: { ...p.facts, provenance: { ...p.facts.provenance, mountain_context: placeParent(m, p).mountain_context,
       source_snapshot_sha256: m.source_sha256, outline: geometry } },
   };
@@ -140,6 +152,20 @@ export function validateGlacierManifest(m: GlacierManifest): GlacierManifest {
     if (!["glacier", "snowfield"].includes(p.kind) || p.facts?.kind !== p.kind) fail(`kind for ${p.name}`);
     if (p.boundary?.type !== "MultiPolygon" || !p.boundary.coordinates?.length) fail(`boundary for ${p.name}`);
     if (!Array.isArray(p.aliases)) fail(`aliases for ${p.name}`);
+    if (["country_code", "country_codes", "country_assignment"].some(key => own(p, key))) {
+      const codes = p.country_codes, assignment = p.country_assignment;
+      if (!p.country_code || !/^[A-Z]{2}$/.test(p.country_code) || !Array.isArray(codes) || !codes.length
+        || codes.some(code => typeof code !== "string" || !/^[A-Z]{2}$/.test(code))
+        || new Set(codes).size !== codes.length || !isDeepStrictEqual(codes, [...codes].sort())
+        || !codes.includes(p.country_code)) fail(`countries for ${p.name}`);
+      if (!assignment || assignment.schema_version !== 1 || assignment.source !== "OpenStreetMap admin_level=2"
+        || !url(assignment.source_url) || !/^[0-9a-f]{64}$/.test(assignment.source_sha256)
+        || assignment.outline_sha256 !== sha256(JSON.stringify(p.boundary))
+        || !isDeepStrictEqual(assignment.overlaps.filter(c => c.kept).map(c => c.country_code), codes))
+        fail(`country assignment for ${p.name}`);
+      try { validateGlacierCountries(p.boundary, { country_code: p.country_code!, country_codes: codes!, country_assignment: assignment! }); }
+      catch { fail(`country assignment for ${p.name}`); }
+    }
     if (own(p, "facts_credit") && !p.facts_credit?.trim()) fail(`facts_credit for ${p.name}`);
     if (own(p, "facts_source_url") && p.facts_source_url !== null && !url(p.facts_source_url)) fail(`facts_source_url for ${p.name}`);
     if (p.parent_key !== undefined && !own(m.parents, p.parent_key)) fail(`parent_key for ${p.name}`);
@@ -148,6 +174,12 @@ export function validateGlacierManifest(m: GlacierManifest): GlacierManifest {
     const g = placeGeometry(m, p);
     const date = (value: string | null) => value === null || /^\d{4}-\d{2}-\d{2}$/.test(value) &&
       !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+    if (g.observed_year !== undefined || g.observation_precision !== undefined) {
+      if (!Number.isInteger(g.observed_year) || g.observed_year! < 1800 || g.observed_year! > 2200
+        || g.observation_precision !== "year" || g.observed_at !== null) fail(`year-only observation for ${p.name}`);
+    }
+    if (p.osm_keys && (!p.osm_keys.includes(p.osm_key) || new Set(p.osm_keys).size !== p.osm_keys.length
+      || p.osm_keys.some(key => !/^(way|relation):[1-9][0-9]*$/.test(key)))) fail(`OSM part identities for ${p.name}`);
     if (g.schema_version !== 1 || !g.geometry_source?.trim() || !g.credit?.trim() || !g.license?.trim()
       || !g.method?.trim() || !url(g.source_url) || !url(g.license_url)
       || !date(g.observed_at) || !date(g.snapshot_at) || !(g.observed_at ?? g.snapshot_at)
@@ -270,12 +302,14 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
           CROSS JOIN LATERAL (SELECT geom FROM ST_Dump(g)
             ORDER BY ST_Area(geom::geography) DESC,path LIMIT 1) largest
           ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,search_name=EXCLUDED.search_name,type=EXCLUDED.type,
+            country_code=CASE WHEN $13::boolean THEN EXCLUDED.country_code ELSE destinations.country_code END,
             features=EXCLUDED.features,boundary=EXCLUDED.boundary,location=EXCLUDED.location,elevation=EXCLUDED.elevation,
             bbox_min_lat=EXCLUDED.bbox_min_lat,bbox_max_lat=EXCLUDED.bbox_max_lat,bbox_min_lng=EXCLUDED.bbox_min_lng,bbox_max_lng=EXCLUDED.bbox_max_lng,
             external_ids=COALESCE(destinations.external_ids,'{}'::jsonb)||EXCLUDED.external_ids,metadata=COALESCE(destinations.metadata,'{}'::jsonb)||EXCLUDED.metadata,
             description=EXCLUDED.description,description_source_name=EXCLUDED.description_source_name,
             description_source_url=EXCLUDED.description_source_url,description_source_license=EXCLUDED.description_source_license
           WHERE destinations.name IS DISTINCT FROM EXCLUDED.name OR destinations.features IS DISTINCT FROM EXCLUDED.features
+            OR ($13::boolean AND destinations.country_code IS DISTINCT FROM EXCLUDED.country_code)
             OR destinations.type IS DISTINCT FROM EXCLUDED.type OR destinations.elevation IS NOT NULL
             OR ST_AsEWKB(destinations.location::geometry) IS DISTINCT FROM ST_AsEWKB(EXCLUDED.location::geometry)
             OR (destinations.bbox_min_lat,destinations.bbox_max_lat,destinations.bbox_min_lng,destinations.bbox_max_lng)
@@ -289,7 +323,8 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
             OR destinations.description IS DISTINCT FROM EXCLUDED.description`,
           [place.id,place.name,JSON.stringify(place.external_ids),JSON.stringify(place.boundary),JSON.stringify({glacier_catalog: serialized.catalog}),described ? f.description : null,
             described ? f.description_source_url : null,described ? pkg.description_source_name : null,
-            pkg.country_code,pkg.state_code,`{${pkg.activities.join(",")}}`,described ? pkg.description_source_license : null]);
+            place.country_code ?? pkg.country_code,pkg.state_code,`{${pkg.activities.join(",")}}`,described ? pkg.description_source_license : null,
+            place.country_code !== undefined]);
         const facts = serialized.facts;
         const parameters: unknown[] = [place.id,parentId,...factColumns.map(c => ["area_history","provenance"].includes(c) ? JSON.stringify(facts[c]) : facts[c]),
           place.facts_credit ?? pkg.facts_credit,place.facts_source_url !== undefined ? place.facts_source_url : pkg.facts_source_url,geometry.credit,geometry.license,geometry.observed_at ?? geometry.snapshot_at,

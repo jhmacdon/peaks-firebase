@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Petit+Mont+Blanc&lat=45.7917719&lng=6.8329652&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:36.021573+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Petit+Mont+Blanc&lat=45.7917719&lng=6.8329652&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=107, reset=38",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c70-pSVF7A4+o58e8EvxYLhr2367YmA\"",
+    "x-cloud-trace-context": "11645c05c9f0ffb5769dbb3abfa2f421;o=1",
+    "date": "Thu, 29 Oct 2026 18:41:37 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3184",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "9a8fe954da2c35b9420bcc060fae0f7320ecf79dd361a88f62214d0c0c827215",
+  "bytes": 3184
+}

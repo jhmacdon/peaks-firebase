@@ -1,0 +1,23 @@
+{
+  "url": "https://doi.glamos.ch/",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:48:29.660036+00:00",
+  "status": 200,
+  "final_url": "https://doi.glamos.ch/",
+  "response_headers": {
+    "Date": "Thu, 29 Oct 2026 17:48:31 GMT",
+    "Server": "Apache/2.4.59 (Debian)",
+    "Last-Modified": "Fri, 02 Oct 2026 06:20:42 GMT",
+    "ETag": "\"85ec-65cd588224280\"",
+    "Accept-Ranges": "bytes",
+    "Content-Length": "34284",
+    "Vary": "Accept-Encoding",
+    "Content-Type": "text/html",
+    "Connection": "close"
+  },
+  "sha256": "e0e8828dfedf47b69117f70d4b619dec8732043c88359246dc4f998c3004ae5a",
+  "bytes": 34284
+}

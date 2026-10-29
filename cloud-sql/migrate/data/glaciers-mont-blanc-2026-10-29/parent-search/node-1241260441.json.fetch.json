@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=La+Tour+Rouge&lat=45.9032079&lng=6.9249313&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:39:58.283111+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=La+Tour+Rouge&lat=45.9032079&lng=6.9249313&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=113, reset=12",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c43-fKZMlB1uhnUZ0GIP/3LQrz30W6Q\"",
+    "x-cloud-trace-context": "fc6035c45cc82676db5d25d7f03ab5fe;o=1",
+    "date": "Thu, 29 Oct 2026 18:40:05 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3139",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "59df65905238c806f33326947008d558d5136063ff438701e8a60b67c4093ce0",
+  "bytes": 3139
+}

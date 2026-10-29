@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Petit+Rognon&lat=45.8797529&lng=6.9193466&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:40:13.001226+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Petit+Rognon&lat=45.8797529&lng=6.9193466&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=119, reset=60",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c2f-LK+t7nAWoayjIOc78HSr2T380Dc\"",
+    "x-cloud-trace-context": "6a3c0a329d57db43fbdc5f63b4f60398;o=1",
+    "date": "Thu, 29 Oct 2026 18:40:14 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3119",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "093eed66815ce2fe066251bbbd4b01c06c71c9df4893841af4542f089c797b09",
+  "bytes": 3119
+}

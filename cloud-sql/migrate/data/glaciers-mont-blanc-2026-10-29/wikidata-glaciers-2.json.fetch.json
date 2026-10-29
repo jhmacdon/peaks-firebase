@@ -1,0 +1,37 @@
+{
+  "url": "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q1612543%7CQ1656465%7CQ18214370%7CQ200793%7CQ212613%7CQ2321467%7CQ2366090%7CQ2419346%7CQ24934140%7CQ25636%7CQ2888732%7CQ3108330%7CQ3108341%7CQ3108344%7CQ3108351%7CQ3108352%7CQ3108353%7CQ3108363%7CQ3108367%7CQ3108375%7CQ3108378%7CQ34835232%7CQ34835874%7CQ34838689%7CQ3761680%7CQ3761692%7CQ3761702%7CQ549647%7CQ583591%7CQ5880622%7CQ59406%7CQ597363%7CQ670540%7CQ674490%7CQ68526456%7CQ765115&props=sitelinks%7Clabels&languages=fr%7Cit%7Cde%7Cen%7Czh&format=json",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:08:33.053524+00:00",
+  "status": 200,
+  "final_url": "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q1612543%7CQ1656465%7CQ18214370%7CQ200793%7CQ212613%7CQ2321467%7CQ2366090%7CQ2419346%7CQ24934140%7CQ25636%7CQ2888732%7CQ3108330%7CQ3108341%7CQ3108344%7CQ3108351%7CQ3108352%7CQ3108353%7CQ3108363%7CQ3108367%7CQ3108375%7CQ3108378%7CQ34835232%7CQ34835874%7CQ34838689%7CQ3761680%7CQ3761692%7CQ3761702%7CQ549647%7CQ583591%7CQ5880622%7CQ59406%7CQ597363%7CQ670540%7CQ674490%7CQ68526456%7CQ765115&props=sitelinks%7Clabels&languages=fr%7Cit%7Cde%7Cen%7Czh&format=json",
+  "response_headers": {
+    "date": "Thu, 29 Oct 2026 18:08:33 GMT",
+    "server": "mw-api-ext.codfw.main-d96857f79-499p8",
+    "x-content-type-options": "nosniff",
+    "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+    "x-frame-options": "DENY",
+    "content-disposition": "inline; filename=api-result.json",
+    "cache-control": "private, must-revalidate, max-age=0",
+    "content-type": "application/json; charset=utf-8",
+    "age": "0",
+    "accept-ranges": "bytes",
+    "x-cache": "cp4038 miss, cp4038 pass",
+    "x-cache-status": "pass",
+    "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+    "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+    "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+    "set-cookie": "WMF-Last-Access=29-Oct-2026;Path=/;HttpOnly;secure;Expires=Mon, 30 Nov 2026 12:00:00 GMT",
+    "x-client-ip": "71.212.159.84",
+    "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+    "transfer-encoding": "chunked",
+    "x-request-id": "570cb3fe-981c-4e13-ae4f-fcddfd0edced",
+    "x-analytics": "",
+    "server-timing": "cache;desc=\"pass\", host;desc=\"cp4038\",co_id;desc=\"3064020168\"",
+    "connection": "close"
+  },
+  "sha256": "e23bf4207654aebc86ecf18c4247c6293d60cf15f29f80f01f0a2bbaa6a819e2",
+  "bytes": 26241
+}

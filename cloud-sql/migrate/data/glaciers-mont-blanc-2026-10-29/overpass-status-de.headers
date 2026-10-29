@@ -1,0 +1,6 @@
+HTTP/2 200 
+server: nginx
+date: Thu, 29 Oct 2026 17:39:24 GMT
+content-type: text/plain; charset=utf-8
+access-control-allow-origin: *
+

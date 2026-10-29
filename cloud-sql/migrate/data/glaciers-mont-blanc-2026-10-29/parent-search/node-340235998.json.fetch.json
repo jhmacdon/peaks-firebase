@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Rochefort&lat=45.8621023&lng=6.9599716&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:18.839795+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Rochefort&lat=45.8621023&lng=6.9599716&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=116, reset=55",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c45-011CO2LXbEqhua7aXtO6XzmhDRc\"",
+    "x-cloud-trace-context": "7654bfbf7539884fae63b53881f9674e",
+    "date": "Thu, 29 Oct 2026 18:41:19 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3141",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "d2b1deb92b0d4470f494ccefb89027d5fcce0f03374d9f80d34b84e5b1c52b61",
+  "bytes": 3141
+}

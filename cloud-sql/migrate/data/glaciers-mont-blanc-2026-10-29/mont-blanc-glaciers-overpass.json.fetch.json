@@ -1,0 +1,21 @@
+{
+  "url": "https://overpass.private.coffee/api/interpreter",
+  "method": "POST",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0",
+    "Content-Type": "application/x-www-form-urlencoded"
+  },
+  "fetched_at": "2026-10-29T17:32:39.362172+00:00",
+  "status": 504,
+  "final_url": "https://overpass.private.coffee/api/interpreter",
+  "response_headers": {
+    "Server": "nginx/1.26.3",
+    "Date": "Thu, 29 Oct 2026 17:34:31 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Content-Length": "695",
+    "Connection": "close",
+    "Kumi-Overpass-Worker": "h8"
+  },
+  "sha256": "9e8d149c02b9ab7719f9e6cfdf696730c39abead6f27e39eb13793b7d2adbb82",
+  "bytes": 695
+}

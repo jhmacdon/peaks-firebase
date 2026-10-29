@@ -5,8 +5,10 @@ description: Add the glaciers of one more mountain to Peaks, the way Mount Raini
 
 # Peaks Glacier Import
 
-One mountain per run. The output is a PR that adds data and a manifest builder
-under `cloud-sql/migrate/` only, plus a hand-off block for the privileged apply.
+One mountain or massif per package. A massif can have several parent summits.
+The output is a PR with data and a manifest builder under `cloud-sql/migrate/`,
+an audit packet under `docs/data-audits/` when requested, and a hand-off block
+for the privileged apply. Open a draft when the user asks for one.
 Read first: [docs/glaciers-api-contract.md](../../../docs/glaciers-api-contract.md)
 ("Adding another mountain" and "Runbook"), `cloud-sql/migrate/src/glaciers/rainier.ts`,
 `cloud-sql/migrate/src/import-rainier-glaciers.ts`,
@@ -48,7 +50,8 @@ Stop, report what you found, and ask before going on when:
   Pyramid on Rainier were about 6× their current area. Do not drop, redraw or
   import it silently.
 - The OSM roster and the facts inventory disagree on a name, a split, or a
-  merged system, and no source settles the crosswalk.
+  merged system, and no source settles the crosswalk. A reviewed combined
+  inventory row follows the group rule below; the split alone is not a hold.
 - No `areas` row can plausibly contain every outline (for example the mountain
   spans a park and a wilderness), or the parent mountain may not exist in Peaks.
 - The network policy blocks Overpass or a facts host. Ask for the files or a
@@ -87,8 +90,9 @@ Facts: one citable source per glacier, best first:
 | WGMS (Fluctuations of Glaciers) | free with citation; read the terms | Good for length and mass-balance series. |
 | Wikidata | CC0 | Often lacks area or elevation. Never treat a summit or point elevation as a glacier head. |
 
-Do not use Wikipedia text for descriptions (CC BY-SA). Do not use any agency
-outline dataset in place of OSM. For each source, save the terms text or URL
+Do not use Wikipedia text for descriptions (CC BY-SA). OSM is the first
+outline source; phase 9 can select a dated, cleared inventory. Save the terms
+and exact source URL
 and the license string you will put in the manifest. If two sources cover
 different fields, record per-field provenance (phase 3).
 
@@ -132,7 +136,8 @@ Record each file's SHA-256 in the PR body.
 
 ## 3. Manifest builder
 
-Add two files and one npm script. Do not edit `import-glacier-manifest.ts`.
+Add a package builder, its data and a test. Changes to the shared writer need
+explicit authorization; the Mont Blanc country metadata change has that authorization.
 
 1. `cloud-sql/migrate/src/glaciers/<mountain>.ts`: constants and the facts
    parser. Copy from `rainier.ts`:
@@ -180,6 +185,67 @@ Facts rules:
   not the OSM roster count. It drives the "of N" rank.
 - `type_code`/`type_label` only where a source states them.
 - Flow direction is where ice flows towards, clockwise from north.
+
+### Combined inventory rows
+
+Build the connected row/place graph from the reviewed crosswalk and polygon
+intersections. This covers one-to-many, many-to-one and many-to-many splits.
+Use `inventoryComponents` and `reviewCombinedInventoryRows` in
+`glaciers/combined-inventory.ts`; the rule contains no mountain names.
+
+1. Record every original row ID, area, observation date or year, source/hash,
+   and member place in the audit and manifest decision table. Never copy a
+   combined figure into place facts or divide it between branches.
+2. Compare the sum of all member OSM areas against the sum of all row areas.
+   Inside inclusive 0.67–1.5: retain every OSM outline and flag only
+   `facts: combined rows`. Outside: run phase 9 on the whole group. An outline
+   for a whole system cannot replace each branch; require a dated branch
+   crosswalk before splitting a replacement among places.
+3. Check the union against the complete inventory outline, residual pieces,
+   every nearby snapshot outline (including unnamed ice), and overlaps
+   between members. Record reviewed nonmember edges. An area total alone
+   cannot prove that a branch is present or counted once.
+4. Facts require exactly one row mapping to exactly one place. Otherwise
+   leave them null. First search dated RGI/GLIMS, open regional inventories
+   and WGMS branch records; record the actual rows and scope. A different
+   source may supply independent branch facts only with its own verified
+   one-to-one crosswalk. Keep those dates and credits separate from the
+   combined rows, which remain audit data.
+5. Parent “of N” counts use member places, never source-row counts. Do not
+   infer area ranks or totals from combined figures.
+
+For a regional split with no complete inventory option, use the general
+`neighbourFallback: "all-osm"` option. The connected group takes all-inventory
+only if it clears overlap and puts at least as many ratios in the band;
+otherwise every member takes OSM. Record existing OSM overlaps and flag the
+places involved. A missing branch inventory never justifies a large clip.
+Keep the 10% clip cap. Check dated named inventories to distinguish a changed
+divide from a mistaken row/name crosswalk, and record which evidence supports
+the decision. No per-place `keep_osm` exception is needed for this group rule.
+
+### Sources outside the United States
+
+PSU, GNIS and PAD-US are adapters for the US packages, not global requirements.
+For a new region, keep the adapter and builder under `cloud-sql/migrate/`:
+
+- Prefer one recent, openly licensed regional inventory cohort. RGI 7.0 is
+  CC BY 4.0; check the terms of every other inventory before using it. Save
+  the raw response, request, terms and SHA-256. State any cohort exceptions.
+- Use local OSM `name` for display and retain language names as aliases.
+- Use OSM peaks and Wikidata, with a cached Copernicus DEM head sample, to
+  choose the nearest suitable summit. Check the anonymous public Peaks
+  search API. Record name, location, radius and missing parents; production
+  IDs remain open inputs for the privileged apply.
+- Use cached OSM national-park/protected-area boundaries for plausible
+  containers. Do not use WDPA. When the user allows no container, record null
+  and explain it in the packet.
+- Keep a border glacier whole. With the per-place country option, use fixed,
+  hashed OSM admin_level=2 boundaries. The largest outline overlap selects
+  `country_code`; alphabetical ISO order breaks rounded ties. Put the sorted
+  `country_codes` list in catalog metadata and the manifest hash. Keep a sole
+  country, but drop secondary overlaps below max(0.01 km², 1% of outline).
+  List dropped slivers and secondary-country filter misses in the audit.
+  Leave API/schema/filters and older packages alone unless asked to change them.
 
 Preview without a database:
 
@@ -448,6 +514,12 @@ It does not authorize production writes, deployments or edits to OSM.
    A distant name match cannot supply geometry. Do not clip an independent
    inventory to OSM while calling its output unmodified CC0 inventory data.
 4. Keep OSM when outline/facts area is in the inclusive [0.67, 1.5] band.
+   For a reviewed connected group, use the total of its member outlines and all
+   linked row areas, following the group rule above. New region packages use
+   rule 2: outside the band, the newest dated, licence-OK candidate closer to
+   the facts area can replace undated OSM without an OSM age inference.
+   Run the neighbour-overlap and all-repository cross-package checks after
+   selecting outlines. The following age gate describes rule 1 only.
    Outside it, choose the newest licence-OK candidate whose area ratio is
    strictly closer to 1 and whose observation is newer than the evident OSM
    extent; otherwise retain OSM and flag it. Keep flags when a better choice
@@ -460,7 +532,9 @@ It does not authorize production writes, deployments or edits to OSM.
    retain OSM and flag it. A recent edit or download cannot clear this gate.
    Check individual facts scope, splits, missing parts and debris separately;
    mountain totals or combined glacier histories cannot clear an individual
-   area mismatch. Review observations older than three years or unknown.
+   area mismatch. A reviewed combined inventory row uses the group rule;
+   it never supplies an individual branch area. Review observations older
+   than three years or unknown.
 6. Produce the JSON and Markdown decision report for every place: OSM,
    candidate and individual facts areas, ratios, overlaps, IDs, source choice,
    flags, date evidence and reason. Review all unmatched/ambiguous features.

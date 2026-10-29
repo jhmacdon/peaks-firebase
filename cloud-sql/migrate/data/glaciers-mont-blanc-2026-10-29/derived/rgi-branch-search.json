@@ -1,0 +1,3438 @@
+[
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00664",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006794E45769N",
+      "anlys_id": 752802,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.793854817179087,
+      "cenlat": 45.771355,
+      "utm_zone": 32,
+      "area_km2": 1.445158880434723,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01144A18 des Glaciers",
+      "is_rgi6": 0,
+      "termlon": 6.786635584934683,
+      "termlat": 45.76116856967846,
+      "zmin_m": 2537.695,
+      "zmax_m": 3671.4512,
+      "zmed_m": 3155.178,
+      "zmean_m": 3148.3037,
+      "slope_deg": 28.917803,
+      "aspect_deg": 209.0469970703125,
+      "aspect_sec": 6,
+      "dem_source": "COPDEM30",
+      "lmax_m": 2482
+    },
+    "hits": [
+      {
+        "osm_key": "way:32673957",
+        "name": "Glacier des Glaciers",
+        "osm_share": 0.973101,
+        "row_share": 0.825112
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00673",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006813E45771N",
+      "anlys_id": 752828,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.813137456481482,
+      "cenlat": 45.770990499999996,
+      "utm_zone": 32,
+      "area_km2": 0.518448842829709,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Estellette",
+      "is_rgi6": 0,
+      "termlon": 6.823694999254068,
+      "termlat": 45.767419018309404,
+      "zmin_m": 2463.4868,
+      "zmax_m": 3254.9492,
+      "zmed_m": 2775.687,
+      "zmean_m": 2779.2983,
+      "slope_deg": 29.616262,
+      "aspect_deg": 119.98183,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1649
+    },
+    "hits": [
+      {
+        "osm_key": "way:32673960",
+        "name": "Ghiacciaio d'Estellette",
+        "osm_share": 0.973293,
+        "row_share": 0.699018
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00674",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006819E45785N",
+      "anlys_id": 752833,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.819463081377151,
+      "cenlat": 45.7854315,
+      "utm_zone": 32,
+      "area_km2": 3.466885174153904,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Lex Blanche",
+      "is_rgi6": 0,
+      "termlon": 6.835977818672906,
+      "termlat": 45.77467350548292,
+      "zmin_m": 2178.055,
+      "zmax_m": 3709.5134,
+      "zmed_m": 3129.0488,
+      "zmean_m": 3096.7417,
+      "slope_deg": 26.206093,
+      "aspect_deg": 124.96731,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 3330
+    },
+    "hits": [
+      {
+        "osm_key": "way:32668385",
+        "name": "Ghiacciaio della Lex Blanche",
+        "osm_share": 0.979154,
+        "row_share": 0.700944
+      },
+      {
+        "osm_key": "relation:5395034",
+        "name": "Ghiacciaio del Petit Mont Blanc",
+        "osm_share": 0.610978,
+        "row_share": 0.156353
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00675",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006818E45784N",
+      "anlys_id": 752837,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.821602500000001,
+      "cenlat": 45.791411499999995,
+      "utm_zone": 32,
+      "area_km2": 0.179148643961976,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "",
+      "is_rgi6": 0,
+      "termlon": 6.822326095392,
+      "termlat": 45.7881853959211,
+      "zmin_m": 3227.8262,
+      "zmax_m": 3776.1143,
+      "zmed_m": 3457.0737,
+      "zmean_m": 3461.206,
+      "slope_deg": 35.562862,
+      "aspect_deg": 167.18727,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 725
+    },
+    "hits": [
+      {
+        "osm_key": "way:294947803",
+        "name": "Glacier de l'Aiguille de Tré-la-Tête Orientale",
+        "osm_share": 0.87554,
+        "row_share": 0.82085
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00676",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006818E45797N",
+      "anlys_id": 752834,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.819027352547254,
+      "cenlat": 45.796758,
+      "utm_zone": 32,
+      "area_km2": 0.315296494899097,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Trelatête Est",
+      "is_rgi6": 0,
+      "termlon": 6.822841887408662,
+      "termlat": 45.79921967296702,
+      "zmin_m": 3359.6243,
+      "zmax_m": 3892.4832,
+      "zmed_m": 3718.1475,
+      "zmean_m": 3686.7468,
+      "slope_deg": 34.136307,
+      "aspect_deg": 26.181171,
+      "aspect_sec": 2,
+      "dem_source": "COPDEM30",
+      "lmax_m": 907
+    },
+    "hits": [
+      {
+        "osm_key": "relation:5395034",
+        "name": "Ghiacciaio del Petit Mont Blanc",
+        "osm_share": 0.301255,
+        "row_share": 0.847686
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00677",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006811E45796N",
+      "anlys_id": 752827,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.810604268948254,
+      "cenlat": 45.7959095,
+      "utm_zone": 32,
+      "area_km2": 0.03781457330548,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "",
+      "is_rgi6": 0,
+      "termlon": 6.809186291615709,
+      "termlat": 45.79577658908735,
+      "zmin_m": 3588.7893,
+      "zmax_m": 3811.5103,
+      "zmed_m": 3715.8945,
+      "zmean_m": 3714.891,
+      "slope_deg": 40.1958,
+      "aspect_deg": 260.16223907470703,
+      "aspect_sec": 7,
+      "dem_source": "COPDEM30",
+      "lmax_m": 221
+    },
+    "hits": [
+      {
+        "osm_key": "relation:3299816",
+        "name": "Glacier de Tré-la-Tête",
+        "osm_share": 0.003973,
+        "row_share": 0.721609
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00678",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006784E45784N",
+      "anlys_id": 752800,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.793092039577622,
+      "cenlat": 45.7928775,
+      "utm_zone": 32,
+      "area_km2": 8.363138093679824,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01239D01 de Tre la Tete",
+      "is_rgi6": 0,
+      "termlon": 6.74704648906009,
+      "termlat": 45.78915035070724,
+      "zmin_m": 1999.645,
+      "zmax_m": 3840.4348,
+      "zmed_m": 2967.4497,
+      "zmean_m": 2928.9622,
+      "slope_deg": 24.142452,
+      "aspect_deg": 274.9337310791016,
+      "aspect_sec": 7,
+      "dem_source": "COPDEM30",
+      "lmax_m": 7434
+    },
+    "hits": [
+      {
+        "osm_key": "relation:3299816",
+        "name": "Glacier de Tré-la-Tête",
+        "osm_share": 0.940402,
+        "row_share": 0.772335
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00679",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006783E45783N",
+      "anlys_id": 752782,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.775346123566674,
+      "cenlat": 45.799471499999996,
+      "utm_zone": 32,
+      "area_km2": 0.148741134598346,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01239D03 de la Berangere",
+      "is_rgi6": 0,
+      "termlon": 6.77031888265445,
+      "termlat": 45.797438430183234,
+      "zmin_m": 3054.6824,
+      "zmax_m": 3367.133,
+      "zmed_m": 3173.4565,
+      "zmean_m": 3184.5325,
+      "slope_deg": 24.063,
+      "aspect_deg": 192.85166931152344,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1039
+    },
+    "hits": [
+      {
+        "osm_key": "way:244065148",
+        "name": "Glacier de la Bérangère",
+        "osm_share": 0.877063,
+        "row_share": 0.508501
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00680",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006778E45809N",
+      "anlys_id": 752785,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.779665450323558,
+      "cenlat": 45.808706,
+      "utm_zone": 32,
+      "area_km2": 0.602512319895517,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01239C01 d'Armancette",
+      "is_rgi6": 0,
+      "termlon": 6.769980205078125,
+      "termlat": 45.81246489482357,
+      "zmin_m": 2604.7957,
+      "zmax_m": 3611.6172,
+      "zmed_m": 3164.4917,
+      "zmean_m": 3144.1257,
+      "slope_deg": 32.795097,
+      "aspect_deg": 293.17053985595703,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1822
+    },
+    "hits": [
+      {
+        "osm_key": "way:244065146",
+        "name": "Glacier d'Armancette",
+        "osm_share": 0.742231,
+        "row_share": 0.876442
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00681",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006783E45817N",
+      "anlys_id": 752786,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.782125951546393,
+      "cenlat": 45.8168345,
+      "utm_zone": 32,
+      "area_km2": 0.711844394262976,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01239B06 de Covagnet",
+      "is_rgi6": 0,
+      "termlon": 6.775806203536662,
+      "termlat": 45.823342762127965,
+      "zmin_m": 2230.465,
+      "zmax_m": 3643.3618,
+      "zmed_m": 3030.5547,
+      "zmean_m": 3031.6353,
+      "slope_deg": 38.574703,
+      "aspect_deg": 327.8751602172852,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1858
+    },
+    "hits": [
+      {
+        "osm_key": "way:244065146",
+        "name": "Glacier d'Armancette",
+        "osm_share": 0.142446,
+        "row_share": 0.14237
+      },
+      {
+        "osm_key": "way:244065147",
+        "name": "Glacier de Covagnet",
+        "osm_share": 0.922216,
+        "row_share": 0.559146
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00683",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006792E45817N",
+      "anlys_id": 752799,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.791995615838902,
+      "cenlat": 45.817255,
+      "utm_zone": 32,
+      "area_km2": 0.220617112478162,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01239B04 du Miage 2",
+      "is_rgi6": 0,
+      "termlon": 6.786800777924838,
+      "termlat": 45.820308139111084,
+      "zmin_m": 2668.792,
+      "zmax_m": 3556.0796,
+      "zmed_m": 3148.9739,
+      "zmean_m": 3130.4707,
+      "slope_deg": 45.601624,
+      "aspect_deg": 326.0173110961914,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 982
+    },
+    "hits": [
+      {
+        "osm_key": "way:363120274",
+        "name": "Glacier du Col des Dômes",
+        "osm_share": 0.874759,
+        "row_share": 0.558767
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00684",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006799E45819N",
+      "anlys_id": 752811,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.799071257384051,
+      "cenlat": 45.8193275,
+      "utm_zone": 32,
+      "area_km2": 0.622232032471251,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01239B04 du Miage 3",
+      "is_rgi6": 0,
+      "termlon": 6.797029250369313,
+      "termlat": 45.82273409965638,
+      "zmin_m": 2776.24,
+      "zmax_m": 3628.983,
+      "zmed_m": 3239.4956,
+      "zmean_m": 3240.1594,
+      "slope_deg": 44.423424,
+      "aspect_deg": 342.67028427124023,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 905
+    },
+    "hits": [
+      {
+        "osm_key": "way:363120277",
+        "name": "Unnamed glacier (way 363120277)",
+        "osm_share": 0.956639,
+        "row_share": 0.836919
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00685",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006806E45816N",
+      "anlys_id": 752820,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.806127701963403,
+      "cenlat": 45.8156185,
+      "utm_zone": 32,
+      "area_km2": 0.060712770256813,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Dòmes de Miage",
+      "is_rgi6": 0,
+      "termlon": 6.807037265999666,
+      "termlat": 45.81433649934207,
+      "zmin_m": 3420.6409,
+      "zmax_m": 3646.4211,
+      "zmed_m": 3540.57,
+      "zmean_m": 3535.9944,
+      "slope_deg": 36.390892,
+      "aspect_deg": 119.12167,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 314
+    },
+    "hits": [
+      {
+        "osm_key": "relation:3299816",
+        "name": "Glacier de Tré-la-Tête",
+        "osm_share": 0.008064,
+        "row_share": 0.912344
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00686",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006813E45824N",
+      "anlys_id": 752829,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.812626,
+      "cenlat": 45.823508000000004,
+      "utm_zone": 32,
+      "area_km2": 0.126004797282719,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Col de Miage",
+      "is_rgi6": 0,
+      "termlon": 6.815041092117886,
+      "termlat": 45.82101128452352,
+      "zmin_m": 3032.3823,
+      "zmax_m": 3433.2537,
+      "zmed_m": 3307.5117,
+      "zmean_m": 3281.1362,
+      "slope_deg": 30.146633,
+      "aspect_deg": 144.13872,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 602
+    },
+    "hits": [
+      {
+        "osm_key": "way:301715191",
+        "name": "Glacier du Col du Miage",
+        "osm_share": 0.839076,
+        "row_share": 0.655403
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00687",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006829E45810N",
+      "anlys_id": 752841,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.825158317592592,
+      "cenlat": 45.8240135,
+      "utm_zone": 32,
+      "area_km2": 0.193161908250369,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "",
+      "is_rgi6": 0,
+      "termlon": 6.821915266279452,
+      "termlat": 45.82436096604645,
+      "zmin_m": 3137.2896,
+      "zmax_m": 3437.089,
+      "zmed_m": 3332.6443,
+      "zmean_m": 3324.9402,
+      "slope_deg": 33.630302,
+      "aspect_deg": 237.8316650390625,
+      "aspect_sec": 6,
+      "dem_source": "COPDEM30",
+      "lmax_m": 403
+    },
+    "hits": [
+      {
+        "osm_key": "way:32673906",
+        "name": "Glacier de Bionnassay - Ghiacciaio di Bionassay",
+        "osm_share": 0.160821,
+        "row_share": 0.843187
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00688",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006830E45811N",
+      "anlys_id": 752849,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.834767273681674,
+      "cenlat": 45.810283,
+      "utm_zone": 32,
+      "area_km2": 10.167393647209591,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Miage",
+      "is_rgi6": 0,
+      "termlon": 6.894736016991942,
+      "termlat": 45.786626541526026,
+      "zmin_m": 1730.4143,
+      "zmax_m": 4445.108,
+      "zmed_m": 2803.4285,
+      "zmean_m": 2875.113,
+      "slope_deg": 23.442604,
+      "aspect_deg": 178.0484,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 10103
+    },
+    "hits": [
+      {
+        "osm_key": "way:32673896",
+        "name": "Glacier du Dôme - Ghiacciaio del Dôme",
+        "osm_share": 0.907893,
+        "row_share": 0.180436
+      },
+      {
+        "osm_key": "way:32673906",
+        "name": "Glacier de Bionnassay - Ghiacciaio di Bionassay",
+        "osm_share": 0.769275,
+        "row_share": 0.076627
+      },
+      {
+        "osm_key": "relation:108757",
+        "name": "Ghiacciaio del Monte Bianco",
+        "osm_share": 0.887998,
+        "row_share": 0.154124
+      },
+      {
+        "osm_key": "relation:2589255",
+        "name": "Ghiacciaio del Miage",
+        "osm_share": 0.92628,
+        "row_share": 0.442594
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00691",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006872E45809N",
+      "anlys_id": 752891,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.871697495800634,
+      "cenlat": 45.808828000000005,
+      "utm_zone": 32,
+      "area_km2": 1.250261986493827,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Brouillard",
+      "is_rgi6": 0,
+      "termlon": 6.87486235099802,
+      "termlat": 45.79565579926804,
+      "zmin_m": 2410.148,
+      "zmax_m": 3981.8225,
+      "zmed_m": 3098.5112,
+      "zmean_m": 3100.0981,
+      "slope_deg": 30.442507,
+      "aspect_deg": 160.97578,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 3084
+    },
+    "hits": [
+      {
+        "osm_key": "way:32668421",
+        "name": "Ghiacciaio del Brouillard",
+        "osm_share": 0.828612,
+        "row_share": 0.897039
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00692",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006881E45809N",
+      "anlys_id": 752902,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.880952499999999,
+      "cenlat": 45.809135,
+      "utm_zone": 32,
+      "area_km2": 0.039604786918699,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Châtelet",
+      "is_rgi6": 0,
+      "termlon": 6.879656838174273,
+      "termlat": 45.80765736949448,
+      "zmin_m": 2880.2441,
+      "zmax_m": 3086.434,
+      "zmed_m": 2951.5906,
+      "zmean_m": 2957.2617,
+      "slope_deg": 42.860962,
+      "aspect_deg": 160.04434,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 415
+    },
+    "hits": [
+      {
+        "osm_key": "way:176390679",
+        "name": "Ghiacciaio du Chatelet",
+        "osm_share": 0.34672,
+        "row_share": 0.666486
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00693",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006888E45812N",
+      "anlys_id": 752912,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.887795833333333,
+      "cenlat": 45.811958000000004,
+      "utm_zone": 32,
+      "area_km2": 1.053143980655369,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Freney",
+      "is_rgi6": 0,
+      "termlon": 6.891075362319413,
+      "termlat": 45.801806217809236,
+      "zmin_m": 2380.072,
+      "zmax_m": 3712.416,
+      "zmed_m": 3060.415,
+      "zmean_m": 3003.145,
+      "slope_deg": 27.460236,
+      "aspect_deg": 147.65028,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 2669
+    },
+    "hits": [
+      {
+        "osm_key": "way:32668406",
+        "name": "Ghiacciaio del Freney",
+        "osm_share": 0.870087,
+        "row_share": 0.936476
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00694",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006893E45825N",
+      "anlys_id": 752921,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.892694000000001,
+      "cenlat": 45.8254185,
+      "utm_zone": 32,
+      "area_km2": 0.011708546543286,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "",
+      "is_rgi6": 0,
+      "termlon": 6.89325637630027,
+      "termlat": 45.825861582172294,
+      "zmin_m": 3081.5205,
+      "zmax_m": 3279.5947,
+      "zmed_m": 3203.424,
+      "zmean_m": 3197.4343,
+      "slope_deg": 52.081264,
+      "aspect_deg": 62.887707,
+      "aspect_sec": 2,
+      "dem_source": "COPDEM30",
+      "lmax_m": 153
+    },
+    "hits": [
+      {
+        "osm_key": "way:777833954",
+        "name": "Glacier Oriental de l'Aiguille Blanche",
+        "osm_share": 0.258995,
+        "row_share": 0.863517
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00695",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006899E45830N",
+      "anlys_id": 752930,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.899291,
+      "cenlat": 45.8297245,
+      "utm_zone": 32,
+      "area_km2": 6.877533595971272,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Brenva",
+      "is_rgi6": 0,
+      "termlon": 6.947293581252969,
+      "termlat": 45.81632530661255,
+      "zmin_m": 1384.5026,
+      "zmax_m": 4441.6816,
+      "zmed_m": 3008.6895,
+      "zmean_m": 2924.787,
+      "slope_deg": 25.773499,
+      "aspect_deg": 119.513115,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 7297
+    },
+    "hits": [
+      {
+        "osm_key": "way:777833955",
+        "name": "Glacier Septentrional des Aiguilles Blanches",
+        "osm_share": 0.865933,
+        "row_share": 0.02166
+      },
+      {
+        "osm_key": "way:777833956",
+        "name": "Glacier du Gendarme Rouge",
+        "osm_share": 0.778122,
+        "row_share": 0.008181
+      },
+      {
+        "osm_key": "relation:5397135",
+        "name": "Ghiacciaio della Brenva",
+        "osm_share": 0.926009,
+        "row_share": 0.695316
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00697",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006920E45837N",
+      "anlys_id": 752949,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.92046737037037,
+      "cenlat": 45.836732,
+      "utm_zone": 32,
+      "area_km2": 0.207037403775468,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Entrèves",
+      "is_rgi6": 0,
+      "termlon": 6.922637557141741,
+      "termlat": 45.83271812422131,
+      "zmin_m": 2714.6353,
+      "zmax_m": 3382.845,
+      "zmed_m": 3014.168,
+      "zmean_m": 3012.0337,
+      "slope_deg": 34.111164,
+      "aspect_deg": 147.48773,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1086
+    },
+    "hits": [
+      {
+        "osm_key": "way:394890290",
+        "name": "Ghiacciaio di Entreves",
+        "osm_share": 0.908463,
+        "row_share": 0.617046
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00698",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006927E45841N",
+      "anlys_id": 752958,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.926865132142366,
+      "cenlat": 45.8412965,
+      "utm_zone": 32,
+      "area_km2": 0.691326463789265,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Toula",
+      "is_rgi6": 0,
+      "termlon": 6.931371080065777,
+      "termlat": 45.83611666221895,
+      "zmin_m": 2683.2788,
+      "zmax_m": 3406.9797,
+      "zmed_m": 3063.7673,
+      "zmean_m": 3055.0276,
+      "slope_deg": 28.935312,
+      "aspect_deg": 144.02483,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1434
+    },
+    "hits": [
+      {
+        "osm_key": "way:327069846",
+        "name": "Ghiacciaio di Toula",
+        "osm_share": 0.988523,
+        "row_share": 0.827402
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00701",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006956E45851N",
+      "anlys_id": 752987,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.956272,
+      "cenlat": 45.850606,
+      "utm_zone": 32,
+      "area_km2": 0.64091085466291,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Rochefort",
+      "is_rgi6": 0,
+      "termlon": 6.955249703859708,
+      "termlat": 45.84599691447734,
+      "zmin_m": 2600.5908,
+      "zmax_m": 3283.4097,
+      "zmed_m": 2895.3152,
+      "zmean_m": 2890.356,
+      "slope_deg": 30.747025,
+      "aspect_deg": 156.90392,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1236
+    },
+    "hits": [
+      {
+        "osm_key": "way:247923349",
+        "name": "Glacier de Rochefort",
+        "osm_share": 0.857913,
+        "row_share": 0.817988
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00703",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006972E45859N",
+      "anlys_id": 752998,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.971619285185185,
+      "cenlat": 45.85891,
+      "utm_zone": 32,
+      "area_km2": 1.679728055813235,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Planpincieux",
+      "is_rgi6": 0,
+      "termlon": 6.977193559852964,
+      "termlat": 45.848548165754906,
+      "zmin_m": 2510.1501,
+      "zmax_m": 4158.369,
+      "zmed_m": 3061.927,
+      "zmean_m": 3140.7903,
+      "slope_deg": 31.347893,
+      "aspect_deg": 173.2649,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 3219
+    },
+    "hits": [
+      {
+        "osm_key": "way:247923316",
+        "name": "Glacier de Planpincieux",
+        "osm_share": 0.884331,
+        "row_share": 0.594402
+      },
+      {
+        "osm_key": "way:247923334",
+        "name": "Glacier des Grandes Jorasses",
+        "osm_share": 0.782392,
+        "row_share": 0.301752
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00704",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006995E45858N",
+      "anlys_id": 753029,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.994630619441002,
+      "cenlat": 45.858438,
+      "utm_zone": 32,
+      "area_km2": 0.126924915323166,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Prà Sec",
+      "is_rgi6": 0,
+      "termlon": 6.996508490528555,
+      "termlat": 45.85457275582151,
+      "zmin_m": 2484.696,
+      "zmax_m": 3112.6067,
+      "zmed_m": 2754.3682,
+      "zmean_m": 2763.9106,
+      "slope_deg": 37.845535,
+      "aspect_deg": 136.55208,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 911
+    },
+    "hits": [
+      {
+        "osm_key": "way:247923326",
+        "name": "Glacier de Pra Sec",
+        "osm_share": 0.717944,
+        "row_share": 0.915685
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00705",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006997E45863N",
+      "anlys_id": 753038,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.9966045,
+      "cenlat": 45.8626615,
+      "utm_zone": 32,
+      "area_km2": 0.090017630477779,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Tronchey",
+      "is_rgi6": 0,
+      "termlon": 6.997461969813341,
+      "termlat": 45.86030081534929,
+      "zmin_m": 2953.8828,
+      "zmax_m": 3416.6753,
+      "zmed_m": 3175.0862,
+      "zmean_m": 3166.2083,
+      "slope_deg": 40.222214,
+      "aspect_deg": 173.02716,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 586
+    },
+    "hits": [
+      {
+        "osm_key": "way:247923330",
+        "name": "Glacier de Tronchey",
+        "osm_share": 0.846251,
+        "row_share": 0.529957
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00706",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007009E45873N",
+      "anlys_id": 753060,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.00858822910643,
+      "cenlat": 45.873402,
+      "utm_zone": 32,
+      "area_km2": 2.248522643577115,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Frèbouzie",
+      "is_rgi6": 0,
+      "termlon": 7.01464660339578,
+      "termlat": 45.866108898600444,
+      "zmin_m": 2451.1953,
+      "zmax_m": 3493.127,
+      "zmed_m": 2976.1616,
+      "zmean_m": 2971.1304,
+      "slope_deg": 31.53449,
+      "aspect_deg": 118.09227,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 2142
+    },
+    "hits": [
+      {
+        "osm_key": "way:32673882",
+        "name": "Ghiacciaio di Fréboudze",
+        "osm_share": 0.991168,
+        "row_share": 0.6416
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00707",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007018E45879N",
+      "anlys_id": 753067,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.017846581302493,
+      "cenlat": 45.8793715,
+      "utm_zone": 32,
+      "area_km2": 0.29797053814428,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Gruetta Ovest",
+      "is_rgi6": 0,
+      "termlon": 7.021085505238721,
+      "termlat": 45.87307909479148,
+      "zmin_m": 2594.6057,
+      "zmax_m": 3594.453,
+      "zmed_m": 3103.9907,
+      "zmean_m": 3127.872,
+      "slope_deg": 35.04578,
+      "aspect_deg": 174.04163,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1540
+    },
+    "hits": [
+      {
+        "osm_key": "way:247923343",
+        "name": "Ghiacciaio occidental du Mont Gruettaz",
+        "osm_share": 0.787788,
+        "row_share": 0.889927
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00708",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007027E45881N",
+      "anlys_id": 753079,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.02648615462963,
+      "cenlat": 45.8810395,
+      "utm_zone": 32,
+      "area_km2": 0.191739875132548,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Gruetta Est",
+      "is_rgi6": 0,
+      "termlon": 7.032783979284488,
+      "termlat": 45.877871559322784,
+      "zmin_m": 2599.9897,
+      "zmax_m": 3245.0127,
+      "zmed_m": 2923.857,
+      "zmean_m": 2926.0654,
+      "slope_deg": 35.897182,
+      "aspect_deg": 122.31647,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1016
+    },
+    "hits": [
+      {
+        "osm_key": "way:247923312",
+        "name": "Ghiacciaio del Gruetta",
+        "osm_share": 0.783655,
+        "row_share": 0.95672
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00709",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007029E45876N",
+      "anlys_id": 753082,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.029373516666666,
+      "cenlat": 45.875922,
+      "utm_zone": 32,
+      "area_km2": 0.023403373187049,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Punta Bosio",
+      "is_rgi6": 0,
+      "termlon": 7.030922584237715,
+      "termlat": 45.87584147334034,
+      "zmin_m": 2613.4453,
+      "zmax_m": 2796.1997,
+      "zmed_m": 2737.4226,
+      "zmean_m": 2730.133,
+      "slope_deg": 33.537384,
+      "aspect_deg": 102.572815,
+      "aspect_sec": 3,
+      "dem_source": "COPDEM30",
+      "lmax_m": 274
+    },
+    "hits": [
+      {
+        "osm_key": "way:247923341",
+        "name": "Glacier du petit Mont Gruettaz",
+        "osm_share": 0.571633,
+        "row_share": 0.90071
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00713",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006994E45896N",
+      "anlys_id": 753027,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.994454944342291,
+      "cenlat": 45.895249500000006,
+      "utm_zone": 32,
+      "area_km2": 0.378070634403455,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01236A09 Pierre Joseph",
+      "is_rgi6": 0,
+      "termlon": 6.988855687516248,
+      "termlat": 45.89291639880852,
+      "zmin_m": 2737.965,
+      "zmax_m": 3323.7524,
+      "zmed_m": 3094.584,
+      "zmean_m": 3073.5698,
+      "slope_deg": 34.220222,
+      "aspect_deg": 259.08870697021484,
+      "aspect_sec": 7,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1078
+    },
+    "hits": [
+      {
+        "osm_key": "way:108156168",
+        "name": "Glacier de Pierre Joseph",
+        "osm_share": 0.783785,
+        "row_share": 0.673344
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00715",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007028E45901N",
+      "anlys_id": 753080,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.028288240740741,
+      "cenlat": 45.901130499999994,
+      "utm_zone": 32,
+      "area_km2": 3.691079521212174,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Triolet",
+      "is_rgi6": 0,
+      "termlon": 7.03083172261146,
+      "termlat": 45.892148785805006,
+      "zmin_m": 2490.3342,
+      "zmax_m": 3597.9094,
+      "zmed_m": 2939.5947,
+      "zmean_m": 2956.5273,
+      "slope_deg": 22.865377,
+      "aspect_deg": 109.70335,
+      "aspect_sec": 3,
+      "dem_source": "COPDEM30",
+      "lmax_m": 3210
+    },
+    "hits": [
+      {
+        "osm_key": "way:32673833",
+        "name": "Ghiacciaio di Triolet",
+        "osm_share": 0.930162,
+        "row_share": 0.836631
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00716",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007045E45907N",
+      "anlys_id": 753091,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.045496238847583,
+      "cenlat": 45.9067115,
+      "utm_zone": 32,
+      "area_km2": 3.205639794267106,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Prè de Bar",
+      "is_rgi6": 0,
+      "termlon": 7.059763348223808,
+      "termlat": 45.89133859821859,
+      "zmin_m": 2080.452,
+      "zmax_m": 3656.7292,
+      "zmed_m": 3100.0889,
+      "zmean_m": 3029.2737,
+      "slope_deg": 23.379017,
+      "aspect_deg": 149.62697,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 3905
+    },
+    "hits": [
+      {
+        "osm_key": "way:32668359",
+        "name": "Ghiacciaio di Pré de Bar",
+        "osm_share": 0.979673,
+        "row_share": 0.750633
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00718",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007060E45918N",
+      "anlys_id": 753113,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.0609035,
+      "cenlat": 45.919664999999995,
+      "utm_zone": 32,
+      "area_km2": 1.460183976654983,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "DOLENT GLACIER DU",
+      "is_rgi6": 0,
+      "termlon": 7.070557139451236,
+      "termlat": 45.914613235224444,
+      "zmin_m": 2481.117,
+      "zmax_m": 3566.6921,
+      "zmed_m": 2874.4473,
+      "zmean_m": 2894.6616,
+      "slope_deg": 31.826351,
+      "aspect_deg": 86.92545,
+      "aspect_sec": 3,
+      "dem_source": "COPDEM30",
+      "lmax_m": 2207
+    },
+    "hits": [
+      {
+        "osm_key": "way:32673844",
+        "name": "Glacier du Dolent",
+        "osm_share": 0.992454,
+        "row_share": 0.646411
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00720",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007053E45935N",
+      "anlys_id": 753101,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.052330749074073,
+      "cenlat": 45.932466500000004,
+      "utm_zone": 32,
+      "area_km2": 2.213384266681622,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "A NEUVE GLACIER DE L'-S",
+      "is_rgi6": 0,
+      "termlon": 7.069954367069485,
+      "termlat": 45.93763954308929,
+      "zmin_m": 2060.5227,
+      "zmax_m": 3708.8235,
+      "zmed_m": 2743.9749,
+      "zmean_m": 2770.6433,
+      "slope_deg": 31.910156,
+      "aspect_deg": 52.05378,
+      "aspect_sec": 2,
+      "dem_source": "COPDEM30",
+      "lmax_m": 3144
+    },
+    "hits": [
+      {
+        "osm_key": "way:267756169",
+        "name": "Glacier de l'A Neuve",
+        "osm_share": 0.618644,
+        "row_share": 0.635503
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00721",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007050E45949N",
+      "anlys_id": 753096,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.049445934259259,
+      "cenlat": 45.9485235,
+      "utm_zone": 32,
+      "area_km2": 1.04354830502783,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "A NEUVE GLACIER DE L'-N",
+      "is_rgi6": 0,
+      "termlon": 7.055596830501742,
+      "termlat": 45.94198660427402,
+      "zmin_m": 2560.2417,
+      "zmax_m": 3566.1428,
+      "zmed_m": 2944.4592,
+      "zmean_m": 2980.401,
+      "slope_deg": 28.264692,
+      "aspect_deg": 118.41506,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 2052
+    },
+    "hits": [
+      {
+        "osm_key": "way:267756169",
+        "name": "Glacier de l'A Neuve",
+        "osm_share": 0.259262,
+        "row_share": 0.564883
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00722",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007051E45956N",
+      "anlys_id": 753099,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.050750703703704,
+      "cenlat": 45.9554665,
+      "utm_zone": 32,
+      "area_km2": 0.410875907126456,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Grande Lui",
+      "is_rgi6": 0,
+      "termlon": 7.059768518772235,
+      "termlat": 45.95292038431899,
+      "zmin_m": 2907.2634,
+      "zmax_m": 3453.824,
+      "zmed_m": 3263.017,
+      "zmean_m": 3235.2039,
+      "slope_deg": 29.038685,
+      "aspect_deg": 144.98033,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1185
+    },
+    "hits": [
+      {
+        "osm_key": "way:267756169",
+        "name": "Glacier de l'A Neuve",
+        "osm_share": 0.09295,
+        "row_share": 0.514367
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00723",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007070E45964N",
+      "anlys_id": 753121,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.066758277777778,
+      "cenlat": 45.962703000000005,
+      "utm_zone": 32,
+      "area_km2": 0.574591414322834,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "PLANEREUSES GLACIER DES",
+      "is_rgi6": 0,
+      "termlon": 7.077313546037496,
+      "termlat": 45.96422538837071,
+      "zmin_m": 2624.9395,
+      "zmax_m": 3389.5671,
+      "zmed_m": 2931.0022,
+      "zmean_m": 2976.0242,
+      "slope_deg": 26.118439,
+      "aspect_deg": 62.54177,
+      "aspect_sec": 2,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1946
+    },
+    "hits": [
+      {
+        "osm_key": "way:1394999701",
+        "name": "Unnamed glacier (way 1394999701)",
+        "osm_share": 0.949508,
+        "row_share": 0.340539
+      },
+      {
+        "osm_key": "way:1394999702",
+        "name": "Unnamed glacier (way 1394999702)",
+        "osm_share": 0.942818,
+        "row_share": 0.230399
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00724",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007069E45955N",
+      "anlys_id": 753128,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.069910308333333,
+      "cenlat": 45.9555625,
+      "utm_zone": 32,
+      "area_km2": 0.43567853895064,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "TREUTSE BO GLACIER DE",
+      "is_rgi6": 0,
+      "termlon": 7.075282823455211,
+      "termlat": 45.95285044657113,
+      "zmin_m": 2716.38,
+      "zmax_m": 3284.779,
+      "zmed_m": 2872.6501,
+      "zmean_m": 2918.4016,
+      "slope_deg": 25.183762,
+      "aspect_deg": 85.367355,
+      "aspect_sec": 3,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1386
+    },
+    "hits": [
+      {
+        "osm_key": "way:1394999703",
+        "name": "Unnamed glacier (way 1394999703)",
+        "osm_share": 0.999963,
+        "row_share": 0.08643
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00732",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007050E45972N",
+      "anlys_id": 753075,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.024611401762357,
+      "cenlat": 45.972023,
+      "utm_zone": 32,
+      "area_km2": 7.078119237413225,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Saleina",
+      "is_rgi6": 0,
+      "termlon": 7.081939831826046,
+      "termlat": 45.98837004543965,
+      "zmin_m": 1784.2257,
+      "zmax_m": 3872.388,
+      "zmed_m": 3027.98,
+      "zmean_m": 2958.6611,
+      "slope_deg": 20.872684,
+      "aspect_deg": 35.240334,
+      "aspect_sec": 2,
+      "dem_source": "COPDEM30",
+      "lmax_m": 6463
+    },
+    "hits": [
+      {
+        "osm_key": "way:30764493",
+        "name": "Glacier de Saleinaz",
+        "osm_share": 0.980934,
+        "row_share": 0.73568
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00733",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007003E45960N",
+      "anlys_id": 753056,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.006604825907669,
+      "cenlat": 45.960993,
+      "utm_zone": 32,
+      "area_km2": 1.023888099102487,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01235A06 du Chardonnet",
+      "is_rgi6": 0,
+      "termlon": 6.994181361612535,
+      "termlat": 45.95715566089978,
+      "zmin_m": 2710.9482,
+      "zmax_m": 3763.0894,
+      "zmed_m": 3178.936,
+      "zmean_m": 3174.285,
+      "slope_deg": 29.997667,
+      "aspect_deg": 278.2357788085937,
+      "aspect_sec": 7,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1818
+    },
+    "hits": [
+      {
+        "osm_key": "way:30764447",
+        "name": "Glacier du Chardonnet",
+        "osm_share": 0.961817,
+        "row_share": 0.705397
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00734",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007008E45954N",
+      "anlys_id": 753061,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.010495857864671,
+      "cenlat": 45.9549435,
+      "utm_zone": 32,
+      "area_km2": 0.38599555218155,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01235A07 du Milieu",
+      "is_rgi6": 0,
+      "termlon": 7.000527448275593,
+      "termlat": 45.950607371418386,
+      "zmin_m": 2824.9988,
+      "zmax_m": 3730.1165,
+      "zmed_m": 3232.2515,
+      "zmean_m": 3234.0251,
+      "slope_deg": 31.284878,
+      "aspect_deg": 249.47180938720703,
+      "aspect_sec": 7,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1652
+    },
+    "hits": [
+      {
+        "osm_key": "way:210128316",
+        "name": "Glacier du Milieu",
+        "osm_share": 0.951485,
+        "row_share": 0.820274
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00735",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006994E45965N",
+      "anlys_id": 753028,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.994281527791161,
+      "cenlat": 45.964684000000005,
+      "utm_zone": 32,
+      "area_km2": 0.029071478092018,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01235A05 du Trident",
+      "is_rgi6": 0,
+      "termlon": 6.994673674774361,
+      "termlat": 45.96378767640686,
+      "zmin_m": 2995.2117,
+      "zmax_m": 3114.939,
+      "zmed_m": 3047.6914,
+      "zmean_m": 3049.1157,
+      "slope_deg": 33.63441,
+      "aspect_deg": 197.5154571533203,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 245
+    },
+    "hits": [
+      {
+        "osm_key": "way:30764477",
+        "name": "Glacier du Trident",
+        "osm_share": 0.304147,
+        "row_share": 0.798544
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00738",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006988E45987N",
+      "anlys_id": 753030,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.994948712812452,
+      "cenlat": 45.983904499999994,
+      "utm_zone": 32,
+      "area_km2": 8.12365700654927,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01234A01 du Tour",
+      "is_rgi6": 0,
+      "termlon": 6.971350917945284,
+      "termlat": 45.99711256422056,
+      "zmin_m": 2189.7031,
+      "zmax_m": 3731.257,
+      "zmed_m": 2969.7812,
+      "zmean_m": 2980.1118,
+      "slope_deg": 19.585989,
+      "aspect_deg": 315.7776298522949,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 4613
+    },
+    "hits": [
+      {
+        "osm_key": "relation:106731",
+        "name": "Glacier du Tour",
+        "osm_share": 0.993216,
+        "row_share": 0.768119
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00739",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006999E46003N",
+      "anlys_id": 753040,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.998220060901341,
+      "cenlat": 46.0050845,
+      "utm_zone": 32,
+      "area_km2": 1.018728840149364,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "GRANDS GLACIER DES",
+      "is_rgi6": 0,
+      "termlon": 7.001729972544051,
+      "termlat": 46.01061374176995,
+      "zmin_m": 2524.2087,
+      "zmax_m": 3237.0474,
+      "zmed_m": 2949.6504,
+      "zmean_m": 2923.103,
+      "slope_deg": 26.758287,
+      "aspect_deg": 1.2842681,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1550
+    },
+    "hits": [
+      {
+        "osm_key": "relation:3011613",
+        "name": "Glacier des Grands",
+        "osm_share": 0.543907,
+        "row_share": 0.633604
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00740",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006988E46007N",
+      "anlys_id": 753018,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.988294506471155,
+      "cenlat": 46.00711,
+      "utm_zone": 32,
+      "area_km2": 0.302606700056226,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "BERONS GLACIER DES",
+      "is_rgi6": 0,
+      "termlon": 6.988810166250673,
+      "termlat": 46.01103488686632,
+      "zmin_m": 2618.8286,
+      "zmax_m": 3079.693,
+      "zmed_m": 2835.7341,
+      "zmean_m": 2832.298,
+      "slope_deg": 28.911558,
+      "aspect_deg": 3.0357866,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 893
+    },
+    "hits": [
+      {
+        "osm_key": "relation:14797906",
+        "name": "Glacier des Berons",
+        "osm_share": 0.970477,
+        "row_share": 0.247193
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00741",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007010E46002N",
+      "anlys_id": 753062,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.01001726699212,
+      "cenlat": 46.005134999999996,
+      "utm_zone": 32,
+      "area_km2": 0.727052328305586,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Petoudes",
+      "is_rgi6": 0,
+      "termlon": 7.009813526371816,
+      "termlat": 46.01213648995024,
+      "zmin_m": 2543.0415,
+      "zmax_m": 3353.172,
+      "zmed_m": 3052.7822,
+      "zmean_m": 3027.1719,
+      "slope_deg": 26.345694,
+      "aspect_deg": 340.02056884765625,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1653
+    },
+    "hits": [
+      {
+        "osm_key": "relation:3011613",
+        "name": "Glacier des Grands",
+        "osm_share": 0.439195,
+        "row_share": 0.716879
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00743",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007026E45991N",
+      "anlys_id": 753074,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.024362949813719,
+      "cenlat": 46.001668,
+      "utm_zone": 32,
+      "area_km2": 5.994952361038151,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "TRIENT GLACIER DU",
+      "is_rgi6": 0,
+      "termlon": 7.023650939917549,
+      "termlat": 46.02082357883107,
+      "zmin_m": 1918.584,
+      "zmax_m": 3448.3062,
+      "zmed_m": 3126.8044,
+      "zmean_m": 3055.7625,
+      "slope_deg": 16.22487,
+      "aspect_deg": 22.084282,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 4507
+    },
+    "hits": [
+      {
+        "osm_key": "way:30764602",
+        "name": "Glacier du Trient",
+        "osm_share": 0.992184,
+        "row_share": 0.084436
+      },
+      {
+        "osm_key": "relation:14973797",
+        "name": "Plateau du Trient",
+        "osm_share": 0.911555,
+        "row_share": 0.806339
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00744",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G007045E45994N",
+      "anlys_id": 753094,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 7.046646704075425,
+      "cenlat": 45.9950575,
+      "utm_zone": 32,
+      "area_km2": 1.296094286738744,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "ORNY GLACIER D'",
+      "is_rgi6": 0,
+      "termlon": 7.070664019370524,
+      "termlat": 46.00074541932153,
+      "zmin_m": 2646.2212,
+      "zmax_m": 3245.2144,
+      "zmed_m": 2933.761,
+      "zmean_m": 2944.012,
+      "slope_deg": 14.602085,
+      "aspect_deg": 47.71681,
+      "aspect_sec": 2,
+      "dem_source": "COPDEM30",
+      "lmax_m": 2742
+    },
+    "hits": [
+      {
+        "osm_key": "way:30764508",
+        "name": "Glacier d'Orny",
+        "osm_share": 0.998706,
+        "row_share": 0.363823
+      },
+      {
+        "osm_key": "relation:14973797",
+        "name": "Plateau du Trient",
+        "osm_share": 0.078058,
+        "row_share": 0.319379
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00745",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006985E45951N",
+      "anlys_id": 753003,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.978662045595848,
+      "cenlat": 45.947587,
+      "utm_zone": 32,
+      "area_km2": 14.256808881842588,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01235A08 dArgentiere",
+      "is_rgi6": 0,
+      "termlon": 6.94646747477507,
+      "termlat": 45.9771869464339,
+      "zmin_m": 1492.7166,
+      "zmax_m": 4072.3206,
+      "zmed_m": 2868.9392,
+      "zmean_m": 2842.5417,
+      "slope_deg": 21.53181,
+      "aspect_deg": 2.790411,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM90",
+      "lmax_m": 9649
+    },
+    "hits": [
+      {
+        "osm_key": "way:30764271",
+        "name": "Glacier des Rognons",
+        "osm_share": 0.998107,
+        "row_share": 0.123593
+      },
+      {
+        "osm_key": "way:30764480",
+        "name": "Glacier des Améthystes",
+        "osm_share": 0.946892,
+        "row_share": 0.079642
+      },
+      {
+        "osm_key": "way:30764488",
+        "name": "Glacier des Rouges du Dolent",
+        "osm_share": 0.986442,
+        "row_share": 0.02215
+      },
+      {
+        "osm_key": "way:45561171",
+        "name": "Glacier de la Verte",
+        "osm_share": 0.980646,
+        "row_share": 0.003655
+      },
+      {
+        "osm_key": "way:210128317",
+        "name": "Glacier du Tour Noir",
+        "osm_share": 0.92433,
+        "row_share": 0.035867
+      },
+      {
+        "osm_key": "relation:2590255",
+        "name": "Glacier d'Argentière",
+        "osm_share": 0.983454,
+        "row_share": 0.506109
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00746",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006955E45946N",
+      "anlys_id": 752988,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.956431825180338,
+      "cenlat": 45.946250500000005,
+      "utm_zone": 32,
+      "area_km2": 0.239520836042048,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01236A02 des Grands Montets",
+      "is_rgi6": 0,
+      "termlon": 6.949725379664311,
+      "termlat": 45.946748491495896,
+      "zmin_m": 2844.453,
+      "zmax_m": 3394.4133,
+      "zmed_m": 3160.1035,
+      "zmean_m": 3156.7615,
+      "slope_deg": 28.420633,
+      "aspect_deg": 295.6587905883789,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1142
+    },
+    "hits": [
+      {
+        "osm_key": "way:30764329",
+        "name": "Glacier des Grands Montets",
+        "osm_share": 0.965867,
+        "row_share": 0.378911
+      },
+      {
+        "osm_key": "way:200660240",
+        "name": "Glacier de la Pendant",
+        "osm_share": 0.150608,
+        "row_share": 0.103638
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00747",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006957E45955N",
+      "anlys_id": 752981,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.950611668902919,
+      "cenlat": 45.950929,
+      "utm_zone": 32,
+      "area_km2": 0.424545603390969,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01235A10 de la Pendant",
+      "is_rgi6": 0,
+      "termlon": 6.948232744079244,
+      "termlat": 45.95339016717811,
+      "zmin_m": 2593.5625,
+      "zmax_m": 3139.5588,
+      "zmed_m": 2794.3313,
+      "zmean_m": 2811.268,
+      "slope_deg": 28.607454,
+      "aspect_deg": 319.1643829345703,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1034
+    },
+    "hits": [
+      {
+        "osm_key": "way:200660239",
+        "name": "Glacier de Lognan",
+        "osm_share": 0.171313,
+        "row_share": 0.076679
+      },
+      {
+        "osm_key": "way:200660240",
+        "name": "Glacier de la Pendant",
+        "osm_share": 0.811588,
+        "row_share": 0.315083
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00748",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006956E45954N",
+      "anlys_id": 752990,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.956681125118259,
+      "cenlat": 45.955009000000004,
+      "utm_zone": 32,
+      "area_km2": 0.249220801799791,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01235A09 de Lognan",
+      "is_rgi6": 0,
+      "termlon": 6.954962096511512,
+      "termlat": 45.95999776591995,
+      "zmin_m": 2486.9253,
+      "zmax_m": 3111.7598,
+      "zmed_m": 2809.9531,
+      "zmean_m": 2807.6736,
+      "slope_deg": 29.58752,
+      "aspect_deg": 316.41093826293945,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1229
+    },
+    "hits": [
+      {
+        "osm_key": "way:200660239",
+        "name": "Glacier de Lognan",
+        "osm_share": 0.736785,
+        "row_share": 0.561784
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00749",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006951E45939N",
+      "anlys_id": 752979,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.94775677101968,
+      "cenlat": 45.938691,
+      "utm_zone": 32,
+      "area_km2": 0.719471752021981,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01236A03 du Nant Blanc",
+      "is_rgi6": 0,
+      "termlon": 6.939566992847269,
+      "termlat": 45.93773815832921,
+      "zmin_m": 2264.4214,
+      "zmax_m": 3212.7034,
+      "zmed_m": 2735.008,
+      "zmean_m": 2738.9565,
+      "slope_deg": 31.142006,
+      "aspect_deg": 288.0833053588867,
+      "aspect_sec": 7,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1931
+    },
+    "hits": [
+      {
+        "osm_key": "way:32848659",
+        "name": "Glacier du Nant Blanc",
+        "osm_share": 0.86009,
+        "row_share": 0.848073
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00751",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006955E45927N",
+      "anlys_id": 752989,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.956865903822055,
+      "cenlat": 45.9270555,
+      "utm_zone": 32,
+      "area_km2": 0.404787841625143,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01236A05 de la Charpoua",
+      "is_rgi6": 0,
+      "termlon": 6.947314632865269,
+      "termlat": 45.923273244780326,
+      "zmin_m": 2465.2725,
+      "zmax_m": 3319.0098,
+      "zmed_m": 2947.0774,
+      "zmean_m": 2907.949,
+      "slope_deg": 32.896744,
+      "aspect_deg": 241.2609405517578,
+      "aspect_sec": 6,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1494
+    },
+    "hits": [
+      {
+        "osm_key": "way:32673847",
+        "name": "Glacier de la Charpoua",
+        "osm_share": 0.852136,
+        "row_share": 0.729485
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00752",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006961E45912N",
+      "anlys_id": 752992,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.961345736492916,
+      "cenlat": 45.9125055,
+      "utm_zone": 32,
+      "area_km2": 0.038094247399942,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01236A06 du Moine",
+      "is_rgi6": 0,
+      "termlon": 6.96216062191015,
+      "termlat": 45.91137393381547,
+      "zmin_m": 2800.8442,
+      "zmax_m": 2948.8862,
+      "zmed_m": 2847.5151,
+      "zmean_m": 2851.4937,
+      "slope_deg": 29.396437,
+      "aspect_deg": 177.78867,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 274
+    },
+    "hits": [
+      {
+        "osm_key": "way:301985965",
+        "name": "Glacier du Moine",
+        "osm_share": 0.994292,
+        "row_share": 0.22979
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00753",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006992E45913N",
+      "anlys_id": 753034,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.996010797317116,
+      "cenlat": 45.9158335,
+      "utm_zone": 32,
+      "area_km2": 7.68713721139906,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01236A07 de Talefre",
+      "is_rgi6": 0,
+      "termlon": 6.96445002421539,
+      "termlat": 45.903538424409824,
+      "zmin_m": 2289.6619,
+      "zmax_m": 3722.8005,
+      "zmed_m": 2968.1797,
+      "zmean_m": 2968.2463,
+      "slope_deg": 23.796099,
+      "aspect_deg": 230.4724578857422,
+      "aspect_sec": 6,
+      "dem_source": "COPDEM30",
+      "lmax_m": 4934
+    },
+    "hits": [
+      {
+        "osm_key": "relation:19218925",
+        "name": "Glacier de Talèfre",
+        "osm_share": 0.962297,
+        "row_share": 0.73809
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00754",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006969E45888N",
+      "anlys_id": 752997,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.969365770420206,
+      "cenlat": 45.888118000000006,
+      "utm_zone": 32,
+      "area_km2": 0.177793953348029,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01236A11 du Capucin",
+      "is_rgi6": 0,
+      "termlon": 6.972189274743901,
+      "termlat": 45.891228639379534,
+      "zmin_m": 2431.689,
+      "zmax_m": 3183.6396,
+      "zmed_m": 2724.0098,
+      "zmean_m": 2735.9204,
+      "slope_deg": 40.24701,
+      "aspect_deg": 30.338066,
+      "aspect_sec": 2,
+      "dem_source": "COPDEM30",
+      "lmax_m": 950
+    },
+    "hits": [
+      {
+        "osm_key": "way:108156167",
+        "name": "Glacier du Capucin",
+        "osm_share": 0.836934,
+        "row_share": 0.896918
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00757",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006934E45883N",
+      "anlys_id": 752968,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.936362301848886,
+      "cenlat": 45.8903635,
+      "utm_zone": 32,
+      "area_km2": 30.66449127090439,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01236A01 Mer de Glace/Geant",
+      "is_rgi6": 0,
+      "termlon": 6.921143829181392,
+      "termlat": 45.9398682863674,
+      "zmin_m": 1486.5857,
+      "zmax_m": 3934.9656,
+      "zmed_m": 3020.4312,
+      "zmean_m": 2886.9333,
+      "slope_deg": 20.191666,
+      "aspect_deg": 17.806683,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM90",
+      "lmax_m": 13192
+    },
+    "hits": [
+      {
+        "osm_key": "way:32674163",
+        "name": "Glacier de Leschaux",
+        "osm_share": 0.957188,
+        "row_share": 0.101789
+      },
+      {
+        "osm_key": "way:32950402",
+        "name": "Glacier du Tacul",
+        "osm_share": 0.98136,
+        "row_share": 0.079185
+      },
+      {
+        "osm_key": "way:188343637",
+        "name": "Mer de Glace",
+        "osm_share": 1.0,
+        "row_share": 0.06092
+      },
+      {
+        "osm_key": "relation:106154",
+        "name": "La Vallée Blanche",
+        "osm_share": 0.907798,
+        "row_share": 0.117277
+      },
+      {
+        "osm_key": "relation:106155",
+        "name": "Glacier du Géant",
+        "osm_share": 0.979727,
+        "row_share": 0.341301
+      },
+      {
+        "osm_key": "relation:2602489",
+        "name": "Glacier d'Envers du Plan",
+        "osm_share": 0.962633,
+        "row_share": 0.021861
+      },
+      {
+        "osm_key": "relation:14935795",
+        "name": "Glacier des Périades",
+        "osm_share": 0.926336,
+        "row_share": 0.056479
+      },
+      {
+        "osm_key": "relation:16854812",
+        "name": "Glacier du Mont Mallet",
+        "osm_share": 0.97656,
+        "row_share": 0.090547
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00759",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006920E45894N",
+      "anlys_id": 752950,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.919502568649698,
+      "cenlat": 45.893786500000004,
+      "utm_zone": 32,
+      "area_km2": 0.761531995473198,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "",
+      "is_rgi6": 0,
+      "termlon": 6.930354744289346,
+      "termlat": 45.891200435314225,
+      "zmin_m": 2227.067,
+      "zmax_m": 3323.7231,
+      "zmed_m": 2682.7266,
+      "zmean_m": 2700.8223,
+      "slope_deg": 33.603718,
+      "aspect_deg": 80.954926,
+      "aspect_sec": 3,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1884
+    },
+    "hits": [
+      {
+        "osm_key": "relation:14911730",
+        "name": "Glacier d'Envers de Blaitière",
+        "osm_share": 0.945012,
+        "row_share": 0.746596
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00760",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006909E45897N",
+      "anlys_id": 752941,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.90930060847466,
+      "cenlat": 45.897264,
+      "utm_zone": 32,
+      "area_km2": 0.02885487499684,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01237B01 du Fou",
+      "is_rgi6": 0,
+      "termlon": 6.908873220727132,
+      "termlat": 45.8983747705284,
+      "zmin_m": 2932.521,
+      "zmax_m": 3245.0183,
+      "zmed_m": 3087.7283,
+      "zmean_m": 3094.6255,
+      "slope_deg": 48.22751,
+      "aspect_deg": 329.8645820617676,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 313
+    },
+    "hits": [
+      {
+        "osm_key": "way:32789571",
+        "name": "Glacier de Blaitière",
+        "osm_share": 0.037399,
+        "row_share": 0.70979
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00761",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006906E45895N",
+      "anlys_id": 752936,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.906050482630273,
+      "cenlat": 45.8941535,
+      "utm_zone": 32,
+      "area_km2": 0.059242013745238,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01237B02 du Plan",
+      "is_rgi6": 0,
+      "termlon": 6.906617465209097,
+      "termlat": 45.89627225027764,
+      "zmin_m": 3120.175,
+      "zmax_m": 3589.6587,
+      "zmed_m": 3303.776,
+      "zmean_m": 3333.608,
+      "slope_deg": 47.334423,
+      "aspect_deg": 338.336181640625,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 507
+    },
+    "hits": [
+      {
+        "osm_key": "way:32789571",
+        "name": "Glacier de Blaitière",
+        "osm_share": 0.063736,
+        "row_share": 0.589168
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00762",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006901E45901N",
+      "anlys_id": 752933,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.901819193802574,
+      "cenlat": 45.900898,
+      "utm_zone": 32,
+      "area_km2": 0.518686576296913,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01237B03 de Blaitiere",
+      "is_rgi6": 0,
+      "termlon": 6.89543452233297,
+      "termlat": 45.904870988057446,
+      "zmin_m": 2322.249,
+      "zmax_m": 3048.914,
+      "zmed_m": 2513.5024,
+      "zmean_m": 2546.781,
+      "slope_deg": 28.325354,
+      "aspect_deg": 326.3428421020508,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1356
+    },
+    "hits": [
+      {
+        "osm_key": "way:32789571",
+        "name": "Glacier de Blaitière",
+        "osm_share": 0.82383,
+        "row_share": 0.869798
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00763",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006912E45907N",
+      "anlys_id": 752945,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.91365176024819,
+      "cenlat": 45.905536999999995,
+      "utm_zone": 32,
+      "area_km2": 0.573907785468488,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01237A01 des Nantillons",
+      "is_rgi6": 0,
+      "termlon": 6.904684380847764,
+      "termlat": 45.91099175228529,
+      "zmin_m": 2345.2117,
+      "zmax_m": 3331.7156,
+      "zmed_m": 2721.9873,
+      "zmean_m": 2779.591,
+      "slope_deg": 34.579765,
+      "aspect_deg": 338.89976501464844,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1603
+    },
+    "hits": [
+      {
+        "osm_key": "relation:14935779",
+        "name": "Glacier des Nantillons",
+        "osm_share": 0.945944,
+        "row_share": 0.381294
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00766",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006924E45911N",
+      "anlys_id": 752956,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.924049349056604,
+      "cenlat": 45.910539,
+      "utm_zone": 32,
+      "area_km2": 0.10117900106259,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01236A16 de la Thendia",
+      "is_rgi6": 0,
+      "termlon": 6.924621898401776,
+      "termlat": 45.91170922474944,
+      "zmin_m": 2226.877,
+      "zmax_m": 2702.1216,
+      "zmed_m": 2452.522,
+      "zmean_m": 2448.2085,
+      "slope_deg": 51.8685,
+      "aspect_deg": 24.721436,
+      "aspect_sec": 2,
+      "dem_source": "COPDEM30",
+      "lmax_m": 462
+    },
+    "hits": [
+      {
+        "osm_key": "way:108153678",
+        "name": "Glacier de la Thendia",
+        "osm_share": 0.828537,
+        "row_share": 0.421117
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00767",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006928E45905N",
+      "anlys_id": 752960,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.927553168807339,
+      "cenlat": 45.903994,
+      "utm_zone": 32,
+      "area_km2": 0.198353970684633,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01236A14 Trelaporte",
+      "is_rgi6": 0,
+      "termlon": 6.930936805864624,
+      "termlat": 45.906716118525196,
+      "zmin_m": 2460.7383,
+      "zmax_m": 2799.7686,
+      "zmed_m": 2575.9692,
+      "zmean_m": 2580.9675,
+      "slope_deg": 30.592402,
+      "aspect_deg": 103.97525,
+      "aspect_sec": 3,
+      "dem_source": "COPDEM30",
+      "lmax_m": 726
+    },
+    "hits": [
+      {
+        "osm_key": "way:108153677",
+        "name": "Glacier de Trélaporte",
+        "osm_share": 0.95924,
+        "row_share": 0.764293
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00768",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006889E45892N",
+      "anlys_id": 752915,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.890251576513789,
+      "cenlat": 45.892122,
+      "utm_zone": 32,
+      "area_km2": 0.903725882557048,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01237C01 des Pelerins",
+      "is_rgi6": 0,
+      "termlon": 6.883836381791229,
+      "termlat": 45.8973391791145,
+      "zmin_m": 2250.8281,
+      "zmax_m": 2924.578,
+      "zmed_m": 2494.019,
+      "zmean_m": 2509.0117,
+      "slope_deg": 26.317379,
+      "aspect_deg": 319.4490547180176,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1730
+    },
+    "hits": [
+      {
+        "osm_key": "way:32789117",
+        "name": "Glacier des Pèlerins",
+        "osm_share": 0.554433,
+        "row_share": 0.840381
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00769",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006888E45882N",
+      "anlys_id": 752918,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.890715464312729,
+      "cenlat": 45.882934,
+      "utm_zone": 32,
+      "area_km2": 0.420576273489167,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01237C02 Arete Midi Plan",
+      "is_rgi6": 0,
+      "termlon": 6.888607164677091,
+      "termlat": 45.884638580317,
+      "zmin_m": 3019.8782,
+      "zmax_m": 3688.9937,
+      "zmed_m": 3413.4912,
+      "zmean_m": 3407.3699,
+      "slope_deg": 47.775616,
+      "aspect_deg": 350.02986907958984,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 691
+    },
+    "hits": [
+      {
+        "osm_key": "way:32789117",
+        "name": "Glacier des Pèlerins",
+        "osm_share": 0.180283,
+        "row_share": 0.587184
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00770",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006880E45886N",
+      "anlys_id": 752901,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.879147796509537,
+      "cenlat": 45.88544,
+      "utm_zone": 32,
+      "area_km2": 0.205554697836174,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01237C03 du Telepherique",
+      "is_rgi6": 0,
+      "termlon": 6.882687091709476,
+      "termlat": 45.88845934929594,
+      "zmin_m": 2538.651,
+      "zmax_m": 2923.901,
+      "zmed_m": 2645.4766,
+      "zmean_m": 2660.7756,
+      "slope_deg": 34.08626,
+      "aspect_deg": 330.36328887939453,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 902
+    },
+    "hits": [
+      {
+        "osm_key": "way:32789117",
+        "name": "Glacier des Pèlerins",
+        "osm_share": 0.131826,
+        "row_share": 0.878484
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00771",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006875E45880N",
+      "anlys_id": 752894,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.875253464462652,
+      "cenlat": 45.879748,
+      "utm_zone": 32,
+      "area_km2": 0.134161899247264,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01237D01 Rond",
+      "is_rgi6": 0,
+      "termlon": 6.872854206073162,
+      "termlat": 45.88005349689723,
+      "zmin_m": 2631.4805,
+      "zmax_m": 2890.0854,
+      "zmed_m": 2740.0898,
+      "zmean_m": 2739.7354,
+      "slope_deg": 30.759787,
+      "aspect_deg": 299.40996170043945,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 450
+    },
+    "hits": [
+      {
+        "osm_key": "way:108153682",
+        "name": "Glacier Rond",
+        "osm_share": 0.888867,
+        "row_share": 0.618004
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00773",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006865E45868N",
+      "anlys_id": 752892,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.873554122454049,
+      "cenlat": 45.862952500000006,
+      "utm_zone": 32,
+      "area_km2": 10.913021103580826,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01237D03 Bossons",
+      "is_rgi6": 0,
+      "termlon": 6.852072898995114,
+      "termlat": 45.89303522929953,
+      "zmin_m": 1411.2783,
+      "zmax_m": 4808.877,
+      "zmed_m": 3760.5298,
+      "zmean_m": 3546.9104,
+      "slope_deg": 29.666426,
+      "aspect_deg": 341.6250743865967,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 7386
+    },
+    "hits": [
+      {
+        "osm_key": "relation:106239",
+        "name": "Glacier des Bossons",
+        "osm_share": 0.652501,
+        "row_share": 0.842588
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00774",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006844E45863N",
+      "anlys_id": 752856,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.848359298962386,
+      "cenlat": 45.860617,
+      "utm_zone": 32,
+      "area_km2": 4.942894721201821,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01237E01 Taconnaz",
+      "is_rgi6": 0,
+      "termlon": 6.845391828543358,
+      "termlat": 45.88059601133084,
+      "zmin_m": 1731.1504,
+      "zmax_m": 4298.7925,
+      "zmed_m": 3342.0435,
+      "zmean_m": 3289.0635,
+      "slope_deg": 32.466717,
+      "aspect_deg": 347.365140914917,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 4430
+    },
+    "hits": [
+      {
+        "osm_key": "way:31002694",
+        "name": "Glacier de Taconnaz",
+        "osm_share": 0.936848,
+        "row_share": 0.185378
+      },
+      {
+        "osm_key": "relation:106239",
+        "name": "Glacier des Bossons",
+        "osm_share": 0.2458,
+        "row_share": 0.700767
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00775",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006831E45863N",
+      "anlys_id": 752842,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.830401635719372,
+      "cenlat": 45.8611645,
+      "utm_zone": 32,
+      "area_km2": 0.264822548118485,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01238A01 du Bourgeat",
+      "is_rgi6": 0,
+      "termlon": 6.831492738587148,
+      "termlat": 45.866701057714494,
+      "zmin_m": 2434.2427,
+      "zmax_m": 3682.5938,
+      "zmed_m": 3047.1467,
+      "zmean_m": 3043.0518,
+      "slope_deg": 46.6586,
+      "aspect_deg": 356.85501861572266,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1278
+    },
+    "hits": [
+      {
+        "osm_key": "relation:3280098",
+        "name": "Glacier du Bourgeat",
+        "osm_share": 0.693973,
+        "row_share": 0.512604
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00776",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006823E45859N",
+      "anlys_id": 752836,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.820016126366298,
+      "cenlat": 45.859581,
+      "utm_zone": 32,
+      "area_km2": 0.466560038230619,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01238B01 de la Griaz",
+      "is_rgi6": 0,
+      "termlon": 6.819650939833787,
+      "termlat": 45.86437824381001,
+      "zmin_m": 2617.6743,
+      "zmax_m": 3648.7756,
+      "zmed_m": 2944.8,
+      "zmean_m": 2984.8462,
+      "slope_deg": 32.99259,
+      "aspect_deg": 339.58488845825195,
+      "aspect_sec": 1,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1348
+    },
+    "hits": [
+      {
+        "osm_key": "way:193208266",
+        "name": "Glacier de la Griaz",
+        "osm_share": 0.853598,
+        "row_share": 0.410808
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00777",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006819E45856N",
+      "anlys_id": 752835,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.820234966007416,
+      "cenlat": 45.856018500000005,
+      "utm_zone": 32,
+      "area_km2": 0.081163280721197,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01239A01 de Tete Rousse",
+      "is_rgi6": 0,
+      "termlon": 6.8158437220159,
+      "termlat": 45.85705510846814,
+      "zmin_m": 3030.788,
+      "zmax_m": 3279.8518,
+      "zmed_m": 3171.8696,
+      "zmean_m": 3171.5093,
+      "slope_deg": 22.733759,
+      "aspect_deg": 273.76319122314453,
+      "aspect_sec": 7,
+      "dem_source": "COPDEM30",
+      "lmax_m": 550
+    },
+    "hits": [
+      {
+        "osm_key": "way:72128516",
+        "name": "Glacier de Tête Rousse",
+        "osm_share": 0.756924,
+        "row_share": 0.900587
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00778",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006811E45849N",
+      "anlys_id": 752818,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.805264763111788,
+      "cenlat": 45.8493775,
+      "utm_zone": 32,
+      "area_km2": 4.68654442891647,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01239A02 de Bionnassay",
+      "is_rgi6": 0,
+      "termlon": 6.785309254358817,
+      "termlat": 45.86280071865444,
+      "zmin_m": 1731.7589,
+      "zmax_m": 4201.6206,
+      "zmed_m": 2996.0737,
+      "zmean_m": 2987.4912,
+      "slope_deg": 32.920753,
+      "aspect_deg": 321.8818588256836,
+      "aspect_sec": 8,
+      "dem_source": "COPDEM30",
+      "lmax_m": 5590
+    },
+    "hits": [
+      {
+        "osm_key": "way:31002693",
+        "name": "Glacier de Bionnassay",
+        "osm_share": 0.967375,
+        "row_share": 0.791818
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00783",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006799E45827N",
+      "anlys_id": 752795,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.790949109836058,
+      "cenlat": 45.828844000000004,
+      "utm_zone": 32,
+      "area_km2": 1.151549606959265,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "FR4N01239B03 du Miage 4",
+      "is_rgi6": 0,
+      "termlon": 6.785436735574958,
+      "termlat": 45.82746910305511,
+      "zmin_m": 2307.433,
+      "zmax_m": 3661.4426,
+      "zmed_m": 2635.4258,
+      "zmean_m": 2776.1377,
+      "slope_deg": 26.503101,
+      "aspect_deg": 281.26690673828125,
+      "aspect_sec": 7,
+      "dem_source": "COPDEM30",
+      "lmax_m": 2736
+    },
+    "hits": [
+      {
+        "osm_key": "way:32699610",
+        "name": "Glacier de Miage",
+        "osm_share": 0.856854,
+        "row_share": 0.885683
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00784",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006855E45833N",
+      "anlys_id": 752864,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.855104143724698,
+      "cenlat": 45.833275,
+      "utm_zone": 32,
+      "area_km2": 0.145765206034801,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "",
+      "is_rgi6": 0,
+      "termlon": 6.851483650333392,
+      "termlat": 45.832211348744075,
+      "zmin_m": 4095.5576,
+      "zmax_m": 4606.8125,
+      "zmed_m": 4420.614,
+      "zmean_m": 4410.752,
+      "slope_deg": 41.284122,
+      "aspect_deg": 236.75100708007807,
+      "aspect_sec": 6,
+      "dem_source": "COPDEM30",
+      "lmax_m": 605
+    },
+    "hits": [
+      {
+        "osm_key": "relation:1649757",
+        "name": "Unnamed glacier (relation 1649757)",
+        "osm_share": 0.846467,
+        "row_share": 0.859917
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00786",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006867E45829N",
+      "anlys_id": 752883,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.86696642795139,
+      "cenlat": 45.8289495,
+      "utm_zone": 32,
+      "area_km2": 0.658140338749612,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "",
+      "is_rgi6": 0,
+      "termlon": 6.877138672207279,
+      "termlat": 45.829990727359345,
+      "zmin_m": 4148.5117,
+      "zmax_m": 4807.221,
+      "zmed_m": 4588.928,
+      "zmean_m": 4560.6514,
+      "slope_deg": 38.165108,
+      "aspect_deg": 166.78653,
+      "aspect_sec": 5,
+      "dem_source": "COPDEM30",
+      "lmax_m": 1038
+    },
+    "hits": [
+      {
+        "osm_key": "relation:106239",
+        "name": "Glacier des Bossons",
+        "osm_share": 0.041368,
+        "row_share": 0.885777
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-00789",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006875E45842N",
+      "anlys_id": 752893,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.875270989173228,
+      "cenlat": 45.841986500000004,
+      "utm_zone": 32,
+      "area_km2": 0.030542711121045,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "",
+      "is_rgi6": 0,
+      "termlon": 6.876640903666426,
+      "termlat": 45.84248870879837,
+      "zmin_m": 4114.2837,
+      "zmax_m": 4334.0405,
+      "zmed_m": 4220.873,
+      "zmean_m": 4226.619,
+      "slope_deg": 51.414948,
+      "aspect_deg": 118.66062,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 173
+    },
+    "hits": [
+      {
+        "osm_key": "relation:106239",
+        "name": "Glacier des Bossons",
+        "osm_share": 0.002122,
+        "row_share": 0.979056
+      }
+    ]
+  },
+  {
+    "properties": {
+      "rgi_id": "RGI2000-v7.0-G-11-01369",
+      "o1region": "11",
+      "o2region": "11-01",
+      "glims_id": "G006835E45789N",
+      "anlys_id": 752848,
+      "subm_id": 731,
+      "src_date": "2003-08-13T00:00:00",
+      "cenlon": 6.835201939814815,
+      "cenlat": 45.7891015,
+      "utm_zone": 32,
+      "area_km2": 0.111520247230827,
+      "primeclass": 0,
+      "conn_lvl": 0,
+      "surge_type": 0,
+      "term_type": 9,
+      "glac_name": "Piccolo Monte Bianco /  Petit Mont Blanc",
+      "is_rgi6": 0,
+      "termlon": 6.83942377898833,
+      "termlat": 45.78634963862503,
+      "zmin_m": 3067.6719,
+      "zmax_m": 3389.207,
+      "zmed_m": 3246.266,
+      "zmean_m": 3241.8813,
+      "slope_deg": 26.945904,
+      "aspect_deg": 151.45267,
+      "aspect_sec": 4,
+      "dem_source": "COPDEM30",
+      "lmax_m": 792
+    },
+    "hits": [
+      {
+        "osm_key": "way:234540325",
+        "name": "Ghiacciaio Orientale del Petit Mont Blanc",
+        "osm_share": 0.66722,
+        "row_share": 0.806611
+      }
+    ]
+  }
+]

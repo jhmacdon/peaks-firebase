@@ -1,0 +1,31 @@
+{
+  "url": "https://nsidc.org/data/nsidc-0272/versions/1",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:53:35.945036+00:00",
+  "status": 200,
+  "final_url": "https://nsidc.org/data/nsidc-0272/versions/1",
+  "response_headers": {
+    "Date": "Thu, 29 Oct 2026 17:53:37 GMT",
+    "Server": "Apache/2.4.52 (Ubuntu)",
+    "Cache-Control": "must-revalidate, no-cache, private",
+    "X-Drupal-Dynamic-Cache": "UNCACHEABLE (poor cacheability)",
+    "Content-language": "en",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "X-Generator": "Drupal 11 (https://www.drupal.org)",
+    "Content-Security-Policy-Report-Only": "report-uri /report-csp-violation",
+    "X-XSS-Protection": "1; mode=block",
+    "From-Origin": "same",
+    "X-Drupal-Cache": "UNCACHEABLE (response policy)",
+    "Vary": "Accept-Encoding",
+    "Content-Type": "text/html; charset=utf-8",
+    "Connection": "close",
+    "Transfer-Encoding": "chunked"
+  },
+  "sha256": "47b74102ce572d436c779c297ecb749f690fd431710dc66689e9bed3d8f06366",
+  "bytes": 124073
+}

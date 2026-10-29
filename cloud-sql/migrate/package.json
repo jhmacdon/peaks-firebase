@@ -87,7 +87,8 @@
     "import:glacier-peak-glaciers": "tsx src/import-glacier-peak-glaciers.ts",
     "import:glacier-manifest": "tsx src/import-glacier-manifest.ts",
     "backfill:glacier-crossings": "tsx src/backfill-glacier-crossings.ts",
-    "refresh:glacier-outlines": "tsx src/refresh-glacier-outlines.ts"
+    "refresh:glacier-outlines": "tsx src/refresh-glacier-outlines.ts",
+    "import:mont-blanc-glaciers": "tsx src/import-mont-blanc-glaciers.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "^1.5.5-r.4",

@@ -1,0 +1,26 @@
+{
+  "url": "https://copernicus-dem-30m.s3.amazonaws.com/readme.html",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:53:35.841817+00:00",
+  "status": 200,
+  "final_url": "https://copernicus-dem-30m.s3.amazonaws.com/readme.html",
+  "response_headers": {
+    "x-amz-request-id": "9FWHAWEKDGDPZJ4K",
+    "x-amz-id-2": "3KPCxbnGB6aGYeZS7JMylzGk89P1gdM1AruUGoHOfuCMczc7zkcAjsNZGJWqxSNaiIxJc90Wx+LjrfOz9GR+jS3dys/yhmM0",
+    "Content-Length": "8536",
+    "Accept-Ranges": "bytes",
+    "Date": "Thu, 29 Oct 2026 17:53:37 GMT",
+    "Server": "AmazonS3",
+    "Last-Modified": "Wed, 22 Nov 2023 10:39:04 GMT",
+    "ETag": "\"022cee281269bfa9eafa36401ef3e104\"",
+    "x-amz-version-id": "SU9qbl.Xkmjg07K5gjdZy37kas6_.h97",
+    "Content-Type": "text/html",
+    "x-amz-server-side-encryption": "AES256",
+    "Connection": "close"
+  },
+  "sha256": "922461d55070e3c7e0cf2903ec54190d69e3773da2dc9e776a3f03566cfd56d2",
+  "bytes": 8536
+}

@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Tr%C3%A9-la-T%C3%AAte+Orientale&lat=45.7943135&lng=6.8181647&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:40:47.034940+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Tr%C3%A9-la-T%C3%AAte+Orientale&lat=45.7943135&lng=6.8181647&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=109, reset=27",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c9a-fPqq+XbdyY4IoR2oouOqQXurMO8\"",
+    "x-cloud-trace-context": "51a8195ef08258e94039f1f664e5d96d;o=1",
+    "date": "Thu, 29 Oct 2026 18:40:49 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3226",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "c99c0e812284e745cfd6ed3ea84936156e9a70f0e243fa967bb2afb34bcfc2a8",
+  "bytes": 3226
+}

@@ -1,0 +1,1450 @@
+[
+  {
+    "osm_key": "node:10870208659",
+    "name": "Pointes des Grands",
+    "lat": 46.0029179,
+    "lng": 6.990594,
+    "wikidata": null,
+    "distance_from_head_m": 102.3,
+    "osm_elevation": "3101",
+    "status": "parent missing",
+    "search_file": "parent-search/node-10870208659.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:11536828038",
+    "name": "Pointe Morin",
+    "lat": 45.9435268,
+    "lng": 7.0365985,
+    "wikidata": "Q22540992",
+    "distance_from_head_m": 222.0,
+    "osm_elevation": "3587",
+    "status": "matched",
+    "search_file": "parent-search/node-11536828038.json",
+    "match": {
+      "name": "Pointe Morin",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.9435268,
+      "lng": 7.0365985
+    },
+    "nearby_results": [
+      {
+        "name": "Pointe Morin",
+        "lat": 45.9435268,
+        "lng": 7.0365985
+      }
+    ]
+  },
+  {
+    "osm_key": "node:11537086260",
+    "name": "Crête Sèche",
+    "lat": 45.9596501,
+    "lng": 7.0769228,
+    "wikidata": "Q25202890",
+    "distance_from_head_m": 558.0,
+    "osm_elevation": "3022",
+    "status": "matched",
+    "search_file": "parent-search/node-11537086260.json",
+    "match": {
+      "name": "Crête Sèche",
+      "features": "{summit}",
+      "country_code": "CH",
+      "state_code": null,
+      "lat": 45.9596501,
+      "lng": 7.0769228
+    },
+    "nearby_results": [
+      {
+        "name": "Crête Sèche",
+        "lat": 45.9596501,
+        "lng": 7.0769228
+      }
+    ]
+  },
+  {
+    "osm_key": "node:11537833258",
+    "name": "Pointe des Ravines Rousses",
+    "lat": 45.9921684,
+    "lng": 7.0476215,
+    "wikidata": "Q22435167",
+    "distance_from_head_m": 149.1,
+    "osm_elevation": "3258",
+    "status": "parent missing",
+    "search_file": "parent-search/node-11537833258.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:11538075850",
+    "name": "Petit Darrey",
+    "lat": 45.960101,
+    "lng": 7.0568017,
+    "wikidata": "Q22519922",
+    "distance_from_head_m": 146.1,
+    "osm_elevation": "3507",
+    "status": "parent missing",
+    "search_file": "parent-search/node-11538075850.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:1241260305",
+    "name": "Aiguille de la République",
+    "lat": 45.9056685,
+    "lng": 6.9212635,
+    "wikidata": "Q2827884",
+    "distance_from_head_m": 423.4,
+    "osm_elevation": "3305",
+    "status": "parent missing",
+    "search_file": "parent-search/node-1241260305.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:1241260441",
+    "name": "La Tour Rouge",
+    "lat": 45.9032079,
+    "lng": 6.9249313,
+    "wikidata": null,
+    "distance_from_head_m": 261.5,
+    "osm_elevation": "2899",
+    "status": "parent missing",
+    "search_file": "parent-search/node-1241260441.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:12892609514",
+    "name": "Mont Dolent / Monte Dolent",
+    "lat": 45.9219579,
+    "lng": 7.046165,
+    "wikidata": "Q665130",
+    "distance_from_head_m": 165.4,
+    "osm_elevation": "3820",
+    "status": "matched",
+    "search_file": "parent-search/node-12892609514.json",
+    "match": {
+      "name": "Mont Dolent / Monte Dolent",
+      "features": "{summit}",
+      "country_code": "CH",
+      "state_code": null,
+      "lat": 45.9219579,
+      "lng": 7.046165
+    },
+    "nearby_results": [
+      {
+        "name": "Mont Dolent / Monte Dolent",
+        "lat": 45.9219579,
+        "lng": 7.046165
+      }
+    ]
+  },
+  {
+    "osm_key": "node:13013728246",
+    "name": "Petit Rognon",
+    "lat": 45.8797529,
+    "lng": 6.9193466,
+    "wikidata": "Q117006822",
+    "distance_from_head_m": 802.0,
+    "osm_elevation": "3009",
+    "status": "matched",
+    "search_file": "parent-search/node-13013728246.json",
+    "match": {
+      "name": "Petit Rognon",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8797529,
+      "lng": 6.9193466
+    },
+    "nearby_results": [
+      {
+        "name": "Petit Rognon",
+        "lat": 45.8797529,
+        "lng": 6.9193466
+      }
+    ]
+  },
+  {
+    "osm_key": "node:13013811813",
+    "name": "Tête de Trélaporte",
+    "lat": 45.9081159,
+    "lng": 6.9308257,
+    "wikidata": "Q24932990",
+    "distance_from_head_m": 708.9,
+    "osm_elevation": "2552",
+    "status": "matched",
+    "search_file": "parent-search/node-13013811813.json",
+    "match": {
+      "name": "Tête de Trélaporte",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.9081159,
+      "lng": 6.9308257
+    },
+    "nearby_results": [
+      {
+        "name": "Tête de Trélaporte",
+        "lat": 45.9081159,
+        "lng": 6.9308257
+      }
+    ]
+  },
+  {
+    "osm_key": "node:13467926092",
+    "name": "Pic de la Brenva",
+    "lat": 45.8392346,
+    "lng": 6.9144103,
+    "wikidata": "Q136378786",
+    "distance_from_head_m": 245.2,
+    "osm_elevation": "3504",
+    "status": "parent missing",
+    "search_file": "parent-search/node-13467926092.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:13467931023",
+    "name": "Punta Welzenbach",
+    "lat": 45.8111394,
+    "lng": 6.8932571,
+    "wikidata": null,
+    "distance_from_head_m": 242.8,
+    "osm_elevation": "3355",
+    "status": "parent missing",
+    "search_file": "parent-search/node-13467931023.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:1438494348",
+    "name": "Aiguille du Goûter",
+    "lat": 45.8509504,
+    "lng": 6.8312381,
+    "wikidata": "Q2334655",
+    "distance_from_head_m": 574.8,
+    "osm_elevation": "3863",
+    "status": "matched",
+    "search_file": "parent-search/node-1438494348.json",
+    "match": {
+      "name": "Aiguille du Goûter",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8509504,
+      "lng": 6.8312381
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille du Goûter",
+        "lat": 45.8509504,
+        "lng": 6.8312381
+      }
+    ]
+  },
+  {
+    "osm_key": "node:167075493",
+    "name": "Aiguille du Midi",
+    "lat": 45.8786426,
+    "lng": 6.8873514,
+    "wikidata": "Q404728",
+    "distance_from_head_m": 659.1,
+    "osm_elevation": "3842",
+    "status": "matched",
+    "search_file": "parent-search/node-167075493.json",
+    "match": {
+      "name": "Aiguille du Midi",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.878813,
+      "lng": 6.887382
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille du Midi",
+        "lat": 45.878813,
+        "lng": 6.887382
+      }
+    ]
+  },
+  {
+    "osm_key": "node:2151026961",
+    "name": "L'Isolée",
+    "lat": 45.8545834,
+    "lng": 6.8909713,
+    "wikidata": "Q16569708",
+    "distance_from_head_m": 622.6,
+    "osm_elevation": "4114",
+    "status": "parent missing",
+    "search_file": "parent-search/node-2151026961.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:2401280720",
+    "name": "Aiguille des Grands Montets",
+    "lat": 45.9482017,
+    "lng": 6.9605461,
+    "wikidata": "Q404686",
+    "distance_from_head_m": 136.5,
+    "osm_elevation": "3296",
+    "status": "matched",
+    "search_file": "parent-search/node-2401280720.json",
+    "match": {
+      "name": "Aiguille des Grands Montets",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.9482017,
+      "lng": 6.9605461
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille des Grands Montets",
+        "lat": 45.9482017,
+        "lng": 6.9605461
+      }
+    ]
+  },
+  {
+    "osm_key": "node:2409782067",
+    "name": "Pic Eccles",
+    "lat": 45.8216427,
+    "lng": 6.8748036,
+    "wikidata": "Q3382301",
+    "distance_from_head_m": 181.6,
+    "osm_elevation": "4041",
+    "status": "matched",
+    "search_file": "parent-search/node-2409782067.json",
+    "match": {
+      "name": "Pic Eccles",
+      "features": "{summit}",
+      "country_code": "IT",
+      "state_code": null,
+      "lat": 45.8216427,
+      "lng": 6.8748036
+    },
+    "nearby_results": [
+      {
+        "name": "Pic Eccles",
+        "lat": 45.8216427,
+        "lng": 6.8748036
+      }
+    ]
+  },
+  {
+    "osm_key": "node:2417756510",
+    "name": "Triangle du Tacul",
+    "lat": 45.8608217,
+    "lng": 6.888008,
+    "wikidata": null,
+    "distance_from_head_m": 378.1,
+    "osm_elevation": "3970",
+    "status": "parent missing",
+    "search_file": "parent-search/node-2417756510.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:2427826282",
+    "name": "Aiguille de Tré-la-Tête Orientale",
+    "lat": 45.7943135,
+    "lng": 6.8181647,
+    "wikidata": null,
+    "distance_from_head_m": 207.5,
+    "osm_elevation": "3892",
+    "status": "parent missing",
+    "search_file": "parent-search/node-2427826282.json",
+    "match": null,
+    "nearby_results": [
+      {
+        "name": "Aiguille de Tré-la-Tête Centrale Sud-Est",
+        "lat": 45.7946096,
+        "lng": 6.8150821
+      }
+    ]
+  },
+  {
+    "osm_key": "node:26862462",
+    "name": "Aiguille Verte",
+    "lat": 45.9345904,
+    "lng": 6.9700185,
+    "wikidata": "Q30466",
+    "distance_from_head_m": 46.8,
+    "osm_elevation": "4121",
+    "status": "matched",
+    "search_file": "parent-search/node-26862462.json",
+    "match": {
+      "name": "Aiguille Verte",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.9345904,
+      "lng": 6.9700185
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille Verte",
+        "lat": 45.9345904,
+        "lng": 6.9700185
+      }
+    ]
+  },
+  {
+    "osm_key": "node:26862463",
+    "name": "Aiguille de Tré-la-Tête Centrale Sud-Est",
+    "lat": 45.7946096,
+    "lng": 6.8150821,
+    "wikidata": "Q731683",
+    "distance_from_head_m": 51.6,
+    "osm_elevation": "3930",
+    "status": "matched",
+    "search_file": "parent-search/node-26862463.json",
+    "match": {
+      "name": "Aiguille de Tré-la-Tête Centrale Sud-Est",
+      "features": "{summit}",
+      "country_code": "IT",
+      "state_code": null,
+      "lat": 45.7946096,
+      "lng": 6.8150821
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille de Tré-la-Tête Centrale Sud-Est",
+        "lat": 45.7946096,
+        "lng": 6.8150821
+      }
+    ]
+  },
+  {
+    "osm_key": "node:26863024",
+    "name": "Grandes Jorasses / Pointe Walker",
+    "lat": 45.8681562,
+    "lng": 6.9889831,
+    "wikidata": "Q2403858",
+    "distance_from_head_m": 34.9,
+    "osm_elevation": "4208",
+    "status": "matched",
+    "search_file": "parent-search/node-26863024.json",
+    "match": {
+      "name": "Grandes Jorasses / Pointe Walker",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8681562,
+      "lng": 6.9889831
+    },
+    "nearby_results": [
+      {
+        "name": "Grandes Jorasses / Pointe Walker",
+        "lat": 45.8681562,
+        "lng": 6.9889831
+      }
+    ]
+  },
+  {
+    "osm_key": "node:281399025",
+    "name": "Mont Blanc / Monte Bianco",
+    "lat": 45.8327056,
+    "lng": 6.8651706,
+    "wikidata": "Q583",
+    "distance_from_head_m": 35.7,
+    "osm_elevation": "4807.3",
+    "status": "matched",
+    "search_file": "parent-search/node-281399025.json",
+    "match": {
+      "name": "Mont Blanc",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.832704,
+      "lng": 6.864797
+    },
+    "nearby_results": [
+      {
+        "name": "Mont Blanc",
+        "lat": 45.832704,
+        "lng": 6.864797
+      }
+    ]
+  },
+  {
+    "osm_key": "node:290497885",
+    "name": "Aiguille du Tour",
+    "lat": 45.9945308,
+    "lng": 7.0100128,
+    "wikidata": "Q404720",
+    "distance_from_head_m": 94.0,
+    "osm_elevation": "3542",
+    "status": "matched",
+    "search_file": "parent-search/node-290497885.json",
+    "match": {
+      "name": "Aiguille du Tour",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.9945308,
+      "lng": 7.0100128
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille du Tour",
+        "lat": 45.9945308,
+        "lng": 7.0100128
+      }
+    ]
+  },
+  {
+    "osm_key": "node:290497892",
+    "name": "Aiguille de Chardonnet",
+    "lat": 45.968306,
+    "lng": 7.0015516,
+    "wikidata": "Q404697",
+    "distance_from_head_m": 354.3,
+    "osm_elevation": "3824",
+    "status": "matched",
+    "search_file": "parent-search/node-290497892.json",
+    "match": {
+      "name": "Aiguille de Chardonnet",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.968306,
+      "lng": 7.0015516
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille de Chardonnet",
+        "lat": 45.968306,
+        "lng": 7.0015516
+      }
+    ]
+  },
+  {
+    "osm_key": "node:290497894",
+    "name": "Aiguille d'Argentière",
+    "lat": 45.959721,
+    "lng": 7.020211,
+    "wikidata": "Q404738",
+    "distance_from_head_m": 243.3,
+    "osm_elevation": "3901",
+    "status": "matched",
+    "search_file": "parent-search/node-290497894.json",
+    "match": {
+      "name": "Aiguille d'Argentière",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.959721,
+      "lng": 7.020211
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille d'Argentière",
+        "lat": 45.959721,
+        "lng": 7.020211
+      }
+    ]
+  },
+  {
+    "osm_key": "node:290497905",
+    "name": "Grand Darray",
+    "lat": 45.9589745,
+    "lng": 7.0605282,
+    "wikidata": "Q3646946",
+    "distance_from_head_m": 422.8,
+    "osm_elevation": "3514",
+    "status": "matched",
+    "search_file": "parent-search/node-290497905.json",
+    "match": {
+      "name": "Grand Darray",
+      "features": "{summit}",
+      "country_code": "CH",
+      "state_code": null,
+      "lat": 45.9589745,
+      "lng": 7.0605282
+    },
+    "nearby_results": [
+      {
+        "name": "Grand Darray",
+        "lat": 45.9589745,
+        "lng": 7.0605282
+      }
+    ]
+  },
+  {
+    "osm_key": "node:307195492",
+    "name": "Pointe Hélène / Punta Elena",
+    "lat": 45.8687569,
+    "lng": 6.9793403,
+    "wikidata": "Q3925668",
+    "distance_from_head_m": 325.2,
+    "osm_elevation": "4045",
+    "status": "matched",
+    "search_file": "parent-search/node-307195492.json",
+    "match": {
+      "name": "Pointe Hélène / Punta Elena",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8687569,
+      "lng": 6.9793403
+    },
+    "nearby_results": [
+      {
+        "name": "Pointe Hélène / Punta Elena",
+        "lat": 45.8687569,
+        "lng": 6.9793403
+      }
+    ]
+  },
+  {
+    "osm_key": "node:307195544",
+    "name": "Aiguille de Leschaux",
+    "lat": 45.8872044,
+    "lng": 7.0066752,
+    "wikidata": "Q1151985",
+    "distance_from_head_m": 275.2,
+    "osm_elevation": "3759",
+    "status": "matched",
+    "search_file": "parent-search/node-307195544.json",
+    "match": {
+      "name": "Aiguille de Leschaux",
+      "features": "{summit}",
+      "country_code": "IT",
+      "state_code": null,
+      "lat": 45.8872044,
+      "lng": 7.0066752
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille de Leschaux",
+        "lat": 45.8872044,
+        "lng": 7.0066752
+      }
+    ]
+  },
+  {
+    "osm_key": "node:307195579",
+    "name": "Aiguille de Talèfre",
+    "lat": 45.899499,
+    "lng": 7.0037821,
+    "wikidata": "Q1578316",
+    "distance_from_head_m": 331.9,
+    "osm_elevation": "3730",
+    "status": "matched",
+    "search_file": "parent-search/node-307195579.json",
+    "match": {
+      "name": "Aiguille de Talèfre",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.899499,
+      "lng": 7.0037821
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille de Talèfre",
+        "lat": 45.899499,
+        "lng": 7.0037821
+      }
+    ]
+  },
+  {
+    "osm_key": "node:307676211",
+    "name": "Aiguille des Glaciers",
+    "lat": 45.7783901,
+    "lng": 6.802571,
+    "wikidata": "Q1705506",
+    "distance_from_head_m": 201.1,
+    "osm_elevation": "3815",
+    "status": "matched",
+    "search_file": "parent-search/node-307676211.json",
+    "match": {
+      "name": "Aiguille des Glaciers",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.7783901,
+      "lng": 6.802571
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille des Glaciers",
+        "lat": 45.7783901,
+        "lng": 6.802571
+      }
+    ]
+  },
+  {
+    "osm_key": "node:340235998",
+    "name": "Aiguille de Rochefort",
+    "lat": 45.8621023,
+    "lng": 6.9599716,
+    "wikidata": "Q404672",
+    "distance_from_head_m": 23.5,
+    "osm_elevation": "4001",
+    "status": "matched",
+    "search_file": "parent-search/node-340235998.json",
+    "match": {
+      "name": "Aiguille de Rochefort",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8621023,
+      "lng": 6.9599716
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille de Rochefort",
+        "lat": 45.8621023,
+        "lng": 6.9599716
+      }
+    ]
+  },
+  {
+    "osm_key": "node:344715578",
+    "name": "Aiguille du Plan",
+    "lat": 45.8917008,
+    "lng": 6.907229,
+    "wikidata": "Q2569448",
+    "distance_from_head_m": 224.3,
+    "osm_elevation": "3673",
+    "status": "matched",
+    "search_file": "parent-search/node-344715578.json",
+    "match": {
+      "name": "Aiguille du Plan",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8916,
+      "lng": 6.907189
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille du Plan",
+        "lat": 45.8916,
+        "lng": 6.907189
+      }
+    ]
+  },
+  {
+    "osm_key": "node:344715579",
+    "name": "Aiguille de Blaitière",
+    "lat": 45.8992786,
+    "lng": 6.9130467,
+    "wikidata": "Q404669",
+    "distance_from_head_m": 190.4,
+    "osm_elevation": "3522",
+    "status": "matched",
+    "search_file": "parent-search/node-344715579.json",
+    "match": {
+      "name": "Aiguille de Blaitière",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8989201,
+      "lng": 6.9133265
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille de Blaitière",
+        "lat": 45.8989201,
+        "lng": 6.9133265
+      }
+    ]
+  },
+  {
+    "osm_key": "node:344715662",
+    "name": "Aiguille du Tacul",
+    "lat": 45.884347,
+    "lng": 6.9607788,
+    "wikidata": "Q3607103",
+    "distance_from_head_m": 342.7,
+    "osm_elevation": "3444",
+    "status": "matched",
+    "search_file": "parent-search/node-344715662.json",
+    "match": {
+      "name": "Aiguille du Tacul",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.88475,
+      "lng": 6.961065
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille du Tacul",
+        "lat": 45.88475,
+        "lng": 6.961065
+      }
+    ]
+  },
+  {
+    "osm_key": "node:3559071817",
+    "name": "Dôme du Goûter",
+    "lat": 45.8425807,
+    "lng": 6.8434727,
+    "wikidata": "Q30434",
+    "distance_from_head_m": 245.1,
+    "osm_elevation": "4304",
+    "status": "matched",
+    "search_file": "parent-search/node-3559071817.json",
+    "match": {
+      "name": "Dome de Goûter",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.842726,
+      "lng": 6.843735
+    },
+    "nearby_results": [
+      {
+        "name": "Dome de Goûter",
+        "lat": 45.842726,
+        "lng": 6.843735
+      }
+    ]
+  },
+  {
+    "osm_key": "node:3613468597",
+    "name": "Aiguille de Tré-la-Tête Centrale Nord-Ouest",
+    "lat": 45.7955742,
+    "lng": 6.8133076,
+    "wikidata": null,
+    "distance_from_head_m": 306.2,
+    "osm_elevation": "3908",
+    "status": "parent missing",
+    "search_file": "parent-search/node-3613468597.json",
+    "match": null,
+    "nearby_results": [
+      {
+        "name": "Aiguille de Tré-la-Tête Centrale Sud-Est",
+        "lat": 45.7946096,
+        "lng": 6.8150821
+      }
+    ]
+  },
+  {
+    "osm_key": "node:366260714",
+    "name": "Aiguille de Bionnassay",
+    "lat": 45.836054,
+    "lng": 6.8186739,
+    "wikidata": "Q30493",
+    "distance_from_head_m": 628.8,
+    "osm_elevation": "4052",
+    "status": "matched",
+    "search_file": "parent-search/node-366260714.json",
+    "match": {
+      "name": "Aiguille de Bionnassay",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.836054,
+      "lng": 6.8186739
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille de Bionnassay",
+        "lat": 45.836054,
+        "lng": 6.8186739
+      }
+    ]
+  },
+  {
+    "osm_key": "node:3668636373",
+    "name": "Petite Aiguille des Glaciers",
+    "lat": 45.7712476,
+    "lng": 6.804148,
+    "wikidata": "Q118256206",
+    "distance_from_head_m": 432.9,
+    "osm_elevation": "3463",
+    "status": "parent missing",
+    "search_file": "parent-search/node-3668636373.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:3668810726",
+    "name": "Aiguille de Tré-la-Tête Nord",
+    "lat": 45.7982424,
+    "lng": 6.8114176,
+    "wikidata": null,
+    "distance_from_head_m": 10.4,
+    "osm_elevation": "3892",
+    "status": "parent missing",
+    "search_file": "parent-search/node-3668810726.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:367510882",
+    "name": "Petit Mont Blanc",
+    "lat": 45.7917719,
+    "lng": 6.8329652,
+    "wikidata": "Q31616758",
+    "distance_from_head_m": 43.2,
+    "osm_elevation": "3431",
+    "status": "parent missing",
+    "search_file": "parent-search/node-367510882.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:367945270",
+    "name": "Monte Gruetta",
+    "lat": 45.8842279,
+    "lng": 7.0209502,
+    "wikidata": "Q3861038",
+    "distance_from_head_m": 553.3,
+    "osm_elevation": "3686",
+    "status": "matched",
+    "search_file": "parent-search/node-367945270.json",
+    "match": {
+      "name": "Monte Gruetta",
+      "features": "{summit}",
+      "country_code": "IT",
+      "state_code": null,
+      "lat": 45.8842279,
+      "lng": 7.0209502
+    },
+    "nearby_results": [
+      {
+        "name": "Monte Gruetta",
+        "lat": 45.8842279,
+        "lng": 7.0209502
+      }
+    ]
+  },
+  {
+    "osm_key": "node:367945278",
+    "name": "Aiguille du Moine",
+    "lat": 45.9166313,
+    "lng": 6.9614334,
+    "wikidata": "Q2827894",
+    "distance_from_head_m": 397.6,
+    "osm_elevation": "3412",
+    "status": "matched",
+    "search_file": "parent-search/node-367945278.json",
+    "match": {
+      "name": "Aiguille du Moine",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.9166313,
+      "lng": 6.9614334
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille du Moine",
+        "lat": 45.9166313,
+        "lng": 6.9614334
+      }
+    ]
+  },
+  {
+    "osm_key": "node:367945311",
+    "name": "Aiguille Blanche de Peuterey - Nord",
+    "lat": 45.8237506,
+    "lng": 6.8812639,
+    "wikidata": "Q30472",
+    "distance_from_head_m": 108.7,
+    "osm_elevation": "4098",
+    "status": "parent missing",
+    "search_file": "parent-search/node-367945311.json",
+    "match": null,
+    "nearby_results": [
+      {
+        "name": "Aiguille Blanche de Peuterey - Sud",
+        "lat": 45.8230537,
+        "lng": 6.8840772
+      },
+      {
+        "name": "Aiguille Blanche de Peuterey - Centrale",
+        "lat": 45.8233827,
+        "lng": 6.881749
+      }
+    ]
+  },
+  {
+    "osm_key": "node:367945330",
+    "name": "Dômes de Miage",
+    "lat": 45.8152681,
+    "lng": 6.8002767,
+    "wikidata": "Q646311",
+    "distance_from_head_m": 53.7,
+    "osm_elevation": "3673",
+    "status": "matched",
+    "search_file": "parent-search/node-367945330.json",
+    "match": {
+      "name": "Dômes de Miage",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8152681,
+      "lng": 6.8002767
+    },
+    "nearby_results": [
+      {
+        "name": "Dômes de Miage",
+        "lat": 45.8152681,
+        "lng": 6.8002767
+      },
+      {
+        "name": "Dômes de Miage (5ème dôme)",
+        "lat": 45.8158975,
+        "lng": 6.8032859
+      }
+    ]
+  },
+  {
+    "osm_key": "node:367945338",
+    "name": "Aiguille de la Bérangère",
+    "lat": 45.8027724,
+    "lng": 6.7787895,
+    "wikidata": "Q3607098",
+    "distance_from_head_m": 70.7,
+    "osm_elevation": "3425",
+    "status": "parent missing",
+    "search_file": "parent-search/node-367945338.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:369467782",
+    "name": "Le Cardinal",
+    "lat": 45.9281947,
+    "lng": 6.9655031,
+    "wikidata": "Q117773814",
+    "distance_from_head_m": 198.8,
+    "osm_elevation": "3638",
+    "status": "parent missing",
+    "search_file": "parent-search/node-369467782.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:3848979146",
+    "name": "Rocher de la Tournette",
+    "lat": 45.8328834,
+    "lng": 6.8599134,
+    "wikidata": "Q3437614",
+    "distance_from_head_m": 60.9,
+    "osm_elevation": "4677",
+    "status": "parent missing",
+    "search_file": "parent-search/node-3848979146.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:3977814005",
+    "name": "Aiguille de Tronchey",
+    "lat": 45.8642725,
+    "lng": 6.9986809,
+    "wikidata": null,
+    "distance_from_head_m": 205.2,
+    "osm_elevation": "3495",
+    "status": "parent missing",
+    "search_file": "parent-search/node-3977814005.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:4095457700",
+    "name": "Petite Pointe d'Orny",
+    "lat": 46.006166,
+    "lng": 7.0372142,
+    "wikidata": "Q136838",
+    "distance_from_head_m": 377.3,
+    "osm_elevation": "3187",
+    "status": "matched",
+    "search_file": "parent-search/node-4095457700.json",
+    "match": {
+      "name": "Petite Pointe d'Orny",
+      "features": "{summit}",
+      "country_code": "CH",
+      "state_code": null,
+      "lat": 46.006166,
+      "lng": 7.0372142
+    },
+    "nearby_results": [
+      {
+        "name": "Petite Pointe d'Orny",
+        "lat": 46.006166,
+        "lng": 7.0372142
+      }
+    ]
+  },
+  {
+    "osm_key": "node:4357285689",
+    "name": "Petite Aiguille Verte",
+    "lat": 45.9438549,
+    "lng": 6.963623,
+    "wikidata": "Q3377325",
+    "distance_from_head_m": 93.5,
+    "osm_elevation": "3512",
+    "status": "matched",
+    "search_file": "parent-search/node-4357285689.json",
+    "match": {
+      "name": "Petite Aiguille Verte",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.9438549,
+      "lng": 6.963623
+    },
+    "nearby_results": [
+      {
+        "name": "Petite Aiguille Verte",
+        "lat": 45.9438549,
+        "lng": 6.963623
+      }
+    ]
+  },
+  {
+    "osm_key": "node:503688535",
+    "name": "Pointe de Pré de Bar Est",
+    "lat": 45.9212942,
+    "lng": 7.03817,
+    "wikidata": null,
+    "distance_from_head_m": 358.6,
+    "osm_elevation": "3658",
+    "status": "parent missing",
+    "search_file": "parent-search/node-503688535.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:5818422347",
+    "name": "Pointe Sella",
+    "lat": 45.8616766,
+    "lng": 6.9518096,
+    "wikidata": null,
+    "distance_from_head_m": 742.5,
+    "osm_elevation": "4009",
+    "status": "parent missing",
+    "search_file": "parent-search/node-5818422347.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:7164832069",
+    "name": "Aiguille d'Entrèves",
+    "lat": 45.8448332,
+    "lng": 6.9170955,
+    "wikidata": "Q3607095",
+    "distance_from_head_m": 187.0,
+    "osm_elevation": "3604",
+    "status": "matched",
+    "search_file": "parent-search/node-7164832069.json",
+    "match": {
+      "name": "Aiguille d'Entrèves",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8448332,
+      "lng": 6.9170955
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille d'Entrèves",
+        "lat": 45.8448332,
+        "lng": 6.9170955
+      }
+    ]
+  },
+  {
+    "osm_key": "node:7164832145",
+    "name": "Dent du Géant / Pointe Graham",
+    "lat": 45.861898,
+    "lng": 6.9518989,
+    "wikidata": "Q30541",
+    "distance_from_head_m": 161.6,
+    "osm_elevation": "4013",
+    "status": "matched",
+    "search_file": "parent-search/node-7164832145.json",
+    "match": {
+      "name": "Dent du Géant",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.861881,
+      "lng": 6.952117
+    },
+    "nearby_results": [
+      {
+        "name": "Dent du Géant",
+        "lat": 45.861881,
+        "lng": 6.952117
+      }
+    ]
+  },
+  {
+    "osm_key": "node:7251779831",
+    "name": "Pyramides des Aiguilles Grises",
+    "lat": 45.8217004,
+    "lng": 6.8291992,
+    "wikidata": "Q136375919",
+    "distance_from_head_m": 1200.7,
+    "osm_elevation": "3364",
+    "status": "parent missing",
+    "search_file": "parent-search/node-7251779831.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:7256451496",
+    "name": "Aiguille Blanche de Peuterey - Sud",
+    "lat": 45.8230537,
+    "lng": 6.8840772,
+    "wikidata": "Q30472",
+    "distance_from_head_m": 606.5,
+    "osm_elevation": "4099",
+    "status": "matched",
+    "search_file": "parent-search/node-7256451496.json",
+    "match": {
+      "name": "Aiguille Blanche de Peuterey - Sud",
+      "features": "{summit}",
+      "country_code": "IT",
+      "state_code": null,
+      "lat": 45.8230537,
+      "lng": 6.8840772
+    },
+    "nearby_results": [
+      {
+        "name": "Aiguille Blanche de Peuterey - Sud",
+        "lat": 45.8230537,
+        "lng": 6.8840772
+      },
+      {
+        "name": "Aiguille Blanche de Peuterey - Centrale",
+        "lat": 45.8233827,
+        "lng": 6.881749
+      }
+    ]
+  },
+  {
+    "osm_key": "node:7274424291",
+    "name": "Pointe des Hirondelles Sud",
+    "lat": 45.8738943,
+    "lng": 6.999101,
+    "wikidata": "Q132246952",
+    "distance_from_head_m": 443.4,
+    "osm_elevation": "3526",
+    "status": "parent missing",
+    "search_file": "parent-search/node-7274424291.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:7274427714",
+    "name": "Pointe Isabelle Sud / Punta Isabella Sud",
+    "lat": 45.9138529,
+    "lng": 7.0182842,
+    "wikidata": null,
+    "distance_from_head_m": 220.3,
+    "osm_elevation": "3761",
+    "status": "parent missing",
+    "search_file": "parent-search/node-7274427714.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:7274586194",
+    "name": "Petite Aiguille de Triolet Orientale",
+    "lat": 45.9166576,
+    "lng": 7.0226777,
+    "wikidata": null,
+    "distance_from_head_m": 43.3,
+    "osm_elevation": "3798",
+    "status": "parent missing",
+    "search_file": "parent-search/node-7274586194.json",
+    "match": null,
+    "nearby_results": [
+      {
+        "name": "Aiguille de Triolet",
+        "lat": 45.9164659,
+        "lng": 7.0242018
+      }
+    ]
+  },
+  {
+    "osm_key": "node:7973584578",
+    "name": "Pointe Croux",
+    "lat": 45.9344081,
+    "lng": 6.9653857,
+    "wikidata": "Q132234010",
+    "distance_from_head_m": 174.4,
+    "osm_elevation": "4023",
+    "status": "parent missing",
+    "search_file": "parent-search/node-7973584578.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:808543830",
+    "name": "Aiguille Croux",
+    "lat": 45.8107123,
+    "lng": 6.8850697,
+    "wikidata": "Q124831309",
+    "distance_from_head_m": 154.2,
+    "osm_elevation": "3256",
+    "status": "parent missing",
+    "search_file": "parent-search/node-808543830.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:808543911",
+    "name": "Grand Pilier d'Angle",
+    "lat": 45.8278518,
+    "lng": 6.8797936,
+    "wikidata": "Q30441",
+    "distance_from_head_m": 362.8,
+    "osm_elevation": "4243",
+    "status": "matched",
+    "search_file": "parent-search/node-808543911.json",
+    "match": {
+      "name": "Grand Pilier d'Angle",
+      "features": "{summit}",
+      "country_code": "IT",
+      "state_code": null,
+      "lat": 45.828026,
+      "lng": 6.879269
+    },
+    "nearby_results": [
+      {
+        "name": "Grand Pilier d'Angle",
+        "lat": 45.828026,
+        "lng": 6.879269
+      }
+    ]
+  },
+  {
+    "osm_key": "node:8394948806",
+    "name": "Aiguilles du Pissoir",
+    "lat": 45.9972907,
+    "lng": 7.0103174,
+    "wikidata": null,
+    "distance_from_head_m": 253.4,
+    "osm_elevation": "3439",
+    "status": "parent missing",
+    "search_file": "parent-search/node-8394948806.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:8398131979",
+    "name": "Tour Noir",
+    "lat": 45.94884,
+    "lng": 7.0374269,
+    "wikidata": "Q664824",
+    "distance_from_head_m": 105.2,
+    "osm_elevation": "3836",
+    "status": "matched",
+    "search_file": "parent-search/node-8398131979.json",
+    "match": {
+      "name": "Tour Noir",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.94884,
+      "lng": 7.0374269
+    },
+    "nearby_results": [
+      {
+        "name": "Tour Noir",
+        "lat": 45.94884,
+        "lng": 7.0374269
+      }
+    ]
+  },
+  {
+    "osm_key": "node:857445639",
+    "name": "Dômes de Miage (5ème dôme)",
+    "lat": 45.8158975,
+    "lng": 6.8032859,
+    "wikidata": "Q646311",
+    "distance_from_head_m": 519.8,
+    "osm_elevation": "3672",
+    "status": "matched",
+    "search_file": "parent-search/node-857445639.json",
+    "match": {
+      "name": "Dômes de Miage (5ème dôme)",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8158975,
+      "lng": 6.8032859
+    },
+    "nearby_results": [
+      {
+        "name": "Dômes de Miage (5ème dôme)",
+        "lat": 45.8158975,
+        "lng": 6.8032859
+      },
+      {
+        "name": "Dômes de Miage",
+        "lat": 45.8152681,
+        "lng": 6.8002767
+      }
+    ]
+  },
+  {
+    "osm_key": "node:857445641",
+    "name": "Dômes de Miage (2nd dôme)",
+    "lat": 45.813531,
+    "lng": 6.7939263,
+    "wikidata": null,
+    "distance_from_head_m": 320.3,
+    "osm_elevation": "3633",
+    "status": "parent missing",
+    "search_file": "parent-search/node-857445641.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:857445645",
+    "name": "Dômes de Miage - Pointe Sud-Ouest",
+    "lat": 45.8104261,
+    "lng": 6.7897905,
+    "wikidata": null,
+    "distance_from_head_m": 361.0,
+    "osm_elevation": "3670",
+    "status": "parent missing",
+    "search_file": "parent-search/node-857445645.json",
+    "match": null,
+    "nearby_results": []
+  },
+  {
+    "osm_key": "node:857445692",
+    "name": "Piton des Italiens",
+    "lat": 45.8372078,
+    "lng": 6.8304317,
+    "wikidata": "Q86660878",
+    "distance_from_head_m": 81.5,
+    "osm_elevation": "4002",
+    "status": "matched",
+    "search_file": "parent-search/node-857445692.json",
+    "match": {
+      "name": "Piton des Italiens",
+      "features": "{summit}",
+      "country_code": "FR",
+      "state_code": null,
+      "lat": 45.8372078,
+      "lng": 6.8304317
+    },
+    "nearby_results": [
+      {
+        "name": "Piton des Italiens",
+        "lat": 45.8372078,
+        "lng": 6.8304317
+      }
+    ]
+  }
+]
