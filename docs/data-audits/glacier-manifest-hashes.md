@@ -91,3 +91,28 @@ Baker outline areas, OSM → PSU 2015 (km²): Boulder 2.874 → 3.381, Coleman
 Sholes 1.108 → 1.015, Squak 2.264 → 1.921, Talum 1.177 → 1.888, Thunder
 0.840 → 0.795. Every other row in the three packages changes provenance only
 (the review records rule 2). Facts are unchanged.
+
+## Cross-package outline check (2026-10-29)
+
+`glacier-cross-package.test.ts` loads every `import-*-glaciers` package in the
+repo, applied or not. It fails when two packages share an OSM feature, or when
+a glacier overlaps another package's glacier by more than 1% of the smaller
+outline or 0.01 km² (the neighbour-check thresholds). A future region PR that
+overlaps an existing package fails CI.
+
+Run over all twelve packages together (Rainier, Baker, Glacier Peak and the
+nine region packages, merged into one tree for the check), it found no OSM
+feature in two packages and no cross-package overlap at all. Nothing needed
+resolving. The closest cross-package pairs:
+
+| Pair | Packages | Gap |
+| --- | --- | --- |
+| Colonial / Neve | North Cascades north / south | 16 m |
+| Honeycomb / Tenpeak | Glacier Peak / GPW west | 723 m |
+| Honeycomb / Moth | Glacier Peak / GPW west | 1,616 m |
+
+The same change requires a per-glacier `facts_source_url` to be an http(s)
+URL. A mountain total that mixes area sources now has `source_url: null`
+and a `sources` list giving each credit, URL and the glaciers it supplies.
+No package has such a total today (South Cascade Glacier, the one USGS area,
+is the only glacier on its mountain), so no hash changes.
