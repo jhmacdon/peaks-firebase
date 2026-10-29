@@ -7,7 +7,7 @@ Decisions: [Markdown](olympics-glacier-outline-decisions-2026-10-29.md),
 [JSON](olympics-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`3694c9896f097e8a2f7517a303ca0ed71f0611df4f6520261ea3145d3f1f093d`.
+`6faa5d0c6ccab48eee536b0bc4c7e3e39dcae3288dd17069f053f512a819ffae`.
 
 ## Sources and licences
 
@@ -24,15 +24,21 @@ Reviewed manifest SHA-256 (platform-stable):
 GNIS lists 15 named Olympic glaciers; OSM has 14 of them. **Lillian Glacier**
 has no OSM polygon and no PSU 2015 row (RGI: "Lillian Glacier WA"); not imported.
 
-## Roster: 11 places; 3 OSM polygons held back (flagged)
+## Roster: 12 places; 2 OSM polygons held back
 
-| OSM element | Name | Why held back |
+**Label correction (#288):** OSM's "Fairchild Glacier" (relation:13754230)
+holds the GNIS Carrie Glacier point (1531450, 47.89103,-123.63640) and 79–80%
+of each PSU 2015 "Carrie Glacier" row, so it is imported as **Carrie
+Glacier** (parent Mount Carrie: DEM head 2,069 m, 207 m from the summit;
+OSM/facts 0.990). Provenance records "label corrected from OSM name
+Fairchild Glacier"; OpenStreetMap is not edited.
+
+| OSM element | OSM name | Why held back |
 | --- | --- | --- |
-| relation:18773387 | White Glacier | Invalid geometry: inner way 1364013531 shares two edge segments with the outer way (OGC self-intersection at -123.7588092, 47.7942866). PostGIS would reject it; not repaired or redrawn. |
-| way:1027283192 | Carrie Glacier | Label conflict: this polygon is the PSU "Carrie Glacier WA" feature (G236359E47900N), 1.0 km NW of GNIS Carrie Glacier. |
-| relation:13754230 | Fairchild Glacier | Label conflict: this polygon contains the GNIS Carrie Glacier point; GNIS Fairchild Glacier lies 1.2 km from any OSM polygon. |
+| relation:18773387 | White Glacier | Invalid geometry: inner way 1364013531 shares two edge segments with the outer way. Not repaired or redrawn. |
+| way:1027283192 | Carrie Glacier | Unidentified: it is the PSU "Carrie Glacier WA" feature, 1.0 km NW of GNIS Carrie; the GNIS Fairchild Glacier point (1529151, 47.90657,-123.62897, NE side of Mount Fairchild) lies in no OSM polygon, so it is not Fairchild either. |
 
-All three need an OSM correction before import (agents prepare evidence only).
+Fairchild Glacier is not imported: no OSM polygon contains its GNIS point.
 
 ## Outline decisions
 
@@ -49,6 +55,7 @@ All three need an OSM correction before import (agents prepare evidence only).
 | Cameron Glaciers | 0.340 | 0.193 | 0.193 | 1.764 | 0.529 / 0.956 | osm ⚑ no dated evidence |
 | Anderson | 0.130 | 0.013 | 0.013 | 10.165 | 0.087 / 0.898 | osm ⚑ no dated evidence (the glacier has nearly melted out) |
 | Hanging | 0.076 | 0.061 | 0.061 | 1.257 | 0.743 / 0.962 | osm |
+| Carrie (OSM "Fairchild") | 0.494 | 0.499 | 0.499 | 0.990 | — | osm |
 
 Blue's facts area (5.111, two parts) differs from its dissolved candidate
 (5.137) because the cohort's parts overlap slightly.
@@ -77,6 +84,7 @@ Expected Peaks summits (the privileged step resolves IDs):
 | Mount Queets | 47.7623, -123.5950 | summit | 1500 m |
 | Mount Anderson | 47.7212, -123.3315 | summit | 1500 m |
 | Mount Cameron | 47.8254, -123.3285 | summit | 1500 m |
+| Mount Carrie | 47.8942, -123.6491 | summit | 1500 m |
 
 "Of N": Mount Olympus 6 (Blue, Hoh, Hubert, Humes, Ice River, Jeffers),
 Mount Anderson 3, Mount Queets 1, Mount Cameron 1. White Glacier heads on
@@ -94,8 +102,7 @@ Resources Division service, analysis only), smallest margin 8 km.
   the flag, per policy), Cameron Glaciers (1.764), Anderson (10.165).
 - **Outline quality (1, counted, held):** White (invalid OSM geometry; the
   stricter hole-contact rule of #285 still rejects it).
-- **Held, label (2):** Carrie and Fairchild stay held until verified
-  identities arrive.
+- **Held, identity (1):** way:1027283192 (OSM "Carrie"), unidentified.
 - **No facts (0).**
 - Parent calls flagged: Humes, Ice River, Queets (corrections pending).
 

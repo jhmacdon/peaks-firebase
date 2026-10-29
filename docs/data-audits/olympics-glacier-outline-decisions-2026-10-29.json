@@ -2,8 +2,8 @@
   "schema_version": 1,
   "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=47.8013 +lon_0=-123.7106 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-  "input_manifest_sha256": "5d992447571ced775e36ed83c1261d90c6c00ec09a0b97e7f38c06c71563e207",
-  "output_manifest_sha256": "3694c9896f097e8a2f7517a303ca0ed71f0611df4f6520261ea3145d3f1f093d",
+  "input_manifest_sha256": "0da78122e4f3b53fb1cfa82c2d5a43b460fcc71c4d03ae539b15602880eda446",
+  "output_manifest_sha256": "6faa5d0c6ccab48eee536b0bc4c7e3e39dcae3288dd17069f053f512a819ffae",
   "sources": [
     {
       "key": "glims-2015-09-09",
@@ -126,6 +126,26 @@
               "iou": 0.836313231,
               "osm_share": 0.838176316,
               "candidate_share": 0.99734921
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "FC6E6E33F06AD92D7FA3",
+            "name": "Carrie Glacier",
+            "feature_ids": [
+              "1012980",
+              "1012987"
+            ],
+            "glacier_ids": [
+              "G236364E47890N",
+              "G236365E47891N"
+            ],
+            "area_km2": 0.499076672,
+            "overlap": {
+              "intersection_km2": 0.396318905,
+              "iou": 0.663766915,
+              "osm_share": 0.801749458,
+              "candidate_share": 0.794104247
             },
             "parts_without_osm_overlap": []
           },
@@ -1025,14 +1045,6 @@
             "name": "Carrie Glacier WA",
             "feature_ids": [
               "1012981"
-            ],
-            "reason": "No name/alias crosswalk"
-          },
-          {
-            "name": "Carrie Glacier",
-            "feature_ids": [
-              "1012980",
-              "1012987"
             ],
             "reason": "No name/alias crosswalk"
           },
@@ -3053,7 +3065,26 @@
       "license_ok": false,
       "purpose": "historical_reference",
       "audit": {
-        "matches": [],
+        "matches": [
+          {
+            "place_id": "FC6E6E33F06AD92D7FA3",
+            "name": "Carrie Glacier",
+            "feature_ids": [
+              "761635"
+            ],
+            "glacier_ids": [
+              "G236365E47891N"
+            ],
+            "area_km2": 0.915113403,
+            "overlap": {
+              "intersection_km2": 0.458247492,
+              "iou": 0.481765574,
+              "osm_share": 0.927030414,
+              "candidate_share": 0.500754869
+            },
+            "parts_without_osm_overlap": []
+          }
+        ],
         "unmatched": [
           {
             "feature_ids": [
@@ -3087,13 +3118,6 @@
             "name": "Carrie Glacier WA",
             "feature_ids": [
               "761633"
-            ],
-            "reason": "No name/alias crosswalk"
-          },
-          {
-            "name": "Carrie Glacier",
-            "feature_ids": [
-              "761635"
             ],
             "reason": "No name/alias crosswalk"
           },
@@ -3411,6 +3435,39 @@
       "chosen_source": "osm",
       "flagged": true,
       "reason": "OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent"
+    },
+    {
+      "id": "FC6E6E33F06AD92D7FA3",
+      "glacier": "Carrie Glacier",
+      "osm_area_km2": 0.494317646,
+      "glims_area_km2": 0.499076672,
+      "facts_area_km2": 0.499077,
+      "osm_ratio": 0.990463688,
+      "glims_ratio": 0.999999343,
+      "candidates": [
+        {
+          "source_key": "glims-2015-09-09",
+          "area_km2": 0.499076672,
+          "ratio": 0.999999343,
+          "observed_at": "2015-09-09",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.396318905,
+            "iou": 0.663766915,
+            "osm_share": 0.801749458,
+            "candidate_share": 0.794104247
+          },
+          "feature_ids": [
+            "1012980",
+            "1012987"
+          ],
+          "parts_without_osm_overlap": []
+        }
+      ],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
     },
     {
       "id": "251FB231802004BB3132",

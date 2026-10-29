@@ -10,12 +10,14 @@ const PARK = "olympic-national-park";
 const summit = (name: string, lat: number, lng: number): GlacierParent =>
   ({ name, features: ["summit"], country_code: "US", state_code: "WA", lat, lng, radius_m: 1500 });
 
-/** 11 of the 14 named OSM glaciers; all inside Olympic National Park (NPS
- * boundary, smallest margin 8 km). Left out and flagged for an OSM fix:
+/** 12 of the 14 named OSM glaciers; all inside Olympic National Park (NPS
+ * boundary, smallest margin 8 km). OSM's "Fairchild" polygon
+ * (relation:13754230) holds the GNIS Carrie Glacier point and the inventory's
+ * "Carrie Glacier" rows, so it is imported as Carrie Glacier. Left out:
  * White Glacier (relation:18773387, an inner ring shares two edges with the
- * outer ring: invalid geometry) and Carrie / Fairchild (way:1027283192,
- * relation:13754230: the "Fairchild" polygon holds GNIS Carrie Glacier and the
- * "Carrie" polygon is the inventory's "Carrie Glacier WA"). Parents are the
+ * outer ring: invalid geometry) and way:1027283192 (OSM "Carrie"; the
+ * inventory's "Carrie Glacier WA"; unidentified: the GNIS Fairchild Glacier
+ * point lies in no OSM polygon). Parents are the
  * summits each glacier's DEM head lies on (Copernicus GLO-30, analysis only);
  * Olympus' Middle and East peaks count as Mount Olympus. */
 export const OLYMPICS_SPEC: RegionSpec = {
@@ -39,6 +41,9 @@ export const OLYMPICS_SPEC: RegionSpec = {
     "way:1093654800": { parent: "mount-anderson", inventory: "Eel Glacier", container: PARK },
     "way:1093657603": { parent: "mount-anderson", inventory: "Hanging Glacier", container: PARK },
     "relation:14569855": { parent: "mount-cameron", inventory: "Cameron Glaciers", container: PARK, aliases: ["Cameron Glacier"] },
+    "relation:13754230": { parent: "mount-carrie", inventory: "Carrie Glacier", container: PARK,
+      label: { name: "Carrie Glacier", method: "GNIS Carrie Glacier (1531450, 47.89103,-123.63640) lies inside this polygon; "
+        + "the GNIS Fairchild Glacier point (1529151) lies in no OSM polygon; PSU 2015 \"Carrie Glacier\" rows lie 79–80% inside it" } },
   },
   default_parent: "mount-olympus",
   parents: {
@@ -46,19 +51,21 @@ export const OLYMPICS_SPEC: RegionSpec = {
     "mount-queets": summit("Mount Queets", 47.7623, -123.5950),
     "mount-anderson": summit("Mount Anderson", 47.7212, -123.3315),
     "mount-cameron": summit("Mount Cameron", 47.8254, -123.3285),
+    "mount-carrie": summit("Mount Carrie", 47.8942, -123.6491),
   },
   container_areas: { [PARK]: { kind: "national_park", name: "Olympic National Park" } },
   inventory: {
     cohort: { observed_at: "2015-09-09", submission_id: "814", chief_affl: "Portland State University" },
     rgi_outline_years: "1985–87",
-    /** Named cohort glaciers per parent. White (Mount Tom), Carrie and
-     * Fairchild (Mount Carrie) have no place in this package. */
+    /** Named cohort glaciers per parent. White (Mount Tom) and Fairchild have
+     * no place in this package; "… WA" names are not counted. */
     mountains: {
       "mount-olympus": { label: "Mount Olympus", names: { "Blue Glacier": 2, "Hoh Glacier": 1, "Hubert Glacier": 1, "Humes Glacier": 1,
         "Ice River Glacier": 1, "Jeffers Glacier": 1 } },
       "mount-queets": { label: "Mount Queets", names: { "Queets Glacier": 1 } },
       "mount-anderson": { label: "Mount Anderson", names: { "Anderson Glacier": 1, "Eel Glacier": 2, "Hanging Glacier": 1 } },
       "mount-cameron": { label: "Mount Cameron", names: { "Cameron Glaciers": 4 } },
+      "mount-carrie": { label: "Mount Carrie", names: { "Carrie Glacier": 2 } },
     },
     /** RGI splits Cameron Glaciers into four rows; the highest (zmax 2,124 m) gives the head. */
     rgi_ids: { "Cameron Glaciers": "RGI2000-v7.0-G-02-13848" },

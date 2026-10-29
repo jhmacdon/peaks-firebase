@@ -11,7 +11,7 @@ const read = (dir: string, file: string) => readFileSync(join(dir, file));
 const base = loadOlympicsOsmPackage(), review = loadOlympicsOutlineReview();
 const place = (name: string) => review.manifest.places.find(p => p.name === name)!;
 
-test("snapshot hashes, roster of 11 and the three OSM polygons held back", () => {
+test("snapshot hashes, roster of 12 and the two OSM polygons held back", () => {
   const { files, sha256: hashes } = OLYMPICS_SPEC;
   assert.equal(sha256(read(DATA_DIR, files.osm)), hashes.osm);
   assert.equal(sha256(read(DATA_DIR, files.rgi)), hashes.rgi);
@@ -19,10 +19,14 @@ test("snapshot hashes, roster of 11 and the three OSM polygons held back", () =>
   const snapshot = JSON.parse(read(DATA_DIR, files.osm).toString("utf8"));
   assert.equal(snapshot.osm3s.timestamp_osm_base, "2026-07-15T15:22:01Z");
   const all = parseOsmGlaciers(snapshot);
-  assert.deepEqual(all.filter(p => !(p.osm_key in OLYMPICS_SPEC.roster)).map(p => p.name).sort(), ["Carrie Glacier", "Fairchild Glacier", "White Glacier"]);
+  assert.deepEqual(all.filter(p => !(p.osm_key in OLYMPICS_SPEC.roster)).map(p => p.osm_key).sort(), ["relation:18773387", "way:1027283192"]);
   const white = all.find(p => p.name === "White Glacier")!;
   assert.throws(() => outlineMetrics(base.parent).validate(white.boundary), /Self-intersection|interior splits/, "inner ring shares edges with the outer ring");
-  assert.equal(base.places.length, 11);
+  assert.equal(base.places.length, 12);
+  const carrie = base.places.find(p => p.osm_key === "relation:13754230")!;
+  assert.equal(carrie.name, "Carrie Glacier", "OSM's \"Fairchild\" polygon holds the GNIS Carrie point");
+  assert.equal((carrie.facts.provenance.label as { corrected_from_osm_name: string }).corrected_from_osm_name, "Fairchild Glacier");
+  assert.equal(placeParent(base, carrie).parent.name, "Mount Carrie");
   assert.ok(base.places.every(p => placeContainer(base, p)?.area.name === "Olympic National Park"));
   assert.equal(loadOlympicsOutlineReview().manifest.manifest_sha256, review.manifest.manifest_sha256);
 });
@@ -58,7 +62,7 @@ test("outline decisions: Ice River and Jeffers take the 2015 inventory; Queets, 
   assert.deepEqual(report.decisions.filter(d => d.flagged).map(d => d.glacier).sort(), ["Anderson Glacier", "Cameron Glaciers", "Queets Glacier"]);
   assert.ok(report.decisions.filter(d => d.chosen_source !== "osm").every(d => d.extent_evidence?.source_key === "glims-1987-09-09-reference"));
   assert.deepEqual(report.sources[0].audit.unmatched.filter(u => u.name.trim() && u.name !== "WA").map(u => u.name).sort(),
-    ["Carrie Glacier", "Carrie Glacier WA", "Fairchild Glacier", "White Glacier"]);
+    ["Carrie Glacier WA", "Fairchild Glacier", "White Glacier"]);
   assert.equal(place("Jeffers Glacier").geometry!.observed_at, "2015-09-09");
 });
 
