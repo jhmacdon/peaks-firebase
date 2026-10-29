@@ -52,6 +52,7 @@ export const GLACIER_PEAK_SPEC: RegionSpec = {
     rgi_absent: ["East White River"],
   },
   activities: ["outdoor-trek", "ski"],
+  country_code: "US", state_code: "WA",
 };
 
 export const loadGlacierPeakOsmPackage = () => loadRegionOsmPackage(GLACIER_PEAK_SPEC);
