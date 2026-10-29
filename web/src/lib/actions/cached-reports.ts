@@ -1,7 +1,8 @@
 import "server-only";
 
 import { cache } from "react";
-import { getRecentTripReports, getTripReport } from "./trip-reports";
+import { getRecentTripReports, getTripReport, getTripReportCountForDestination, getTripReportsForDestination } from "./trip-reports";
+import { getDestinationCached } from "./cached-destinations";
 
 // The report segment reads the same row twice per request — once in
 // `layout.tsx` (generateMetadata) and once in `page.tsx` (the body).
@@ -16,3 +17,14 @@ export const getTripReportCached = cache(getTripReport);
 // query joins destinations and photo blocks per report, so it is not one to
 // run twice per request.
 export const getRecentTripReportsCached = cache(getRecentTripReports);
+
+// Shared by report-list metadata and body: only published reports are read.
+export const getDestinationReportsPageCached = cache(async (id: string, requestedPage: number) => {
+  const dest = await getDestinationCached(id);
+  if (!dest) return null;
+  const totalCount = await getTripReportCountForDestination(id);
+  const pageCount = Math.max(1, Math.ceil(totalCount / 20));
+  const page = Math.min(requestedPage, pageCount);
+  const reports = totalCount ? await getTripReportsForDestination(id, 20, (page - 1) * 20) : [];
+  return { dest, reports, totalCount, page };
+});

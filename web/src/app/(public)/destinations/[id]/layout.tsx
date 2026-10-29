@@ -5,7 +5,7 @@ import {
 } from "../../../../lib/actions/cached-destinations";
 import { JsonLdScript } from "../../../../components/json-ld-script";
 import { describeDestinationType } from "../../../../lib/destination-detail";
-import { buildDestinationJsonLd, buildFaqJsonLd } from "../../../../lib/json-ld";
+import { buildDestinationJsonLd } from "../../../../lib/json-ld";
 import { subdivisionName, countryName } from "../../../../lib/regions";
 import { describeDestination } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
@@ -13,13 +13,11 @@ import { catalogShareImage } from "../../../../lib/catalog-share-image";
 import {
   getGlacierFacts,
   getGlacierMountainById,
-  getGlacierRoutes,
 } from "../../../../lib/actions/cached-glaciers";
 import {
   buildBreadcrumbJsonLd,
   buildGlacierJsonLd,
   describeGlacier,
-  glacierFaqs,
   glacierMountainPath,
   glacierPageTitle,
   type GlacierFacts,
@@ -77,10 +75,7 @@ export default async function DestinationLayout({
     const destination = await getDestinationCached(id);
     const glacier = await glacierFactsFor(destination, id);
     if (destination && glacier) {
-      const [mountain, routes] = await Promise.all([
-        getGlacierMountainById(glacier.parent.id).catch(() => null),
-        getGlacierRoutes(id).catch(() => []),
-      ]);
+      const mountain = await getGlacierMountainById(glacier.parent.id).catch(() => null);
       const region = subdivisionName(destination.country_code, destination.state_code);
       const url = absoluteUrl(`/destinations/${id}`);
       jsonLd = [
@@ -98,7 +93,6 @@ export default async function DestinationLayout({
           ...(mountain ? [{ name: `${mountain.name} glaciers`, url: absoluteUrl(glacierMountainPath(mountain)) }] : []),
           { name: glacier.name, url },
         ]),
-        buildFaqJsonLd({ items: glacierFaqs(glacier, region, routes) }),
       ];
     } else if (destination) {
       jsonLd = buildDestinationJsonLd({

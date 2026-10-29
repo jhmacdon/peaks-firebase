@@ -9,7 +9,9 @@ export function refreshOutlineManifest(args: string[]) {
   if (!input || !config || !prefix) throw new Error("--manifest=OSM.json --config=sources.json --report-prefix=PATH are required");
   const { manifest_sha256: _hash, ...body } = readGlacierManifest(input);
   const { sources, references, aliases } = loadOutlineSources(config);
-  const result = refreshGlacierOutlines(body, sources, references, aliases);
+  const rule = value("outline-rule") ?? "1";
+  if (rule !== "1" && rule !== "2") throw new Error("--outline-rule must be 1 or 2");
+  const result = refreshGlacierOutlines(body, sources, references, aliases, undefined, { rule: rule === "2" ? 2 : 1 });
   writeFileSync(`${prefix}.json`, JSON.stringify(result.report, null, 2) + "\n");
   writeFileSync(`${prefix}.md`, outlineReportMarkdown(result.report));
   const output = value("write-manifest");

@@ -18,8 +18,8 @@ const split: InventoryConfig = { cohort: BAKER_SPEC.inventory.cohort, rgi_outlin
   mountains: { "mount-baker": { label: "Mount Baker", names: rest },
     colfax: { label: "Colfax Peak", names: { "Thunder Glacier": 2, "Bastile Glacier": 1 } } } };
 
-test("Baker built through the generic region builder keeps its applied facts and stable hash", () => {
-  assert.equal(loadBakerPackage().manifest_sha256, "ecca694dbab15a7614ad06a83c963e8827a8d65fd9d9eeaba0f3be410c20c833");
+test("Baker built through the generic region builder (rule 2) has a stable hash", () => {
+  assert.equal(loadBakerPackage().manifest_sha256, "05f2ef2e0fa9ec7a247ef09253a0308bb957abf2556afe870b20b4993be16c7e");
 });
 
 test("per-mountain ranks and contexts; names unique across mountains", () => {
@@ -226,7 +226,7 @@ test("an inventory crosswalk note lands in provenance; keep_osm needs outline ru
   assert.equal(loadRegionOsmPackage(spec).places.find(p => p.osm_key === "relation:4778054")!.facts.provenance.inventory_crosswalk, note);
   const keep = { ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
     "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], keep_osm: "reviewed" } } };
-  assert.throws(() => loadRegionOutlineReview(keep), /keep_osm needs outline rule 2/);
+  assert.throws(() => loadRegionOutlineReview({ ...keep, outline_rule: 1 }), /keep_osm needs outline rule 2/);
   // Keeping Thunder on OSM blocks the all-inventory option for Baker's one
   // touching group, so the switched Talum would be clipped against Squak; that
   // removes 17.5% of it, so the build holds instead.
