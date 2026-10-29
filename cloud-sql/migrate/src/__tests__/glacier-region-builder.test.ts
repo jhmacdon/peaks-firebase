@@ -180,3 +180,22 @@ test("USGS benchmark area: latest DEM year, checked against the geodetic area an
     assert.throws(() => usgsBenchmarkArea(dir, files, { ...hashes, geodetics: sha256(Buffer.from(off)) }, release), /disagrees/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("a roster label correction renames the place, drops OSM's Wikidata tag and records the OSM name", () => {
+  const base = loadRegionOsmPackage(BAKER_SPEC), before = base.places.find(p => p.osm_key === "relation:4778054")!;
+  const relabel = (name: string) => ({ ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
+    "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], label: { name, method: "GNIS point inside polygon" } } } });
+  const m = loadRegionOsmPackage(relabel("Colfax Glacier")), after = m.places.find(p => p.osm_key === "relation:4778054")!;
+  assert.equal(before.name, "Thunder Glacier");
+  assert.equal(after.name, "Colfax Glacier");
+  assert.equal(after.id, before.id, "the destination id still follows the OSM element");
+  assert.equal(after.external_ids.osm_relation, before.external_ids.osm_relation);
+  assert.equal("wikidata" in after.external_ids, false);
+  assert.deepEqual(after.facts.provenance.label, { corrected_from_osm_name: "Thunder Glacier",
+    ...(before.external_ids.wikidata ? { dropped_osm_wikidata: before.external_ids.wikidata } : {}),
+    method: "GNIS point inside polygon", note: 'Label corrected from OSM name "Thunder Glacier"; OpenStreetMap itself is unchanged' });
+  assert.equal("label" in after, false, "the correction lives in provenance, not on the place");
+  assert.equal(after.facts.area_km2, before.facts.area_km2, "facts still follow the roster's inventory name");
+  assert.throws(() => loadRegionOsmPackage(relabel("Park Glacier")), /uniquely named/);
+  assert.throws(() => loadRegionOsmPackage(relabel("Thunder Glacier")), /Invalid label correction/);
+});

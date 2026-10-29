@@ -16,6 +16,10 @@ export type RegionPlace = {
   container: string | null;
   aliases?: string[];
   kind?: "glacier" | "snowfield";
+  /** Verified name when OSM labels this polygon as another glacier. The OSM
+   * name and its Wikidata tag describe that other glacier, so both are
+   * dropped; provenance records the correction and how it was verified. */
+  label?: { name: string; method: string };
 };
 /** Everything one region package needs. A region is a spec plus saved data;
  * the writer, schema, API and app stay unchanged. */
@@ -49,8 +53,15 @@ export function loadRegionOsmPackage(spec: RegionSpec) {
   };
   const keys = Object.keys(spec.roster);
   const snowfields = new Set(keys.filter(k => spec.roster[k].kind === "snowfield"));
-  const candidates = parseOsmGlaciers(read(spec.data_dir, spec.files.osm, spec.sha256.osm), { roster: keys })
-    .map(c => ({ ...c, kind: snowfields.has(c.osm_key) ? "snowfield" as const : "glacier" as const }));
+  const candidates = parseOsmGlaciers(read(spec.data_dir, spec.files.osm, spec.sha256.osm), { roster: keys }).map(c => {
+    const label = spec.roster[c.osm_key].label, kind = snowfields.has(c.osm_key) ? "snowfield" as const : "glacier" as const;
+    if (!label) return { ...c, kind };
+    if (!label.name.trim() || label.name === c.name || !label.method.trim()) throw new Error(`Invalid label correction for ${c.osm_key}`);
+    const { wikidata, ...external_ids } = c.external_ids;
+    return { ...c, kind, name: label.name, external_ids,
+      label: { corrected_from_osm_name: c.name, ...(wikidata ? { dropped_osm_wikidata: wikidata } : {}), method: label.method,
+        note: `Label corrected from OSM name "${c.name}"; OpenStreetMap itself is unchanged` } };
+  });
   if (candidates.length !== keys.length || new Set(candidates.map(c => c.name)).size !== keys.length)
     throw new Error(`Expected ${keys.length} uniquely named ${spec.label} places`);
   const inventory = parseInventory(read(spec.outline_dir, spec.files.glims, spec.sha256.glims),
@@ -70,7 +81,8 @@ export function loadRegionOsmPackage(spec: RegionSpec) {
     ...(others.length ? { parents: Object.fromEntries(others.map(k => [k, { ...spec.parents[k], mountain_context: context(k) }])) } : {}),
     container_areas: spec.container_areas,
     mountain_context: context(spec.default_parent),
-    places: candidates.map(c => {
+    places: candidates.map(candidate => {
+      const { label, ...c } = candidate as typeof candidate & { label?: Record<string, string> };
       const r = spec.roster[c.osm_key];
       if (!spec.parents[r.parent]) throw new Error(`Unknown parent for ${c.name}`);
       if (r.inventory !== null && used.has(r.inventory)) throw new Error(`Inventory glacier on two places: ${r.inventory}`);
@@ -80,7 +92,8 @@ export function loadRegionOsmPackage(spec: RegionSpec) {
       const facts = inventoryFacts(inventory, spec.inventory, r.parent, c, r.inventory);
       return { ...c, aliases: r.aliases ?? [], ...(r.parent === spec.default_parent ? {} : { parent_key: r.parent }),
         container_area_key: r.container,
-        facts: { ...facts, provenance: { ...facts.provenance, glims_sha256: spec.sha256.glims, rgi_sha256: spec.sha256.rgi } } };
+        facts: { ...facts, provenance: { ...facts.provenance, glims_sha256: spec.sha256.glims, rgi_sha256: spec.sha256.rgi,
+          ...(label ? { label } : {}) } } };
     }),
   };
   validateGlacierManifest(manifest);
