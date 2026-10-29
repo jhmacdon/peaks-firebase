@@ -29,9 +29,10 @@ test("parents, of-N and containers", () => {
   }
 });
 
-test("decisions: all OSM; Conrad and Packwood outside the ratio band", () => {
-  assert.deepEqual(review.report.decisions.filter(d => d.chosen_source !== "osm"), []);
-  assert.deepEqual(review.report.decisions.filter(d => d.flagged).map(d => d.glacier).sort(), ["Conrad Glacier", "Packwood Glacier"]);
+test("decisions: rule 2 gives Conrad and Packwood the dated 2015 outline; nothing flagged", () => {
+  assert.deepEqual(review.report.decisions.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(), ["Conrad Glacier", "Packwood Glacier"]);
+  assert.ok(review.report.decisions.filter(d => d.chosen_source !== "osm").every(d => /rule 2/.test(d.reason)));
+  assert.deepEqual(review.report.decisions.filter(d => d.flagged), []);
   assert.ok(m.places.every(p => p.facts.area_km2 !== null && p.facts.observed_year === 2015));
 });
 

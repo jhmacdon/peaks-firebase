@@ -46,6 +46,7 @@ export const GOAT_ROCKS_SPEC: RegionSpec = {
   },
   activities: ["outdoor-trek", "ski"],
   country_code: "US", state_code: "WA",
+  outline_rule: 2,
 };
 
 export const loadGoatRocksOsmPackage = () => loadRegionOsmPackage(GOAT_ROCKS_SPEC);
