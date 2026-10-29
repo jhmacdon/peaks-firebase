@@ -29,7 +29,12 @@ export type GlacierManifestFacts = {
   average_slope_deg: number | null; flow_direction_deg: number | null; flow_direction_label: string | null;
   type_code: string | null; type_label: string | null; estimated_volume_km3: number | null;
   volume_uncertainty_km3: number | null; rank_on_mountain: number | null;
-  area_history: { year: number; area_km2: number | null; uncertainty_km2: number | null }[];
+  /** `accuracy: "low"` marks a survey the source itself calls low-accuracy
+   * (see glaciers/area-history.ts); builders without such a note omit it. */
+  area_history: { year: number; area_km2: number | null; uncertainty_km2: number | null; accuracy?: "low" | null }[];
+  /** Deprecated for display: counts from the first measured year, low-accuracy
+   * or not. Clients use provenance.area_change (served as
+   * percent_change_since_baseline / change_baseline_year). */
   area_history_scope: string | null; percent_change_since_earliest: number | null;
   description: string | null; description_source_url: string | null; provenance: Record<string, unknown>;
 };
