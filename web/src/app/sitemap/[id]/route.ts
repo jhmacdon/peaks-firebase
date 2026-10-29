@@ -4,6 +4,7 @@ import {
 } from "../../../lib/landing-copy";
 import { usStateSlugFromCode } from "../../../lib/regions";
 import { absoluteUrl } from "../../../lib/seo";
+import { glacierMountainPath } from "../../../lib/glaciers";
 import {
   DESTINATION_SITEMAP_CHUNK_SIZE,
   buildUrlSetXml,
@@ -29,6 +30,7 @@ const STATIC_URLS = [
   "/guides/washington-waterfalls",
   "/features",
   "/peaks",
+  "/glaciers",
   "/fire-lookouts/washington",
   "/fire-lookouts/california",
   "/areas",
@@ -121,6 +123,19 @@ export async function GET(
         result.rows.map((row) => ({
           url: absoluteUrl(`/areas/${encodeURIComponent(row.id)}`),
           lastModified: row.updatedAt,
+        }))
+      );
+    }
+
+    if (id === "glaciers") {
+      // Mountain hubs only; each glacier's own page is already listed in the
+      // destination chunks.
+      const { getGlacierMountains } = await import("../../../lib/actions/cached-glaciers");
+      const mountains = await getGlacierMountains();
+      return xmlResponse(
+        mountains.map((mountain) => ({
+          url: absoluteUrl(glacierMountainPath(mountain)),
+          lastModified: mountain.updated_at,
         }))
       );
     }

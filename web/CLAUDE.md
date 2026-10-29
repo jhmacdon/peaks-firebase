@@ -43,6 +43,8 @@ src/
       discover/page.tsx               # Search + nearby + popular + lists
       destinations/[id]/page.tsx      # Destination detail (read-only)
       destinations/[id]/reports/      # Trip reports for destination
+      glaciers/page.tsx               # Glaciers by mountain
+      glaciers/[mountain]/page.tsx    # One mountain's glacier map + roster
       routes/[id]/page.tsx            # Route detail
       lists/page.tsx                  # Browse all lists
       lists/[id]/page.tsx             # List detail + progress

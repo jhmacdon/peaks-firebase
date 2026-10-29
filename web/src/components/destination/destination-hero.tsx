@@ -37,14 +37,16 @@ export function DestinationHero({
   lng,
   boundary,
   elevationValue,
+  basemap,
   className = "",
 }: {
   name: string;
   photos: HeroPhoto[];
   lat: number | null;
   lng: number | null;
-  boundary: GeoJSON.Polygon | null;
+  boundary: GeoJSON.Polygon | GeoJSON.MultiPolygon | null;
   elevationValue: string | null;
+  basemap?: "topo" | "satellite";
   className?: string;
 }) {
   const hasMap = lat != null && lng != null;
@@ -64,6 +66,7 @@ export function DestinationHero({
           lng={lng}
           name={name}
           boundary={boundary}
+          basemap={basemap}
           className="h-[260px] sm:h-[320px] lg:h-[380px]"
         />
         {elevationValue ? (
@@ -91,7 +94,7 @@ export function DestinationHero({
     // reader say it twice.
     second ? <PhotoTile key="photo-2" photo={second} alt="" /> : null,
     hasMap ? (
-      <MapPreviewTile key="map" name={name} lat={lat} lng={lng} boundary={boundary} />
+      <MapPreviewTile key="map" name={name} lat={lat} lng={lng} boundary={boundary} basemap={basemap} />
     ) : null,
   ].filter(Boolean);
 
@@ -159,11 +162,13 @@ function MapPreviewTile({
   lat,
   lng,
   boundary,
+  basemap,
 }: {
   name: string;
   lat: number;
   lng: number;
-  boundary: GeoJSON.Polygon | null;
+  boundary: GeoJSON.Polygon | GeoJSON.MultiPolygon | null;
+  basemap?: "topo" | "satellite";
 }) {
   return (
     <div className="relative isolate h-full overflow-hidden">
@@ -172,6 +177,7 @@ function MapPreviewTile({
         lng={lng}
         name={name}
         boundary={boundary}
+        basemap={basemap}
         interactive={false}
         className="h-full"
       />
