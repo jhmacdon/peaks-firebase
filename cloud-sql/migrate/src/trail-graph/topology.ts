@@ -39,23 +39,39 @@ export function glacierIndex(glaciers: Glacier[]): Grid<Glacier> {
     grid.add([minX, minY], [maxX, maxY], glacier);
   } return grid;
 }
-export function classifyTerrain(way: Way, point: Coord, glaciers: Grid<Glacier>): { kind: Kind; terrain?: Segment['terrain'] } {
-  const matches = glaciers.near(point, 0).filter(g => g.polygons.some(rings => insidePolygon(point, rings)));
-  if (matches.length) {
-    // OSM may export an unnamed member way before its named multipolygon.
-    // Prefer the named footprint only when the containing names agree.
-    const named = matches.filter(g => g.name.trim());
-    const names = new Set(named.map(g => g.name.trim().toLowerCase()));
-    const candidates = names.size === 1 ? named : matches;
-    const g = [...candidates].sort((a, b) => (a.osm_id ?? '').localeCompare(b.osm_id ?? ''))[0];
-    const name = names.size === 1 ? g.name.trim() : null;
-    const kind = name && /snowfield/i.test(name) ? 'snowfield' : 'glacier';
-    return { kind, terrain: { kind, name, ...(names.size <= 1 && g.osm_id ? { osm_id: g.osm_id } : {}) } };
-  }
+function pathKind(way: Way): Kind {
   // sac_scale never sets a kind: mappers grade a whole way by its hardest move and grade glacier
   // routes by crevasse risk. It still splits segments (see the signature below) and feeds difficulty.
-  if (way.tags.highway === 'track' && ['motor_vehicle', 'motorcar', 'vehicle', 'motorcycle'].some(k => ['yes', 'designated', 'permissive', 'destination'].includes(way.tags[k]))) return { kind: 'road' };
-  return { kind: 'trail' };
+  if (way.tags.highway === 'track' && ['motor_vehicle', 'motorcar', 'vehicle', 'motorcycle'].some(k => ['yes', 'designated', 'permissive', 'destination'].includes(way.tags[k]))) return 'road';
+  return 'trail';
+}
+/** `remnant` names the remnant outline that set the kind; callers keep it only when the whole line lies inside. */
+export function classifyTerrain(way: Way, point: Coord, glaciers: Grid<Glacier>): { kind: Kind; terrain?: Segment['terrain']; remnant?: string } {
+  const inside = glaciers.near(point, 0).filter(g => g.polygons.some(rings => insidePolygon(point, rings)));
+  // A current outline wins over remnant ice. Remnant ice is never a glacier.
+  const current = inside.filter(g => !g.remnant_label), matches = current.length ? current : inside;
+  if (matches.length) {
+    const remnant = !current.length, label = (g: Glacier) => (g.remnant_label ?? g.name).trim();
+    // OSM may export an unnamed member way before its named multipolygon.
+    // Prefer the named footprint only when the containing names agree.
+    const named = matches.filter(g => label(g));
+    const names = new Set(named.map(g => label(g).toLowerCase()));
+    const candidates = names.size === 1 ? named : matches;
+    const g = [...candidates].sort((a, b) => (a.osm_id ?? '').localeCompare(b.osm_id ?? ''))[0];
+    const name = names.size === 1 ? label(g) : null;
+    const kind = remnant || name && /snowfield/i.test(name) ? 'snowfield' : 'glacier';
+    return { kind, terrain: { kind, name, ...(names.size <= 1 && g.osm_id ? { osm_id: g.osm_id } : {}) }, ...(remnant ? { remnant: g.osm_id ?? label(g) } : {}) };
+  }
+  return { kind: pathKind(way) };
+}
+/** Remnant ice types only a line that lies wholly inside one remnant; a line that grazes it keeps its path kind. */
+function keepWholeRemnants(way: Way, terrain: ReturnType<typeof classifyTerrain>[]): ReturnType<typeof classifyTerrain>[] {
+  const first = terrain[0]?.remnant;
+  if (first && terrain.every(t => t.remnant === first)) return terrain;
+  return terrain.map(t => t.remnant ? { kind: pathKind(way) } : t);
+}
+export function classifyLine(way: Way, points: Coord[], glaciers: Grid<Glacier>): ReturnType<typeof classifyTerrain>[] {
+  return keepWholeRemnants(way, points.map(p => classifyTerrain(way, p, glaciers)));
 }
 export function classify(way: Way, point: Coord, glaciers: Grid<Glacier>): Kind {
   return classifyTerrain(way, point, glaciers).kind;
@@ -66,8 +82,7 @@ export function buildTopology(ways: Way[], nodes: Map<number, Coord>, glaciers: 
   const edges: Segment[] = [], signatures: string[] = [];
   for (const w of ways) {
     const repeated = new Map<number, number>(); w.nodes.forEach(id => repeated.set(id, (repeated.get(id) ?? 0) + 1));
-    const terrain: ReturnType<typeof classifyTerrain>[] = [];
-    for (let i = 1; i < w.nodes.length; i++) terrain.push(classifyTerrain(w, interpolate(nodes.get(w.nodes[i - 1])!, nodes.get(w.nodes[i])!, 0.5), grid));
+    const terrain = classifyLine(w, w.nodes.slice(1).map((id, i) => interpolate(nodes.get(w.nodes[i])!, nodes.get(id)!, 0.5)), grid);
     const terrainKeys = terrain.map(value => JSON.stringify(value));
     const names = unique([w.tags.name, ...(w.tags.alt_name?.split(';') ?? []), ...(w.tags.official_name ? [w.tags.official_name] : [])].filter((s): s is string => !!s?.trim()));
     let start = 0;

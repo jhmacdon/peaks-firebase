@@ -154,6 +154,10 @@ Add two files and one npm script. Do not edit `import-glacier-manifest.ts`.
      from `./glaciers/osm`. The roster is the explicit list of `osm_key`s for
      this mountain (missing keys fail); `snowfields` lists OSM names to mark
      kind=snowfield. `import-baker-glaciers.ts` is the second worked example.
+     The parser always drops outlines listed in
+     `data/stale-glacier-outlines.json` (melted or remnant ice OSM still maps),
+     and a roster that names one fails. If the facts source says a mapped
+     glacier is gone, add it to that file with sources rather than to code.
    - When facts come from the PSU cohort and RGI 7.0, skip the hand-written
      builder: a `RegionSpec` (`glaciers/region-builder.ts`) plus an
      `InventoryConfig` (`glaciers/psu-inventory.ts`) is the whole builder; see

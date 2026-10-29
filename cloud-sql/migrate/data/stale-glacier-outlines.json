@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-29",
+  "about": "OSM natural=glacier outlines that are not current glaciers. gone: ignored for trail terrain, ice names and glacier places. remnant: never typed glacier; a trail way wholly inside becomes snowfield under remnant_label. See docs/trail-label-repairs.md.",
+  "outlines": [
+    {
+      "osm_id": "relation/9690999",
+      "name": "Swift Glacier",
+      "status": "remnant",
+      "remnant_label": "Swift Glacier remnant",
+      "reason": "Mount St. Helens. Lost most of its ice in the 1980 eruption; what is left is debris-covered remnant ice.",
+      "sources": [
+        "https://www.usgs.gov/volcanoes/mount-st.-helens/glaciation-mount-st-helens",
+        "https://www.schweizerbart.de/papers/zfg/detail/43/93659/Shoestring_Glacier_Seventeen_years_later_Mount_St_Helens_USA",
+        "https://www.openstreetmap.org/relation/9690999"
+      ],
+      "reviewedAt": "2026-10-29"
+    },
+    {
+      "osm_id": "relation/13209365",
+      "name": "Hinman Glacier",
+      "status": "gone",
+      "reason": "Mount Hinman. In August 2022 Mauri Pelto's team found only stranded patches too thin to flow; a lake fills much of the basin.",
+      "sources": [
+        "https://www.kuow.org/stories/rip-washington-s-hinman-glacier-gone-after-thousands-of-years",
+        "https://www.openstreetmap.org/relation/13209365"
+      ],
+      "reviewedAt": "2026-10-29"
+    }
+  ]
+}

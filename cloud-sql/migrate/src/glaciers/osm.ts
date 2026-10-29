@@ -1,3 +1,4 @@
+import { staleGlacierOutlines, staleOutline, type StaleOutline } from "./stale-outlines";
 import { canonicalOsmId, deterministicLakeDestinationId, extractOsmLakeLinework, osmIdentityKey, osmExternalIdField, type OverpassElement } from "../osm-lake-coverage";
 
 /** Shared OSM natural=glacier parser for every mountain builder. */
@@ -13,6 +14,8 @@ export type OsmGlacierOptions = {
   snowfields?: Iterable<string>;
   /** When set, keep exactly these `osm_key`s and fail if any is missing. */
   roster?: Iterable<string>;
+  /** Outlines that are not current glaciers; defaults to data/stale-glacier-outlines.json. */
+  stale?: Map<string, StaleOutline>;
 };
 
 const equal = (a: Position, b: Position) => a[0] === b[0] && a[1] === b[1];
@@ -91,13 +94,19 @@ function linework(element: OverpassElement): Polygon[] {
 export function parseOsmGlaciers(snapshot: unknown, options: OsmGlacierOptions = {}): GlacierCandidate[] {
   const snowfields = new Set(options.snowfields ?? []);
   const roster = options.roster ? new Set(options.roster) : null;
+  const stale = options.stale ?? staleGlacierOutlines();
+  for (const key of roster ?? []) {
+    const listed = staleOutline(key, stale);
+    if (listed) throw new Error(`Roster lists ${key} (${listed.name}), which data/stale-glacier-outlines.json marks ${listed.status}`);
+  }
   const response = snapshot as { elements?: OverpassElement[]; remark?: string };
   if (!response || response.remark || !Array.isArray(response.elements)) throw new Error("Incomplete Overpass snapshot");
   const named = response.elements.filter(e => e.tags?.natural === "glacier" && e.tags.name?.trim());
   const memberWays = new Set(named.filter(e => e.type === "relation").flatMap(e =>
     (e.members ?? []).filter(m => m.type === "way").map(m => canonicalOsmId(m.ref))));
   const seen = new Set<string>();
-  const places = named.filter(e => e.type !== "way" || !memberWays.has(canonicalOsmId(e.id))).map(e => {
+  // A gone or remnant outline, or a member way of one, never becomes a glacier place.
+  const places = named.filter(e => (e.type !== "way" || !memberWays.has(canonicalOsmId(e.id))) && !staleOutline(`${e.type}/${e.id}`, stale)).map(e => {
     if (e.type !== "way" && e.type !== "relation") throw new Error("Named glacier has no polygon");
     const key = osmIdentityKey(e.type, e.id);
     if (seen.has(key)) throw new Error(`Duplicate OSM identity ${key}`);

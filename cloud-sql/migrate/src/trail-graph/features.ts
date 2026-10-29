@@ -2,6 +2,7 @@ import { Grid, haversine, insidePolygon, midpoint, nearest, pointDistance, type 
 import { ndjson } from './io';
 import type { Coord, Glacier, NamedFeature, Segment, Tags } from './types';
 import { intersectsBbox, withinBbox, type Bbox } from './state';
+import { staleGlacierOutlines, staleOutline, type StaleOutline } from '../glaciers/stale-outlines';
 
 export interface SourceFeature { type: string; id?: number | string; properties: Record<string, any>; geometry: { type: string; coordinates: any } | null }
 interface FeatureRecord { feature: NamedFeature; geometry: NonNullable<SourceFeature['geometry']> }
@@ -38,13 +39,17 @@ function representative(g: NonNullable<SourceFeature['geometry']>): Coord {
   for (let i = 1; i < first.length; i++) { const a = first[i - 1], b = first[i], c = a[0] * b[1] - b[0] * a[1]; area += c; x += (a[0] + b[0]) * c; y += (a[1] + b[1]) * c; }
   return Math.abs(area) > 1e-12 ? [x / (3 * area), y / (3 * area)] : midpoint(first);
 }
-export async function readFeatures(path: string, bbox?: Bbox): Promise<{ records: FeatureRecord[]; glaciers: Glacier[]; input: number }> {
+/** Gone outlines are dropped; remnant outlines carry their reviewed label. Neither becomes a named glacier place. */
+export async function readFeatures(path: string, bbox?: Bbox, stale: Map<string, StaleOutline> = staleGlacierOutlines()): Promise<{ records: FeatureRecord[]; glaciers: Glacier[]; input: number }> {
   const records = new Map<string, FeatureRecord>(), glaciers: Glacier[] = []; let input = 0;
   for await (const f of ndjson<SourceFeature>(path)) {
     input++; const t = f.properties, g = f.geometry; if (!g) continue;
     if (bbox && !(g.type === 'Point' ? withinBbox(g.coordinates, bbox) : boundaryLines(g).some(coords => intersectsBbox(coords, bbox)))) continue;
     const id = `${t['@type'] ?? (g.type === 'Point' ? 'node' : 'way')}/${t['@id'] ?? f.id}`;
-    if (t.natural === 'glacier' && ['Polygon', 'MultiPolygon'].includes(g.type)) glaciers.push({ name: t.name ?? '', osm_id: id, polygons: g.type === 'Polygon' ? [g.coordinates] : g.coordinates });
+    const listed = t.natural === 'glacier' ? staleOutline(id, stale) : undefined;
+    if (t.natural === 'glacier' && listed?.status !== 'gone' && ['Polygon', 'MultiPolygon'].includes(g.type)) glaciers.push({ name: t.name ?? '', osm_id: id, polygons: g.type === 'Polygon' ? [g.coordinates] : g.coordinates,
+      ...(listed?.remnant_label ? { remnant_label: listed.remnant_label } : {}) });
+    if (listed) continue;
     const feature = featureType(t); if (!feature || !t.name?.trim() && feature !== 'trailhead') continue;
     // Osmium emits both a closed way and its area. Keep its area footprint once.
     if (records.has(id) && !['Polygon', 'MultiPolygon'].includes(g.type)) continue;

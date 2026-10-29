@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { staleGlacierOutlines } from './glaciers/stale-outlines';
 
 export interface StretchRow {
   id: string;
@@ -23,7 +24,7 @@ export interface StretchRoute {
 }
 export interface NameFinding {
   code: 'missing_segments' | 'missing_segment' | 'unnamed_ice' | 'ice_named_as_trail' | 'ice_uses_path_name'
-    | 'name_repeated_across_kinds' | 'adjacent_name_variants' | 'adjacent_trail_aliases';
+    | 'name_repeated_across_kinds' | 'adjacent_name_variants' | 'adjacent_trail_aliases' | 'named_after_stale_glacier';
   ordinals: number[];
   segment_ids: string[];
   names: (string | null)[];
@@ -71,7 +72,12 @@ const key = (name: string | null): string => (name ?? '').normalize('NFKC').toLo
 const ice = (kind: string | null) => kind === 'glacier' || kind === 'snowfield';
 const trailWord = /\b(?:trail|path|road|footpath)\b/i;
 
-export function auditStretchNames(route: StretchRoute): NameFinding[] {
+/** OSM names of outlines listed in data/stale-glacier-outlines.json: a gone glacier, or remnant ice that has its own label. */
+export function staleGlacierNames(): Set<string> {
+  return new Set([...staleGlacierOutlines().values()].map(o => key(o.name)));
+}
+
+export function auditStretchNames(route: StretchRoute, staleNames: Set<string> = staleGlacierNames()): NameFinding[] {
   const findings: NameFinding[] = [];
   const add = (code: NameFinding['code'], rows: StretchRow[]) => findings.push({
     code, ordinals: rows.map(s => s.ordinal), segment_ids: rows.map(s => s.id),
@@ -80,6 +86,7 @@ export function auditStretchNames(route: StretchRoute): NameFinding[] {
   const segments = [...route.segments].sort((a, b) => a.ordinal - b.ordinal);
   if (!segments.length) { add('missing_segments', []); return findings; }
   for (const segment of segments) {
+    if (staleNames.has(key(segment.display_name))) add('named_after_stale_glacier', [segment]);
     if (!segment.kind) add('missing_segment', [segment]);
     else if (ice(segment.kind)) {
       if (!key(segment.display_name)) add('unnamed_ice', [segment]);
@@ -116,10 +123,10 @@ export function auditCatalogStretchNames(routes: StretchRoute[]) {
     if (ids.has(route.id)) throw new Error(`Duplicate snapshot route: ${route.id}`);
     ids.add(route.id);
   }
-  const byStatus: Record<string, number> = {}, counts: Record<string, number> = {};
+  const byStatus: Record<string, number> = {}, counts: Record<string, number> = {}, staleNames = staleGlacierNames();
   const findings = routes.flatMap(route => {
     byStatus[route.status] = (byStatus[route.status] ?? 0) + 1;
-    const issues = auditStretchNames(route);
+    const issues = auditStretchNames(route, staleNames);
     for (const issue of issues) counts[issue.code] = (counts[issue.code] ?? 0) + 1;
     return issues.length ? [{ id: route.id, name: route.name, status: route.status,
       state_code: route.state_code, section_count: route.section_count, issues }] : [];

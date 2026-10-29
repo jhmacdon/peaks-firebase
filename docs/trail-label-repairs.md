@@ -57,6 +57,18 @@ distance, and uncovered distance. This checks the source extract, not current ic
 extent. Mixed, missing, or unnamed coverage requires review before assigning a
 geographic name. Keep OSM attribution with the source evidence.
 
+OSM still maps some glaciers that have melted. `cloud-sql/migrate/data/stale-glacier-outlines.json`
+lists them. The trail import, the ice source review, the name audit and the glacier
+place parser all read it. A `gone` outline counts as no ice: it never types or names
+an edge and never becomes a place. A `remnant` outline is never a glacier. A trail way
+that lies wholly inside one becomes a snowfield named by its `remnant_label` (for
+example "Swift Glacier remnant"); a way that only grazes it keeps its own kind and
+name. The name audit flags any edge still named after a listed outline. To add an
+entry, give the OSM id (`relation/123` or `way/123`), the OSM name, the status, a
+short reason, and at least one https source, plus `remnant_label` for a remnant. The
+label must not end in "Glacier". The list stops new imports, not old rows: repair
+stored edges by hand, as the 2026-10-29 Swift and Hinman repairs under `docs/audits/` did.
+
 `scripts/propose-trail-label-aliases.py` reads every raw segment in contiguous
 trail stretches. It includes inner segments that an audit's boundary IDs omit,
 and follows shared IDs across routes. Proposals require source and shared-link

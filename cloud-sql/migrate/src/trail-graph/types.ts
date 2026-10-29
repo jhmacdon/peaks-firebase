@@ -45,4 +45,5 @@ export interface NamedFeature {
   boundary?: { type: 'MultiPolygon'; coordinates: Coord[][][] };
   graph_coord?: Coord;
 }
-export interface Glacier { name: string; osm_id?: string; polygons: Coord[][][] }
+/** `remnant_label` marks an outline listed as remnant ice in data/stale-glacier-outlines.json. */
+export interface Glacier { name: string; osm_id?: string; polygons: Coord[][][]; remnant_label?: string }
