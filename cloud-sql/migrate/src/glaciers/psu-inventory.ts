@@ -193,9 +193,15 @@ export function inventoryMountainContext(inv: Inventory, config: InventoryConfig
   if (new Set(areas.map(a => `${a.year}|${a.credit}`)).size > 1) {
     const other = names.filter((_, i) => areas[i].credit !== PSU_CREDIT).map(n => {
       const a = areas[names.indexOf(n)]; return `${n} (${a.credit}, ${a.year})`; });
+    // No single URL covers a mixed total: every source is listed with the
+    // glaciers it supplies.
+    const sources = [...new Set(areas.map(a => `${a.credit}\n${a.url}`))].map(k => {
+      const [credit, url] = k.split("\n");
+      return { credit, url, glaciers: names.filter((_, i) => areas[i].credit === credit && areas[i].url === url) };
+    });
     return { observed_year: cohortYear, named_glacier_count: areas.length,
       area_km2: round(areas.reduce((s, a) => s + a.area_km2, 0), 3),
-      source: [...new Set(areas.map(a => a.credit))].join("; "), source_url: PSU_URL,
+      source: sources.map(x => x.credit).join("; "), source_url: null, sources,
       scope: `Named glaciers of ${m.label}: ${cohortYear} Portland State inventory cohort areas, except ${other.join(", ")}; unnamed ice excluded` };
   }
   const { year, credit, url } = areas[0], cohort = credit === PSU_CREDIT;
