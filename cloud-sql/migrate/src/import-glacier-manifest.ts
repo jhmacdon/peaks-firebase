@@ -31,8 +31,14 @@ export type GlacierManifestFacts = {
   area_history_scope: string | null; percent_change_since_earliest: number | null;
   description: string | null; description_source_url: string | null; provenance: Record<string, unknown>;
 };
+export type GlacierParent = { name: string; features: string[]; country_code: string; state_code: string | null; lat: number; lng: number; radius_m: number };
+export type GlacierContainerArea = { kind: string; name: string };
 export type GlacierManifestPlace = {
   id: string; name: string; osm_key: string; external_ids: Record<string, string>; kind: "glacier" | "snowfield";
+  /** Key into `parents`; omitted means the package `parent`. */
+  parent_key?: string;
+  /** Key into `container_areas`, or null when no single area covers the outline. */
+  container_area_key?: string | null;
   /** Other spellings for search and route terrain names, e.g. "Interglacier". */
   aliases: string[];
   boundary: Outline;
@@ -46,10 +52,17 @@ export type GlacierManifest = {
   facts_credit: string; facts_source_url: string | null;
   description_source_name: string | null; description_source_license: string | null;
   country_code: string; state_code: string | null; activities: string[];
-  /** The checked parent destination: apply refuses an id that fails any field. */
-  parent: { name: string; features: string[]; country_code: string; state_code: string | null; lat: number; lng: number; radius_m: number };
-  /** Every outline must lie inside this area (a park or other managed unit). */
-  container_area: { kind: string; name: string };
+  /** The checked default parent destination and projection origin: apply
+   * refuses an id that fails any field. */
+  parent: GlacierParent;
+  /** Other parent summits, keyed for `place.parent_key`. Each may carry its
+   * own `mountain_context`; otherwise the package context applies. */
+  parents?: Record<string, GlacierParent & { mountain_context?: Record<string, unknown> }>;
+  /** Single-area packages: every outline must lie inside this area. */
+  container_area?: GlacierContainerArea;
+  /** Per-place areas, keyed for `place.container_area_key`. Use instead of
+   * `container_area` when outlines span several areas or none covers them. */
+  container_areas?: Record<string, GlacierContainerArea>;
   /** Mountain-wide totals; served to clients as `mountain_context`. */
   mountain_context: Record<string, unknown>;
   /** Binds the whole offline review (including unmatched features) to apply. */
@@ -58,6 +71,21 @@ export type GlacierManifest = {
 };
 
 export const sha256 = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
+const own = (o: object | undefined, key: string) => !!o && Object.prototype.hasOwnProperty.call(o, key);
+export function placeParent(m: GlacierManifest, p: GlacierManifestPlace): { key: string | null; parent: GlacierParent; mountain_context: Record<string, unknown> } {
+  if (p.parent_key === undefined) return { key: null, parent: m.parent, mountain_context: m.mountain_context };
+  if (!own(m.parents, p.parent_key)) throw new Error(`Invalid glacier manifest: unknown parent_key for ${p.name}`);
+  const { mountain_context, ...parent } = m.parents![p.parent_key];
+  return { key: p.parent_key, parent, mountain_context: mountain_context ?? m.mountain_context };
+}
+/** The area an outline must lie inside, or null when the package says none does. */
+export function placeContainer(m: GlacierManifest, p: GlacierManifestPlace): { key: string | null; area: GlacierContainerArea } | null {
+  if (!m.container_areas) return { key: null, area: m.container_area! };
+  if (p.container_area_key === null) return null;
+  if (typeof p.container_area_key !== "string" || !own(m.container_areas, p.container_area_key))
+    throw new Error(`Invalid glacier manifest: unknown container_area_key for ${p.name}`);
+  return { key: p.container_area_key, area: m.container_areas[p.container_area_key] };
+}
 export function placeGeometry(m: GlacierManifest, p: GlacierManifestPlace): GlacierGeometryProvenance {
   return p.geometry ?? {
     schema_version: 1, geometry_source: m.geometry_source,
@@ -77,7 +105,7 @@ export function glacierPlaceProvenance(m: GlacierManifest, p: GlacierManifestPla
     catalog: { source: geometry.geometry_source, license: geometry.license, credit: geometry.credit,
       snapshot_sha256: geometry.source_sha256, fetched_at: geometry.snapshot_at,
       observed_at: geometry.observed_at, source_url: geometry.source_url, aliases: p.aliases },
-    facts: { ...p.facts, provenance: { ...p.facts.provenance, mountain_context: m.mountain_context,
+    facts: { ...p.facts, provenance: { ...p.facts.provenance, mountain_context: placeParent(m, p).mountain_context,
       source_snapshot_sha256: m.source_sha256, outline: geometry } },
   };
 }
@@ -89,8 +117,12 @@ export function manifestSha256(manifest: GlacierManifest): string {
 export function validateGlacierManifest(m: GlacierManifest): GlacierManifest {
   const fail = (why: string) => { throw new Error(`Invalid glacier manifest: ${why}`); };
   if (!m || !Array.isArray(m.places) || !m.places.length) fail("no places");
-  if (!m.parent?.name || !Number.isFinite(m.parent.lat) || !Number.isFinite(m.parent.lng) || !(m.parent.radius_m > 0)) fail("parent identity");
-  if (!m.container_area?.kind || !m.container_area?.name) fail("container area");
+  const parentOk = (x: GlacierParent | undefined) => !!x?.name && Array.isArray(x.features) && x.features.length > 0 && !!x.country_code
+    && Number.isFinite(x.lat) && Number.isFinite(x.lng) && x.radius_m > 0;
+  const areaOk = (x: GlacierContainerArea | undefined) => !!x?.kind?.trim() && !!x?.name?.trim();
+  if (!parentOk(m.parent) || (m.parents !== undefined && (typeof m.parents !== "object" || !Object.values(m.parents).every(parentOk)))) fail("parent identity");
+  if (m.container_areas === undefined ? !areaOk(m.container_area)
+    : m.container_area !== undefined || typeof m.container_areas !== "object" || !Object.values(m.container_areas).every(areaOk)) fail("container area");
   if (!m.facts_credit?.trim() || !m.geometry_credit?.trim() || !m.geometry_license?.trim()) fail("credits");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(m.geometry_observed_at)) fail("geometry_observed_at");
   if (!/^[0-9a-f]{64}$/.test(m.source_sha256)) fail("source_sha256");
@@ -101,6 +133,9 @@ export function validateGlacierManifest(m: GlacierManifest): GlacierManifest {
     if (!["glacier", "snowfield"].includes(p.kind) || p.facts?.kind !== p.kind) fail(`kind for ${p.name}`);
     if (p.boundary?.type !== "MultiPolygon" || !p.boundary.coordinates?.length) fail(`boundary for ${p.name}`);
     if (!Array.isArray(p.aliases)) fail(`aliases for ${p.name}`);
+    if (p.parent_key !== undefined && !own(m.parents, p.parent_key)) fail(`parent_key for ${p.name}`);
+    if (m.container_areas ? !own(p, "container_area_key") || (p.container_area_key !== null && !own(m.container_areas, p.container_area_key!))
+      : own(p, "container_area_key")) fail(`container_area_key for ${p.name}`);
     const g = placeGeometry(m, p);
     const date = (value: string | null) => value === null || /^\d{4}-\d{2}-\d{2}$/.test(value) &&
       !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
@@ -136,32 +171,63 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
   if (value("expected-manifest-sha256") !== pkg.manifest_sha256) throw new Error("Apply requires the reviewed --expected-manifest-sha256");
   validateGlacierManifest(pkg);
   if (manifestSha256(pkg) !== pkg.manifest_sha256) throw new Error("Manifest changed after review");
-  const parentId = value("parent-mountain-id"), areaId = value("park-area-id");
-  if (!parentId || !areaId) throw new Error("Supply checked --parent-mountain-id and --park-area-id; IDs are never guessed");
+  // IDs are never guessed: the default parent and every keyed parent/area a
+  // place uses need a checked ID. `--parent-id=KEY=ID` / `--area-id=KEY=ID`
+  // serve keyed packages; a single-area package keeps `--park-area-id`.
+  const keyed = (flag: string) => new Map(args.filter(a => a.startsWith(`--${flag}=`)).map(a => {
+    const [key, id, ...rest] = a.slice(flag.length + 3).split("=");
+    if (!key || !id || rest.length) throw new Error(`Use --${flag}=KEY=ID`);
+    return [key, id] as const;
+  }));
+  const parentIds = keyed("parent-id"), areaIds = keyed("area-id");
+  const defaultParentId = value("parent-mountain-id"), parkAreaId = value("park-area-id");
+  const parentKeys = new Set(pkg.places.flatMap(x => x.parent_key === undefined ? [] : [x.parent_key]));
+  const areaKeys = new Set(pkg.places.flatMap(x => { const c = placeContainer(pkg, x); return c?.key ? [c.key] : []; }));
+  const needDefault = pkg.places.some(x => x.parent_key === undefined);
+  if ((needDefault && !defaultParentId) || [...parentKeys].some(k => !parentIds.has(k)) || [...parentIds.keys()].some(k => !parentKeys.has(k)))
+    throw new Error("Supply a checked --parent-mountain-id and one --parent-id=KEY=ID per keyed parent; IDs are never guessed");
+  if (pkg.container_areas ? parkAreaId !== undefined || [...areaKeys].some(k => !areaIds.has(k)) || [...areaIds.keys()].some(k => !areaKeys.has(k))
+    : !parkAreaId || areaIds.size > 0)
+    throw new Error(pkg.container_areas ? "Supply one checked --area-id=KEY=ID per container area key (not --park-area-id)"
+      : "Supply checked --parent-mountain-id and --park-area-id; IDs are never guessed");
+  const parentIdFor = (x: GlacierManifestPlace) => x.parent_key === undefined ? defaultParentId! : parentIds.get(x.parent_key)!;
+  const areaIdFor = (x: GlacierManifestPlace) => { const c = placeContainer(pkg, x); return c === null ? null : c.key === null ? parkAreaId! : areaIds.get(c.key)!; };
   // No default connection, proxy, environment merge or network acquisition.
   const url = process.env.GLACIER_DATABASE_URL;
   if (!url) throw new Error("GLACIER_DATABASE_URL is required for apply");
   const pool = new Pool({ connectionString: url, max: 1, statement_timeout: 30_000, connectionTimeoutMillis: 5000 });
   const client = await pool.connect();
-  const p = pkg.parent;
   try {
-    const parent = await client.query(`SELECT id FROM destinations WHERE id=$1 AND owner='peaks' AND name=$2
-      AND features && $3::destination_feature[] AND country_code=$4 AND state_code IS NOT DISTINCT FROM $5
-      AND ST_DWithin(location,ST_MakePoint($6,$7)::geography,$8)`,
-      [parentId,p.name,`{${p.features.join(",")}}`,p.country_code,p.state_code,p.lng,p.lat,p.radius_m]);
-    const area = await client.query(`SELECT id FROM areas WHERE id=$1 AND kind=$2 AND name=$3`,
-      [areaId,pkg.container_area.kind,pkg.container_area.name]);
-    if (parent.rowCount !== 1 || area.rowCount !== 1) throw new Error("Parent/area identity check failed");
+    const checked = new Set<string>();
+    for (const x of pkg.places) {
+      const { key, parent: p } = placeParent(pkg, x), id = parentIdFor(x);
+      if (checked.has(`parent:${key}`)) continue;
+      checked.add(`parent:${key}`);
+      const parent = await client.query(`SELECT id FROM destinations WHERE id=$1 AND owner='peaks' AND name=$2
+        AND features && $3::destination_feature[] AND country_code=$4 AND state_code IS NOT DISTINCT FROM $5
+        AND ST_DWithin(location,ST_MakePoint($6,$7)::geography,$8)`,
+        [id,p.name,`{${p.features.join(",")}}`,p.country_code,p.state_code,p.lng,p.lat,p.radius_m]);
+      if (parent.rowCount !== 1) throw new Error(`Parent/area identity check failed: ${p.name}`);
+    }
+    for (const x of pkg.places) {
+      const c = placeContainer(pkg, x), id = areaIdFor(x);
+      if (!c || checked.has(`area:${c.key}`)) continue;
+      checked.add(`area:${c.key}`);
+      const area = await client.query(`SELECT id FROM areas WHERE id=$1 AND kind=$2 AND name=$3`, [id,c.area.kind,c.area.name]);
+      if (area.rowCount !== 1) throw new Error(`Parent/area identity check failed: ${c.area.name}`);
+    }
     // Check every geometry before the first write; an incomplete or invalid
-    // source package must not become a partly visible catalog.
+    // source package must not become a partly visible catalog. A place with
+    // no container area still gets the validity check.
     const preflight=await client.query(`WITH inputs AS (
-      SELECT item->>'name' AS name,ST_SetSRID(ST_GeomFromGeoJSON(item->'boundary'),4326) AS g
+      SELECT item->>'name' AS name,item->>'area_id' AS area_id,ST_SetSRID(ST_GeomFromGeoJSON(item->'boundary'),4326) AS g
       FROM jsonb_array_elements($1::jsonb) AS incoming(item)
-    ) SELECT i.name FROM inputs i JOIN areas a ON a.id=$2
-      WHERE NOT ST_IsValid(i.g) OR ST_IsEmpty(i.g) OR NOT ST_Covers(a.boundary,i.g)`,
-      [JSON.stringify(pkg.places.map(x=>({name:x.name,boundary:x.boundary}))),areaId]);
+    ) SELECT i.name FROM inputs i LEFT JOIN areas a ON a.id=i.area_id
+      WHERE NOT ST_IsValid(i.g) OR ST_IsEmpty(i.g) OR (i.area_id IS NOT NULL AND NOT COALESCE(ST_Covers(a.boundary,i.g),false))`,
+      [JSON.stringify(pkg.places.map(x=>({name:x.name,area_id:areaIdFor(x),boundary:x.boundary})))]);
     if (preflight.rows.length) throw new Error(`Invalid/out-of-area source package: ${preflight.rows.map(r=>r.name).join(", ")}`);
     for (const place of pkg.places) {
+      const parentId = parentIdFor(place), areaId = areaIdFor(place), p = placeParent(pkg, place).parent;
       await client.query("BEGIN");
       // Generic destination rematch triggers queue every session near the
       // old and new outline; on Rainier that hit the statement timeout. The
@@ -170,8 +236,8 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
       await client.query("SET LOCAL peaks.defer_rematch = 'on'");
       try {
         const shape = await client.query(`SELECT ST_IsValid(g) AS valid,ST_IsEmpty(g) AS empty,
-          ST_Covers(a.boundary,g) AS inside FROM (SELECT ST_SetSRID(ST_GeomFromGeoJSON($1),4326) AS g) s
-          JOIN areas a ON a.id=$2`,[JSON.stringify(place.boundary),areaId]);
+          ($2::text IS NULL OR COALESCE(ST_Covers(a.boundary,g),false)) AS inside FROM (SELECT ST_SetSRID(ST_GeomFromGeoJSON($1),4326) AS g) s
+          LEFT JOIN areas a ON a.id=$2`,[JSON.stringify(place.boundary),areaId]);
         if (!shape.rows[0]?.valid || shape.rows[0].empty || !shape.rows[0].inside) throw new Error(`Invalid/out-of-area boundary: ${place.name}`);
         const collision = await client.query(`SELECT id FROM destinations WHERE id=$1 OR external_ids @> $2::jsonb
           OR ($4::jsonb<>'{}'::jsonb AND external_ids @> $4::jsonb)
@@ -228,7 +294,7 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
           WHERE ${columns.slice(1).map(c=>c==="outline"
             ? "ST_AsEWKB(destination_glacier_facts.outline::geometry) IS DISTINCT FROM ST_AsEWKB(EXCLUDED.outline::geometry)"
             : `destination_glacier_facts.${c} IS DISTINCT FROM EXCLUDED.${c}`).join(" OR ")}`,parameters);
-        await client.query(`INSERT INTO destination_areas(destination_id,area_id,relation,source) VALUES($1,$2,'contained_by','postgis')
+        if (areaId !== null) await client.query(`INSERT INTO destination_areas(destination_id,area_id,relation,source) VALUES($1,$2,'contained_by','postgis')
           ON CONFLICT(destination_id,area_id) DO NOTHING`,[place.id,areaId]);
         await client.query("COMMIT");
         console.log(`Imported ${place.name} (${place.id})`);

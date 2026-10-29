@@ -1,0 +1,3 @@
+[out:json][timeout:120];
+wr["natural"="glacier"](48.68,-121.98,48.88,-121.65);
+out meta geom;
