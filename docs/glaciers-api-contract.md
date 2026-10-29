@@ -716,7 +716,10 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
    descriptions, normalized facts, per-place geometry provenance and the full
    outline review. A changed source, parser or review changes the hash. The
    current reviewed hash is
-   `1ca5fb0861e792b05ae34a08a73826517d857db9b3ff047a424dd3ffd3f963fc`.
+   `3b7f23b88afd37b1c4d2e67fac6e67bb1591aa28a79b1ed67209637e3606fbcd`
+   with platform-stable metrics (9 decimals; see
+   [the hash record](data-audits/glacier-manifest-hashes.md)). The hash first
+   applied in production was built before that rounding.
 
 4. Resolve the actual parent and park IDs with read-only queries. Review the
    names, features, coordinates and park footprint; do not choose an arbitrary

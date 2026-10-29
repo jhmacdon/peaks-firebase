@@ -7,8 +7,11 @@ and `src/glaciers/baker.ts`. Outline decisions:
 [JSON](baker-glacier-outline-decisions-2026-10-29.json). Verification SQL:
 [baker-glacier-verify-2026-10-29.sql](baker-glacier-verify-2026-10-29.sql).
 
-Reviewed manifest SHA-256:
-`3586a87dba5b42f0571af85bcc2cfc194e8381e3125d879590bfa7d8ec9baf78`.
+Applied manifest SHA-256 (2026-10-29):
+`3586a87dba5b42f0571af85bcc2cfc194e8381e3125d879590bfa7d8ec9baf78`. With
+platform-stable metrics the same package hashes to
+`c082ef875e6d6bf8e3173183bf62c3c791a873bb87de0f3771ee596393694c13`; a replay
+uses that hash ([record](glacier-manifest-hashes.md)).
 
 ## Sources and licences
 

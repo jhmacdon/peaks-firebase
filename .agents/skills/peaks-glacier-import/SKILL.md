@@ -341,6 +341,13 @@ cloud-sql/scripts/peaks-psql -c '\timing on' -c 'SELECT count(*) FROM generate_s
 Pick the one parent and park row that match by name, features, location and
 footprint. Never pick an arbitrary same-name row. Then:
 
+Hashes are platform-stable: computed outline metrics are rounded to
+`METRIC_DECIMALS` (9) in `glaciers/outline-geometry.ts`, so a Mac rebuild
+must print exactly the PR's `manifest_sha256`. If it does not, stop: a source
+file, dependency or builder differs. Never pass a hash you did not rebuild.
+If the PR's OSM snapshot came from a stale mirror, diff the roster against
+live OSM first and rebuild only if an imported glacier changed.
+
 ```bash
 gcloud sql backups create --instance=peaks-db --project donner-a8608 \
   --description="before <mountain> glaciers"
@@ -350,7 +357,8 @@ PW="$(gcloud secrets versions access latest --secret=peaks-db-password --project
 export GLACIER_DATABASE_URL="postgres://peaks-api:$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$PW")@127.0.0.1:5432/peaks"
 unset PW
 cd cloud-sql/migrate && npm ci
-node --import tsx src/import-<mountain>-glaciers.ts | grep manifest_sha256   # must equal the PR's hash
+# Rebuild the manifest on this apply machine; its hash must equal the PR's.
+node --import tsx src/import-<mountain>-glaciers.ts | grep manifest_sha256
 node --import tsx src/import-<mountain>-glaciers.ts --apply \
   --expected-manifest-sha256='<hash>' \
   --parent-mountain-id='<checked-parent-id>' --park-area-id='<checked-park-id>'

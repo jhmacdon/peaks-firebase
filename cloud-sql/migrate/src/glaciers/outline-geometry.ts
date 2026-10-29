@@ -70,10 +70,33 @@ function intersection(a: Shape, b: Shape): number {
   return area;
 }
 
+/** Decimal places kept for every computed metric (km² areas, overlap shares,
+ * IoU, area ratios) that is compared, hashed or written. The projection calls
+ * libm sin/cos/log, whose last digits differ between platforms (Linux vs
+ * macOS), so unrounded metrics made manifest hashes platform-dependent.
+ * 1e-9 km² is 0.001 m², and 1e-9 of a share is far below any decision margin.
+ * Source coordinates and source attribute values are never rounded. */
+export const METRIC_DECIMALS = 9;
+export function stableMetric(value: number): number {
+  if (!Number.isFinite(value)) throw new Error("Non-finite outline metric");
+  const rounded = Number(value.toFixed(METRIC_DECIMALS));
+  return rounded === 0 ? 0 : rounded; // no -0 in JSON reviews
+}
+export const stableOverlap = (o: Overlap): Overlap => ({ intersection_km2: stableMetric(o.intersection_km2),
+  iou: stableMetric(o.iou), osm_share: stableMetric(o.osm_share), candidate_share: stableMetric(o.candidate_share) });
+export type OutlineMetrics = ReturnType<typeof rawOutlineMetrics>;
+/** Rounds a metrics object's outputs; idempotent, so rounding twice is harmless. */
+export const stabilizeMetrics = (m: OutlineMetrics): OutlineMetrics => ({ ...m,
+  area: (outline: Outline) => stableMetric(m.area(outline)),
+  overlap: (osm: Outline, candidate: Outline) => stableOverlap(m.overlap(osm, candidate)) });
+/** Platform-stable metrics: use these for anything that reaches a review or manifest. */
+export const outlineMetrics = (origin: { lng: number; lat: number }) => stabilizeMetrics(rawOutlineMetrics(origin));
+
 /** One WGS84 ellipsoidal Lambert equal-area projection per mountain packet.
  * A local extent avoids dateline/polar ambiguity. PostGIS validates the
- * original WGS84 shapes again, including park coverage, before any DB write. */
-export function outlineMetrics(origin: { lng: number; lat: number }) {
+ * original WGS84 shapes again, including park coverage, before any DB write.
+ * Outputs carry full libm precision; callers use `outlineMetrics`. */
+export function rawOutlineMetrics(origin: { lng: number; lat: number }) {
   if (!Number.isFinite(origin.lng) || !Number.isFinite(origin.lat) || Math.abs(origin.lat) >= 89 || Math.abs(origin.lng) > 180)
     throw new Error("Invalid local outline projection origin");
   const crs = `+proj=laea +lat_0=${origin.lat} +lon_0=${origin.lng} +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs`;
