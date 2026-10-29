@@ -13,8 +13,9 @@ export const RGI_CREDIT = "RGI 7.0 Consortium (2023), via GLIMS";
 export const RGI_URL = "https://doi.org/10.5067/f6jmovy5navz";
 export const FACTS_CREDIT = `${PSU_CREDIT}; ${RGI_CREDIT}`;
 
-/** A cohort glac_name's expected part count, or the part count plus the
- * GLIMS glac_ids that belong here when the name recurs elsewhere in the box. */
+/** A cohort glac_name's expected part count (one GLIMS glacier), or the part
+ * count plus the GLIMS glac_ids that belong here when its parts are several
+ * GLIMS glaciers or the name recurs elsewhere in the box. */
 export type InventoryName = number | { parts: number; glac_ids: string[] };
 export type InventoryMountain = {
   /** Mountain name used in provenance text, e.g. "Mount Baker". */
@@ -58,6 +59,30 @@ export function inventoryNames(config: InventoryConfig): Map<string, { mountain:
   return all;
 }
 
+/** Parts of one named glacier further apart than this need listed glac_ids. */
+export const PART_GAP_M = 1000;
+type Box = [number, number, number, number];
+function bbox(geometry: unknown, name: string): Box {
+  const g = geometry as { type?: string; coordinates?: unknown };
+  const points = (g?.type === "Polygon" ? [g.coordinates] : g?.type === "MultiPolygon" ? g.coordinates : null) as number[][][][] | null;
+  if (!Array.isArray(points) || !points.length) throw new Error(`Missing GLIMS geometry: ${name}`);
+  const xs = points.flat(2).map(p => p[0]), ys = points.flat(2).map(p => p[1]);
+  if (!xs.length || ![...xs, ...ys].every(Number.isFinite)) throw new Error(`Invalid GLIMS geometry: ${name}`);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+/** Groups of parts whose boxes chain within PART_GAP_M (local metres). */
+function clusters(boxes: Box[]): number {
+  const gap = (a: Box, b: Box) => {
+    const k = 111_320 * Math.cos((a[1] + a[3]) / 2 * Math.PI / 180);
+    const dx = Math.max(0, a[0] - b[2], b[0] - a[2]) * k, dy = Math.max(0, a[1] - b[3], b[1] - a[3]) * 110_574;
+    return Math.hypot(dx, dy);
+  };
+  const group = boxes.map((_, i) => i), find = (i: number): number => group[i] === i ? i : find(group[i]);
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++)
+    if (gap(boxes[i], boxes[j]) <= PART_GAP_M) group[find(i)] = find(j);
+  return new Set(boxes.map((_, i) => find(i))).size;
+}
+
 /** Reads the saved WFS bytes. Fails closed when the cohort lacks a named
  * glacier, a name's part count changes, or RGI 7.0 lacks an unlisted name. */
 export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: InventoryConfig): Inventory {
@@ -71,6 +96,10 @@ export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: Inven
     byKey.set(key, name);
   }
   const areas = new Map<string, InventoryArea>();
+  // WFS rows that share an anlys_id are pieces of one analysis and repeat its
+  // db_area: count it once, and only when the pieces agree.
+  const analyses = new Map<string, { name: string; glac_id: string; db_area: unknown }>();
+  const boxes = new Map<string, Box[]>();
   for (const f of features(glimsRaw, "GLIMS")) {
     const p = f.properties, glimsName = String(p.glac_name ?? ""), name = byKey.get(normalizeGlacierName(glimsName)) ?? "";
     const entry = names.get(name);
@@ -78,8 +107,16 @@ export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: Inven
       || String(p.subm_id) !== cohort.submission_id || p.chief_affl !== cohort.chief_affl || !entry) continue;
     if (typeof entry.expected === "object" && !entry.expected.glac_ids.includes(String(p.glac_id))) continue;
     if (typeof p.db_area !== "number" || !(p.db_area > 0)) throw new Error(`Invalid GLIMS db_area: ${name}`);
+    const id = String(p.anlys_id), seen = analyses.get(id);
+    if (seen) {
+      if (seen.name !== name || seen.glac_id !== String(p.glac_id) || seen.db_area !== p.db_area)
+        throw new Error(`GLIMS rows of analysis ${id} disagree`);
+      continue;
+    }
+    analyses.set(id, { name, glac_id: String(p.glac_id), db_area: p.db_area });
+    boxes.set(name, [...boxes.get(name) ?? [], bbox((f as { geometry?: unknown }).geometry, name)]);
     const row = areas.get(name) ?? { area_km2: 0, analysis_ids: [], glacier_ids: [], glims_names: [] };
-    row.area_km2 += p.db_area; row.analysis_ids.push(String(p.anlys_id)); row.glacier_ids.push(String(p.glac_id));
+    row.area_km2 += p.db_area; row.analysis_ids.push(id); row.glacier_ids.push(String(p.glac_id));
     if (glimsName !== name && !row.glims_names.includes(glimsName)) row.glims_names.push(glimsName);
     areas.set(name, row);
   }
@@ -87,6 +124,10 @@ export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: Inven
     const parts = typeof expected === "number" ? expected : expected.parts, row = areas.get(name);
     if (row?.analysis_ids.length !== parts)
       throw new Error(`Incomplete ${cohortYear(config)} GLIMS cohort: ${name} has ${row?.analysis_ids.length ?? 0} of ${parts} parts`);
+    // A name can recur on unrelated ice in the same box. Parts are summed
+    // when the config lists their glac_ids, or when they lie together.
+    if (typeof expected === "number" && clusters(boxes.get(name)!) > 1)
+      throw new Error(`${name} parts lie more than ${PART_GAP_M} m apart; list the glac_ids that belong here`);
     row.area_km2 = round(row.area_km2, 6);
     row.analysis_ids.sort(); row.glacier_ids = [...new Set(row.glacier_ids)].sort(); row.glims_names.sort();
   }
