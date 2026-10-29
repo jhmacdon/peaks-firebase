@@ -76,12 +76,21 @@ export function matchOutlineSource(places: GlacierManifestPlace[], source: Outli
 
 export type ExtentEvidence = { observed_at: string; source_key: string; iou: number; candidate_iou: number; basis: string };
 export type SelectionCandidate = { key: string; area_km2: number; observed_at: string; license_ok: boolean };
-export function chooseOutline(osmArea: number, factsArea: number | null, candidates: SelectionCandidate[], evidence: ExtentEvidence | null) {
+/** Rule 2: OSM extents carry no observation date, while an inventory outline
+ * does. Without dated evidence of OSM's age, an out-of-band OSM outline gives
+ * way to a dated licence-OK candidate whose ratio is closer to 1. Rule 1
+ * (the applied Rainier, Baker and Glacier Peak packages) needs that evidence.
+ * `keepOsm` is a reviewed decision to keep OSM anyway; it stays flagged. */
+export type OutlineRuleOptions = { rule?: 1 | 2; keepOsm?: Record<string, string> };
+export function chooseOutline(osmArea: number, factsArea: number | null, candidates: SelectionCandidate[], evidence: ExtentEvidence | null,
+  rule: 1 | 2 = 1, keepOsm: string | null = null) {
   const ratio = ratioOf(osmArea, factsArea);
   if (ratio === null) return { chosen_source: "osm", flagged: true, reason: "No individual facts area; retain OSM for review" };
   if (ratio >= 0.67 && ratio <= 1.5) return { chosen_source: "osm", flagged: false, reason: "OSM/facts ratio is within [0.67, 1.5]" };
+  if (keepOsm !== null) return { chosen_source: "osm", flagged: true, reason: `OSM ratio outside band; reviewed decision keeps OSM: ${keepOsm}` };
   const error = (c: SelectionCandidate) => Math.abs(ratioOf(c.area_km2, factsArea)! - 1);
-  const eligible = candidates.filter(c => c.license_ok && evidence && c.observed_at > evidence.observed_at
+  const undated = rule === 2 && !evidence;
+  const eligible = candidates.filter(c => c.license_ok && (undated || (evidence && c.observed_at > evidence.observed_at))
     && error(c) < Math.abs(ratio - 1))
     .sort((a, b) => b.observed_at.localeCompare(a.observed_at) || error(a) - error(b) || a.key.localeCompare(b.key));
   if (!eligible.length) return { chosen_source: "osm", flagged: true,
@@ -89,7 +98,8 @@ export function chooseOutline(osmArea: number, factsArea: number | null, candida
       : "OSM ratio outside band; no licence-OK, newer candidate has a ratio closer to 1" };
   const selected = eligible[0], newRatio = ratioOf(selected.area_km2, factsArea)!;
   return { chosen_source: selected.key, flagged: newRatio < 0.67 || newRatio > 1.5,
-    reason: "OSM ratio outside band; newest licence-OK candidate newer than evident OSM extent has a ratio closer to 1" +
+    reason: (undated ? "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2)"
+      : "OSM ratio outside band; newest licence-OK candidate newer than evident OSM extent has a ratio closer to 1") +
       (newRatio < 0.67 || newRatio > 1.5 ? "; selected ratio still outside band" : "") };
 }
 
@@ -109,7 +119,9 @@ export type OutlineRefreshReport = {
 };
 /** `rawMetrics` exists for tests; outputs are always rounded to METRIC_DECIMALS. */
 export function refreshGlacierOutlines(manifest: GlacierManifest, sources: OutlineSource[], references: OutlineSource[] = [],
-  aliases: Record<string, string[]> = {}, rawMetrics: Metrics = outlineMetrics(manifest.parent)) {
+  aliases: Record<string, string[]> = {}, rawMetrics: Metrics = outlineMetrics(manifest.parent), options: OutlineRuleOptions = {}) {
+  const rule = options.rule ?? 1, keepOsm = options.keepOsm ?? {};
+  for (const key of Object.keys(keepOsm)) if (!manifest.places.some(p => p.osm_key === key)) throw new Error(`keepOsm names no place: ${key}`);
   validateGlacierManifest(manifest);
   if (manifest.places.some(p => p.geometry && p.geometry.geometry_source !== manifest.geometry_source))
     throw new Error("Outline refresh requires the original default-source manifest, not an already mixed-source output");
@@ -118,7 +130,8 @@ export function refreshGlacierOutlines(manifest: GlacierManifest, sources: Outli
   const metrics = stabilizeMetrics(rawMetrics);
   const audits = [...sources, ...references].map(source => ({ source, audit: matchOutlineSource(manifest.places, source, metrics, aliases) }));
   const report: OutlineRefreshReport = { schema_version: 1,
-    rule: "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
+    rule: (rule === 2 ? "Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. " : "")
+      + "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
     crs: metrics.crs, input_manifest_sha256: manifestSha256(manifest), output_manifest_sha256: "",
     sources: audits.map(({ source: s, audit }) => ({ key: s.key, observed_at: s.observed_at, submission_id: s.submission_id,
       source_sha256: s.source_sha256, source_url: s.source_url, credit: s.credit, license: s.license, license_ok: s.license_ok,
@@ -146,7 +159,7 @@ export function refreshGlacierOutlines(manifest: GlacierManifest, sources: Outli
       iou: old.match.overlap.iou, candidate_iou: newest.match.overlap.iou,
       basis: "Inferred older extent: OSM fits the dated historical inventory substantially better than the newer inventory; not a verified OSM observation date" } : null;
     const choice = chooseOutline(osmArea, factsArea, candidates.map(({ source, match }) => ({ key: source.key,
-      area_km2: match.area_km2, observed_at: source.observed_at, license_ok: source.license_ok })), evidence);
+      area_km2: match.area_km2, observed_at: source.observed_at, license_ok: source.license_ok })), evidence, rule, keepOsm[p.osm_key] ?? null);
     const decisionCandidates = candidates.map(({ source, match }) => ({ source_key: source.key, area_km2: match.area_km2,
       ratio: ratioOf(match.area_km2, factsArea), observed_at: source.observed_at, license_ok: source.license_ok,
       overlap: match.overlap, feature_ids: match.feature_ids, parts_without_osm_overlap: match.parts_without_osm_overlap }));
@@ -164,7 +177,7 @@ export function refreshGlacierOutlines(manifest: GlacierManifest, sources: Outli
       geometry_sha256: sha256(JSON.stringify(boundary)), analysis_ids: selected.match.feature_ids,
       glacier_ids: selected.match.glacier_ids, submission_id: selected.source.submission_id,
     } : { ...placeGeometry(manifest, p) };
-    geometry.review = { rule_version: 1, chosen_source: choice.chosen_source, flagged: choice.flagged,
+    geometry.review = { rule_version: rule, chosen_source: choice.chosen_source, flagged: choice.flagged,
       reason: choice.reason, osm_area_km2: osmArea, facts_area_km2: factsArea,
       candidates: decisionCandidates, extent_evidence: evidence };
     return { ...p, boundary, geometry, facts: { ...p.facts, provenance: { ...p.facts.provenance, outline: geometry } } };
