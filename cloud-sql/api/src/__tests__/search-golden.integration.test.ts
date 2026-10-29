@@ -141,9 +141,14 @@ test("golden trail queries execute against real PostgreSQL names, aliases, objec
       assert.equal((await search("Bridal Veil Lake Hike")).results[0].id, id("serene-trail"));
     });
 
-    await t.test("typos match one later alias or trail name without whole-array dilution", async () => {
-      assert.equal((await search("Bridal Veil Lake Hikf")).results[0].id, id("serene-trail"));
-      assert.ok((await search("ingallz way")).buckets.routes.some((r) => r.id === id("peak-trail")));
+    // #272 dropped the trigram fallback (about 10 s on production): a query
+    // with no whole-word match returns nothing at once rather than a slow
+    // fuzzy guess. The correctly spelled names still match.
+    await t.test("typos return no results instead of a fuzzy match", async () => {
+      assert.deepEqual((await search("Bridal Veil Lake Hikf")).results, []);
+      assert.equal((await search("ingallz way")).buckets.routes.length, 0);
+      assert.equal((await search("Bridal Veil Lake Hike")).results[0].id, id("serene-trail"));
+      assert.ok((await search("ingalls way")).buckets.routes.some((r) => r.id === id("peak-trail")));
     });
 
     await t.test("an explicit objective matches without a route_destinations link", async () => {
