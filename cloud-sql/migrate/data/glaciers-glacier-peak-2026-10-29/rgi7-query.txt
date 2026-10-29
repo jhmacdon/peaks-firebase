@@ -1,0 +1,4 @@
+GET https://www.glims.org/geoserver/GLIMS/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=GLIMS:RGI2000-v7.0-G-02_western_canada_usa_epsg3857&outputFormat=application/json&srsName=EPSG:4326&bbox=-121.26,48.02,-120.97,48.20,EPSG:4326&maxFeatures=5000
+User-Agent: PeaksApp-glacier-import/1.0
+Fetched: 2026-10-29
+Layer: RGI 7.0 region 02 (RGI2000-v7.0-G-02), served by the GLIMS GeoServer. Attributes only are used; no RGI geometry enters the manifest.

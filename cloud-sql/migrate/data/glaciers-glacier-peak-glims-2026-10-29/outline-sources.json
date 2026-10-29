@@ -1,0 +1,47 @@
+{
+  "aliases": {},
+  "sources": [
+    {
+      "key": "glims-2015-09-09",
+      "purpose": "candidate",
+      "file": "glims-wfs-glacier-peak.json",
+      "source_sha256": "dd31135f1fe53607133c46ac3a294a47344ca8b10ec3fb1e218059e594b2b9cb",
+      "geometry_source": "GLIMS / Portland State University US inventory",
+      "source_url": "https://doi.org/10.15760/geology-data.03",
+      "observed_at": "2015-09-09",
+      "snapshot_at": "2026-10-29",
+      "credit": "Fountain, Glenn & McNeil (2023), via GLIMS",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_ok": true,
+      "submission_id": "814",
+      "chief_affl": "Portland State University",
+      "unnamed_names": [
+        "",
+        "WA"
+      ],
+      "expected_features": 81
+    },
+    {
+      "key": "glims-1984-09-09-reference",
+      "purpose": "historical_reference",
+      "file": "glims-wfs-glacier-peak.json",
+      "source_sha256": "dd31135f1fe53607133c46ac3a294a47344ca8b10ec3fb1e218059e594b2b9cb",
+      "geometry_source": "GLIMS historical inventory (reference only)",
+      "source_url": "https://doi.org/10.7265/N5V98602",
+      "observed_at": "1984-09-09",
+      "snapshot_at": "2026-10-29",
+      "credit": "GLIMS Glacier Database, NSIDC-0272 (historical comparison only)",
+      "license": "Not cleared for replacement in this packet",
+      "license_url": "https://nsidc.org/data/nsidc-0272/versions/1",
+      "license_ok": false,
+      "submission_id": "744",
+      "chief_affl": "Portland State University",
+      "unnamed_names": [
+        "",
+        "WA"
+      ],
+      "expected_features": 82
+    }
+  ]
+}

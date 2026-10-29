@@ -19,11 +19,37 @@ function contains(ring: Ring, p: Point): boolean {
   }
   return inside;
 }
-/** First vertex of `ring` that is not a vertex of `other`. Holes may touch
- * their exterior, and parts each other, at a shared vertex. */
-function probe(ring: Ring, other: Ring): Point {
-  const shared = new Set(other.map(p => `${p[0]},${p[1]}`));
-  return ring.find(p => !shared.has(`${p[0]},${p[1]}`)) ?? ring[0];
+const key = (p: Point) => `${p[0]},${p[1]}`;
+/** Vertices of `ring` that are not vertices of any of `others`. Holes may
+ * touch their exterior, and parts each other, at a shared vertex. Every such
+ * vertex is tested, never one sample: a ring can leave another through two
+ * shared vertices while its first free vertex still lies inside. */
+function free(ring: Ring, ...others: Ring[]): Point[] {
+  const shared = new Set(others.flatMap(r => r.map(key)));
+  return ring.filter(p => !shared.has(key(p)));
+}
+/** OGC polygon rules for holes: each hole lies inside the exterior and
+ * outside the other holes, and rings meet only at shared vertices that leave
+ * the interior connected. Rings and their contact points form a graph; any
+ * cycle (two rings meeting twice, or a chain of holes from the exterior back
+ * to it) cuts the interior in two. Crossing edges fail the segment check. */
+function checkHoles(polygon: Ring[]): void {
+  const links = new Map<string, string>(), edges = new Set<string>();
+  const root = (n: string): string => { while (links.has(n)) n = links.get(n)!; return n; };
+  for (let i = 0; i < polygon.length; i++) for (let j = i + 1; j < polygon.length; j++) {
+    const a = polygon[i], b = polygon[j];
+    if (i === 0) { if (free(b, a).some(p => !contains(a, p)) || !free(b, a).length) throw new Error("Orphan outline hole"); }
+    else if (free(b, a).some(p => contains(a, p)) || free(a, b).some(p => contains(b, p))) throw new Error("Nested outline holes");
+    const shared = new Set(a.map(key));
+    for (const point of new Set(b.map(key).filter(k => shared.has(k)))) for (const ring of [i, j]) {
+      const edge = `${ring}|${point}`;
+      if (edges.has(edge)) continue;
+      edges.add(edge);
+      const x = root(`r${ring}`), y = root(`p${point}`);
+      if (x === y) throw new Error("Outline rings touch so the interior splits");
+      links.set(x, y);
+    }
+  }
 }
 function boxesTouch(a: Segment, b: Segment): boolean {
   return a.minX <= b.maxX && b.minX <= a.maxX && a.minY <= b.maxY && b.minY <= a.maxY;
@@ -140,11 +166,7 @@ export function rawOutlineMetrics(origin: { lng: number; lat: number }) {
         return result;
       });
       area += Math.abs(signedArea(projected[0])) - projected.slice(1).reduce((sum, r) => sum + Math.abs(signedArea(r)), 0);
-      for (let i = 1; i < projected.length; i++) {
-        if (!contains(projected[0], probe(projected[i], projected[0]))) throw new Error("Orphan outline hole");
-        for (let j = 1; j < i; j++) if (contains(projected[j], probe(projected[i], projected[j])) || contains(projected[i], probe(projected[j], projected[i])))
-          throw new Error("Nested outline holes");
-      }
+      checkHoles(projected);
     }
     if (!(area > 0)) throw new Error("Empty outline area");
     const sorted = segments.slice().sort((a, b) => a.minX - b.minX);
@@ -159,9 +181,8 @@ export function rawOutlineMetrics(origin: { lng: number; lat: number }) {
     // as a MultiPolygon too. Holes in the containing part remain outside.
     const projectedParts = outline.coordinates.map(p => p.map(r => r.map(v => projection.forward(v) as Point)));
     for (let i = 0; i < projectedParts.length; i++) for (let j = 0; j < projectedParts.length; j++) {
-      const point = probe(projectedParts[j][0], projectedParts[i][0]);
-      if (i !== j && contains(projectedParts[i][0], point) &&
-        !projectedParts[i].slice(1).some(r => contains(r, point))) throw new Error("Overlapping outline components");
+      if (i !== j && free(projectedParts[j][0], ...projectedParts[i]).some(point => contains(projectedParts[i][0], point) &&
+        !projectedParts[i].slice(1).some(r => contains(r, point)))) throw new Error("Overlapping outline components");
     }
     const value = { rings, segments, area };
     cache.set(outline, value);
