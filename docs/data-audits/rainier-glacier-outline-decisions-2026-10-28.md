@@ -4,9 +4,9 @@ Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-b
 
 Areas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Overlap is IoU / candidate share. ⚑ means review remains due. Historical fits infer extent age; they do not date OSM imagery.
 
-Input manifest: `97d2755ecb75a746ed8fee241cd72797d401e18963f4843e4e66ac158f470e89`
+Input manifest: `c0faca40289f5a4123a209d6c6948de0dead7195a1916d11f5e400a6ab734821`
 
-Output manifest: `a47c05a3e67d8e8c59d15de5b971844a61572864b6406008a73a30ac293eeca7`
+Output manifest: `5ed2165785fc61d8ee7fd2c091c5e9806a38e1bbb01648bce5840078fcf67885`
 
 | Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
