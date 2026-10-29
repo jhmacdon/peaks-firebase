@@ -9,13 +9,18 @@ interface DestinationMapProps {
   lat: number;
   lng: number;
   name?: string | null;
-  boundary?: GeoJSON.Polygon | null;
+  boundary?: GeoJSON.Polygon | GeoJSON.MultiPolygon | null;
   /** Height/shape of the embed. The container owns the radius, so a mosaic
    * tile can crop this square while a section container rounds it. */
   className?: string;
   /** false turns off every pan/zoom handler — the hero-mosaic tile reads as
    * a still map that links to the live one further down the page. */
   interactive?: boolean;
+  /** "satellite" opens on Esri imagery with a Topographic switch and draws
+   * the outline with the area map's pale halo, which a thin teal edge needs
+   * to stay visible over snow and ice. Glacier pages use it; every other
+   * place keeps the topo default. */
+  basemap?: "topo" | "satellite";
 }
 
 // Marker and boundary carry the Peaks teal (design-tokens.md, "Accent
@@ -24,6 +29,15 @@ interface DestinationMapProps {
 // readable. Fixed hex rather than the token: these are painted into a
 // Leaflet canvas/SVG layer, which never sees the page's CSS variables.
 const ACCENT = "#46ADBC";
+// Pale halo under the outline on imagery — area-map.tsx's AREA_PALE_EDGE.
+const PALE_EDGE = "#CFEEF2";
+const TOPO_TILE = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
+const TOPO_ATTRIBUTION =
+  '&copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)';
+const SATELLITE_TILE =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const SATELLITE_ATTRIBUTION =
+  '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics';
 
 export default function DestinationMap({
   lat,
@@ -32,6 +46,7 @@ export default function DestinationMap({
   boundary,
   className = "h-80",
   interactive = true,
+  basemap = "topo",
 }: DestinationMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
@@ -54,15 +69,24 @@ export default function DestinationMap({
     });
     mapInstance.current = map;
 
-    L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '&copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
-      maxZoom: 17,
-      // OpenTopoMap serves no @2x tiles, so Leaflet's retina path fetches the
-      // next zoom level at half tile size instead — the contour lines and
-      // place names stop looking soft on a high-density display.
-      detectRetina: true,
-    }).addTo(map);
+    // OpenTopoMap serves no @2x tiles, so Leaflet's retina path fetches the
+    // next zoom level at half tile size instead — the contour lines and
+    // place names stop looking soft on a high-density display.
+    const topo = L.tileLayer(TOPO_TILE, { attribution: TOPO_ATTRIBUTION, maxZoom: 17, detectRetina: true });
+    if (basemap === "satellite") {
+      const satellite = L.tileLayer(SATELLITE_TILE, {
+        attribution: SATELLITE_ATTRIBUTION,
+        maxZoom: 18,
+        detectRetina: true,
+      }).addTo(map);
+      if (interactive) {
+        L.control
+          .layers({ Satellite: satellite, Topographic: topo }, {}, { position: "topright" })
+          .addTo(map);
+      }
+    } else {
+      topo.addTo(map);
+    }
 
     const icon = L.divIcon({
       className: "",
@@ -77,11 +101,22 @@ export default function DestinationMap({
     // as markup.
     if (name && interactive) marker.bindPopup(textPopup(name));
 
-    const polygon = boundary
-      ? L.geoJSON(
-          { type: "Feature", geometry: boundary, properties: {} } as GeoJSON.Feature,
-          { style: { color: ACCENT, weight: 1.5, opacity: 0.7, fillOpacity: 0.12 } }
-        ).addTo(map)
+    const feature = boundary
+      ? ({ type: "Feature", geometry: boundary, properties: {} } as GeoJSON.Feature)
+      : null;
+    if (feature && basemap === "satellite") {
+      L.geoJSON(feature, {
+        style: { color: PALE_EDGE, weight: 5, opacity: 0.95, fillOpacity: 0 },
+        interactive: false,
+      }).addTo(map);
+    }
+    const polygon = feature
+      ? L.geoJSON(feature, {
+          style:
+            basemap === "satellite"
+              ? { color: ACCENT, weight: 2, opacity: 1, fillColor: ACCENT, fillOpacity: 0.15 }
+              : { color: ACCENT, weight: 1.5, opacity: 0.7, fillOpacity: 0.12 },
+        }).addTo(map)
       : null;
 
     const fitView = () => {
@@ -110,7 +145,7 @@ export default function DestinationMap({
       map.remove();
       mapInstance.current = null;
     };
-  }, [lat, lng, name, boundary, interactive]);
+  }, [lat, lng, name, boundary, interactive, basemap]);
 
   // `map-embed` styles the Leaflet attribution down to a 10px muted line
   // (globals.css) so the credit stays legible without competing with the
