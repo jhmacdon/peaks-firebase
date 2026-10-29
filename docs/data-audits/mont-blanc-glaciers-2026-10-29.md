@@ -66,7 +66,7 @@ before a production apply. The all-repository cross-package check passes.
 | Ratio retained by neighbour rule | 1 | Taconnaz |
 | Original OSM overlap | 2 | Bossons; Gendarme Rouge |
 | No independent facts row | 2 | Glacier Oriental de l’Aiguille Blanche; Glacier de Combalet |
-| Facts only: combined rows | 36 | See connected-group table; no outline flag unless separately listed above |
+| Combined facts scope | 36 | See connected-group table; no outline flag unless separately listed above |
 
 ## Sources and terms
 
