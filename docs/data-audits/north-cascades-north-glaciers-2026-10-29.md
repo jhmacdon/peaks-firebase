@@ -10,7 +10,7 @@ their OSM labels, see Roster.) Spec:
 [JSON](north-cascades-north-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`4c21c07488922bde302ed22087f9b4942d92668f6ab5a0c3ff40d6996e63e646`.
+`e7ceff7820a5cd30bbce44afad066e78e9d52cbf50d4c34e4e552f0f3cb17b15`.
 
 North Cascades split: this package (Shuksan, Pickets, Spickard, Redoubt,
 Jack and Crater mountains, Bacon, Ruth/Icy, Colonial, Table Mountain, Twin
@@ -137,3 +137,11 @@ missing-row queries empty; container links match the manifest exactly.
    reviewed sides of Bacon Peak; null facts.
 4. Parents: the reviewed research checked every flagged call and agreed;
    none is unclear.
+
+## Outline overlaps (neighbour check, #290)
+
+After sources were chosen, every pair of final outlines in each package was
+measured. No pair overlaps by more than 1% of the smaller outline or 0.01 km²,
+so no group was moved to one source and nothing was clipped. Resolution:
+none needed. The decision reports' "Outline overlaps" section records the
+same result.
