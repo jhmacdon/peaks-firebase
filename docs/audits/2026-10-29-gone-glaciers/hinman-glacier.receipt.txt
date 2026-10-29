@@ -1,0 +1,4 @@
+BEGIN
+DO
+{"route": {"id": "kG03P8ClfUZ1AVbCOtot", "difficulty": "strenuous", "terrain_category": "mountaineering"}, "segments": [{"id": "wa-osm-40af7038f1da8571c66b", "kind": "scramble", "display_name": "Mount Hinman West Ridge Trail"}], "verified_at": "2026-10-29T19:22:05.410424+00:00"}
+COMMIT
