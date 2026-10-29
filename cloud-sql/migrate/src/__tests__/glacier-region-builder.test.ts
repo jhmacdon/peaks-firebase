@@ -81,3 +81,18 @@ test("region spec: keyed parents carry their own mountain context; roster and in
     /not listed under its parent|two places/);
   assert.throws(() => loadRegionOsmPackage({ ...spec, sha256: { ...spec.sha256, rgi: "0".repeat(64) } }), /Unreviewed snapshot/);
 });
+
+test("cohort names match config names like the outline matcher, and the spellings are recorded", () => {
+  const respaced = { ...glims, features: glims.features.map((f: { properties: Record<string, unknown> }) =>
+    f.properties.glac_name === "Thunder Glacier" && f.properties.anlys_id === 1013147 ? { ...f, properties: { ...f.properties, glac_name: "Thunder  glacier" } } : f) };
+  const inv = parseInventory(respaced, rgi, split);
+  assert.equal(inv.areas.get("Thunder Glacier")!.analysis_ids.length, 2);
+  assert.deepEqual(inv.areas.get("Thunder Glacier")!.glims_names, ["Thunder  glacier"]);
+  const thunder = { id: "x", name: "Thunder Glacier", osm_key: "way:1", external_ids: {}, kind: "glacier" as const,
+    boundary: { type: "MultiPolygon" as const, coordinates: [] } };
+  assert.deepEqual((inventoryFacts(inv, split, "colfax", thunder, "Thunder Glacier").provenance.area as { glims_names: string[] }).glims_names, ["Thunder  glacier"]);
+  assert.equal("glims_names" in (inventoryFacts(parseInventory(glims, rgi, split), split, "colfax", thunder, "Thunder Glacier").provenance.area as object), false);
+  assert.throws(() => parseInventory(glims, rgi, { ...split, mountains: { ...split.mountains, extra: { label: "X", names: { "Thunder Glaciers": 1 } } } }),
+    /normalise alike/);
+});
+

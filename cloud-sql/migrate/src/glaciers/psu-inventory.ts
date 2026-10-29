@@ -1,5 +1,6 @@
 import type { GlacierManifestFacts } from "../import-glacier-manifest";
 import type { GlacierCandidate } from "./osm";
+import { normalizeGlacierName } from "./outline-refresh";
 
 /** Facts from the CC0 Portland State inventory (via GLIMS) and RGI 7.0
  * attributes (CC BY 4.0), shared by every builder that uses them. Area is one
@@ -33,7 +34,8 @@ export type InventoryConfig = {
   /** Map years of the region's RGI outlines, for provenance text ("1974–75"). */
   rgi_outline_years: string;
 };
-export type InventoryArea = { area_km2: number; analysis_ids: string[]; glacier_ids: string[] };
+/** `glims_names` lists cohort spellings that differ from the config name. */
+export type InventoryArea = { area_km2: number; analysis_ids: string[]; glacier_ids: string[]; glims_names: string[] };
 export type RgiRow = { rgi_id: string; glims_id: string; year: number; area_km2: number; zmin_m: number; zmax_m: number;
   zmed_m: number; slope_deg: number; lmax_m: number; dem_source: string };
 export type Inventory = { areas: Map<string, InventoryArea>; rgi: Map<string, RgiRow | null> };
@@ -60,15 +62,25 @@ export function inventoryNames(config: InventoryConfig): Map<string, { mountain:
  * glacier, a name's part count changes, or RGI 7.0 lacks an unlisted name. */
 export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: InventoryConfig): Inventory {
   const names = inventoryNames(config), cohort = config.cohort;
+  // Cohort names match config names as the outline matcher does: case,
+  // spacing, punctuation and "Glacier(s)" are ignored ("White Salmon  Glacier").
+  const byKey = new Map<string, string>();
+  for (const name of names.keys()) {
+    const key = normalizeGlacierName(name);
+    if (byKey.has(key)) throw new Error(`Inventory names ${byKey.get(key)} and ${name} normalise alike`);
+    byKey.set(key, name);
+  }
   const areas = new Map<string, InventoryArea>();
   for (const f of features(glimsRaw, "GLIMS")) {
-    const p = f.properties, name = String(p.glac_name ?? ""), entry = names.get(name);
+    const p = f.properties, glimsName = String(p.glac_name ?? ""), name = byKey.get(normalizeGlacierName(glimsName)) ?? "";
+    const entry = names.get(name);
     if (p.line_type !== "glac_bound" || String(p.src_date).slice(0, 10) !== cohort.observed_at
       || String(p.subm_id) !== cohort.submission_id || p.chief_affl !== cohort.chief_affl || !entry) continue;
     if (typeof entry.expected === "object" && !entry.expected.glac_ids.includes(String(p.glac_id))) continue;
     if (typeof p.db_area !== "number" || !(p.db_area > 0)) throw new Error(`Invalid GLIMS db_area: ${name}`);
-    const row = areas.get(name) ?? { area_km2: 0, analysis_ids: [], glacier_ids: [] };
+    const row = areas.get(name) ?? { area_km2: 0, analysis_ids: [], glacier_ids: [], glims_names: [] };
     row.area_km2 += p.db_area; row.analysis_ids.push(String(p.anlys_id)); row.glacier_ids.push(String(p.glac_id));
+    if (glimsName !== name && !row.glims_names.includes(glimsName)) row.glims_names.push(glimsName);
     areas.set(name, row);
   }
   for (const [name, { expected }] of names) {
@@ -76,7 +88,7 @@ export function parseInventory(glimsRaw: unknown, rgiRaw: unknown, config: Inven
     if (row?.analysis_ids.length !== parts)
       throw new Error(`Incomplete ${cohortYear(config)} GLIMS cohort: ${name} has ${row?.analysis_ids.length ?? 0} of ${parts} parts`);
     row.area_km2 = round(row.area_km2, 6);
-    row.analysis_ids.sort(); row.glacier_ids = [...new Set(row.glacier_ids)].sort();
+    row.analysis_ids.sort(); row.glacier_ids = [...new Set(row.glacier_ids)].sort(); row.glims_names.sort();
   }
   const byId = new Map(Object.entries(config.rgi_ids ?? {}).map(([name, id]) => [id, name]));
   const rgi = new Map<string, RgiRow | null>();
@@ -141,7 +153,7 @@ export function inventoryFacts(inv: Inventory, config: InventoryConfig, mountain
         cohort: { src_date: config.cohort.observed_at, submission_id: config.cohort.submission_id, chief_affl: config.cohort.chief_affl },
         method: "Sum of GLIMS db_area (km²) over the cohort's parts with this glac_name; rounded to 6 decimals",
         date_note: `GLIMS stores a nominal ${config.cohort.observed_at} date; the inventory used 2013–2020 imagery, mostly 2015`,
-        analysis_ids: a.analysis_ids, glims_ids: a.glacier_ids },
+        analysis_ids: a.analysis_ids, glims_ids: a.glacier_ids, ...(a.glims_names.length ? { glims_names: a.glims_names } : {}) },
       head_elevation: r ? { credit: RGI_CREDIT, url: RGI_URL, license: "CC-BY-4.0", license_url: "https://creativecommons.org/licenses/by/4.0/",
         rgi_id: r.rgi_id, field: "zmax_m", dem_source: r.dem_source, outline_year: r.year,
         method: "RGI 7.0 maximum DEM elevation inside its outline, rounded to whole metres" } : null,
