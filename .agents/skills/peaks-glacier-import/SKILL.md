@@ -43,9 +43,10 @@ Stop, report what you found, and ask before going on when:
 - A source's terms forbid reuse or sharing, or say nothing clear. Example: the
   NPS 2021 Rainier shapefile says it "cannot be shared or used by other entities
   without NPS permission". It is not an input.
-- An OSM outline's area is outside about 0.5–2× the facts source's area
-  (phase 5 table). Old OSM tracing is common: Van Trump and Pyramid on Rainier
-  were about 6× their current area. Do not drop, redraw or import it silently.
+- An OSM outline's area is outside 0.67–1.5× the facts source's area and phase 9
+  finds no closer cleared outline. Old OSM tracing is common: Van Trump and
+  Pyramid on Rainier were about 6× their current area. Do not drop, redraw or
+  import it silently.
 - The OSM roster and the facts inventory disagree on a name, a split, or a
   merged system, and no source settles the crosswalk.
 - No `areas` row can plausibly contain every outline (for example the mountain
@@ -398,6 +399,94 @@ WHERE c.route_id='<route-id>' ORDER BY c.entered_distance_m;
 
 `complete` with `[]` on a route that plainly crosses the ice, or `pending`
 after the backfill reached `processed=0`, is a failure: report it.
+
+## 9. Outline freshness refresh
+
+Run after source discovery and before building an apply-ready manifest, and
+once a year after the mountain's local melt season. Rainier uses an October
+review after August–September melt. Read
+[the source research and implemented refresh](../../../docs/glacier-outline-refresh.md)
+and [the API contract/runbook](../../../docs/glaciers-api-contract.md).
+This is offline catalog work, with no service, timer or recurring fixed cost.
+It does not authorize production writes, deployments or edits to OSM.
+
+1. Re-snapshot OSM `natural=glacier`, keeping source bytes, query, snapshot
+   time, object identities, parts, holes and SHA-256. Never put a personal
+   name, email or other personal information in User-Agents or requests.
+   Use a project-only User-Agent such as `PeaksApp-glacier-import/1.0`.
+   Fetching or editing a polygon does not establish its imagery date.
+2. Check GLIMS for new analyses and other clearly licensed inventories.
+   Save exact query, provider, citation, licence evidence, source dates,
+   submission/analysis/glacier IDs and hashes. The CC0 Fountain/Glenn/McNeil
+   inventory is one cleared input; do not label all GLIMS data CC0. Restricted
+   NPS Rainier outlines remain excluded. Prefer the newest complete cleared
+   analysis cohort consistently, recording the date/submission in the source
+   config. Never mix cohorts to fill gaps. Rainier's first refresh uses
+   2019-09-09, submission 814, Portland State University; 2019-08-26 stays out.
+3. Build the OSM manifest, then run the generic `refresh-glacier-outlines.ts`
+   helper on saved source files. Keep OSM identities even when geometry
+   changes. Match normalized names or explicit aliases AND spatial overlap
+   (IoU ≥0.1 or candidate overlap share ≥0.5), never names alone. Assemble
+   named inventory parts, dissolve shared/overlapping seams, retain holes,
+   validate each input and output, and report unmatched or ambiguous records.
+   A distant name match cannot supply geometry. Do not clip an independent
+   inventory to OSM while calling its output unmodified CC0 inventory data.
+4. Keep OSM when outline/facts area is in the inclusive [0.67, 1.5] band.
+   Outside it, choose the newest licence-OK candidate whose area ratio is
+   strictly closer to 1 and whose observation is newer than the evident OSM
+   extent; otherwise retain OSM and flag it. Keep flags when a better choice
+   still lies outside the band. Missing individual facts area means retain
+   and flag. Never rescale a polygon to match a reported area.
+5. Use a verified OSM imagery date when available. Otherwise the implemented
+   historical-fit gate requires IoU ≥0.3, historical overlap share ≥0.5, and
+   IoU at least 0.1 above the newer candidate's. Record this as inferred older
+   extent, never as a verified OSM observation date. If evidence is absent,
+   retain OSM and flag it. A recent edit or download cannot clear this gate.
+   Check individual facts scope, splits, missing parts and debris separately;
+   mountain totals or combined glacier histories cannot clear an individual
+   area mismatch. Review observations older than three years or unknown.
+6. Produce the JSON and Markdown decision report for every place: OSM,
+   candidate and individual facts areas, ratios, overlaps, IDs, source choice,
+   flags, date evidence and reason. Review all unmatched/ambiguous features.
+   The manifest's `outline_refresh.review_sha256` binds the full report,
+   including unmatched records; hash it with `output_manifest_sha256` empty
+   to avoid a cycle. Keep the printed final manifest hash for apply.
+7. Each place's `geometry` holds its own source URL/hash, actual observation
+   or null, snapshot date, licence/link, credit, method and geometry hash.
+   The writer stores this under `facts.provenance.outline`, preserves facts
+   citations, and fills row geometry columns and catalog metadata from it.
+   OSM credit is `© OpenStreetMap contributors`, ODbL-1.0; the selected PSU
+   inventory credit is `Fountain, Glenn & McNeil (2023), via GLIMS`, CC0-1.0.
+   `outline_observed_at` stays the compatible mapped-date field: actual
+   observation when known, otherwise snapshot. It is not a survey date for
+   undated OSM. Keep facts' `observed_year` separate. Detail, summaries and
+   crossings serve the stored place's own credit/date; no app source list.
+8. Run typecheck, relevant lint, focused matching/selection/provenance/report
+   tests and the full package suites. The privileged session runs the
+   disposable `_test` importer replay/parts/old-and-new crossing-queue test.
+   Apply migration 09 once for old row provenance; do not edit migrations
+   01–08. Follow phase 7 for checked parent/park IDs, backup and separately
+   authorized hash-gated production apply. Replay the same manifest and
+   verify no timestamp/revision/queue churn. Drain existing route/session
+   queues in small serial batches; use `--seed` only to repair missing queues.
+9. If inventories do not meet the freshness need, prepare the later
+   Sentinel-2 L2A derivation described in the research doc. Select clear
+   late-melt-season scenes, save STAC/scene IDs and terms, check alignment,
+   snow/cloud/shadow and debris, protect uncertain and debris-covered ice,
+   retain shared divides, and require positive ground evidence and review
+   before removing ice. Store actual dates/ranges and retained older margins.
+   Preserve ODbL duties for OSM-derived geometry and the Copernicus notice.
+   No imagery derivation or debris-mask helper is implemented by the current
+   inventory refresh. Missing evidence means retain extent, record the hold
+   and next review season; do not invent a current date.
+
+Use `--osm-only` to keep the original Rainier baseline or build another
+mountain's OSM manifest. The generic refresh accepts that original manifest,
+a saved source config, `--report-prefix` and `--write-manifest`; it has no
+network or DB mode. The Rainier builder composes the same generic step by
+default. Another mountain needs data, aliases and source config, not API/app
+or schema branches. Preserve prior packages for rollback. Agents prepare
+OSM contribution evidence only; they do not upload or contact other people.
 
 ## Code TODOs (not done)
 

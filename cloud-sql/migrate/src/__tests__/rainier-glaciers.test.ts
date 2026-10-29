@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { DATA_DIR, loadRainierPackage, importRainierGlaciers } from "../import-rainier-glaciers";
+import { DATA_DIR, loadRainierPackage, loadRainierOsmPackage, importRainierGlaciers } from "../import-rainier-glaciers";
 import { parseGlaciers, sha256, SNAPSHOT_SHA256 } from "../glaciers/rainier";
 import { parseGlacierBackfillOptions } from "../backfill-glacier-crossings";
 
@@ -13,7 +13,7 @@ const tags={natural:"glacier",name:"Synthetic Glacier"};
 test("snapshot hash and complete named roster: 28 glaciers plus Muir Snowfield",()=>{
   const bytes=readFileSync(join(DATA_DIR,"rainier-glaciers-overpass.json"));
   assert.equal(sha256(bytes),SNAPSHOT_SHA256);
-  const pkg=loadRainierPackage();
+  const pkg=loadRainierOsmPackage();
   assert.equal(pkg.places.length,29);
   assert.equal(pkg.places.filter(p=>p.kind==="glacier").length,28);
   assert.equal(new Set(pkg.places.map(p=>p.id)).size,29);
@@ -22,7 +22,7 @@ test("snapshot hash and complete named roster: 28 glaciers plus Muir Snowfield",
   assert.deepEqual(pkg.places.filter(p=>p.boundary.coordinates.length>1).map(p=>[p.name,p.boundary.coordinates.length]).sort(),
     [["Columbia Crest Glacier",2],["Flett Glacier",3],["Kautz Glacier",2]]);
   assert.equal(pkg.places.find(p=>p.name==="Emmons Glacier")!.external_ids.wikidata,"Q5373601");
-  assert.equal(loadRainierPackage().manifest_sha256,pkg.manifest_sha256,"replay is deterministic");
+  assert.equal(loadRainierOsmPackage().manifest_sha256,pkg.manifest_sha256,"OSM replay is deterministic");
 });
 
 test("parser retains outer components, holes, stitched/reversed members and deduplicates parent ways",()=>{

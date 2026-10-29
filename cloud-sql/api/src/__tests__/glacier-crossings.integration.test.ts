@@ -243,7 +243,11 @@ test("shared glacier engine: clipping, gaps, interpolation, write maintenance, s
       const sql:string[]=[];
       const out=await attachGlacierSummaries(rows,owner,async(text,values)=>{sql.push(text);return (await c.query(text,values)).rows;});
       assert.equal(sql.length,1);
-      assert.deepEqual(out.find((r:any)=>r.id===glacier).glacier,{kind:"glacier",parent_mountain:{id:parent,name:"Synthetic Parent"}});
+      const summary=out.find((r:any)=>r.id===glacier).glacier;
+      assert.equal(summary.kind,"glacier");
+      assert.deepEqual(summary.parent_mountain,{id:parent,name:"Synthetic Parent"});
+      assert.equal(summary.geometry_credit,"Synthetic Map");
+      assert.equal(summary.outline_observed_at,"2026-10-28");
       assert.ok(out.filter((r:any)=>r.id!==glacier).every((r:any)=>r.glacier===undefined));
       await c.query("UPDATE destinations SET owner=$2 WHERE id=$1",[parent,`someone-else-${token}`]);
       const hidden=await attachGlacierSummaries(rows,owner,async(text,values)=>(await c.query(text,values)).rows);

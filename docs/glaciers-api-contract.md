@@ -67,7 +67,10 @@ glacier row in a destination summary response — `/search`, `/search/all`
 (`destinations` bucket and any nested destination arrays), `/search/features`,
 `/destinations/nearby`, `/destinations/viewport`, and nested destination arrays
 elsewhere (areas, lists, sessions) — carries a compact `glacier` object with
-`kind` and the checked `parent_mountain`. A row that already has the full
+`kind`, the checked `parent_mountain`, and the row's `geometry_credit`,
+`geometry_license`, `outline_observed_at`, `outline_source_url` and
+`outline_provenance` (the stored `provenance.outline`, or null for an older row).
+A row that already has the full
 detail `glacier` object keeps it. The ranked `results[].data` summaries stay
 unchanged; join them to their bucket row by `id`.
 
@@ -85,7 +88,13 @@ unchanged; join them to their bucket row by `id`.
   "lat": 46.88,
   "lng": -121.72,
   "areas": [],
-  "glacier": {"kind": "glacier", "parent_mountain": {"id": "<rainier-id>", "name": "Mount Rainier"}}
+  "glacier": {
+    "kind": "glacier", "parent_mountain": {"id": "<rainier-id>", "name": "Mount Rainier"},
+    "geometry_credit": "© OpenStreetMap contributors", "geometry_license": "ODbL-1.0",
+    "outline_observed_at": "2026-10-28",
+    "outline_source_url": "https://www.openstreetmap.org/relation/5535843",
+    "outline_provenance": {"observed_at": null, "snapshot_at": "2026-10-28"}
+  }
 }
 ```
 
@@ -198,6 +207,15 @@ illustrative, not claims about a user's recordings. No production rows were read
       "note":null,
       "report_sha256":"<report-sha256>",
       "source_snapshot_sha256":"02cea8bc617563b180036921c7114b56e0234c359a0af174cf24becc37cf5cb0",
+      "outline": {
+        "schema_version":1,"geometry_source":"OpenStreetMap",
+        "source_url":"https://www.openstreetmap.org/relation/5535843",
+        "source_sha256":"02cea8bc617563b180036921c7114b56e0234c359a0af174cf24becc37cf5cb0",
+        "observed_at":null,"snapshot_at":"2026-10-28",
+        "license":"ODbL-1.0","license_url":"https://www.openstreetmap.org/copyright",
+        "credit":"© OpenStreetMap contributors","geometry_sha256":"<normalized-geometry-sha256>",
+        "method":"OSM snapshot; imagery observation date unknown","review":{"chosen_source":"osm"}
+      },
       "mountain_context": {
         "observed_year":2021,"named_glacier_count":28,"area_km2":75.496,
         "area_uncertainty_km2":4.109,"history_start_year":1896,"percent_change_since_history_start":-41.6
@@ -233,9 +251,21 @@ from north; it is not a separately measured aspect. Type codes exist only where
 the saved NPS glacier page states them (`S` near summit; `C` cirque/head below
 summit). Missing codes remain null. Volume is a statistical estimate, not a survey.
 
-`outline_observed_at` is the **OSM snapshot date**, not a claim that the outline
-was surveyed that day. Physical facts describe 2021. Every historic route/session
-uses this same OSM snapshot; these are not date-matched historic ice extents.
+`outline_observed_at` is the compatible **mapped date**: the place's actual
+outline observation when known, otherwise its mapping snapshot date. Retained
+OSM rows still send `2026-10-28`; the selected GLIMS/PSU rows send `2019-09-09`.
+The JSONB keeps `observed_at` and `snapshot_at` separate: undated OSM has actual
+observation null. Physical facts still describe 2021. Historic routes/sessions
+match the current stored outline for each glacier, rather than date-matched
+historic ice. Full detail also returns the row's mapped date at top level.
+
+The read-only iOS check found `GlacierFacts.outlineObservedAt` parsing
+`outline_observed_at` in `peakscore/PeaksModels/Glaciers.swift`, and
+`GlacierDetailView.credits` reading it for “Outline as mapped in <month year>”.
+That field and date format stay compatible. A later iOS wording change can
+read `glacier.provenance.outline.observed_at` / `.snapshot_at`; summary and
+crossing readers get the same object as `outline_provenance`. No app edit or
+new required client field is needed for this refresh.
 Both capable detail endpoints return `destination_glacier_facts.outline` as the
 `boundary`: a MultiPolygon with every OSM component, hole and vertex, in GeoJSON
 `[longitude,latitude]` order. The `glacier` facts object omits the stored geometry;
@@ -302,11 +332,15 @@ which includes Muir Glacier; it is not the roster of 28 OSM glacier objects.
 Eight saved NPS files support short glacier copy and type codes. The saved
 `paradise.txt` and `ohanapecosh.txt` describe visitor areas, so they supply no
 glacier description. The importer does not borrow their text. Other descriptions
-and type codes remain null. Geometry credit is
+and type codes remain null. Retained OSM geometry credit is
 [© OpenStreetMap contributors](https://www.openstreetmap.org/copyright), under
 ODbL. Facts credit is
 [Beason et al. (2023), National Park Service](https://doi.org/10.36967/2299328).
-The NPS 2021 shapefile is not an input.
+The four selected inventory rows instead carry
+`Fountain, Glenn & McNeil (2023), via GLIMS`, CC0-1.0, observed 2019-09-09,
+and [their data DOI](https://doi.org/10.15760/geology-data.03). The NPS 2021
+shapefile is not an input. See the [outline review and full decision table](glacier-outline-refresh.md#decision-for-rainier)
+for cohort, matching, extent-age evidence, remaining flags and source hashes.
 
 ## Crossing shape and semantics
 
@@ -338,7 +372,10 @@ A route or session detail adds:
     "outline_observed_at": "2026-10-28",
     "outline_revision": 1,
     "matcher_version": 1,
-    "geometry_credit": "© OpenStreetMap contributors"
+    "geometry_credit": "© OpenStreetMap contributors",
+    "geometry_license": "ODbL-1.0",
+    "outline_source_url": "https://www.openstreetmap.org/relation/5535843",
+    "outline_provenance": {"observed_at": null, "snapshot_at": "2026-10-28"}
   }],
   "glacier_stretches": [{
     "kind": "glacier",
@@ -494,6 +531,11 @@ crossings, including routes and ended sessions near a smaller part. An outline
 edit advances `outline_revision` even when the largest polygon stays fixed;
 an unchanged outline keeps its revision and queues nothing. Changed result sets update session sync timestamps; unchanged inputs
 skip matching. Internal match marker updates alone do not cause sync churn.
+The importer writes the chosen full outline to facts and its largest polygon
+to the legacy boundary in the same place transaction. Source/provenance-only
+updates do not queue crossings. An identical manifest replay changes no owned
+values, timestamps, revisions or queue dates. The first refresh also fills
+per-place provenance on retained OSM rows; it keeps their geometry bytes.
 Crossing glacier names refresh `route_search_terms`, including renames and owner
 changes. Pending matches contribute no borrowed glacier names. The existing sweep processes at most two queued route repairs per call;
 session repairs use its existing queue. No service, timer, pool increase, or
@@ -505,6 +547,9 @@ CPU and cold/warm query latency still need measurement on representative data.
 Follow the step-by-step skill
 [`.agents/skills/peaks-glacier-import/SKILL.md`](../.agents/skills/peaks-glacier-import/SKILL.md).
 It marks which steps a cloud agent may run and which need the privileged session.
+The new yearly refresh phase is ready to append in
+[the outline-refresh document](glacier-outline-refresh.md#skill-phase-ready-to-append);
+`.agents/` was read-only for this implementation task.
 
 No API, schema or app change is needed. The writer
 `cloud-sql/migrate/src/import-glacier-manifest.ts` takes one JSON manifest
@@ -514,14 +559,24 @@ No API, schema or app change is needed. The writer
   radius. Apply refuses a `--parent-mountain-id` that fails any of them.
 - `container_area`: the area kind and name every outline must lie inside,
   checked against `--park-area-id`.
-- Credits and sources: `geometry_source`, `geometry_credit`, `geometry_license`,
+- Credits and sources: package `geometry_source`, `geometry_credit`, `geometry_license`
+  and `geometry_observed_at` remain defaults for older single-source manifests;
   `facts_credit`, `facts_source_url`, `description_source_name`,
   `description_source_license`.
 - `country_code`, `state_code`, `activities` and `mountain_context`
   (`named_glacier_count` drives the "of N" rank; `history_start_year` and
   `percent_change_since_history_start` are optional mountain totals).
 - `places[]`: deterministic id, name, OSM key and external ids, `kind`,
-  `aliases`, MultiPolygon `boundary`, and `facts` (any field may be null).
+  `aliases`, MultiPolygon `boundary`, `facts` (any fact may be null), and each
+  new builder's `geometry` provenance object: `schema_version: 1`,
+  `geometry_source`, `source_url`, `source_sha256`, `observed_at` or null,
+  `snapshot_at` or null, `license`, `license_url`, `credit`, `method`, and
+  `geometry_sha256` (SHA-256 of `JSON.stringify(boundary)`). Inventory rows
+  also carry analysis/glacier/submission IDs and the review decision. The writer
+  checks dates, URLs, hashes and matching facts provenance before apply.
+- `outline_refresh`: the original OSM manifest hash and review hash, binding
+  decisions and unmatched features to the manifest's apply gate. The report
+  hash uses an empty `output_manifest_sha256` to avoid a cycle.
 
 Steps: save and hash the source files under `cloud-sql/migrate/data/`; write a
 builder beside `glaciers/rainier.ts` (or the manifest by hand); save it with
@@ -532,6 +587,13 @@ builder beside `glaciers/rainier.ts` (or the manifest by hand); save it with
 `backfill:glacier-crossings` afterwards. The Rainier script is one such builder:
 `import:rainier-glaciers` builds its manifest from the saved OSM snapshot, NPS
 report and pages, then calls the same writer.
+It now also reads the saved GLIMS cohort and source config through the generic
+refresh step. `--osm-only` emits the original baseline. To refresh another
+mountain, pass that mountain's OSM manifest to `refresh-glacier-outlines.ts`
+with its source config, report prefix and output path. This CLI has no network
+or database mode. It requires names/aliases and overlap, unions parts, reports
+ambiguities, and applies the inclusive [0.67, 1.5] rule with dated extent
+evidence. It preserves facts and identity fields. See [exact offline commands](glacier-outline-refresh.md#offline-commands-and-apply-handoff).
 
 ## Runbook for the main session
 
@@ -553,12 +615,17 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
    psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f cloud-sql/migrations/20261028_glacier_06_skip_insert_link.sql
    psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f cloud-sql/migrations/20261028_glacier_07_factory_guard.sql
    psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f cloud-sql/migrations/20261028_glacier_08_route_window_boxes.sql
+   psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f cloud-sql/migrations/20261029_glacier_09_outline_provenance.sql
    ```
 
    `cloud-sql/test-db/provision.sh` applies the baseline, migrations and test-role
    grants. Do not apply only `schema.sql`. The enum addition is its own file;
    the core schema uses a five-second lock timeout. Full source outlines live in
    glacier facts; the importer selects the largest part for the existing Polygon column.
+   Existing installations need only the new additive **09** file; do not replay
+   or edit applied files 01–08. Migration 09 fills missing outline JSONB from
+   row source/credit/date columns, keeps actual observation null for the old
+   mapping snapshots, and leaves geometry, revisions and crossing queues alone.
 
 2. Run offline checks from each package:
 
@@ -571,7 +638,8 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
    cd ../migrate
    ./node_modules/.bin/tsc --noEmit -p .
    npm run build
-   NODE_ENV=test node --test --import tsx src/__tests__/rainier-glaciers.test.ts
+   NODE_ENV=test node --test --import tsx src/__tests__/rainier-glaciers.test.ts src/__tests__/glacier-outline-refresh.test.ts
+   NODE_PATH="$PWD/node_modules" npm test
    ```
 
    Run PostGIS cases only with `TEST_DATABASE_URL` naming the disposable database:
@@ -585,6 +653,8 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
    # Broader regression suites, same disposable URL:
    npm run test:db
    cd ../migrate
+   NODE_PATH="$PWD/node_modules" NODE_ENV=test node --test --test-concurrency=1 --import tsx \
+       src/__tests__/glacier-manifest.integration.test.ts
    NODE_PATH="$PWD/node_modules" npm test
    npm run test:db
    ```
@@ -598,20 +668,42 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
    queue footprints, and cached empty matches after an outline-only edit.
    Full HTTP/CLI test runs need local socket access. Migrate tests importing web helpers also need `sharp` resolvable
    via the shown `NODE_PATH` or installed web dependencies.
+   Install the updated migrate lockfile in the main session's own dependency
+   tree (`polyclip-ts` 0.16.8). The implementation worker used read-only local
+   package links because the supplied `node_modules` trees were symlinked; it
+   made no network calls or writes through those symlinks. Migrate has no
+   `lint` script; the worker ran ESLint on the changed glacier files using the
+   API's installed ESLint/typescript-eslint with migrate's tsconfig. The
+   [refresh log](glacier-outline-refresh.md#offline-commands-and-apply-handoff)
+   lists exact local results and sandbox socket failures.
 
 3. Preview the immutable package **without a database**:
 
    ```sh
    cd cloud-sql/migrate
    mkdir -p .cache
-   node --import tsx src/import-rainier-glaciers.ts > .cache/rainier-preview.json
+   node --import tsx src/import-rainier-glaciers.ts \
+     --write-manifest=.cache/rainier-outline-manifest.json \
+     --report-prefix=../../docs/data-audits/rainier-glacier-outline-decisions-2026-10-28 \
+     > .cache/rainier-preview.json
    ```
 
    The parser verifies the supplied OSM SHA-256, 29 names, complete tables and
    WGS84 rings, then reports geometry components/holes and the fact manifest hash.
-   Current source normalization has **33 polygon components and 22 holes**.
+   It checks the saved GLIMS SHA-256, one September 2019 cohort, name/overlap
+   crosswalks, union validity and the selection rule. Review every row in the
+   JSON/Markdown report, including unmatched/ambiguous features and remaining
+   flags. The original OSM normalization has **33 components and 22 holes**;
+   the refreshed package has **51 components and 39 holes**. Pyramid, Van
+   Trump, Ohanapecosh and Paradise switch to GLIMS; Emmons and all other
+   places retain OSM. Pyramid, Van Trump, Success, Sarvant and places with no
+   individual facts area remain flagged for review. See the
+   [per-glacier reasons](data-audits/rainier-glacier-outline-decisions-2026-10-28.md).
    Keep the preview's `manifest_sha256`; it binds geometry, report, saved pages,
-   descriptions and normalized facts. A changed source or parser changes the hash.
+   descriptions, normalized facts, per-place geometry provenance and the full
+   outline review. A changed source, parser or review changes the hash. The
+   current reviewed hash is
+   `1ca5fb0861e792b05ae34a08a73826517d857db9b3ff047a424dd3ffd3f963fc`.
 
 4. Resolve the actual parent and park IDs with read-only queries. Review the
    names, features, coordinates and park footprint; do not choose an arbitrary
@@ -633,7 +725,8 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
 
    ```sh
    GLACIER_DATABASE_URL='<authorized-target-url>' \
-     node --import tsx src/import-rainier-glaciers.ts --apply \
+     node --import tsx src/import-glacier-manifest.ts \
+       --manifest=.cache/rainier-outline-manifest.json --apply \
        --expected-manifest-sha256='<hash-from-preview>' \
        --parent-mountain-id='<checked-rainier-id>' --park-area-id='<checked-park-id>'
    ```
@@ -641,12 +734,17 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
    A replay repairs owned fields and missing links, preserves other metadata,
    skips unchanged bytes/facts, and keeps the same destination IDs. A failed
    place rolls back; rerun with the same reviewed package to resume.
+   Replay that exact command once and verify unchanged timestamps/revisions
+   and queue dates. The DB-gated importer test covers this behavior plus a
+   source/outline edit whose largest polygon stays fixed, old/new route and
+   session queue footprints, parts and per-row credit/date/hash persistence.
 
 6. Build the API, then repair in small, serial batches. The repair command loads
    the built canonical session processor, so session route/area/popularity facts
    stay consistent too. The CLI runs one item at a time with a two-connection
-   pool for the session processor's post-commit work. Use `--seed` once for repair of old/cleared queue state,
-   then repeat without it until `processed` is zero. Each invocation handles at
+   pool for the session processor's post-commit work. Ordinary outline refreshes
+   use their trigger-created queues. Use `--seed` only for repair of old/cleared
+   queue state, then repeat without it until `processed` is zero. Each invocation handles at
    most `--limit` work items (default 10; allowed 1–100). Routes drain first;
    `--kind=routes` or `--kind=sessions` narrows a run.
 
@@ -657,7 +755,7 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
    GLACIER_DATABASE_URL='<authorized-target-url>' \
      node --import tsx src/backfill-glacier-crossings.ts
    GLACIER_DATABASE_URL='<authorized-target-url>' \
-     node --import tsx src/backfill-glacier-crossings.ts --apply --seed --limit=5
+     node --import tsx src/backfill-glacier-crossings.ts --apply --limit=5
    GLACIER_DATABASE_URL='<authorized-target-url>' \
      node --import tsx src/backfill-glacier-crossings.ts --apply --limit=5
    ```
@@ -692,7 +790,7 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
           ST_IsValid(gf.outline::geometry) AS outline_valid,
           ST_NumGeometries(gf.outline::geometry) AS components,
           ST_NPoints(gf.outline::geometry) AS outline_vertices,
-          gf.area_km2 AS nps_2021_area_km2,ST_Area(gf.outline)/1e6 AS osm_area_km2,
+          gf.area_km2 AS nps_2021_area_km2,ST_Area(gf.outline)/1e6 AS outline_area_km2,
           pg_column_size(gf.outline) AS outline_bytes
    FROM destinations d JOIN destination_glacier_facts gf ON gf.destination_id=d.id;
 
@@ -705,8 +803,24 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
      FROM glacier_outline_parts gp WHERE gp.destination_id=d.id))
       OR NOT ST_Equals(d.boundary::geometry,(SELECT geom FROM ST_Dump(gf.outline::geometry)
         ORDER BY ST_Area(geom::geography) DESC,path LIMIT 1));
-   -- Expected: no missing parts or wrong largest polygons. NPS and OSM areas
+   -- Expected: no missing parts or wrong largest polygons. Facts and outline areas
    -- describe different dates/sources; Emmons NPS area is 10.959203 km2.
+
+   SELECT gf.geometry_credit,gf.geometry_license,gf.outline_observed_at,count(*)
+   FROM destination_glacier_facts gf WHERE gf.parent_mountain_id='<checked-rainier-id>'
+   GROUP BY 1,2,3;
+   -- Expected: OSM / ODbL-1.0 / 2026-10-28 = 25;
+   -- Fountain, Glenn & McNeil (2023), via GLIMS / CC0-1.0 / 2019-09-09 = 4.
+
+   SELECT d.id,d.name FROM destination_glacier_facts gf JOIN destinations d ON d.id=gf.destination_id
+   WHERE gf.parent_mountain_id='<checked-rainier-id>' AND (
+     gf.provenance->'outline'->>'credit' IS DISTINCT FROM gf.geometry_credit
+     OR gf.provenance->'outline'->>'license' IS DISTINCT FROM gf.geometry_license
+     OR gf.provenance->'outline'->>'source_url' IS DISTINCT FROM gf.outline_source_url
+     OR gf.provenance->'outline'->>'source_sha256' IS DISTINCT FROM gf.outline_source_sha256
+     OR COALESCE(gf.provenance->'outline'->>'observed_at',gf.provenance->'outline'->>'snapshot_at')
+       IS DISTINCT FROM to_char(gf.outline_observed_at,'YYYY-MM-DD'));
+   -- Expected: no rows. OSM observed_at remains null; its mapped date is the snapshot.
 
    SELECT c.* FROM session_glacier_crossings c
    JOIN session_destination_rejections r USING(session_id,destination_id);

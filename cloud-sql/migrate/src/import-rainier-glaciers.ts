@@ -2,14 +2,16 @@ import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseGlaciers, parseRainierFacts, sha256, SNAPSHOT_SHA256, SNAPSHOT_DATE, GEOMETRY_CREDIT, FACTS_CREDIT, REPORT_URL } from "./glaciers/rainier";
 import { applyGlacierManifest, manifestSha256, validateGlacierManifest, type GlacierManifest } from "./import-glacier-manifest";
+import { loadOutlineSources, outlineReportMarkdown, refreshGlacierOutlines } from "./glaciers/outline-refresh";
 
 /** Builds the Rainier manifest from its saved OSM, NPS report and page files.
  * Everything Rainier-specific stays in this builder and glaciers/rainier.ts;
  * import-glacier-manifest.ts writes any mountain's manifest.
  */
 export const DATA_DIR = resolve(__dirname, "../data/glaciers-rainier-2026-10-28");
+export const OUTLINE_DATA_DIR = resolve(__dirname, "../data/glaciers-rainier-glims-2026-10-28");
 const ALIASES: Record<string, string[]> = { "Inter Glacier": ["Interglacier"] };
-export function loadRainierPackage(dir = DATA_DIR) {
+export function loadRainierOsmPackage(dir = DATA_DIR) {
   const snapshot = readFileSync(join(dir, "rainier-glaciers-overpass.json"));
   if (sha256(snapshot) !== SNAPSHOT_SHA256) throw new Error("Unreviewed OSM snapshot SHA-256");
   const candidates = parseGlaciers(JSON.parse(snapshot.toString("utf8")));
@@ -38,9 +40,26 @@ export function loadRainierPackage(dir = DATA_DIR) {
   return { ...manifest, manifest_sha256: manifestSha256(manifest) };
 }
 
+export function loadRainierOutlineReview(dir = DATA_DIR, outlineDir = OUTLINE_DATA_DIR) {
+  const { manifest_sha256: _hash, ...osm } = loadRainierOsmPackage(dir);
+  const { sources, references, aliases } = loadOutlineSources(join(outlineDir, "outline-sources.json"));
+  return refreshGlacierOutlines(osm, sources, references, aliases);
+}
+export function loadRainierPackage(dir = DATA_DIR, outlineDir = OUTLINE_DATA_DIR) {
+  return loadRainierOutlineReview(dir, outlineDir).manifest;
+}
+
 /** Dry run by default. `--write-manifest=FILE` saves the reviewed manifest for import-glacier-manifest. */
 export async function importRainierGlaciers(args: string[]) {
-  const pkg = loadRainierPackage(args.find(a => a.startsWith("--data-dir="))?.slice("--data-dir=".length));
+  const dir = args.find(a => a.startsWith("--data-dir="))?.slice("--data-dir=".length);
+  const outlineDir = args.find(a => a.startsWith("--outline-data-dir="))?.slice("--outline-data-dir=".length);
+  const review = args.includes("--osm-only") ? null : loadRainierOutlineReview(dir, outlineDir);
+  const pkg = review?.manifest ?? loadRainierOsmPackage(dir);
+  const prefix = args.find(a => a.startsWith("--report-prefix="))?.slice("--report-prefix=".length);
+  if (prefix && review) {
+    writeFileSync(`${prefix}.json`, JSON.stringify(review.report, null, 2) + "\n");
+    writeFileSync(`${prefix}.md`, outlineReportMarkdown(review.report));
+  }
   const out = args.find(a => a.startsWith("--write-manifest="))?.slice("--write-manifest=".length);
   if (out) { const { manifest_sha256: _hash, ...body } = pkg; writeFileSync(out, JSON.stringify(body)); }
   await applyGlacierManifest(pkg, args);

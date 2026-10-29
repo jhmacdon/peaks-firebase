@@ -90,7 +90,7 @@ test("glacier search uses narrow candidates, retains the planner fixes, and acce
 });
 
 test("summary enrichment walks nested arrays copy-on-write and keeps detail glacier objects",async()=>{
-  const { attachGlacierSummaries, collectGlacierSummaryIds } = await import("../lib/glacier-summary");
+  const { attachGlacierSummaries, collectGlacierSummaryIds, buildGlacierSummaryQuery } = await import("../lib/glacier-summary");
   const body={destinations:[{id:"g",features:["glacier"]},{id:"d",features:["glacier"],glacier:{kind:"glacier",area_km2:1}}],
     areas:[{id:"a",destinations:[{id:"g2",features:"{summit,glacier}",boundary:{features:["glacier"],id:"x"}}]}],
     results:[{type:"destination",id:"g",data:{features:["glacier"]}}]};
@@ -105,4 +105,32 @@ test("summary enrichment walks nested arrays copy-on-write and keeps detail glac
   assert.equal(out.areas[0].destinations[0].glacier.kind,"snowfield");
   assert.equal((body.destinations[0] as any).glacier,undefined,"cached rows stay untouched");
   assert.equal(await attachGlacierSummaries([{id:"l",features:["lake"]}],"",async()=>{throw new Error("no lookup");}).then(r=>r.length),1);
+  const sql=buildGlacierSummaryQuery(["g"],"me").text;
+  for (const field of ["geometry_credit","geometry_license","outline_observed_at","outline_source_url"])
+    assert.ok(sql.includes(`gf.${field}`),field);
+  assert.match(sql,/gf.provenance->'outline'/);
+});
+
+test("mixed geometry sources retain each row's own credit and mapped date in detail, summaries and crossings",async()=>{
+  const { attachGlacierSummaries } = await import("../lib/glacier-summary");
+  const rows=[
+    {id:"osm",geometry_credit:"© OpenStreetMap contributors",geometry_license:"ODbL-1.0",outline_observed_at:"2026-10-28",
+      provenance:{outline:{observed_at:null,snapshot_at:"2026-10-28"}}},
+    {id:"inventory",geometry_credit:"Inventory authors, via GLIMS",geometry_license:"CC0-1.0",outline_observed_at:"2019-09-09",
+      provenance:{outline:{observed_at:"2019-09-09",snapshot_at:"2026-10-28"}}},
+  ];
+  const summaries=await attachGlacierSummaries(rows.map(r=>({id:r.id,features:["glacier"]})),"",async()=>rows.map(r=>({id:r.id,glacier:r})));
+  const wire=JSON.parse(JSON.stringify(rows.map(r=>mapGlacierDetailRow({id:r.id,glacier:r}))));
+  assert.equal(wire[0].glacier.outline_observed_at,"2026-10-28");
+  assert.equal(wire[1].glacier.outline_observed_at,"2019-09-09");
+  assert.equal(wire[1].glacier.geometry_credit,"Inventory authors, via GLIMS");
+  assert.equal(summaries[1].glacier.geometry_license,"CC0-1.0");
+  assert.equal(summaries[0].glacier.provenance.outline.observed_at,null);
+  for (const kind of ["route","session"] as const) {
+    const sql=glacierCrossingsSql(kind,"r");
+    assert.match(sql,/'geometry_credit',gf.geometry_credit/);
+    assert.match(sql,/to_char\(gf.outline_observed_at,'YYYY-MM-DD'\)/);
+    assert.match(sql,/'outline_provenance',gf.provenance->'outline'/);
+    assert.doesNotMatch(sql,/OpenStreetMap contributors|2019-09-09/);
+  }
 });
