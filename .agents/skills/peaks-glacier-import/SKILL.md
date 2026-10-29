@@ -227,8 +227,8 @@ su postgres -c "psql -c \"ALTER USER postgres PASSWORD 'postgres'\" -c 'CREATE D
 ```
 
 With Docker instead: `docker run -d --name peaks-pg -e POSTGRES_PASSWORD=postgres
--p 5432:5432 postgis/postgis:15-3.6` (fall back to `15-3.5`, which CI uses, if
-that tag does not exist), then create `peaks_glacier_test`.
+-p 5432:5432 postgis/postgis:15-3.6`, then create `peaks_glacier_test`. Never
+use PostGIS 3.5: it returns no span for a path fully inside a glacier.
 
 Provision, then add fixture parent and park rows:
 
