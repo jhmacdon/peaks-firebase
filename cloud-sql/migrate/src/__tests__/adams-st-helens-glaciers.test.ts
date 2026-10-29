@@ -60,10 +60,11 @@ test("St. Helens: Crater Glacier only, from the 2019-09-09 cohort", () => {
   assert.equal(helens.report.decisions[0].chosen_source, "osm");
   assert.equal(helens.report.decisions[0].flagged, false);
   assert.equal(m.parent.name, "Mount Saint Helens", "the Peaks row's exact name");
+  assert.equal(m.places[0].container_area_key ?? null, null, "Peaks has no monument area yet");
 });
 
 test("apply gates", async () => {
   await assert.rejects(applyGlacierManifest(adams.manifest, ["--apply", "--expected-manifest-sha256=wrong"]), /reviewed/);
-  await assert.rejects(applyGlacierManifest(helens.manifest, ["--apply", `--expected-manifest-sha256=${helens.manifest.manifest_sha256}`,
+  await assert.rejects(applyGlacierManifest(adams.manifest, ["--apply", `--expected-manifest-sha256=${adams.manifest.manifest_sha256}`,
     "--parent-mountain-id=P"]), /--area-id=KEY=ID/);
 });

@@ -12,7 +12,7 @@ Decisions: [Adams](adams-glacier-outline-decisions-2026-10-29.md),
 | Package | Reviewed manifest SHA-256 (platform-stable) |
 | --- | --- |
 | Mount Adams | `926ef1b7b98cd3a142d57eb1177067507e7ab1950a67238687390ae90d36696f` |
-| Mount St. Helens | `1c7380654570d096f19b9e42bcf2b03a20612d2899ef8f47fa25019b5b665d50` |
+| Mount St. Helens | `aabf0e83cdbc80bcc3e260473aa4beb58e56b01eff43fd3ac40281d1f7627f34` |
 
 Later changes: Avalanche and White Salmon imported (below), outline rule 2,
 and the St. Helens parent renamed "Mount Saint Helens", the exact name of
@@ -103,8 +103,10 @@ Yakama Nation land (no federal area).
 Per Josiah's note (2026-10-29): Crater Glacier is the mountain's only current
 glacier. 1 place, parent **Mount St. Helens** (`summit`, `volcano`; 46.1912,
 -122.1944; 3000 m; GNIS spells it "Mount Saint Helens", Peaks uses "St.").
-Container **Mount St. Helens National Volcanic Monument** (`national_monument`;
-EDW boundary, margin 4.5 km). Alias `Tulutson Glacier` from OSM `alt_name`.
+No container. The package first named **Mount St. Helens National Volcanic
+Monument** (`national_monument`; EDW boundary, margin 4.5 km), but Peaks has no
+`areas` row for it (checked 2026-10-29), so Crater imports uncontained. When the
+monument is added, restore `container: MONUMENT` and replay. Alias `Tulutson Glacier` from OSM `alt_name`.
 
 Cohort 2019-09-09 / 814 (Crater's only cohort): 1.740 km², rank 1 of 1. OSM
 1.682 km², ratio 0.967: OSM kept. Head elevation null: RGI 7.0 maps St. Helens
