@@ -138,6 +138,7 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
     rgi_absent: ["Banded Glacier"],
   },
   activities: ["outdoor-trek", "ski"],
+  country_code: "US", state_code: "WA",
 };
 
 export const loadNorthCascadesSouthOsmPackage = () => loadRegionOsmPackage(NORTH_CASCADES_SOUTH_SPEC);
