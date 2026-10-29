@@ -91,6 +91,9 @@ function intersection(a: Shape, b: Shape): number {
   let area = 0;
   for (let k = 1; k < xs.length; k++) {
     const width = xs[k] - xs[k - 1], x = xs[k - 1] + width / 2;
+    // A crossing computed within an ulp of a shared vertex leaves a slab
+    // whose midpoint rounds onto an endpoint; it holds no area.
+    if (!(x > xs[k - 1] && x < xs[k])) continue;
     const left = intervals(a, x), right = intervals(b, x);
     let i = 0, j = 0, height = 0;
     while (i < left.length && j < right.length) {
