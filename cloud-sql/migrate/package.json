@@ -83,6 +83,7 @@
     "audit:trail-stretch-names": "./scripts/run-tsx.sh src/audit-trail-stretch-names.ts",
     "import:rainier-glaciers": "tsx src/import-rainier-glaciers.ts",
     "import:baker-glaciers": "tsx src/import-baker-glaciers.ts",
+    "import:olympics-glaciers": "tsx src/import-olympics-glaciers.ts",
     "import:glacier-peak-glaciers": "tsx src/import-glacier-peak-glaciers.ts",
     "import:glacier-manifest": "tsx src/import-glacier-manifest.ts",
     "backfill:glacier-crossings": "tsx src/backfill-glacier-crossings.ts",
