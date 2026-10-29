@@ -1,5 +1,12 @@
 # Mount Baker glaciers — review packet, 2026-10-29
 
+> **Update 2026-10-29 (outline rule 2 + neighbour check):** replay hash
+> `05f2ef2e0fa9ec7a247ef09253a0308bb957abf2556afe870b20b4993be16c7e`. Park and
+> Talum switch under rule 2; Talum's PSU outline then overlaps Squak's OSM
+> outline by 17.5%, so the touching group of 12 takes the PSU 2015
+> inventory; Hadley and No Name stay OSM. Details:
+> [glacier-manifest-hashes.md](glacier-manifest-hashes.md).
+
 First Washington region after Rainier. Offline work only: no production reads
 or writes, no OSM edits. Builder: `cloud-sql/migrate/src/import-baker-glaciers.ts`
 and `src/glaciers/baker.ts`. Outline decisions:
