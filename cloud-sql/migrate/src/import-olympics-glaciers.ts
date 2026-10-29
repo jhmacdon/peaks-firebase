@@ -40,7 +40,8 @@ export const OLYMPICS_SPEC: RegionSpec = {
     "way:1287314978": { parent: "mount-anderson", inventory: "Anderson Glacier", container: PARK },
     "way:1093654800": { parent: "mount-anderson", inventory: "Eel Glacier", container: PARK },
     "way:1093657603": { parent: "mount-anderson", inventory: "Hanging Glacier", container: PARK },
-    "relation:14569855": { parent: "mount-cameron", inventory: "Cameron Glaciers", container: PARK, aliases: ["Cameron Glacier"] },
+    "relation:14569855": { parent: "mount-cameron", inventory: "Cameron Glaciers", container: PARK, aliases: ["Cameron Glacier"],
+      keep_osm: "main-session review 2026-10-29: keep OSM for Cameron Glaciers, flagged" },
     "relation:13754230": { parent: "mount-carrie", inventory: "Carrie Glacier", container: PARK,
       label: { name: "Carrie Glacier", method: "GNIS Carrie Glacier (1531450, 47.89103,-123.63640) lies inside this polygon; "
         + "the GNIS Fairchild Glacier point (1529151) lies in no OSM polygon; PSU 2015 \"Carrie Glacier\" rows lie 79–80% inside it" } },
@@ -72,6 +73,7 @@ export const OLYMPICS_SPEC: RegionSpec = {
   },
   activities: ["outdoor-trek", "ski"],
   country_code: "US", state_code: "WA",
+  outline_rule: 2,
 };
 
 export const loadOlympicsOsmPackage = () => loadRegionOsmPackage(OLYMPICS_SPEC);

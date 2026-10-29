@@ -1,13 +1,13 @@
 # Olympic Mountains glaciers — review packet, 2026-10-29
 
-**Draft: 4 of 14 named OSM glaciers carry counted flags (29%); two
-decisions needed (below).**
+**12 glaciers. Counted flags 2 of 14 (14%): Cameron (ratio, kept by
+review) and White (invalid outline, held).** Outline rule 2 (#290).
 Offline work only. Spec: `cloud-sql/migrate/src/import-olympics-glaciers.ts`.
 Decisions: [Markdown](olympics-glacier-outline-decisions-2026-10-29.md),
 [JSON](olympics-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`6faa5d0c6ccab48eee536b0bc4c7e3e39dcae3288dd17069f053f512a819ffae`.
+`1db392586603dd1ecc203a3ff10c4da61bc24a01810ed5f9fe74ee4e9bdd126b`.
 
 ## Sources and licences
 
@@ -51,9 +51,9 @@ Fairchild Glacier is not imported: no OSM polygon contains its GNIS point.
 | Eel | 0.848 | 0.820 | 0.820 | 1.034 | 0.856 / 0.938 | osm |
 | Ice River | 0.334 | 0.218 | 0.218 | 1.533 | 0.630 / 0.979 | **GLIMS 2015** (1987 reference IoU 0.778 vs 0.630) |
 | Jeffers | 0.471 | 0.202 | 0.202 | 2.329 | 0.428 / 0.998 | **GLIMS 2015** (1987 reference IoU 0.636 vs 0.428) |
-| Queets | 0.446 | 0.293 | 0.293 | 1.525 | 0.636 / 0.982 | osm ⚑ no dated evidence |
-| Cameron Glaciers | 0.340 | 0.193 | 0.193 | 1.764 | 0.529 / 0.956 | osm ⚑ no dated evidence |
-| Anderson | 0.130 | 0.013 | 0.013 | 10.165 | 0.087 / 0.898 | osm ⚑ no dated evidence (the glacier has nearly melted out) |
+| Queets | 0.446 | 0.293 | 0.293 | 1.525 | 0.636 / 0.982 | **GLIMS 2015** (rule 2: OSM undated) |
+| Cameron Glaciers | 0.340 | 0.193 | 0.193 | 1.764 | 0.529 / 0.956 | osm ⚑ ratio, kept by review |
+| Anderson | 0.130 | 0.013 | 0.013 | 10.165 | 0.087 / 0.898 | **GLIMS 2015** (rule 2; the glacier has nearly melted out) |
 | Hanging | 0.076 | 0.061 | 0.061 | 1.257 | 0.743 / 0.962 | osm |
 | Carrie (OSM "Fairchild") | 0.494 | 0.499 | 0.499 | 0.990 | — | osm |
 
@@ -68,9 +68,9 @@ Blue's facts area (5.111, two parts) differs from its dissolved candidate
 | Hoh | 2,355 | Middle Peak (Olympus) 20 m | Mount Olympus | clear (Olympus sub-summit) |
 | Hubert | 2,124 | East Peak (Olympus) 1.7 km | Mount Olympus | clear |
 | Jeffers | 1,817 | East Peak (Olympus) 2.5 km | Mount Olympus | clear |
-| Humes | 1,905 | Mount Mathias 2.3 km | Mount Olympus | ⚑ heads on Olympus' east ridge |
-| Ice River | 1,953 | Mount Mathias 1.9 km | Mount Olympus | ⚑ north side; Mount Mathias possible |
-| Queets | 1,932 | Mount Queets 107 m | Mount Queets | ⚑ often listed with Olympus |
+| Humes | 1,905 | Mount Mathias 2.3 km | Mount Olympus | checked (heads on Olympus' east ridge) |
+| Ice River | 1,953 | Mount Mathias 1.9 km | Mount Olympus | checked (north side) |
+| Queets | 1,932 | Mount Queets 107 m | Mount Queets | checked |
 | Eel | 2,176 | Mount Anderson 68 m | Mount Anderson | clear |
 | Hanging | 1,736 | East Peak (Anderson) 408 m | Mount Anderson | clear (Anderson sub-summit) |
 | Anderson | 1,930 | Mount Anderson 886 m | Mount Anderson | clear |
@@ -96,28 +96,25 @@ Tom is not a parent here.
 All 11 → **Olympic National Park** (`national_park`); NPS boundary (Land
 Resources Division service, analysis only), smallest margin 8 km.
 
-## Flags (2026-10-29 policy: ratio and outline quality count; 4 of 14, 29%)
+## Flags (2026-10-29: ratio and outline quality count; 2 of 14, 14%)
 
-- **Ratio (3, counted):** Queets (1.525, just outside the band: keep OSM and
-  the flag, per policy), Cameron Glaciers (1.764), Anderson (10.165).
+- **Ratio (1, counted):** Cameron Glaciers (1.764); OSM kept by the
+  reviewed decision, flagged.
 - **Outline quality (1, counted, held):** White (invalid OSM geometry; the
-  stricter hole-contact rule of #285 still rejects it).
+  hole-contact rule of #285 still rejects it).
 - **Held, identity (1):** way:1027283192 (OSM "Carrie"), unidentified.
 - **No facts (0).**
-- Parent calls flagged: Humes, Ice River, Queets (corrections pending).
-
-Still over the 15% stop line, so this stays a draft. Questions:
-- **Anderson** (OSM 0.130 km², PSU 2015 0.013 km²: the glacier has nearly
-  melted out, and OSM draws an old extent). Use the PSU 2015 outline (no
-  dated evidence for the switch rule), or hold it?
-- **Cameron Glaciers** (1.764, not "just outside"). Keep OSM with the flag,
-  or hold?
-- With Anderson and Cameron settled either way, the counted share falls to
-  2 of 14 (14%): Queets and White.
+- **Switched to the PSU 2015 outline:** Ice River and Jeffers (1987 reference
+  shows OSM older); Queets and Anderson (rule 2: OSM extents are undated, the
+  inventory is dated and closer to the facts area).
+- **Parents:** all checked by the reviewed research; none unclear.
 
 ## Disposable-DB check
 
-PG 15.19 / PostGIS 3.6.4; fixtures for the four parents and the NPS park
+Re-run for the rule-2 manifest: import of 12, replay unchanged, backfill
+drained, verify SQL per parent (5) clean, container links match.
+
+Earlier run: PG 15.19 / PostGIS 3.6.4; fixtures for the four parents and the NPS park
 polygon. Import, replay unchanged; a line from the Hoh valley to the summit
 crosses Hoh (886 m) and Blue (three passes) in route and session; backfill
 drained; `glacier-region-verify.sql` run per parent: all missing-row queries

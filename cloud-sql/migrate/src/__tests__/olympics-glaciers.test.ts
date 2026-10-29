@@ -56,11 +56,15 @@ test("facts cross-check the saved WFS rows", () => {
     assert.equal(p.facts[k], null);
 });
 
-test("outline decisions: Ice River and Jeffers take the 2015 inventory; Queets, Anderson, Cameron flagged", () => {
+test("outline decisions (rule 2): four take the 2015 inventory; Cameron keeps OSM by review, flagged", () => {
   const { report } = review;
-  assert.deepEqual(report.decisions.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(), ["Ice River Glacier", "Jeffers Glacier"]);
-  assert.deepEqual(report.decisions.filter(d => d.flagged).map(d => d.glacier).sort(), ["Anderson Glacier", "Cameron Glaciers", "Queets Glacier"]);
-  assert.ok(report.decisions.filter(d => d.chosen_source !== "osm").every(d => d.extent_evidence?.source_key === "glims-1987-09-09-reference"));
+  assert.deepEqual(report.decisions.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(),
+    ["Anderson Glacier", "Ice River Glacier", "Jeffers Glacier", "Queets Glacier"]);
+  assert.deepEqual(report.decisions.filter(d => d.flagged).map(d => d.glacier), ["Cameron Glaciers"]);
+  assert.match(report.decisions.find(d => d.glacier === "Cameron Glaciers")!.reason, /reviewed decision keeps OSM/);
+  for (const n of ["Ice River Glacier", "Jeffers Glacier"])
+    assert.equal(report.decisions.find(d => d.glacier === n)!.extent_evidence?.source_key, "glims-1987-09-09-reference");
+  for (const n of ["Queets Glacier", "Anderson Glacier"]) assert.match(report.decisions.find(d => d.glacier === n)!.reason, /rule 2/);
   assert.deepEqual(report.sources[0].audit.unmatched.filter(u => u.name.trim() && u.name !== "WA").map(u => u.name).sort(),
     ["Carrie Glacier WA", "Fairchild Glacier", "White Glacier"]);
   assert.equal(place("Jeffers Glacier").geometry!.observed_at, "2015-09-09");
