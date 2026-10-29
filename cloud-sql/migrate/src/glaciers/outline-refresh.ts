@@ -250,10 +250,11 @@ function resolveNeighbours(choices: Choice[], metrics: OutlineMetrics, inBand: (
   // Glaciers that could overlap under any choice of source are one group.
   const links = new Map<number, Set<number>>(all.map(i => [i, new Set<number>()]));
   for (let i = 0; i < choices.length; i++) for (let j = i + 1; j < choices.length; j++) {
-    const opts = (c: Choice) => [outlineOf(c, "osm"), outlineOf(c, "inventory")].filter((o): o is Outline => !!o);
+    // The final outline counts too: rule 1 can pick an older candidate than the inventory option.
+    const opts = (c: Choice) => [...new Set([outlineOf(c, "osm"), outlineOf(c, "inventory"), outlineOf(c, "final")])].filter((o): o is Outline => !!o);
     if (opts(choices[i]).some(a => opts(choices[j]).some(b => pairOverlap(a, b)))) { links.get(i)!.add(j); links.get(j)!.add(i); }
   }
-  const groups: NeighbourGroup[] = [], done = new Set<number>();
+  const groups: NeighbourGroup[] = [], done = new Set<number>(), held = new Set<string>();
   for (const start of new Set(found.flatMap(f => [f.i, f.j]))) {
     if (done.has(start)) continue;
     const members: number[] = [], queue = [start];
@@ -303,7 +304,7 @@ function resolveNeighbours(choices: Choice[], metrics: OutlineMetrics, inBand: (
       c.choice = { ...c.choice, reason: `${c.choice.reason}; ${label}: clipped against ${c.clipped.against.join(", ")}` };
     }
     for (const f of remaining) if (choices[f.i].choice.chosen_source === choices[f.j].choice.chosen_source || (choices[f.i].choice.chosen_source !== "osm" && choices[f.j].choice.chosen_source !== "osm")) {
-      unresolved.push(`${f.a}/${f.b}`);
+      unresolved.push(`${f.a}/${f.b}`); held.add(`${f.i}/${f.j}`);
       for (const i of [f.i, f.j]) choices[i].choice = { ...choices[i].choice, flagged: true,
         reason: `${choices[i].choice.reason}; overlaps ${i === f.i ? f.b : f.a} on the same source (unresolved)` };
     }
@@ -311,6 +312,9 @@ function resolveNeighbours(choices: Choice[], metrics: OutlineMetrics, inBand: (
       note: unresolved.length ? `Overlap on one source left flagged: ${unresolved.join(", ")}`
         : `Inventory ${inventoryOk ? "option does not clear the overlap" : "lacks a member"}; switched outlines clipped against OSM neighbours` });
   }
+  // Every overlap left among the final outlines must be one the groups flagged.
+  const missed = flaggedPairs(all, c => c.clipped?.boundary ?? outlineOf(c, "final")!).filter(f => !held.has(`${f.i}/${f.j}`));
+  if (missed.length) throw new Error(`Neighbour check left overlaps it did not flag: ${missed.map(f => `${f.a}/${f.b}`).join(", ")}`);
   return groups;
 }
 
