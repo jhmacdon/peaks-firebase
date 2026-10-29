@@ -10,6 +10,7 @@ const allowed = [
   "/destinations/nearby", "/destinations/viewport", "/destinations/averages",
   "/destinations/:id", "/destinations/:id/glacier", "/destinations/:id/lists", "/destinations/:id/routes",
   "/lists/popular", "/lists/by-destinations", "/lists/:id", "/lists/:id/destinations",
+  "/map/viewport",
   "/search", "/search/all", "/search/features", "/routes/near", "/routes/:id",
   "/routes/:id/destinations", "/routes/:id/landmarks", "/routes/:id/sections", "/routes/:id/elevation", "/routes/:id/air-quality", "/areas/:id",
 ];
@@ -52,7 +53,9 @@ test("each allowlisted handler accepts no uid and logs once without query text",
     const url = `/api${path.replace(":id", "public")}`;
     const headers: Record<string,string>={"X-Forwarded-For":"192.0.2.2"};
     if (path.endsWith("/glacier")) headers["X-Peaks-Capabilities"]="glaciers-v1";
-    assert.equal((await appRequest(app, "GET", url + params, headers)).status, 200, path);
+    const queryParams = path === "/map/viewport"
+      ? "?minLat=46.75&maxLat=46.95&minLng=-121.9&maxLng=-121.6&zoom=12" : params;
+    assert.equal((await appRequest(app, "GET", url + queryParams, headers)).status, 200, path);
     assert.deepEqual(JSON.parse(logs.mock.calls.at(-1)!.arguments[0]), { event: "signed_out_request", path: url });
   }
   assert.equal(logs.mock.callCount(), allowed.length);
