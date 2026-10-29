@@ -155,14 +155,14 @@ helpers from the June 2026 area dedupe, never checked in, and nothing uses them.
 ## CI
 
 The `test-api` job in `.github/workflows/deploy.yml` runs the whole suite against
-a throwaway `postgis/postgis:15-3.5` service container, and `deploy-api` now
+a throwaway `postgis/postgis:15-3.6` service container, and `deploy-api` now
 depends on it. Before that job existed these suites skipped in CI — nothing set
 the gate — so the triggers, plpgsql and spatial matching they cover reached
 production unexercised.
 
-Production is PostgreSQL 15.17 with PostGIS 3.6.0. The `postgis` images stop at
-3.5 for Postgres 15. Matching the Postgres major matters more: every spatial
-function the suite touches is unchanged between PostGIS 3.5 and 3.6.
+Production is PostgreSQL 15 with PostGIS 3.6, and CI matches both. Do not drop
+to PostGIS 3.5: the glacier crossing engine returns no span there for a path
+fully inside a glacier.
 
 ## Local Postgres instead
 

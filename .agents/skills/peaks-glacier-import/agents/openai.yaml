@@ -1,0 +1,6 @@
+interface:
+  display_name: "Peaks Glacier Import"
+  short_description: "Add one mountain's glaciers from OSM outlines and cited facts"
+  default_prompt: "Use $peaks-glacier-import to prepare a reviewed glacier package for one mountain."
+policy:
+  allow_implicit_invocation: true
