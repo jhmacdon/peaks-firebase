@@ -13,6 +13,7 @@ import { startAccessSql, withStartAccess } from "../lib/start-access";
 import { buildRouteLandmarksQuery, decodeRoutePlaceCursor, routePlacePage } from "../lib/route-landmarks";
 
 import { glacierCrossingsSql, glacierMatchStatusSql } from "../lib/glacier-crossings";
+import { buildGlacierStretches } from "../lib/glacier-stretches";
 import { supportsGlaciers } from "../lib/glacier-capability";
 import { hasGlacierSupport } from "../lib/schema-features";
 
@@ -280,6 +281,8 @@ export function buildNearbyRoutesQuery(
 }
 
 export function mapRouteDetailRow(row: any, destinations: any[] = []): any {
+  if (Object.prototype.hasOwnProperty.call(row, "glacier_crossings"))
+    row.glacier_stretches = buildGlacierStretches(row.glacier_crossings);
   row.areas = Array.isArray(row.areas) ? row.areas : [];
   row.segments = Array.isArray(row.segments) ? row.segments : [];
   row.sections = Array.isArray(row.sections) ? row.sections : [];

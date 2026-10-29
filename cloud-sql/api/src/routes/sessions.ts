@@ -35,6 +35,7 @@ import {
 } from "../lib/rate-guard";
 
 import { glacierCrossingsSql, glacierMatchStatusSql } from "../lib/glacier-crossings";
+import { buildGlacierStretches } from "../lib/glacier-stretches";
 import { supportsGlaciers } from "../lib/glacier-capability";
 import { hasGlacierSupport } from "../lib/schema-features";
 
@@ -1030,6 +1031,7 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
     return;
   }
   if (supportsGlaciers(req) && !glacierReady) Object.assign(result.rows[0],{glacier_crossings:[],glacier_crossings_status:"unavailable"});
+  if (supportsGlaciers(req)) result.rows[0].glacier_stretches = buildGlacierStretches(result.rows[0].glacier_crossings);
   res.json(result.rows[0]);
 }));
 
@@ -1040,6 +1042,7 @@ router.get("/:id/route-facts", asyncRoute(async (req,res: Response) => {
   const result=await db.query(query.text,query.values);
   if (!result.rows.length) { res.status(404).json({error:"Session not found"}); return; }
   if (supportsGlaciers(req) && !ready) Object.assign(result.rows[0],{glacier_crossings:[],glacier_crossings_status:"unavailable"});
+  if (supportsGlaciers(req)) result.rows[0].glacier_stretches = buildGlacierStretches(result.rows[0].glacier_crossings);
   res.json(result.rows[0]);
 }));
 

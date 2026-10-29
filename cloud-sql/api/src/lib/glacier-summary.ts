@@ -11,7 +11,7 @@ export type GlacierSummaryQuery = (text: string, values: unknown[]) => Promise<a
 
 // Geometry, health and provenance payloads hold no destination rows.
 const leaves=new Set(["boundary","massif_boundary","path_preview","health_data","source_contributions",
-  "metadata","provenance","amenities","external_ids","external_links","glacier_crossings"]);
+  "metadata","provenance","amenities","external_ids","external_links","glacier_crossings","glacier_stretches"]);
 
 /** node-postgres returns enum arrays as their text literal, "{summit,glacier}". */
 function hasGlacierFeature(features: unknown): boolean {
