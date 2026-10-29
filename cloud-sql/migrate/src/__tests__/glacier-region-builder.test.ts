@@ -96,3 +96,26 @@ test("cohort names match config names like the outline matcher, and the spelling
     /normalise alike/);
 });
 
+test("split WFS analyses count once; far-apart same-name parts need listed glac_ids", () => {
+  type Row = { properties: Record<string, unknown>; geometry: { type: string; coordinates: number[][][] } };
+  const rows = glims.features as Row[], wfs = (features: Row[]) => ({ ...glims, features, numberMatched: features.length, numberReturned: features.length });
+  const base = parseInventory(glims, rgi, split);
+  const thunder = rows.find(f => f.properties.glac_name === "Thunder Glacier" && String(f.properties.src_date).startsWith("2015"))!;
+  const piece = { ...thunder, properties: { ...thunder.properties } };
+  assert.equal(parseInventory(wfs([...rows, piece]), rgi, split).areas.get("Thunder Glacier")!.area_km2, base.areas.get("Thunder Glacier")!.area_km2);
+  assert.throws(() => parseInventory(wfs([...rows, { ...piece, properties: { ...piece.properties, db_area: 9 } }]), rgi, split), /disagree/);
+  const hadley = rows.filter(f => f.properties.glac_name === "Hadley Glacier" && String(f.properties.src_date).startsWith("2015"));
+  assert.ok(new Set(hadley.map(f => f.properties.glac_id)).size > 1, "Hadley's nearby parts are several GLIMS glaciers");
+  const moved = rows.map(f => f !== hadley[0] ? f : { ...f, geometry: { ...f.geometry,
+    coordinates: f.geometry.coordinates.map(r => r.map(([x, y]) => [x + .1, y])) } });
+  assert.throws(() => parseInventory(wfs(moved), rgi, split), /Hadley Glacier parts lie more than 1000 m apart/);
+  const ids = hadley.map(f => String(f.properties.glac_id));
+  const listed = { ...split, mountains: { ...split.mountains, "mount-baker": { ...split.mountains["mount-baker"],
+    names: { ...split.mountains["mount-baker"].names, "Hadley Glacier": { parts: hadley.length, glac_ids: ids } } } } };
+  assert.equal(parseInventory(wfs(moved), rgi, listed).areas.get("Hadley Glacier")!.area_km2, base.areas.get("Hadley Glacier")!.area_km2);
+});
+
+test("country and state codes come from the spec", () => {
+  const m = loadRegionOsmPackage({ ...BAKER_SPEC, country_code: "CA", state_code: "BC" });
+  assert.deepEqual([m.country_code, m.state_code], ["CA", "BC"]);
+});
