@@ -9,7 +9,7 @@ Spec:
 [JSON](north-cascades-south-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`8e9103e4bd23bac7993e62ab5c97396ef8e0bffd34e22b18782a0187884f52f6`.
+`e940a5abd176a20a38d245ba33d05faaa9bb069d1a391a07da9efaaa2069973c`.
 
 Scope: North Cascades National Park south unit (Eldorado, Boston Basin,
 Logan, Klawatti), Lake Chelan NRA edge, and the Dome/Chickamin, Spider and
@@ -195,7 +195,9 @@ missing-row queries empty; container links match the manifest exactly.
 
 1. Null-fact glaciers imported and flagged "no facts"; not counted.
 2. Goode, LeConte, Sandalee, South Cascade take 2017-09-09 cohort facts
-   (#286); South Cascade's area is the USGS benchmark 2021 DEM area.
+   (#286); South Cascade's area is the USGS benchmark 2021 DEM area, and its
+   facts row credits the USGS release (doi:10.5066/F7HD7SRF) and RGI 7.0
+   (#288); every other glacier credits PSU and RGI 7.0.
    The reviewed research suggested the USGS web page's "1.8 km² (2015)" and
    an elevation span of "~660 m". That page answers 504 to this network
    (not worked around), and its 2015 figure is the same release's 2015
