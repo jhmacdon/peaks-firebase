@@ -19,7 +19,7 @@ export function glacierVisibilitySql(alias: string, allow=true): string {
  */
 const glacierLeaves=new Set(["boundary","massif_boundary","path_preview","health_data","source_contributions",
   "metadata","provenance","amenities","external_ids","external_links"]);
-const glacierFields=new Set(["glacier","glacier_crossings","glacier_crossings_status"]);
+const glacierFields=new Set(["glacier","glacier_crossings","glacier_stretches","glacier_crossings_status"]);
 export function withoutGlaciers(value: any): any {
   if (Array.isArray(value)) {
     const rows=value.filter(v=>!v?.features?.includes?.("glacier")).map(withoutGlaciers);

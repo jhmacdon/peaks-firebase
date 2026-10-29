@@ -1,4 +1,5 @@
 import { glacierCrossingsSql, glacierMatchStatusSql } from "./glacier-crossings";
+import { buildGlacierStretches } from "./glacier-stretches";
 import { buildRouteAccessSql } from "./route-access";
 import { pathPlacesCtes } from "./path-places";
 
@@ -69,6 +70,7 @@ export function routePlacePage(row: any,cursor: RoutePlaceCursor) {
   if (all.length>ROUTE_PLACE_PAGE_SIZE) next={...cursor,row:cursor.row+ROUTE_PLACE_PAGE_SIZE,version:row.version};
   else if (row.last_vertex<row.total_vertices) next={vertex:row.last_vertex,along:row.end_m,row:0,version:row.version};
   return {...(Object.prototype.hasOwnProperty.call(row,"glacier_crossings")
-    ? {glacier_crossings:row.glacier_crossings,glacier_crossings_status:row.glacier_crossings_status}:{}),items,nextCursor:next?Buffer.from(JSON.stringify(next)).toString("base64url"):null,
+    ? {glacier_crossings:row.glacier_crossings,glacier_stretches:buildGlacierStretches(row.glacier_crossings),
+      glacier_crossings_status:row.glacier_crossings_status}:{}),items,nextCursor:next?Buffer.from(JSON.stringify(next)).toString("base64url"):null,
     distanceThroughMeters:row.end_m};
 }

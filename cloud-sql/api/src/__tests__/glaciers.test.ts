@@ -20,7 +20,7 @@ test("capability is explicit and old clients lose neither a page nor a polygon p
   assert.equal(supportsGlaciers({headers:{"x-peaks-capabilities":"other, glaciers-v1"}}),true);
   assert.equal(supportsGlaciers({headers:{"x-peaks-capabilities":"glaciers-v10"}}),false);
   const value={destinations:[{id:"g",features:["glacier"]},{id:"lake",features:["lake"]}],
-    sessions:[{id:"s",glacier_crossings:[{destination_id:"g"}],glacier_crossings_status:"complete"}]};
+    sessions:[{id:"s",glacier_crossings:[{destination_id:"g"}],glacier_stretches:[{kind:"glacier"}],glacier_crossings_status:"complete"}]};
   assert.deepEqual(withoutGlaciers(value),{destinations:[{id:"lake",features:["lake"]}],sessions:[{id:"s"}]});
   assert.equal(value.destinations.length,2,"guard must not mutate cached rows");
   let status=200, body: any;

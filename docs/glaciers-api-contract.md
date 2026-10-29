@@ -26,11 +26,11 @@ It drops MultiPolygon boundaries. There is no explicit client version header in
 minimum app version from User-Agent. Responses vary on `X-Peaks-Capabilities`.
 Without that capability, search/nearby/viewport exclude glaciers before their
 limits; nested destination arrays omit them, glacier detail returns 404, and
-new glacier facts/crossing fields are absent. Existing lake boundaries keep their
+new glacier facts/crossing/stretch fields are absent. Existing lake boundaries keep their
 current shape and behavior.
 
 If the engine migrations are absent, capable route/session readers send
-`glacier_crossings: []` and `glacier_crossings_status: "unavailable"`.
+`glacier_crossings: []`, `glacier_stretches: []` and `glacier_crossings_status: "unavailable"`.
 The full glacier endpoint and an explicit glacier feature search return 503 with
 `{"error":"Glacier migration not installed"}`. Schema checks expire after one
 minute. No reader tries a legacy datastore or repairs data during a GET.
@@ -47,10 +47,10 @@ minute. No reader tries a legacy datastore or repairs data during a GET.
 | `GET /destinations/:id` | Existing destination detail plus `glacier` for a glacier destination. |
 | `GET /destinations/:id/glacier?session_limit=25&session_offset=0` | New full place sheet, shaped like area detail; example below. Public catalog access is allowed. |
 | `GET /destinations/:id/routes` | For capable callers, includes active, accessible routes with stored crossings, in addition to existing explicit route links. Distinct routes only. Existing route summary JSON remains unchanged. |
-| `GET /routes/:id` | Adds `glacier_crossings` and `glacier_crossings_status`. |
-| `GET /routes/:id/landmarks?cursor=` | Keeps `{items,nextCursor,distanceThroughMeters}`; adds those same two fields, independently of paged point landmarks. |
-| `GET /sessions/:id` | Adds track-derived `glacier_crossings` and `glacier_crossings_status`, independent of a primary route. |
-| `GET /sessions/:id/route-facts` | New compact `{session_id,segments,glacier_crossings,glacier_crossings_status}`. `segments` retains the existing primary-route contract; glacier spans do not depend on it. |
+| `GET /routes/:id` | Adds `glacier_crossings`, `glacier_stretches` and `glacier_crossings_status`. |
+| `GET /routes/:id/landmarks?cursor=` | Keeps `{items,nextCursor,distanceThroughMeters}`; adds those same three fields, independently of paged point landmarks. |
+| `GET /sessions/:id` | Adds track-derived `glacier_crossings`, `glacier_stretches` and `glacier_crossings_status`, independent of a primary route. |
+| `GET /sessions/:id/route-facts` | New compact `{session_id,segments,glacier_crossings,glacier_stretches,glacier_crossings_status}`. `segments` retains the existing primary-route contract; glacier spans do not depend on it. |
 | `POST /sessions/:id/destinations` | Existing `rejected` / `unreject` lists also govern glacier crossings. No body change. A rejection hides/deletes derived spans at once; unreject queues a fresh match. Manual reaches do not invent spans. |
 | `GET /sessions/changes` | Existing sync envelope stays unchanged. Changed crossings touch the session's sync timestamp. Fetch detail/route-facts after an upsert; omitted crossing fields in list/sync rows do not mean deletion. |
 
@@ -339,6 +339,18 @@ A route or session detail adds:
     "outline_revision": 1,
     "matcher_version": 1,
     "geometry_credit": "© OpenStreetMap contributors"
+  }],
+  "glacier_stretches": [{
+    "kind": "glacier",
+    "destinations": [{"id":"B5B5E8E3D1BFB7A3126D","name":"Emmons Glacier","kind":"glacier","share":1}],
+    "entered_distance_m": 2300.5,
+    "exited_distance_m": 5100.25,
+    "entered_at": "2026-08-01T08:10:00.000Z",
+    "exited_at": "2026-08-01T10:00:00.000Z",
+    "segment_number": 2,
+    "min_elevation_m": 2590,
+    "max_elevation_m": 3420,
+    "crossing_indexes": [0]
   }]
 }
 ```
@@ -371,6 +383,86 @@ Catalog routes have no GPS-gap cap. Tangency and travel exactly on an outer or
 hole border do not count; internal subdivision seams do not split a pass.
 `starts_inside` / `ends_inside` mean the available continuous block begins/ends
 inside the glacier, so a partial visit need not be called a full traverse.
+
+### Display stretches
+
+The four route/session endpoints above also return `glacier_stretches` for
+`glaciers-v1` callers. They leave `glacier_crossings` unchanged. Use stretches for
+display rows and crossings for exact geometry, passes and source credit. Empty,
+pending and unavailable crossings all produce `glacier_stretches: []`; read
+`glacier_crossings_status` to tell them apart. Landmark pages repeat the complete
+stretch list, just as they repeat crossings. Replace the display list on reload;
+stretch row positions are not stored pass identities.
+
+`buildGlacierStretches` is a pure read-time function. Its single threshold object,
+`GLACIER_STRETCH_THRESHOLDS` in `cloud-sql/api/src/lib/glacier-stretches.ts`, defines:
+
+| Constant | Value | Rule |
+| --- | --- | --- |
+| `decision_step_m` | 5 m | Round decision distances and length support to the nearest 5 m. Keep output distances exact. |
+| `sliver_max_m` | 40 m | Absorb an isolated neighbour excursion with the same glacier immediately before and after. |
+| `same_glacier_gap_m` | 200 m | Merge adjacent visits to the same glacier across a short off-ice gap. |
+| `border_gap_m` | 20 m | Larger gaps break jitter analysis; sliver neighbours must also meet this limit. |
+| `settled_run_m` | 400 m | Keep a single-glacier run with this much matched support as a settled run beside jitter. Off-ice gaps add no support. |
+| `border_min_span_m` | 300 m | Require this span for sustained border alternation. |
+| `border_min_switches` | 3 | Require at least three switches; simultaneous overlapping outlines also supply border evidence. |
+| `border_min_minor_share` | 0.2 | At least 20% of support must belong to glaciers other than the leader. |
+| `transition_max_span_m` | 600 m | Absolute cap for jitter absorbed between two different settled glaciers. |
+| `transition_flank_fraction` | 0.5 | Also cap absorbed transition jitter at half the shorter settled run's matched length. |
+
+Distance comparisons use those 5 m bins, so nominal limits have a 2.5 m rounding
+band. This reduces changes from sub-metre clipping differences. Slivers resolve
+in travel order. The function sorts a copy of its input and never edits it.
+
+After sliver removal, settled single-glacier runs divide each nearly continuous
+block into possible jitter sections. Between different settled glaciers A and B,
+a short section involving only A/B becomes A then B: **split at the last switch
+into the settled B run**, assigning preceding jitter to A. This keeps the original
+endpoint distances and times. Longer sections with repeated alternation and no
+clear winner become one `kind: "border"` row. Sections that meet neither rule
+keep their individual visits; a brief visit without a return stays visible.
+A glacier that appears only once at either end of a jitter section also keeps
+its own row. A new arrival alone does not establish continued border travel.
+
+Each row carries all its destinations, ordered by length share, with ties broken
+by destination ID. Shares sum to one. They use unioned matched length per glacier,
+rounded to 5 m (minimum 5 m for a positive contribution), and exclude off-ice gaps.
+Sliver/transition support belongs to the glacier that absorbs it. Overlapping
+outlines may contribute support to more than one destination; normalize their
+support together. A single-glacier row has share 1. For three or more destinations,
+show the first two names and the remaining count, for example `A / B +1`; the API
+keeps every identity and share rather than dropping the smaller destinations.
+
+`entered_distance_m` / `exited_distance_m` bound the combined span, including any
+bridged gaps; they do not claim that every metre lies on ice. `crossing_indexes`
+contains sorted, unique zero-based indexes into this response's exact crossings,
+including absorbed neighbours. An overlapping source crossing can contribute to
+several stretches. Min/max elevations take all non-null source extrema, including
+absorbed crossings; they are conservative when a source crossing spans several
+rows. Missing elevations stay null. Entry/exit times come from existing crossing
+endpoints; missing times stay null or absent, with no time invented across a gap.
+Routes retain null times and segment zero. Sessions retain their recording segment
+and never merge across different `segment_number` values. Both use the same rules.
+
+The saved Rainier fixture yields these Disappointment Cleaver rows:
+
+| Row | Entry–exit distance (m) |
+| --- | --- |
+| Muir Snowfield | 4029.7–6649.2 |
+| Cowlitz Glacier | 6692.6–7506.3 |
+| Ingraham Glacier | 7828.4–8801.6 |
+| Ingraham Glacier | 9549.5–9800.7 |
+| Emmons Glacier | 9800.7–10378.1 |
+| Ingraham Glacier / Emmons Glacier | 10378.1–11238.7 |
+| Columbia Crest Glacier | 11256–11815.9 |
+
+The 747.9 m Cleaver rock gap separates the two Ingraham visits. The 577.4 m Emmons
+run exceeds the settled threshold, so it stays visible before the 860.6 m border
+section (about 73% Ingraham, 27% Emmons). The final 129 m Ingraham pass does not
+establish a settled exit from that border. Columbia Crest's 28.8 m return joins
+its earlier pass across 165.2 m of rock. The Emmons Glacier Route yields Inter
+Glacier, Emmons Glacier, Winthrop Glacier, Columbia Crest Glacier: its 40.7 m Inter
+Glacier gap merges, and its 12.3 m Emmons excursion folds into Winthrop.
 
 No new photo endpoint is added. Fetch photos by the returned session IDs and
 keep their activity/date labels. A crossing does not prove all photos in that
