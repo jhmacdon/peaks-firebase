@@ -11,8 +11,8 @@ Decisions: [Adams](adams-glacier-outline-decisions-2026-10-29.md),
 
 | Package | Reviewed manifest SHA-256 (platform-stable) |
 | --- | --- |
-| Mount Adams | `7179238830408a34ebba06f22cdce9664024f51bfaff0e72186474ce93bb665e` |
-| Mount St. Helens | `9d0f0d49e702b75d825c02460f53f397e2e996f1a49b1f26834989974920b687` |
+| Mount Adams | `926ef1b7b98cd3a142d57eb1177067507e7ab1950a67238687390ae90d36696f` |
+| Mount St. Helens | `1c7380654570d096f19b9e42bcf2b03a20612d2899ef8f47fa25019b5b665d50` |
 
 Later changes: Avalanche and White Salmon imported (below), outline rule 2,
 and the St. Helens parent renamed "Mount Saint Helens", the exact name of
@@ -138,3 +138,11 @@ PG 15.19 / PostGIS 3.6.4, real EDW boundaries as fixture areas.
 - St. Helens: import, replay unchanged; a line from the crater floor to the
   summit crosses Crater twice; verify SQL clean; "crater glacier" finds it and
   the route gains "crater glacier" and "tulutson glacier".
+
+## Outline overlaps (neighbour check, #290)
+
+After sources were chosen, every pair of final outlines in each package was
+measured. No pair overlaps by more than 1% of the smaller outline or 0.01 km²,
+so no group was moved to one source and nothing was clipped. Resolution:
+none needed. The decision reports' "Outline overlaps" section records the
+same result.
