@@ -23,11 +23,11 @@ test("Petrics stays off when collection is not allowed", () => {
 test("Petrics builds web options from the env", () => {
   assert.deepEqual(petricsOptions({ sourceKey: " ptr_v1_key " }, true), {
     sourceKey: "ptr_v1_key",
-    platform: "web",
+    platform: "web", trackAppOpens: true,
   });
   assert.deepEqual(
     petricsOptions({ sourceKey: "ptr_v1_key", endpoint: "https://collector.example" }, true),
-    { sourceKey: "ptr_v1_key", endpoint: "https://collector.example", platform: "web" },
+    { sourceKey: "ptr_v1_key", endpoint: "https://collector.example", platform: "web", trackAppOpens: true },
   );
 });
 
