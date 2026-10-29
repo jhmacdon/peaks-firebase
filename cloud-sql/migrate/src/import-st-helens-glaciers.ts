@@ -13,6 +13,9 @@ const MONUMENT = "mount-st-helens-nvm";
  * older names here (Ape, Dryer, Forsyth, Nelson, Shoestring, Swift, two
  * Talus, Toutle), and the PSU 2015 cohort still maps Dryer, Swift, Talus and
  * Toutle remnants; none is imported (listed for review in the packet). */
+/** Peaks has no areas row for the monument (checked 2026-10-29), so Crater
+ * imports with no container. When the monument is added, set
+ * `container: MONUMENT` again and replay. */
 export const ST_HELENS_SPEC: RegionSpec = {
   label: "Mount St. Helens", data_dir: DATA_DIR, outline_dir: OUTLINE_DATA_DIR,
   files: { osm: "st-helens-glaciers-overpass.json", rgi: "rgi7-wfs-st-helens.json", glims: "glims-wfs-st-helens.json" },
@@ -22,7 +25,7 @@ export const ST_HELENS_SPEC: RegionSpec = {
     glims: "cc0dea77d7a1968aa524ab051a894141be3db7a2978a89d2ca772d774f7d5ad7",
   },
   snapshot_date: "2026-05-31",
-  roster: { "relation:6695149": { parent: "mount-st-helens", inventory: "Crater Glacier", container: MONUMENT, aliases: ["Tulutson Glacier"] } }, // OSM alt_name
+  roster: { "relation:6695149": { parent: "mount-st-helens", inventory: "Crater Glacier", container: null, aliases: ["Tulutson Glacier"] } }, // OSM alt_name
   default_parent: "mount-st-helens",
   parents: { "mount-st-helens": { name: "Mount Saint Helens", features: ["summit", "volcano"], country_code: "US", state_code: "WA",
     lat: 46.1912, lng: -122.1944, radius_m: 3000 } },
