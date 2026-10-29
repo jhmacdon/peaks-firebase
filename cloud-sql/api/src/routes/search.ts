@@ -155,12 +155,13 @@ export function wordPrefixTsQuery(normalizedQuery: string): string | null {
   return words.map((word, index) => index === words.length - 1 ? `${word}:*` : word).join(" & ");
 }
 
-// Route and place search score candidates with
-// similarity(), which costs far more than the index lookup that finds them.
+// Route and place search score candidates with similarity(), which costs far
+// more than the index lookup that finds them.
 // Trigram candidates for "mount stuart" were the 15k terms sharing letters
 // with "mount"; about 500 matched and 2 held both words. So candidates are
-// now names holding every query word (full-text index). Trigram matching runs
-// only when no name does, which keeps typo search ("mount rainer").
+// only names holding every query word (stored full-text vectors). There is no
+// typo fallback: trigram matching took 10 s on the db-f1-micro, which served
+// users worse than no result.
 // A common word still matches tens of thousands of names ("trail": 105k route
 // terms), so catalog matches are capped to the shortest names, the most
 // popular, and, given a location, the nearest. Among names that hold every
@@ -367,44 +368,36 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
   // each place's search fields; destinations rows average 2.8 KB, and
   // rechecking thousands of trigram matches against them read tens of MB per
   // search. Full rows load only for the final page.
-  const searchVector = "to_tsvector('simple', COALESCE(NULLIF(ds.search_name, ''), lower(ds.name)))";
   // Each SQL piece must reference its parameter even when it can never match:
   // node-postgres sends untyped values, and Postgres rejects one it never sees.
-  const wordMatch = wordQuery ? `${searchVector} @@ to_tsquery('simple', $4::text)` : "$4::text IS NULL";
-  const fuzzyMatch = short ? "false" : "(ds.search_name % $1 OR ds.search_name LIKE $2)";
+  const wordMatch = wordQuery ? "ds.search_vector @@ to_tsquery('simple', $4::text)" : "$4::text IS NULL";
   const distance = geo ? "ST_Distance(ds.location, ST_MakePoint($6, $5)::geography)" : "NULL::double precision";
   const proximity = geo ? `COALESCE(EXP(-1.0 * ${distance} / 500000.0) * 0.05, 0)` : "0";
   const publicRow = `(${publicCatalogSql("ds", input.publicOnly)}) AND ${glacierVisibilitySql("ds",input.glaciers!==false)}`;
-  const candidateColumns = "ds.id, ds.name, ds.search_name, ds.owner, ds.features, ds.session_count_offset, ds.location";
+  // Each list walks its own partial index and stops at the cap; the shortest
+  // and popular indexes include every column a list reads, so those walks
+  // never visit the table. Places have no distance index: no word matches
+  // more than ~30k places, and sorting those beat a distance walk.
+  const candidateColumns = "ds.id, ds.name, ds.search_name, ds.features, ds.session_count_offset, ds.location";
+  const cappedIds = (order: string) => `(SELECT ${candidateColumns} FROM destination_search_rows ds
+          WHERE owner = 'peaks' AND ${wordMatch} AND ${publicRow}
+          ORDER BY ${order} LIMIT ${SEARCH_CANDIDATE_CAP})`;
 
   return {
-    text: `WITH word_rows AS MATERIALIZED (
-         SELECT ${candidateColumns}
-         FROM destination_search_rows ds
-         WHERE ${wordMatch}
-           AND ${publicRow}
-       ),
-       -- See SEARCH_CANDIDATE_CAP: word matches first, capped for broad words;
-       -- trigram matching only when no word matches. Scores read these rows
-       -- directly, so the planner never weighs scoring the whole table.
-       candidates AS (
-         SELECT * FROM word_rows ds
-         WHERE ds.owner <> 'peaks'
-            OR ds.id IN (SELECT id FROM word_rows WHERE owner = 'peaks'
-                         ORDER BY length(search_name), search_name, id LIMIT ${SEARCH_CANDIDATE_CAP})
-            OR ds.id IN (SELECT id FROM word_rows WHERE owner = 'peaks'
-                         ORDER BY session_count_offset DESC, length(search_name), search_name, id LIMIT ${SEARCH_CANDIDATE_CAP})${geo ? `
-            OR ds.id IN (SELECT id FROM word_rows WHERE owner = 'peaks' AND location IS NOT NULL
-                         ORDER BY location::geometry <-> ST_SetSRID(ST_MakePoint($6, $5), 4326), id LIMIT ${SEARCH_CANDIDATE_CAP})` : ""}
+    text: `WITH candidate_rows AS MATERIALIZED (
+         ${cappedIds("ds.search_length, ds.search_name, ds.id")}
          UNION ALL
-         SELECT ${candidateColumns}
-         FROM destination_search_rows ds
-         WHERE NOT EXISTS (SELECT 1 FROM word_rows)
-           AND ${fuzzyMatch}
-           AND ${publicRow}
+         ${cappedIds("ds.session_count_offset DESC, ds.search_length, ds.search_name, ds.id")}${geo ? `
+         UNION ALL
+         ${cappedIds("ds.location <-> ST_MakePoint($6, $5)::geography")}` : ""}
+         UNION ALL
+         SELECT ${candidateColumns} FROM destination_search_rows ds
+         WHERE owner <> 'peaks' AND ${wordMatch} AND ${publicRow}
        ),
-       ranked_destinations AS MATERIALIZED (
-         SELECT ds.id,
+       -- Scoring sits behind its own fence so the planner never scores the
+       -- whole table to stop early at the final LIMIT.
+       scored_destinations AS MATERIALIZED (
+         SELECT ds.id, ds.name,
                 (ds.search_name = $1) AS name_exact_match,
                 (ds.search_name LIKE $2 OR ds.search_name LIKE ('% ' || $1 || '%')) AS name_prefix_match,
                 ${distance} AS distance_m,
@@ -412,8 +405,12 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
                   + ${searchPopularityScoreSql("ds.session_count_offset")}
                   + ${proximity}
                   - ${searchMinorPlacePenaltySql("ds.features", "ds.search_name", "$1")}) AS score
-         FROM candidates ds
-         ORDER BY score DESC, ds.name, ds.id
+         -- A place can sit in several lists; score it once.
+         FROM (SELECT DISTINCT ON (id) * FROM candidate_rows) ds
+       ),
+       ranked_destinations AS MATERIALIZED (
+         SELECT * FROM scored_destinations
+         ORDER BY score DESC, name, id
          LIMIT $3
        )
        SELECT destinations.id, destinations.name, destinations.elevation, destinations.prominence,
@@ -437,7 +434,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   const short = q.length === 2;
   const geo = hasGeo(input);
   const wordQuery = short ? tokenPrefixTsQuery(q) : wordPrefixTsQuery(q);
-  const values: unknown[] = [q, `${q}%`, `%${q}%`, input.limit, input.uid ?? "", wordQuery ?? ""];
+  const values: unknown[] = [q, `${q}%`, input.limit, input.uid ?? "", wordQuery ?? ""];
   if (geo) values.push(input.lat, input.lng);
   // route_search_terms holds one row per (active route, searchable term):
   // name, aliases, linked place names, and segment trail names. One pass over
@@ -446,47 +443,42 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   // two-character queries never fall back to trigram matching.
   // Each SQL piece must reference its parameter even when it can never match:
   // node-postgres sends untyped values, and Postgres rejects one it never sees.
-  const wordMatch = wordQuery ? "to_tsvector('simple', t.term) @@ to_tsquery('simple', $6::text)" : "$6::text IS NULL";
-  const fuzzyMatch = short ? "$3::text IS NULL" : "(t.term % $1 OR t.term %> $1 OR t.term LIKE $3)";
+  const wordMatch = wordQuery ? "t.term_vector @@ to_tsquery('simple', $5::text)" : "$5::text IS NULL";
   // Signed-out callers never match or score a private place's name.
   const publicTerm = input.publicOnly ? "AND t.public" : "";
   // A name the route only borrows from a segment's trail weighs 0.8; its own
   // name, aliases, and linked places weigh 1. public_weight counts public
   // sources only.
   const termWeight = input.publicOnly ? "COALESCE(t.public_weight, 0)" : "t.weight";
-  const candidateColumns = `t.route_id, t.term, t.owner, t.popularity, t.anchor, ${input.publicOnly ? "t.public_weight" : "t.weight"}`;
+  // Each list walks its own partial index and stops at the cap, carrying the
+  // scoring columns. The shortest and popular indexes include every column a
+  // list reads, so those walks never visit the table (a table visit per row
+  // cost ~3 ms on a throttled, cold db-f1-micro). Capped rows are all
+  // owner = 'peaks', so the lists name it rather than read it.
+  const weightColumn = input.publicOnly ? "t.public_weight" : "t.weight";
+  const cappedKeys = (order: string) => `(SELECT t.route_id, t.term, 'peaks'::text AS owner, t.popularity, t.anchor, ${weightColumn}
+          FROM route_search_terms t
+          WHERE owner = 'peaks' AND ${wordMatch} ${publicTerm}
+          ORDER BY ${order} LIMIT ${SEARCH_CANDIDATE_CAP})`;
   const shortlistSize = Math.min(500, Math.max(100, input.limit * 10));
   // Proximity measures to the route's start point, kept on each term row, so
   // ranking never reads a route's full path (about 13 ms per long path on the
   // db-f1-micro). distance_m is therefore the distance to the start.
-  const distance = geo ? "ST_Distance(s.anchor, ST_MakePoint($8, $7)::geography)" : "NULL::double precision";
+  const distance = geo ? "ST_Distance(s.anchor, ST_MakePoint($7, $6)::geography)" : "NULL::double precision";
   const proximity = geo ? `COALESCE(EXP(-1.0 * ${distance} / 500000.0) * 0.05, 0)` : "0";
 
   return {
-    text: `WITH word_terms AS MATERIALIZED (
-         SELECT ${candidateColumns}
-         FROM route_search_terms t
-         WHERE ${wordMatch}
-           ${publicTerm}
-       ),
-       -- See SEARCH_CANDIDATE_CAP. Scores read these rows directly, so the
-       -- planner never weighs scoring the whole table.
-       candidates AS (
-         SELECT * FROM word_terms t
-         WHERE t.owner <> 'peaks'
-            OR (t.route_id, t.term) IN (SELECT route_id, term FROM word_terms WHERE owner = 'peaks'
-                                        ORDER BY length(term), term, route_id LIMIT ${SEARCH_CANDIDATE_CAP})
-            OR (t.route_id, t.term) IN (SELECT route_id, term FROM word_terms WHERE owner = 'peaks'
-                                        ORDER BY popularity DESC, length(term), term, route_id LIMIT ${SEARCH_CANDIDATE_CAP})${geo ? `
-            OR (t.route_id, t.term) IN (SELECT route_id, term FROM word_terms WHERE owner = 'peaks' AND anchor IS NOT NULL
-                                        ORDER BY anchor::geometry <-> ST_SetSRID(ST_MakePoint($8, $7), 4326), route_id, term
-                                        LIMIT ${SEARCH_CANDIDATE_CAP})` : ""}
+    text: `WITH candidate_terms AS MATERIALIZED (
+         ${cappedKeys("t.term_length, t.term, t.route_id")}
          UNION ALL
-         SELECT ${candidateColumns}
+         ${cappedKeys("t.popularity DESC, t.term_length, t.term, t.route_id")}${geo ? `
+         UNION ALL
+         -- A KNN index scan needs the distance as the only sort key.
+         ${cappedKeys("t.anchor <-> ST_MakePoint($7, $6)::geography")}` : ""}
+         UNION ALL
+         SELECT t.route_id, t.term, t.owner, t.popularity, t.anchor, ${weightColumn}
          FROM route_search_terms t
-         WHERE NOT EXISTS (SELECT 1 FROM word_terms w WHERE w.owner = 'peaks' OR ($5 <> '' AND w.owner = $5))
-           AND ${fuzzyMatch}
-           ${publicTerm}
+         WHERE owner <> 'peaks' AND ${wordMatch} ${publicTerm}
        ),
        scored_routes AS MATERIALIZED (
          SELECT t.route_id AS id,
@@ -495,7 +487,8 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
                 min(t.owner) AS owner,
                 max(t.popularity) AS popularity,
                 (array_agg(t.anchor))[1] AS anchor
-         FROM candidates t
+         -- A term can sit in several lists; score it once.
+         FROM (SELECT DISTINCT ON (route_id, term) * FROM candidate_terms) t
          GROUP BY t.route_id
        ),
        -- Proximity (at most 0.05) joins the score after this cut, so a broad
@@ -503,17 +496,14 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
        shortlist AS MATERIALIZED (
          SELECT s.id, s.text_score, s.exact_match, s.anchor
          FROM scored_routes s
-         WHERE ${buildRouteAccessSql("s", "$5")}
+         WHERE ${buildRouteAccessSql("s", "$4")}
          ORDER BY s.text_score + ${searchPopularityScoreSql("s.popularity")} DESC, s.id
          LIMIT ${shortlistSize}
        ),
+       -- Ranking reads only narrow route columns; long text such as the path
+       -- loads for the final page alone.
        ranked_routes AS MATERIALIZED (
-         SELECT r.id, r.name, r.polyline6, r.owner,
-                r.distance, r.gain, r.gain_loss, r.elevation_string,
-                r.external_links, r.provenance, r.completion, r.shape,
-                r.description, r.description_source_name, r.description_source_url, r.description_source_license,
-                r.kind, r.slug, r.aliases, r.objective_destination_id, r.trailhead_destination_id,
-                r.difficulty, r.terrain_category, r.terrain_summary, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
+         SELECT r.id,
                 (r.search_name = $1) AS name_exact_match,
                 s.exact_match AS term_exact_match,
                 ${distance} AS distance_m,
@@ -523,9 +513,9 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
          FROM shortlist s
          JOIN routes r ON r.id = s.id
          WHERE r.status = 'active'
-           AND ${buildRouteAccessSql("r", "$5")}
+           AND ${buildRouteAccessSql("r", "$4")}
          ORDER BY score DESC, r.name, r.id
-         LIMIT $4
+         LIMIT $3
        )
        SELECT r.id, r.name, r.polyline6, r.owner,
               r.distance, r.gain, r.gain_loss, r.elevation_string,
@@ -534,11 +524,12 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
               r.kind, r.slug, r.aliases, r.objective_destination_id, r.trailhead_destination_id,
               r.difficulty, r.terrain_category, r.terrain_summary, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
               ${routeCoverSelectSql()},
-              ${routeAreaRowsSql}, r.distance_m, r.name_exact_match, r.term_exact_match, r.score
-       FROM ranked_routes r
+              ${routeAreaRowsSql}, ranked.distance_m, ranked.name_exact_match, ranked.term_exact_match, ranked.score
+       FROM ranked_routes ranked
+       JOIN routes r ON r.id = ranked.id
        ${routeCoverJoinSql("r", "cover", "id", input.publicOnly)}
        ${routeAreaJoinSql(input.publicOnly)}
-       ORDER BY r.score DESC, r.name, r.id`,
+       ORDER BY ranked.score DESC, r.name, r.id`,
     values,
   };
 }

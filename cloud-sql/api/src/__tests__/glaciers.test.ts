@@ -79,7 +79,7 @@ test("glacier search uses narrow candidates, retains the planner fixes, and acce
   for (const query of ["emmons","emmons glacier","em","glacier","rainier","inter glacier"]) {
     const q=buildDestinationSearchQuery({normalizedQuery:query,rawQuery:query,limit:20,glaciers:true});
     assert.match(q.text,/FROM destination_search_rows ds/);
-    assert.match(q.text,/word_rows AS MATERIALIZED/);
+    assert.match(q.text,/candidate_rows AS MATERIALIZED/);
     assert.doesNotMatch(q.text,/glacier_facts|glacier_crossings|ST_Intersects/);
     assert.equal(q.values[0],query);
   }
