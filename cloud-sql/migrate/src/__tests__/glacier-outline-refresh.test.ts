@@ -291,3 +291,36 @@ test("rule 2: an undated out-of-band OSM outline gives way to a dated, closer ca
   assert.equal(r2.manifest.places[0].geometry!.review!.rule_version, 2);
   assert.throws(() => refreshGlacierOutlines(m, [s], [], {}, undefined, { rule: 2, keepOsm: { "way:none": "x" } }), /keepOsm names no place/);
 });
+
+test("rule 2 neighbour check: one source per touching group, else clip, else hold", () => {
+  const [x, y] = [-121.76, 46.85], rect = (w: number, x0 = x): number[][][] => [[[x0, y], [x0 + w, y], [x0 + w, y + .01], [x0, y + .01], [x0, y]]];
+  const area = (r: number[][][]) => metrics.area(outline(r));
+  const mk = (id: string, name: string, osm: number[][][], facts: number) => ({ ...base.places[0], id, osm_key: `way:${id}`, name, aliases: [],
+    boundary: outline(osm), facts: { ...base.places[0].facts, area_km2: facts } });
+  const run = (aInv: number, bInv: boolean) => {
+    const a = mk("A", "Able Glacier", rect(.006), area(rect(aInv))), b = mk("B", "Baker Test Glacier", rect(.01, x + .01), area(rect(.0097, x + .0103)));
+    const s = source([{ id: "1", glacier_id: "g1", name: "Able Glacier", boundary: outline(rect(aInv)) },
+      ...(bInv ? [{ id: "2", glacier_id: "g2", name: "Baker Test Glacier", boundary: outline(rect(.0097, x + .0103)) }] : [])]);
+    return refreshGlacierOutlines({ ...base, places: [a, b] }, [s], [], {}, undefined, { rule: 2 });
+  };
+  // Able's inventory outline crosses into Baker Test's OSM outline: the group goes all-inventory.
+  const group = run(.0103, true);
+  assert.deepEqual(group.report.decisions.map(d => d.chosen_source), ["inventory", "inventory"]);
+  assert.equal(group.report.neighbour_overlaps![0].resolution, "all-inventory");
+  assert.deepEqual(group.report.neighbour_overlaps![0].glaciers, ["Able Glacier", "Baker Test Glacier"]);
+  assert.ok(group.report.neighbour_overlaps![0].pairs[0].share_of_smaller > .01);
+  // Without an inventory outline for Baker Test, Able is clipped against it.
+  const clip = run(.0103, false);
+  assert.deepEqual(clip.report.decisions.map(d => d.chosen_source), ["inventory", "osm"]);
+  assert.equal(clip.report.neighbour_overlaps![0].resolution, "clipped");
+  const able = clip.manifest.places[0].geometry!;
+  assert.deepEqual(able.clipped_against, ["Baker Test Glacier"]);
+  assert.ok(Math.abs(metrics.area(clip.manifest.places[0].boundary) - area(rect(.01))) < 1e-6, "loses exactly the overlap");
+  assert.equal(metrics.overlap(clip.manifest.places[0].boundary, clip.manifest.places[1].boundary).intersection_km2 < 1e-6, true);
+  // Clipping that would remove more than 10% of the outline holds instead.
+  assert.throws(() => run(.013, false), /clipping against Baker Test Glacier changes its area by 2\d\.\d% \(over 10%\); hold it/);
+  // No overlap, no groups; rule 1 never runs the check.
+  assert.deepEqual(run(.0099, false).report.neighbour_overlaps, []);
+  assert.equal(refreshGlacierOutlines({ ...base, places: [mk("A", "Able Glacier", rect(.006), area(rect(.0103)))] },
+    [source([{ id: "1", glacier_id: "g1", name: "Able Glacier", boundary: outline(rect(.0103)) }])]).report.neighbour_overlaps, undefined);
+});

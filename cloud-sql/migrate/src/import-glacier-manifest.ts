@@ -12,6 +12,8 @@ export type GlacierGeometryProvenance = {
   license: string; license_url: string; credit: string;
   method: string; geometry_sha256: string;
   analysis_ids?: string[]; glacier_ids?: string[]; submission_id?: string;
+  /** Neighbours whose OSM outline this inventory outline was clipped against. */
+  clipped_against?: string[];
   review?: Record<string, unknown>;
 };
 
