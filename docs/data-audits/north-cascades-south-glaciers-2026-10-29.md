@@ -196,6 +196,13 @@ missing-row queries empty; container links match the manifest exactly.
 1. Null-fact glaciers imported and flagged "no facts"; not counted.
 2. Goode, LeConte, Sandalee, South Cascade take 2017-09-09 cohort facts
    (#286); South Cascade's area is the USGS benchmark 2021 DEM area.
+   The reviewed research suggested the USGS web page's "1.8 km² (2015)" and
+   an elevation span of "~660 m". That page answers 504 to this network
+   (not worked around), and its 2015 figure is the same release's 2015
+   reference DEM (1.822804 km²); the 2021 DEM year of the same CC0 release
+   is more recent, so it is used. The release gives only 50 m area bins, not
+   explicit head or terminus elevations, so the elevation span stays null
+   and the head elevation stays RGI `zmax_m`.
 3. Lyall, Thunder, Douglas, Yawning: OSM kept, flag kept.
 4. Parents: nearest GNIS summit to the DEM head; researched corrections
    for the flagged calls will be applied when they arrive.
