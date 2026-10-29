@@ -9,7 +9,24 @@ Spec:
 [JSON](north-cascades-south-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`53ac3102b365d089a7005aca22151c59acad3a8fea56b27c05255cd9279d4e2e`.
+`cb8be9b286949614ef3a55953fefe106eb75194c547aa26af6e0b6a81441252d`
+(was `53ac3102…` before the apply-time parent check below).
+
+## Apply-time parent check (2026-10-29)
+
+The production lookup found 21 of the 27 parents by exact name. The package
+now uses the Peaks rows, and the tables below keep the original GNIS analysis:
+
+| Was | Now | Why |
+| --- | --- | --- |
+| Buckner Mountain | Mount Buckner | Peaks name (176 m from GNIS) |
+| Mix-up Peak | Mixup Peak | Peaks name (13 m) |
+| Sahale Mountain | Sahale Peak | Peaks name (10 m) |
+| Mount Buckindy (Goat Creek, Kindy) | Mount Misch | no Buckindy in Peaks; nearest Peaks summit, 0.6 and 1.6 km from the centroids |
+| Lizard Mountain (South Cascade) | Sentinel Peak | no Lizard Mountain in Peaks; nearest Peaks summit, 1.3 km |
+| Frisco Mountain (Lyall) | held | no Frisco in Peaks; nearest Peaks summit 3.7 km away. Lyall is not imported, and Lewis, counted only at Frisco, goes with it |
+
+41 places import.
 
 Scope: North Cascades National Park south unit (Eldorado, Boston Basin,
 Logan, Klawatti), Lake Chelan NRA edge, and the Dome/Chickamin, Spider and

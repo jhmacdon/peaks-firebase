@@ -2,8 +2,8 @@
   "schema_version": 1,
   "rule": "Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=48.5376 +lon_0=-121.1343 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-  "input_manifest_sha256": "84f6c654c6f7d7e0d020d1619554e685d0acf62b6bd200ca07e6797cfe332924",
-  "output_manifest_sha256": "53ac3102b365d089a7005aca22151c59acad3a8fea56b27c05255cd9279d4e2e",
+  "input_manifest_sha256": "1db2901adb70d33a7705e9520f7a028ed40d0f61b211c172407f8b91f7bf6d0e",
+  "output_manifest_sha256": "cb8be9b286949614ef3a55953fefe106eb75194c547aa26af6e0b6a81441252d",
   "sources": [
     {
       "key": "glims-2015-09-09",
@@ -625,26 +625,6 @@
               "iou": 0.897577391,
               "osm_share": 0.976683453,
               "candidate_share": 0.917231865
-            },
-            "parts_without_osm_overlap": []
-          },
-          {
-            "place_id": "AADD817282D96FB59FCF",
-            "name": "Lyall Glacier",
-            "feature_ids": [
-              "1014555",
-              "1014557"
-            ],
-            "glacier_ids": [
-              "G239253E48489N",
-              "G239257E48488N"
-            ],
-            "area_km2": 0.029596771,
-            "overlap": {
-              "intersection_km2": 0.023385781,
-              "iou": 0.45013874,
-              "osm_share": 0.511260778,
-              "candidate_share": 0.790146362
             },
             "parts_without_osm_overlap": []
           }
@@ -2385,6 +2365,14 @@
               "1014530"
             ],
             "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Lyall Glacier",
+            "feature_ids": [
+              "1014555",
+              "1014557"
+            ],
+            "reason": "No name/alias crosswalk"
           }
         ],
         "ambiguous": [],
@@ -2694,26 +2682,7 @@
       "license_ok": false,
       "purpose": "historical_reference",
       "audit": {
-        "matches": [
-          {
-            "place_id": "AADD817282D96FB59FCF",
-            "name": "Lyall Glacier",
-            "feature_ids": [
-              "763799"
-            ],
-            "glacier_ids": [
-              "G239253E48489N"
-            ],
-            "area_km2": 0.252317994,
-            "overlap": {
-              "intersection_km2": 0.045741394,
-              "iou": 0.18128471,
-              "osm_share": 1,
-              "candidate_share": 0.18128471
-            },
-            "parts_without_osm_overlap": []
-          }
-        ],
+        "matches": [],
         "unmatched": [
           {
             "feature_ids": [
@@ -2847,6 +2816,13 @@
             ],
             "name": "WA",
             "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "name": "Lyall Glacier",
+            "feature_ids": [
+              "763799"
+            ],
+            "reason": "No name/alias crosswalk"
           }
         ],
         "ambiguous": [],
@@ -6461,39 +6437,6 @@
       "chosen_source": "osm",
       "flagged": false,
       "reason": "OSM/facts ratio is within [0.67, 1.5]"
-    },
-    {
-      "id": "AADD817282D96FB59FCF",
-      "glacier": "Lyall Glacier",
-      "osm_area_km2": 0.045741394,
-      "glims_area_km2": 0.029596771,
-      "facts_area_km2": 0.029597,
-      "osm_ratio": 1.545474001,
-      "glims_ratio": 0.999992263,
-      "candidates": [
-        {
-          "source_key": "glims-2015-09-09",
-          "area_km2": 0.029596771,
-          "ratio": 0.999992263,
-          "observed_at": "2015-09-09",
-          "license_ok": true,
-          "overlap": {
-            "intersection_km2": 0.023385781,
-            "iou": 0.45013874,
-            "osm_share": 0.511260778,
-            "candidate_share": 0.790146362
-          },
-          "feature_ids": [
-            "1014555",
-            "1014557"
-          ],
-          "parts_without_osm_overlap": []
-        }
-      ],
-      "extent_evidence": null,
-      "chosen_source": "glims-2015-09-09",
-      "flagged": false,
-      "reason": "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2)"
     },
     {
       "id": "DD720820667A312265ED",

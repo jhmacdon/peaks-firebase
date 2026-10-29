@@ -4,9 +4,9 @@ Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-b
 
 Areas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Overlap is IoU / candidate share. ⚑ means review remains due. Historical fits infer extent age; they do not date OSM imagery.
 
-Input manifest: `84f6c654c6f7d7e0d020d1619554e685d0acf62b6bd200ca07e6797cfe332924`
+Input manifest: `1db2901adb70d33a7705e9520f7a028ed40d0f61b211c172407f8b91f7bf6d0e`
 
-Output manifest: `53ac3102b365d089a7005aca22151c59acad3a8fea56b27c05255cd9279d4e2e`
+Output manifest: `cb8be9b286949614ef3a55953fefe106eb75194c547aa26af6e0b6a81441252d`
 
 | Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
@@ -20,7 +20,6 @@ Output manifest: `53ac3102b365d089a7005aca22151c59acad3a8fea56b27c05255cd9279d4e
 | Spire Glacier | 0.741 | 0.688 | 0.688 | 1.077 | 1.000 | 0.884 / 0.975 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Dome Glacier | 0.973 | 0.998 | 0.998 | 0.975 | 1.000 | 0.959 / 0.967 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Sahale Glacier | 0.156 | 0.149 | 0.149 | 1.045 | 1.000 | 0.717 / 0.854 | osm | OSM/facts ratio is within [0.67, 1.5] |
-| Lyall Glacier | 0.046 | 0.030 | 0.030 | 1.545 | 1.000 | 0.450 / 0.790 | glims-2015-09-09 | OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2) |
 | Davenport Glacier | 0.269 | 0.350 | 0.350 | 0.767 | 1.000 | 0.745 / 0.755 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Cache Glacier | 0.196 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
 | Perdition Glacier | 0.248 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
@@ -53,11 +52,11 @@ Output manifest: `53ac3102b365d089a7005aca22151c59acad3a8fea56b27c05255cd9279d4e
 | Buckner Glacier | 0.460 | 0.452 | 0.452 | 1.016 | 1.000 | 0.885 / 0.946 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | North Klawatti Glacier | 1.424 | 1.335 | 1.335 | 1.067 | 1.000 | 0.899 / 0.978 | osm | OSM/facts ratio is within [0.67, 1.5] |
 
-- glims-2015-09-09: 31 matched systems; 248 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
+- glims-2015-09-09: 30 matched systems; 249 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1985-09-09-reference: 0 matched systems; 3 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1983-09-09-reference: 0 matched systems; 26 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1974-09-09-reference: 0 matched systems; 5 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
-- glims-1968-09-09-reference: 1 matched systems; 19 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
+- glims-1968-09-09-reference: 0 matched systems; 20 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1963-09-09-reference: 0 matched systems; 10 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1959-09-09-reference: 0 matched systems; 3 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1958-09-09-reference: 33 matched systems; 361 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.

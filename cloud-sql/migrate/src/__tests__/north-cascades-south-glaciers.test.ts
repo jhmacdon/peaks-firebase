@@ -17,24 +17,30 @@ test("hashes, base date and a complete roster of the box", () => {
   const snapshot = JSON.parse(read(DATA_DIR, SPEC.files.osm).toString("utf8"));
   assert.equal(snapshot.osm3s.timestamp_osm_base, "2026-06-01T08:52:28Z");
   assert.equal(parseOsmGlaciers(snapshot).length, 42);
-  assert.equal(m.places.length, 42);
+  assert.equal(m.places.length, 41, "Lyall Glacier is held: no Peaks summit within 3.7 km");
+  assert.ok(!m.places.some(p => p.osm_key === "way:508039930"));
   assert.equal(loadNorthCascadesSouthOutlineReview().manifest.manifest_sha256, m.manifest_sha256);
 });
 
 test("parents, of-N, pinned RGI rows and containers", () => {
   assert.equal(placeParent(m, place("Chickamin Glacier")).parent.name, "Dome Peak");
   assert.equal(placeParent(m, place("Chickamin Glacier")).mountain_context.named_glacier_count, 4);
-  assert.equal(placeParent(m, place("Lyall Glacier")).mountain_context.named_glacier_count, 2, "Lewis Glacier counts at Frisco Mountain");
+  assert.equal(placeParent(m, place("Buckner Glacier")).parent.name, "Mount Buckner", "the Peaks row's exact name");
+  assert.equal(placeParent(m, place("Cache Glacier")).parent.name, "Mixup Peak");
+  assert.equal(placeParent(m, place("Sahale Glacier")).parent.name, "Sahale Peak");
+  assert.equal(placeParent(m, place("Kindy Glacier")).parent.name, "Mount Misch", "Peaks has no Mount Buckindy");
+  assert.equal(placeParent(m, place("Goat Creek Glacier")).parent.name, "Mount Misch");
+  assert.equal(placeParent(m, place("South Cascade Glacier")).parent.name, "Sentinel Peak", "Peaks has no Lizard Mountain");
   assert.equal((place("Thunder Glacier").facts.provenance.head_elevation as { rgi_id: string }).rgi_id, "RGI2000-v7.0-G-02-14320");
   assert.equal(place("Banded Glacier").facts.head_elevation_m, null);
   assert.ok(Math.abs(place("Neve Glacier").facts.area_km2! - 3.822) < 1e-3, "all three Neve parts");
   assert.deepEqual(m.places.filter(p => !placeContainer(m, p)).map(p => p.name).sort(),
-    ["Cache Glacier", "Lyall Glacier", "S Glacier", "Sandalee Glacier"]);
+    ["Cache Glacier", "S Glacier", "Sandalee Glacier"]);
 });
 
-test("decisions: rule 2 switches the four out-of-band outlines; 7 without facts; four glaciers from the 2017 cohort", () => {
+test("decisions: rule 2 switches the three out-of-band outlines; 7 without facts; four glaciers from the 2017 cohort", () => {
   assert.deepEqual(review.report.decisions.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(),
-    ["Douglas Glacier", "Lyall Glacier", "Thunder Glacier", "Yawning Glacier"]);
+    ["Douglas Glacier", "Thunder Glacier", "Yawning Glacier"]);
   const flagged = review.report.decisions.filter(d => d.flagged);
   assert.deepEqual(flagged.filter(d => d.facts_area_km2 !== null), []);
   assert.equal(flagged.filter(d => d.facts_area_km2 === null).length, 7);

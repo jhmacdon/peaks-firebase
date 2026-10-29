@@ -17,7 +17,15 @@ const PSU_2017 = { observed_at: "2017-09-09", submission_id: "814", chief_affl: 
 const summit = (name: string, lat: number, lng: number): GlacierParent =>
   ({ name, features: ["summit"], country_code: "US", state_code: "WA", lat, lng, radius_m: 1500 });
 
-/** All 42 named OSM glaciers in the box. Containers from the NPS and USFS
+/** Parents are the Peaks summit rows (checked 2026-10-29). Peaks names
+ * Buckner, Mix-up and Sahale "Mount Buckner", "Mixup Peak" and "Sahale Peak".
+ * It has no Mount Buckindy, Lizard Mountain or Frisco Mountain, so Goat Creek
+ * and Kindy take Mount Misch (0.6 and 1.6 km from their centroids) and South
+ * Cascade takes Sentinel Peak (1.3 km), the nearest Peaks summits. Held back:
+ * Lyall Glacier (way:508039930), whose nearest Peaks summit is 3.7 km away;
+ * Lewis Glacier, counted only at Frisco, goes with it.
+ *
+ * 41 of the 42 named OSM glaciers in the box. Containers from the NPS and USFS
  * EDW boundaries (50 m margin); Cache (8 m), S and Sandalee (split) and Lyall
  * (outside both) keep none. */
 export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
@@ -46,15 +54,14 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
     "relation:8052695": { parent: "eldorado-peak", inventory: "Eldorado Glacier", container: PARK }, // Eldorado Glacier
     "relation:8052666": { parent: "forbidden-peak", inventory: "Forbidden Glacier", container: PARK }, // Forbidden Glacier
     "way:305189538": { parent: "mount-logan", inventory: "Fremont Glacier", container: PARK }, // Fremont Glacier
-    "relation:15525556": { parent: "mount-buckindy", inventory: null, container: GPW }, // Goat Creek Glacier
+    "relation:15525556": { parent: "mount-misch", inventory: null, container: GPW }, // Goat Creek Glacier
     "relation:14496306": { parent: "goode-mountain", inventory: "Goode Glacier", container: PARK }, // Goode Glacier
     "relation:4066857": { parent: "eldorado-peak", inventory: "Inspiration Glacier", container: PARK }, // Inspiration Glacier
     "way:305188569": { parent: "katsuk-peak", inventory: "Katsuk Glacier", container: PARK }, // Katsuk Glacier
     "way:305188593": { parent: "kimtah-peak", inventory: "Kimtah Glacier", container: PARK }, // Kimtah Glacier
-    "relation:4068751": { parent: "mount-buckindy", inventory: null, container: GPW }, // Kindy Glacier
+    "relation:4068751": { parent: "mount-misch", inventory: null, container: GPW }, // Kindy Glacier
     "way:305096148": { parent: "klawatti-peak", inventory: "Klawatti Glacier", container: PARK }, // Klawatti Glacier
     "relation:13218786": { parent: "old-guard-peak", inventory: "LeConte Glacier", container: GPW }, // Le Conte Glacier
-    "way:508039930": { parent: "frisco-mountain", inventory: "Lyall Glacier", container: null }, // Lyall Glacier
     "relation:8052697": { parent: "austera-peak", inventory: "McAllister Glacier", container: PARK }, // McAllister Glacier
     "way:305188585": { parent: "mesahchie-peak", inventory: "Mesahchie Glacier", container: PARK }, // Mesahchie Glacier
     "relation:4068711": { parent: "spider-mountain", inventory: "Middle Cascade Glacier", container: GPW }, // Middle Cascade Glacier
@@ -67,7 +74,7 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
     "way:373139306": { parent: "sahale-mountain", inventory: "Sahale Glacier", container: PARK }, // Sahale Glacier
     "relation:14488195": { parent: "mcgregor-mountain", inventory: "Sandalee Glacier", container: null }, // Sandalee Glacier
     "relation:13223395": { parent: "snowking-mountain", inventory: null, container: GPW }, // Snowking Glacier
-    "relation:15567191": { parent: "lizard-mountain", inventory: "South Cascade Glacier", container: GPW }, // South Cascade Glacier
+    "relation:15567191": { parent: "sentinel-peak", inventory: "South Cascade Glacier", container: GPW }, // South Cascade Glacier
     "relation:13325689": { parent: "spider-mountain", inventory: "Spider Glacier", container: GPW }, // Spider Glacier
     "way:305203925": { parent: "dome-peak", inventory: "Spire Glacier", container: GPW }, // Spire Glacier
     "relation:9954625": { parent: "buckner-mountain", inventory: "Thunder Glacier", container: PARK }, // Thunder Glacier
@@ -78,27 +85,26 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
   parents: {
     "austera-peak": summit("Austera Peak", 48.5685, -121.1014),
     "boston-peak": summit("Boston Peak", 48.4958, -121.0358),
-    "buckner-mountain": summit("Buckner Mountain", 48.4952, -120.9979),
+    "buckner-mountain": summit("Mount Buckner", 48.4952, -120.9979),
     "dome-peak": summit("Dome Peak", 48.3035, -121.0291),
     "eldorado-peak": summit("Eldorado Peak", 48.5376, -121.1343),
     "forbidden-peak": summit("Forbidden Peak", 48.5117, -121.0584),
-    "frisco-mountain": summit("Frisco Mountain", 48.4887, -120.7568),
     "goode-mountain": summit("Goode Mountain", 48.4832, -120.9115),
     "gunsight-peak": summit("Gunsight Peak", 48.3067, -120.9946),
     "hurry-up-peak": summit("Hurry-up Peak", 48.4340, -121.0379),
     "katsuk-peak": summit("Katsuk Peak", 48.5784, -120.8888),
     "kimtah-peak": summit("Kimtah Peak", 48.5850, -120.9106),
     "klawatti-peak": summit("Klawatti Peak", 48.5543, -121.1046),
-    "lizard-mountain": summit("Lizard Mountain", 48.3456, -121.0433),
+    "sentinel-peak": summit("Sentinel Peak", 48.3562, -121.0409),
     "magic-mountain": summit("Magic Mountain", 48.4457, -121.0411),
     "mcgregor-mountain": summit("McGregor Mountain", 48.4082, -120.7981),
     "mesahchie-peak": summit("Mesahchie Peak", 48.5785, -120.8804),
-    "mix-up-peak": summit("Mix-up Peak", 48.4540, -121.0603),
-    "mount-buckindy": summit("Mount Buckindy", 48.3515, -121.2061),
+    "mix-up-peak": summit("Mixup Peak", 48.4540, -121.0603),
+    "mount-misch": summit("Mount Misch", 48.3437, -121.2005),
     "mount-logan": summit("Mount Logan", 48.5368, -120.9526),
     "old-guard-peak": summit("Old Guard Peak", 48.3560, -121.0358),
     "primus-peak": summit("Primus Peak", 48.5819, -121.0918),
-    "sahale-mountain": summit("Sahale Mountain", 48.4911, -121.0385),
+    "sahale-mountain": summit("Sahale Peak", 48.4911, -121.0385),
     "snowfield-peak": summit("Snowfield Peak", 48.6353, -121.1387),
     "snowking-mountain": summit("Snowking Mountain", 48.4082, -121.2780),
     "spider-mountain": summit("Spider Mountain", 48.4094, -121.0361),
@@ -117,16 +123,15 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
      * each is the only named 2017 glacier of its parent. */
     mountains: {
       "goode-mountain": { label: "Goode Mountain", cohort: PSU_2017, names: { "Goode Glacier": 2 } },
-      "lizard-mountain": { label: "Lizard Mountain", cohort: PSU_2017, names: { "South Cascade Glacier": 2 } },
+      "sentinel-peak": { label: "Sentinel Peak", cohort: PSU_2017, names: { "South Cascade Glacier": 2 } },
       "mcgregor-mountain": { label: "McGregor Mountain", cohort: PSU_2017, names: { "Sandalee Glacier": 4 } },
       "old-guard-peak": { label: "Old Guard Peak", cohort: PSU_2017, names: { "LeConte Glacier": 7 } },
       "austera-peak": { label: "Austera Peak", names: { "McAllister Glacier": 2, "North Klawatti Glacier": 2 } },
       "boston-peak": { label: "Boston Peak", names: { "Boston Glacier": 1, "Davenport Glacier": 1 } },
-      "buckner-mountain": { label: "Buckner Mountain", names: { "Buckner Glacier": 2, "Thunder Glacier": 3 } },
+      "buckner-mountain": { label: "Mount Buckner", names: { "Buckner Glacier": 2, "Thunder Glacier": 3 } },
       "dome-peak": { label: "Dome Peak", names: { "Chickamin Glacier": 1, "Dana Glacier": 3, "Dome Glacier": 2, "Spire Glacier": 1 } },
       "eldorado-peak": { label: "Eldorado Peak", names: { "Eldorado Glacier": 1, "Inspiration Glacier": 3 } },
       "forbidden-peak": { label: "Forbidden Peak", names: { "Forbidden Glacier": 2 } },
-      "frisco-mountain": { label: "Frisco Mountain", names: { "Lewis Glacier": 1, "Lyall Glacier": 2 } },
       "gunsight-peak": { label: "Gunsight Peak", names: { "Blue Glacier": 1 } },
       "hurry-up-peak": { label: "Hurry-up Peak", names: { "S Glacier": 3, "South Glacier": 1 } },
       "katsuk-peak": { label: "Katsuk Peak", names: { "Katsuk Glacier": 1 } },
@@ -136,7 +141,7 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
       "mesahchie-peak": { label: "Mesahchie Peak", names: { "Mesahchie Glacier": 1 } },
       "mount-logan": { label: "Mount Logan", names: { "Banded Glacier": 1, "Douglas Glacier": 3, "Fremont Glacier": 2 } },
       "primus-peak": { label: "Primus Peak", names: { "Borealis Glacier": 4 } },
-      "sahale-mountain": { label: "Sahale Mountain", names: { "Quien Sabe Glacier": 1, "Sahale Glacier": 1 } },
+      "sahale-mountain": { label: "Sahale Peak", names: { "Quien Sabe Glacier": 1, "Sahale Glacier": 1 } },
       "snowfield-peak": { label: "Snowfield Peak", names: { "Neve Glacier": 3 } },
       "spider-mountain": { label: "Spider Mountain", names: { "Middle Cascade Glacier": 2, "Spider Glacier": 2 } },
       "storm-king": { label: "Storm King", names: { "Wyeth Glacier": 3 } },
