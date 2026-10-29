@@ -7,9 +7,9 @@ Three packages, one apply each, because their PSU cohorts differ:
 
 | Package | Spec | Places | Cohort | Reviewed manifest SHA-256 |
 | --- | --- | ---: | --- | --- |
-| Glacier Peak Wilderness west (Dakobed, Monte Cristo) | `import-glacier-peak-wilderness-west-glaciers.ts` | 8 | 2015-09-09 | `dde4d158a51ad1fd58dae6d859f88e4f8181490b2462529f5e9c3467524792f9` |
-| Entiat and Chelan Mountains | `import-entiat-chelan-glaciers.ts` | 9 | 2017-09-09 | `b4208e7c77bf476a4ff153501fabb3e349ce1c748213f7f3b751afaa496e2f17` |
-| Alpine Lakes and Stuart Range | `import-alpine-lakes-glaciers.ts` | 10 | 2015-09-09 | `36c819766ba5b899689d77f6dd5cee81a7290db3937d25d86c5c5277cdd37a97` |
+| Glacier Peak Wilderness west (Dakobed, Monte Cristo) | `import-glacier-peak-wilderness-west-glaciers.ts` | 8 | 2015-09-09 | `98909698899991c90979278e538bc98a18d371b7b42439b0215b6454c239eaee` |
+| Entiat and Chelan Mountains | `import-entiat-chelan-glaciers.ts` | 9 | 2017-09-09 | `5d3c95cd14ce615ca56f955ae92fbb5814a98767af0292008d1c693d51804a13` |
+| Alpine Lakes and Stuart Range | `import-alpine-lakes-glaciers.ts` | 10 | 2015-09-09 | `7077914899279f0c8fa1129b42ffb2b3d088f2df296a9737e3c3793564e34ebc` |
 
 The first two read byte-identical copies of one snapshot set (box
 47.90,-121.60,48.30,-120.50, OSM base 2026-07-28T02:16:18Z); in that box the
@@ -187,3 +187,11 @@ check there).
 4. Parents: Pilz and Butterfly → Luahna Peak, Moth → Neyah Point (parent
    inferred); every other flagged call checked by the reviewed research and
    kept.
+
+## Outline overlaps (neighbour check, #290)
+
+After sources were chosen, every pair of final outlines in each package was
+measured. No pair overlaps by more than 1% of the smaller outline or 0.01 km²,
+so no group was moved to one source and nothing was clipped. Resolution:
+none needed. The decision reports' "Outline overlaps" section records the
+same result.

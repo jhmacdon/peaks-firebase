@@ -6,7 +6,7 @@ Areas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Over
 
 Input manifest: `beee6964ec2d863a8cdc2318fc7bb7a081ceeeeb10cb6a0da6acd408b4e67b12`
 
-Output manifest: `dde4d158a51ad1fd58dae6d859f88e4f8181490b2462529f5e9c3467524792f9`
+Output manifest: `98909698899991c90979278e538bc98a18d371b7b42439b0215b6454c239eaee`
 
 | Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
@@ -25,3 +25,7 @@ Output manifest: `dde4d158a51ad1fd58dae6d859f88e4f8181490b2462529f5e9c3467524792
 - glims-1968-09-09-reference: 0 matched systems; 1 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1963-09-09-reference: 0 matched systems; 5 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1958-09-09-reference: 1 matched systems; 54 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
+
+## Outline overlaps
+
+No pair of final outlines overlaps by more than 1% of the smaller or 0.01 km².
