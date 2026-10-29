@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { SearchPageLoading } from "../../../components/search-feedback";
 import { DiscoverCatalogStats } from "../../../components/discover/discover-catalog-stats";
 import { DiscoverLists } from "../../../components/discover/discover-lists";
 import { DiscoverPopular } from "../../../components/discover/discover-popular";
@@ -53,7 +54,7 @@ export default async function DiscoverPage() {
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-5 sm:px-6 sm:py-8">
       <DiscoverStateProvider>
-        <Suspense fallback={null}>
+        <Suspense fallback={<SearchPageLoading />}>
           <DiscoverResults />
         </Suspense>
 

@@ -106,7 +106,8 @@ const review = loadRainierOutlineReview();
 test("real snapshot decisions, provenance and report are stable and retain OSM identities", () => {
   const { manifest,report } = review;
   assert.deepEqual(report.decisions.filter(d=>d.chosen_source!=="osm").map(d=>d.glacier).sort(),
-    ["Ohanapecosh Glacier","Paradise Glacier","Pyramid Glaciers","Van Trump Glacier"]);
+    ["Ohanapecosh Glacier","Paradise Glacier","Pyramid Glaciers","Sarvant Glacier","Van Trump Glacier"]);
+  assert.deepEqual(report.neighbour_overlaps,[],"rule 2: no pair of final outlines overlaps");
   const decisions = new Map(report.decisions.map(d=>[d.glacier,d]));
   for (const [name,area] of [["Pyramid Glaciers",.295383], ["Van Trump Glacier",.324114], ["Ohanapecosh Glacier",.801983],
     ["Paradise Glacier",.453730], ["Success Glacier",.772607], ["Sarvant Glacier",.325252], ["Emmons Glacier",11.244643]] as const)
@@ -115,7 +116,7 @@ test("real snapshot decisions, provenance and report are stable and retain OSM i
   assert.equal(decisions.get("Success Glacier")!.chosen_source,"osm");
   assert.match(decisions.get("Success Glacier")!.reason,/no licence-OK, newer candidate.*closer/);
   assert.equal(decisions.get("Sarvant Glacier")!.extent_evidence,null);
-  assert.match(decisions.get("Sarvant Glacier")!.reason,/no dated evidence/);
+  assert.match(decisions.get("Sarvant Glacier")!.reason,/OSM extent undated.*rule 2/);
   assert.equal(decisions.get("Pyramid Glaciers")!.flagged,true);
   assert.equal(decisions.get("Van Trump Glacier")!.flagged,true);
   assert.equal(report.sources[0].audit.ambiguous.length,0);
@@ -149,7 +150,8 @@ test("real snapshot decisions, provenance and report are stable and retain OSM i
   assert.equal(JSON.stringify(again.report),JSON.stringify(report));
   const md=outlineReportMarkdown(report);
   assert.match(md,/Pyramid Glaciers.*glims-2019-09-09/);
-  assert.match(md,/Sarvant Glacier.*no dated evidence/);
+  assert.match(md,/Sarvant Glacier.*rule 2/);
+  assert.match(md,/## Outline overlaps\n\nNo pair of final outlines overlaps/);
   assert.match(md,/Emmons Glacier.*within/);
   assert.equal(manifestSha256(manifest),manifest.manifest_sha256);
   assert.equal(sha256(JSON.stringify({...report,output_manifest_sha256:""})),manifest.outline_refresh!.review_sha256);
@@ -177,7 +179,7 @@ test("offline CLI writes JSON, markdown and a readable manifest with the reviewe
   try {
     const input=join(dir,"osm.json"), output=join(dir,"refreshed.json"), prefix=join(dir,"report");
     writeFileSync(input,JSON.stringify(base));
-    refreshOutlineManifest([`--manifest=${input}`,`--config=${join(OUTLINE_DATA_DIR,"outline-sources.json")}`,`--report-prefix=${prefix}`,`--write-manifest=${output}`]);
+    refreshOutlineManifest([`--manifest=${input}`,`--config=${join(OUTLINE_DATA_DIR,"outline-sources.json")}`,`--report-prefix=${prefix}`,`--write-manifest=${output}`,"--outline-rule=2"]);
     assert.equal(readGlacierManifest(output).manifest_sha256,review.manifest.manifest_sha256);
     assert.equal(JSON.parse(readFileSync(`${prefix}.json`,"utf8")).decisions.length,29);
     assert.equal(readFileSync(`${prefix}.md`,"utf8"),outlineReportMarkdown(review.report));

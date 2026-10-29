@@ -1,5 +1,6 @@
 export const siteConfig = {
   name: "Peaks",
+  url: "https://getpeaks.app",
   description:
     "An iPhone peak-bagging tracker and public guide for peaks, routes, lists, and trip reports.",
   locale: "en_US",
@@ -15,11 +16,11 @@ function normalizeSiteUrl(rawUrl: string): string {
 
 export function getSiteUrl(): URL {
   const rawUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.VERCEL_URL ??
-    "http://localhost:3000";
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || siteConfig.url;
 
-  return new URL(normalizeSiteUrl(rawUrl));
+  // Canonicals must not silently switch to a preview host (or localhost)
+  // when deployment configuration is missing. Explicit local overrides work.
+  return new URL(new URL(normalizeSiteUrl(rawUrl)).origin);
 }
 
 export function absoluteUrl(path: string): string {
