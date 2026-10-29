@@ -589,10 +589,16 @@ No API, schema or app change is needed. The writer
   decisions and unmatched features to the manifest's apply gate. The report
   hash uses an empty `output_manifest_sha256` to avoid a cycle.
 
-Steps: save and hash the source files under `cloud-sql/migrate/data/`; write a
-builder beside `glaciers/rainier.ts` and `glaciers/baker.ts`, parsing OSM with
-the shared `parseOsmGlaciers` (`glaciers/osm.ts`, with a roster and snowfield
-names); or write the manifest by hand; save it with
+Steps: save and hash the source files under `cloud-sql/migrate/data/`. For a
+region whose facts come from the Portland State cohort and RGI 7.0, write a
+`RegionSpec` (`glaciers/region-builder.ts`): the snapshot files and hashes,
+an OSM roster keyed by `osm_key` with each place's parent, cohort name and
+container, the parents and areas, and an `InventoryConfig`
+(`glaciers/psu-inventory.ts`) listing every named cohort glacier per parent,
+including ones without an OSM polygon, for "of N". `import-baker-glaciers.ts`
+is the worked spec. Other sources need their own builder beside
+`glaciers/rainier.ts`, parsing OSM with the shared `parseOsmGlaciers`
+(`glaciers/osm.ts`); or write the manifest by hand; save it with
 `--write-manifest=FILE` or as a reviewed file; dry-run
 `npm run import:glacier-manifest -- --manifest=FILE`; then apply with
 `--apply --expected-manifest-sha256=<printed> --parent-mountain-id=<checked>
