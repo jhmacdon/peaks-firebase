@@ -460,6 +460,7 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
    psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f cloud-sql/migrations/20261028_glacier_05_bbox_queue.sql
    psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f cloud-sql/migrations/20261028_glacier_06_skip_insert_link.sql
    psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f cloud-sql/migrations/20261028_glacier_07_factory_guard.sql
+   psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f cloud-sql/migrations/20261028_glacier_08_route_window_boxes.sql
    ```
 
    `cloud-sql/test-db/provision.sh` applies the baseline, migrations and test-role
