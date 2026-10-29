@@ -150,10 +150,14 @@ Add two files and one npm script. Do not edit `import-glacier-manifest.ts`.
    `import-rainier-glaciers.ts`. Keep the hash check, `--data-dir`,
    `--write-manifest`, and the call to `applyGlacierManifest`. Change:
    - `DATA_DIR`, file names, `ALIASES`.
-   - Outline parsing: reuse `parseGlaciers` from `./glaciers/rainier`. Then
-     keep only an explicit roster (a list of `osm_key`s for this mountain) and
-     set `kind` yourself, since `parseGlaciers` marks only "Muir Snowfield" as a
-     snowfield: `.map(c => ({ ...c, kind: SNOWFIELDS.has(c.osm_key) ? "snowfield" : "glacier" }))`.
+   - Outline parsing: `parseOsmGlaciers(snapshot, { roster, snowfields })`
+     from `./glaciers/osm`. The roster is the explicit list of `osm_key`s for
+     this mountain (missing keys fail); `snowfields` lists OSM names to mark
+     kind=snowfield. `import-baker-glaciers.ts` is the second worked example.
+   - When one area cannot contain every outline, use `container_areas` and a
+     per-place `container_area_key` (null allowed); for glaciers of another
+     summit, `parents` and `parent_key`. See "Adding another mountain" in the
+     API contract.
    - The roster count check (Rainier: exactly 29).
    - `parent`, `container_area`, `country_code`, `state_code`, `activities`,
      credits, licenses, `mountain_context`.
@@ -490,9 +494,6 @@ OSM contribution evidence only; they do not upload or contact other people.
 
 ## Code TODOs (not done)
 
-- Move `parseGlaciers` and the ring code out of `glaciers/rainier.ts` into a
-  shared `glaciers/osm.ts`, with snowfield names and a roster filter as
-  arguments, so new builders stop importing from the Rainier file.
 - Add a small Overpass fetch helper for glaciers (User-Agent, mirrors, remark
   check, hash) so phase 2 is one command instead of curl.
 - Allow per-place description source name and license; the manifest has one

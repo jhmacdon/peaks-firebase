@@ -559,6 +559,17 @@ No API, schema or app change is needed. The writer
   radius. Apply refuses a `--parent-mountain-id` that fails any of them.
 - `container_area`: the area kind and name every outline must lie inside,
   checked against `--park-area-id`.
+- Or, when outlines span several areas or none covers them (Mount Baker:
+  Easton and Squak cross from the wilderness into the national recreation
+  area), `container_areas` keyed by a short name, and on each place
+  `container_area_key`: a key, or `null` for no container. Apply then takes one
+  `--area-id=KEY=ID` per key used, checks each area's kind/name and coverage
+  of its places, and links only those places. A `null` place still gets the
+  validity check but no coverage check or `destination_areas` link.
+- `parents` (optional): further parent summits keyed by a short name, each
+  with the same identity fields and an optional `mountain_context`. A place
+  with `parent_key` uses that parent; apply takes `--parent-id=KEY=ID` for
+  each key used, and `--parent-mountain-id` for places on the default `parent`.
 - Credits and sources: package `geometry_source`, `geometry_credit`, `geometry_license`
   and `geometry_observed_at` remain defaults for older single-source manifests;
   `facts_credit`, `facts_source_url`, `description_source_name`,
@@ -579,7 +590,9 @@ No API, schema or app change is needed. The writer
   hash uses an empty `output_manifest_sha256` to avoid a cycle.
 
 Steps: save and hash the source files under `cloud-sql/migrate/data/`; write a
-builder beside `glaciers/rainier.ts` (or the manifest by hand); save it with
+builder beside `glaciers/rainier.ts` and `glaciers/baker.ts`, parsing OSM with
+the shared `parseOsmGlaciers` (`glaciers/osm.ts`, with a roster and snowfield
+names); or write the manifest by hand; save it with
 `--write-manifest=FILE` or as a reviewed file; dry-run
 `npm run import:glacier-manifest -- --manifest=FILE`; then apply with
 `--apply --expected-manifest-sha256=<printed> --parent-mountain-id=<checked>

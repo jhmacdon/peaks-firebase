@@ -89,3 +89,45 @@ test("import replay preserves timestamps; outline-only source change refreshes p
     c.release();await pool.end();
   }
 });
+
+test("per-place containers and parents: absent containers skip coverage and links; keyed IDs are checked",{skip:!url},async()=>{
+  const token=randomUUID(), parents=[`glacier-a-parent-${token}`,`glacier-b-parent-${token}`], ids=[`glacier-a-${token}`,`glacier-b-${token}`];
+  const area=`glacier-a-area-${token}`, small=`glacier-small-area-${token}`;
+  const pool=new Pool({connectionString:url,max:1}), c=await pool.connect();
+  const previous=process.env.GLACIER_DATABASE_URL;
+  const ring=(x:number)=>[[x,0],[x+2,0],[x+2,2],[x,2],[x,0]].map(([a,b])=>[-121.76+a*.001,46.85+b*.001]);
+  const base=loadRainierOsmPackage(), parent={...base.parent,name:parents[0],lat:46.85,lng:-121.76,features:["summit"]};
+  const { container_area: _single, ...rest } = base;
+  const manifest: GlacierManifest={...rest,parent,parents:{second:{...parent,name:parents[1],mountain_context:{named_glacier_count:1}}},
+    container_areas:{wild:{kind:"wilderness",name:area}},places:ids.map((id,i)=>({...base.places[0],id,name:`Keyed Glacier ${i} ${token}`,
+      osm_key:`way:${Date.now()}${i}${Math.floor(Math.random()*10000)}`,external_ids:{},aliases:[],
+      boundary:{type:"MultiPolygon" as const,coordinates:[[ring(i*10)]]},
+      ...(i ? {parent_key:"second",container_area_key:null} : {container_area_key:"wild"})}))};
+  const hash=manifestSha256(manifest), args=(areaId:string)=>["--apply",`--expected-manifest-sha256=${hash}`,
+    `--parent-mountain-id=${parents[0]}`,`--parent-id=second=${parents[1]}`,`--area-id=wild=${areaId}`];
+  try {
+    process.env.GLACIER_DATABASE_URL=url;
+    for (const p of parents) await c.query(`INSERT INTO destinations(id,name,search_name,owner,features,country_code,state_code,location)
+      VALUES($1,$1,$1,'peaks','{summit}','US','WA',ST_SetSRID(ST_MakePoint(-121.76,46.85,0),4326)::geography)`,[p]);
+    for (const [id,g] of [[area,"ST_MakeEnvelope(-121.77,46.84,-121.755,46.86,4326)"],[small,"ST_MakeEnvelope(-121.77,46.84,-121.7595,46.86,4326)"]])
+      await c.query(`INSERT INTO areas(id,name,search_name,kind,source,source_id,source_version,boundary,centroid,bbox_min_lat,bbox_max_lat,bbox_min_lng,bbox_max_lng)
+        SELECT $1,$2,$2,'wilderness','fixture',$1,'1',ST_Multi(g),ST_Centroid(g),ST_YMin(g),ST_YMax(g),ST_XMin(g),ST_XMax(g) FROM (SELECT ${g} g) s`,[id,area]);
+    await assert.rejects(applyGlacierManifest({...manifest,manifest_sha256:hash},args(small)),/out-of-area/,"a keyed area that misses its outline stops before writes");
+    assert.equal((await c.query("SELECT count(*)::int n FROM destinations WHERE id=ANY($1::text[])",[ids])).rows[0].n,0);
+    await assert.rejects(applyGlacierManifest({...manifest,manifest_sha256:hash},[...args(area).slice(0,3),`--parent-id=second=${parents[0]}`,`--area-id=wild=${area}`]),
+      /identity check failed/,"a keyed parent ID must match that parent's name");
+    await applyGlacierManifest({...manifest,manifest_sha256:hash},args(area));
+    const rows=(await c.query(`SELECT gf.destination_id,gf.parent_mountain_id,gf.provenance->'mountain_context' AS context,
+      (SELECT array_agg(area_id) FROM destination_areas da WHERE da.destination_id=gf.destination_id) AS areas
+      FROM destination_glacier_facts gf WHERE gf.destination_id=ANY($1::text[]) ORDER BY gf.destination_id`,[ids])).rows;
+    assert.deepEqual(rows.map(r=>[r.destination_id,r.parent_mountain_id,r.areas]),[[ids[0],parents[0],[area]],[ids[1],parents[1],null]]);
+    assert.deepEqual(rows[1].context,{named_glacier_count:1});
+    assert.deepEqual(rows[0].context,base.mountain_context);
+  } finally {
+    if (previous===undefined) delete process.env.GLACIER_DATABASE_URL; else process.env.GLACIER_DATABASE_URL=previous;
+    await c.query("DELETE FROM destinations WHERE id=ANY($1::text[])",[ids]);
+    await c.query("DELETE FROM destinations WHERE id=ANY($1::text[])",[parents]);
+    await c.query("DELETE FROM areas WHERE id=ANY($1::text[])",[[area,small]]);
+    c.release();await pool.end();
+  }
+});
