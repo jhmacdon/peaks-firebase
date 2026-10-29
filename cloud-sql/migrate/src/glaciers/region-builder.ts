@@ -62,7 +62,8 @@ export function loadRegionOsmPackage(spec: RegionSpec) {
   const manifest: GlacierManifest & { glims_sha256: string; rgi_sha256: string } = {
     source_sha256: spec.sha256.osm, glims_sha256: spec.sha256.glims, rgi_sha256: spec.sha256.rgi,
     geometry_observed_at: spec.snapshot_date, geometry_source: "OpenStreetMap", geometry_credit: "© OpenStreetMap contributors",
-    geometry_license: "ODbL-1.0", facts_credit: FACTS_CREDIT, facts_source_url: PSU_URL,
+    geometry_license: "ODbL-1.0", facts_credit: [FACTS_CREDIT, ...new Set(Object.values(spec.inventory.area_sources ?? {}).map(s => s.credit))].join("; "),
+    facts_source_url: PSU_URL,
     description_source_name: null, description_source_license: null,
     country_code: spec.country_code, state_code: spec.state_code, activities: spec.activities,
     parent: spec.parents[spec.default_parent],
