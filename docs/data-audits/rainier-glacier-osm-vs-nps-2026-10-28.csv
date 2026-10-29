@@ -1,0 +1,31 @@
+name,kind,nps_2021_km2,osm_km2,ratio,rel,way
+Pyramid Glaciers,glacier,0.176,1.130,6.42,,162623331
+Van Trump Glacier,glacier,0.117,0.738,6.32,,180072760
+Ohanapecosh Glacier,glacier,0.616,1.172,1.90,,180644203
+Paradise Glacier,glacier,0.581,1.002,1.73,2402574,
+Success Glacier,glacier,0.396,0.610,1.54,,162623333
+Ingraham Glacier,glacier,2.962,3.588,1.21,5535821,
+Whitman Glacier,glacier,1.846,2.193,1.19,5535840,
+Flett Glacier,glacier,0.363,0.430,1.19,2399430,
+Puyallup Glacier,glacier,3.098,3.609,1.17,,180171952
+Edmunds Glacier,glacier,1.165,1.364,1.17,13945287,
+Fryingpan Glacier,glacier,2.993,3.483,1.16,5535846,
+Kautz Glacier,glacier,1.561,1.786,1.14,6205598,
+South Tahoma Glacier,glacier,1.947,2.102,1.08,,162623332
+Inter Glacier,glacier,0.532,0.574,1.08,6205547,
+Wilson Glacier,glacier,1.459,1.567,1.07,6205599,
+South Mowich Glacier,glacier,3.626,3.856,1.06,13945288,
+North Mowich Glacier,glacier,4.907,5.224,1.06,13945289,
+Russell Glacier,glacier,2.706,2.836,1.05,13945294,
+Columbia Crest Glacier,glacier,0.172,0.176,1.02,6205601,
+Tahoma Glacier,glacier,6.433,6.578,1.02,6205600,
+Emmons Glacier,glacier,10.959,10.919,1.00,5535843,
+Liberty Cap Glacier,glacier,2.076,2.033,0.98,6205602,
+Winthrop Glacier,glacier,8.688,8.306,0.96,5552412,
+Carbon Glacier,glacier,7.127,6.639,0.93,5544150,
+Nisqually Glacier,glacier,4.102,3.681,0.90,5535823,
+Cowlitz Glacier,glacier,3.685,3.022,0.82,5535825,
+Sarvant Glacier,glacier,0.380,0.227,0.60,,438490914
+Muir Snowfield,snowfield,,1.206,,5535822,
+Pinnacle Glacier,glacier,,0.002,,,180770047
+(29 rows)

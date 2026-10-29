@@ -46,7 +46,7 @@ export function buildGlacierDetailQuery(id: string, uid: string, limit=25, offse
     d.bbox_min_lat,d.bbox_max_lat,d.bbox_min_lng,d.bbox_max_lng,
     ST_AsGeoJSON(gf.outline,9)::json AS boundary,
     d.description,d.description_source_name,d.description_source_url,d.description_source_license,
-    gf.geometry_credit,${glacierFactsSql()} AS glacier,
+    gf.geometry_credit,to_char(gf.outline_observed_at,'YYYY-MM-DD') AS outline_observed_at,${glacierFactsSql()} AS glacier,
     json_build_object('id',pm.id,'name',pm.name) AS parent_mountain,
     0::int AS destination_count,'[]'::json AS destinations,
     (SELECT count(*)::int FROM glacier_routes) AS route_count,

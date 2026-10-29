@@ -1,6 +1,19 @@
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { Pool } from "pg";
+import type { Outline } from "./glaciers/outline-geometry";
+
+/** observed_at is an ice observation; snapshot_at is a mapping/download date.
+ * The API's legacy outline_observed_at uses observed_at ?? snapshot_at. */
+export type GlacierGeometryProvenance = {
+  schema_version: 1; geometry_source: string; source_url: string; source_sha256: string;
+  observed_at: string | null; snapshot_at: string | null;
+  license: string; license_url: string; credit: string;
+  method: string; geometry_sha256: string;
+  analysis_ids?: string[]; glacier_ids?: string[]; submission_id?: string;
+  review?: Record<string, unknown>;
+};
 
 /** One mountain's reviewed glacier package. Every name, credit, source and
  * identity check lives here, so a new mountain is a new manifest and data
@@ -22,7 +35,9 @@ export type GlacierManifestPlace = {
   id: string; name: string; osm_key: string; external_ids: Record<string, string>; kind: "glacier" | "snowfield";
   /** Other spellings for search and route terrain names, e.g. "Interglacier". */
   aliases: string[];
-  boundary: { type: "MultiPolygon"; coordinates: number[][][][] };
+  boundary: Outline;
+  /** Required for new builders; old single-source manifests use package defaults. */
+  geometry?: GlacierGeometryProvenance;
   facts: GlacierManifestFacts;
 };
 export type GlacierManifest = {
@@ -37,10 +52,35 @@ export type GlacierManifest = {
   container_area: { kind: string; name: string };
   /** Mountain-wide totals; served to clients as `mountain_context`. */
   mountain_context: Record<string, unknown>;
+  /** Binds the whole offline review (including unmatched features) to apply. */
+  outline_refresh?: { schema_version: 1; input_manifest_sha256: string; review_sha256: string };
   places: GlacierManifestPlace[];
 };
 
 export const sha256 = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
+export function placeGeometry(m: GlacierManifest, p: GlacierManifestPlace): GlacierGeometryProvenance {
+  return p.geometry ?? {
+    schema_version: 1, geometry_source: m.geometry_source,
+    source_url: `https://www.openstreetmap.org/${p.osm_key.replace(":", "/")}`,
+    source_sha256: m.source_sha256, observed_at: null, snapshot_at: m.geometry_observed_at,
+    credit: m.geometry_credit, license: m.geometry_license,
+    license_url: "https://www.openstreetmap.org/copyright", method: "OSM snapshot; imagery observation date unknown",
+    geometry_sha256: sha256(JSON.stringify(p.boundary)),
+  };
+}
+
+/** Shared by previews and writes so row metadata cannot retain package credit
+ * after switching sources. Keep facts citations and the identity snapshot. */
+export function glacierPlaceProvenance(m: GlacierManifest, p: GlacierManifestPlace) {
+  const geometry = placeGeometry(m, p);
+  return { geometry,
+    catalog: { source: geometry.geometry_source, license: geometry.license, credit: geometry.credit,
+      snapshot_sha256: geometry.source_sha256, fetched_at: geometry.snapshot_at,
+      observed_at: geometry.observed_at, source_url: geometry.source_url, aliases: p.aliases },
+    facts: { ...p.facts, provenance: { ...p.facts.provenance, mountain_context: m.mountain_context,
+      source_snapshot_sha256: m.source_sha256, outline: geometry } },
+  };
+}
 export function manifestSha256(manifest: GlacierManifest): string {
   const { manifest_sha256: _ignored, ...body } = manifest as GlacierManifest & { manifest_sha256?: string };
   return sha256(JSON.stringify(body));
@@ -54,11 +94,22 @@ export function validateGlacierManifest(m: GlacierManifest): GlacierManifest {
   if (!m.facts_credit?.trim() || !m.geometry_credit?.trim() || !m.geometry_license?.trim()) fail("credits");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(m.geometry_observed_at)) fail("geometry_observed_at");
   if (!/^[0-9a-f]{64}$/.test(m.source_sha256)) fail("source_sha256");
+  if (m.outline_refresh && (m.outline_refresh.schema_version !== 1 || !/^[0-9a-f]{64}$/.test(m.outline_refresh.input_manifest_sha256)
+    || !/^[0-9a-f]{64}$/.test(m.outline_refresh.review_sha256))) fail("outline_refresh review hash");
   if (new Set(m.places.map(p => p.id)).size !== m.places.length || new Set(m.places.map(p => p.name)).size !== m.places.length) fail("duplicate place");
   for (const p of m.places) {
     if (!["glacier", "snowfield"].includes(p.kind) || p.facts?.kind !== p.kind) fail(`kind for ${p.name}`);
     if (p.boundary?.type !== "MultiPolygon" || !p.boundary.coordinates?.length) fail(`boundary for ${p.name}`);
     if (!Array.isArray(p.aliases)) fail(`aliases for ${p.name}`);
+    const g = placeGeometry(m, p);
+    const date = (value: string | null) => value === null || /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+    const url = (value: string) => { try { return ["https:", "http:"].includes(new URL(value).protocol); } catch { return false; } };
+    if (g.schema_version !== 1 || !g.geometry_source?.trim() || !g.credit?.trim() || !g.license?.trim()
+      || !g.method?.trim() || !url(g.source_url) || !url(g.license_url)
+      || !date(g.observed_at) || !date(g.snapshot_at) || !(g.observed_at ?? g.snapshot_at)
+      || !/^[0-9a-f]{64}$/.test(g.source_sha256) || g.geometry_sha256 !== sha256(JSON.stringify(p.boundary))) fail(`geometry provenance for ${p.name}`);
+    if (p.facts.provenance.outline && !isDeepStrictEqual(p.facts.provenance.outline, g)) fail(`conflicting outline provenance for ${p.name}`);
   }
   return m;
 }
@@ -83,6 +134,8 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
   const value = (name: string) => args.find(a => a.startsWith(`--${name}=`))?.slice(name.length+3);
   if (!args.includes("--apply")) { console.log(JSON.stringify(summarizeGlacierManifest(pkg), null, 2)); return; }
   if (value("expected-manifest-sha256") !== pkg.manifest_sha256) throw new Error("Apply requires the reviewed --expected-manifest-sha256");
+  validateGlacierManifest(pkg);
+  if (manifestSha256(pkg) !== pkg.manifest_sha256) throw new Error("Manifest changed after review");
   const parentId = value("parent-mountain-id"), areaId = value("park-area-id");
   if (!parentId || !areaId) throw new Error("Supply checked --parent-mountain-id and --park-area-id; IDs are never guessed");
   // No default connection, proxy, environment merge or network acquisition.
@@ -126,6 +179,7 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
           k === "wikidata" ? existing.rows[0].external_ids?.[k] && existing.rows[0].external_ids[k] !== v
             : existing.rows[0].external_ids?.[k] !== v))) throw new Error(`ID belongs to another place: ${place.id}`);
         const f = place.facts;
+        const serialized = glacierPlaceProvenance(pkg, place), geometry = serialized.geometry;
         const described = f.description != null && pkg.description_source_name != null;
         await client.query(`WITH shape AS (SELECT ST_SetSRID(ST_GeomFromGeoJSON($4),4326) AS g)
           INSERT INTO destinations(id,name,search_name,type,features,activities,owner,country_code,state_code,location,boundary,
@@ -154,15 +208,13 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
             OR NOT COALESCE(destinations.external_ids,'{}'::jsonb) @> EXCLUDED.external_ids
             OR NOT COALESCE(destinations.metadata,'{}'::jsonb) @> EXCLUDED.metadata
             OR destinations.description IS DISTINCT FROM EXCLUDED.description`,
-          [place.id,place.name,JSON.stringify(place.external_ids),JSON.stringify(place.boundary),JSON.stringify({glacier_catalog: {
-            source:pkg.geometry_source,license:pkg.geometry_license,credit:pkg.geometry_credit,snapshot_sha256:pkg.source_sha256,
-            fetched_at:pkg.geometry_observed_at,aliases:place.aliases }}),described ? f.description : null,
+          [place.id,place.name,JSON.stringify(place.external_ids),JSON.stringify(place.boundary),JSON.stringify({glacier_catalog: serialized.catalog}),described ? f.description : null,
             described ? f.description_source_url : null,described ? pkg.description_source_name : null,
             pkg.country_code,pkg.state_code,`{${pkg.activities.join(",")}}`,described ? pkg.description_source_license : null]);
-        const facts = { ...f, provenance: { ...f.provenance, mountain_context: pkg.mountain_context, source_snapshot_sha256: pkg.source_sha256 }};
+        const facts = serialized.facts;
         const parameters: unknown[] = [place.id,parentId,...factColumns.map(c => ["area_history","provenance"].includes(c) ? JSON.stringify(facts[c]) : facts[c]),
-          pkg.facts_credit,pkg.facts_source_url,pkg.geometry_credit,pkg.geometry_license,pkg.geometry_observed_at,
-          `https://www.openstreetmap.org/${place.osm_key.replace(":","/")}`,pkg.source_sha256,JSON.stringify(place.boundary)];
+          pkg.facts_credit,pkg.facts_source_url,geometry.credit,geometry.license,geometry.observed_at ?? geometry.snapshot_at,
+          geometry.source_url,geometry.source_sha256,JSON.stringify(place.boundary)];
         const columns = ["destination_id","parent_mountain_id",...factColumns,"facts_credit","facts_source_url","geometry_credit","geometry_license",
           "outline_observed_at","outline_source_url","outline_source_sha256","outline"];
         await client.query(`INSERT INTO destination_glacier_facts(${columns.join(",")}) VALUES(${columns.map((c,i)=>

@@ -24,8 +24,9 @@ export function glacierCrossingsSql(kind: "route" | "session", alias: string): s
     'min_elevation_m',c.min_elevation_m,'max_elevation_m',c.max_elevation_m,
     'starts_inside',c.starts_inside,'ends_inside',c.ends_inside,
     'entry_location',ST_AsGeoJSON(c.entry_location,7)::json,'exit_location',ST_AsGeoJSON(c.exit_location,7)::json,
-    'outline_observed_at',gf.outline_observed_at,'outline_revision',c.outline_revision,
-    'matcher_version',c.matcher_version,'geometry_credit',gf.geometry_credit
+    'outline_observed_at',to_char(gf.outline_observed_at,'YYYY-MM-DD'),'outline_revision',c.outline_revision,
+    'matcher_version',c.matcher_version,'geometry_credit',gf.geometry_credit,'geometry_license',gf.geometry_license,
+    'outline_source_url',gf.outline_source_url,'outline_provenance',gf.provenance->'outline'
   ) ORDER BY c.entered_distance_m,c.destination_id,c.pass_index)
   FROM ${kind}_glacier_crossings c
   JOIN destination_glacier_facts gf ON gf.destination_id=c.destination_id

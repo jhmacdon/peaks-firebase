@@ -84,12 +84,17 @@ test("capable destination detail replaces the legacy polygon with the full outli
     if (sql.includes("to_regprocedure")) return {rows:[{ready:true}],rowCount:1};
     if (sql.includes("information_schema")) return {rows:[{}],rowCount:1};
     if (sql.includes("FROM destination_glacier_facts gf"))
-      return {rows:[{glacier:{kind:"glacier",area_km2:1},boundary:outline}],rowCount:1};
+      return {rows:[{glacier:{kind:"glacier",area_km2:1,geometry_credit:"Inventory authors, via GLIMS",
+        geometry_license:"CC0-1.0",outline_observed_at:"2019-09-09",
+        provenance:{outline:{observed_at:"2019-09-09",snapshot_at:"2026-10-28"}}},boundary:outline}],rowCount:1};
     return {rows:[{id:"place",features:[feature],boundary:{type:"Polygon",coordinates:outline.coordinates[0]}}],rowCount:1};
   });
   const glacier=await appRequest(app,"GET","/api/destinations/place",headers);
   assert.equal(glacier.status,200);assert.deepEqual(glacier.body.boundary,outline);
   assert.equal(glacier.body.glacier.kind,"glacier");
+  assert.equal(glacier.body.glacier.outline_observed_at,"2019-09-09","the iOS outline note reads this date");
+  assert.equal(glacier.body.glacier.geometry_credit,"Inventory authors, via GLIMS");
+  assert.equal(glacier.body.glacier.provenance.outline.snapshot_at,"2026-10-28");
   feature="lake";
   const lake=await appRequest(app,"GET","/api/destinations/place",headers);
   assert.equal(lake.status,200);assert.equal(lake.body.boundary.type,"Polygon");

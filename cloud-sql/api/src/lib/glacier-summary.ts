@@ -1,12 +1,17 @@
-/** Compact glacier facts for destination summaries: kind and checked parent
- * mountain. Search, nearby, viewport and nested destination arrays omit
+/** Compact glacier facts for destination summaries: kind, checked parent,
+ * and the place's own outline credit and dates.
+ * Search, nearby, viewport and nested destination arrays omit
  * parent facts, so a capable client could not otherwise name a glacier's
  * mountain or tell a snowfield from a glacier without fetching detail.
  *
  * The lookup runs once per response, on its final rows, after every
  * candidate cap and LIMIT. It never joins into search scoring.
  */
-export type GlacierSummary = { kind: "glacier"|"snowfield"; parent_mountain: { id: string; name: string } };
+export type GlacierSummary = {
+  kind: "glacier"|"snowfield"; parent_mountain: { id: string; name: string };
+  geometry_credit?: string; geometry_license?: string; outline_observed_at?: string;
+  outline_source_url?: string; outline_provenance?: Record<string, unknown> | null;
+};
 export type GlacierSummaryQuery = (text: string, values: unknown[]) => Promise<any[]|undefined>;
 
 // Geometry, health and provenance payloads hold no destination rows.
@@ -56,7 +61,10 @@ export function withGlacierSummaries(value: any, summaries: Map<string,GlacierSu
  */
 export function buildGlacierSummaryQuery(ids: string[], uid: string) {
   return { text: `SELECT gf.destination_id AS id,
-      jsonb_build_object('kind',gf.kind,'parent_mountain',jsonb_build_object('id',pm.id,'name',pm.name)) AS glacier
+      jsonb_build_object('kind',gf.kind,'parent_mountain',jsonb_build_object('id',pm.id,'name',pm.name),
+        'geometry_credit',gf.geometry_credit,'geometry_license',gf.geometry_license,
+        'outline_observed_at',to_char(gf.outline_observed_at,'YYYY-MM-DD'),'outline_source_url',gf.outline_source_url,
+        'outline_provenance',gf.provenance->'outline') AS glacier
     FROM destination_glacier_facts gf JOIN destinations pm ON pm.id=gf.parent_mountain_id
     WHERE gf.destination_id=ANY($1::text[]) AND (pm.owner='peaks' OR pm.owner=$2)`, values: [ids,uid] };
 }
