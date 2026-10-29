@@ -83,6 +83,9 @@
     "audit:trail-stretch-names": "./scripts/run-tsx.sh src/audit-trail-stretch-names.ts",
     "import:rainier-glaciers": "tsx src/import-rainier-glaciers.ts",
     "import:baker-glaciers": "tsx src/import-baker-glaciers.ts",
+    "import:glacier-peak-wilderness-west-glaciers": "tsx src/import-glacier-peak-wilderness-west-glaciers.ts",
+    "import:entiat-chelan-glaciers": "tsx src/import-entiat-chelan-glaciers.ts",
+    "import:alpine-lakes-glaciers": "tsx src/import-alpine-lakes-glaciers.ts",
     "import:glacier-manifest": "tsx src/import-glacier-manifest.ts",
     "backfill:glacier-crossings": "tsx src/backfill-glacier-crossings.ts",
     "refresh:glacier-outlines": "tsx src/refresh-glacier-outlines.ts"
