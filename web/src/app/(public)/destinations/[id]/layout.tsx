@@ -5,11 +5,37 @@ import {
 } from "../../../../lib/actions/cached-destinations";
 import { JsonLdScript } from "../../../../components/json-ld-script";
 import { describeDestinationType } from "../../../../lib/destination-detail";
-import { buildDestinationJsonLd } from "../../../../lib/json-ld";
+import { buildDestinationJsonLd, buildFaqJsonLd } from "../../../../lib/json-ld";
 import { subdivisionName, countryName } from "../../../../lib/regions";
 import { describeDestination } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 import { catalogShareImage } from "../../../../lib/catalog-share-image";
+import {
+  getGlacierFacts,
+  getGlacierMountainById,
+  getGlacierRoutes,
+} from "../../../../lib/actions/cached-glaciers";
+import {
+  buildBreadcrumbJsonLd,
+  buildGlacierJsonLd,
+  describeGlacier,
+  glacierFaqs,
+  glacierMountainPath,
+  glacierPageTitle,
+  type GlacierFacts,
+} from "../../../../lib/glaciers";
+
+/** Facts for a glacier destination, or null for every other place — and
+ * for a glacier whose facts can't be read, which then renders as a plain
+ * destination rather than failing the page. */
+async function glacierFactsFor(destination: { features: string[] } | null, id: string): Promise<GlacierFacts | null> {
+  if (!destination?.features.includes("glacier")) return null;
+  try {
+    return await getGlacierFacts(id);
+  } catch {
+    return null;
+  }
+}
 
 // One template, ~70,000 catalog pages, and the record behind any one of
 // them changes on the order of months. Rendering every visit against a
@@ -45,11 +71,36 @@ export default async function DestinationLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  let jsonLd: ReturnType<typeof buildDestinationJsonLd> | null = null;
+  let jsonLd: unknown[] | ReturnType<typeof buildDestinationJsonLd> | null = null;
 
   try {
     const destination = await getDestinationCached(id);
-    if (destination) {
+    const glacier = await glacierFactsFor(destination, id);
+    if (destination && glacier) {
+      const [mountain, routes] = await Promise.all([
+        getGlacierMountainById(glacier.parent.id).catch(() => null),
+        getGlacierRoutes(id).catch(() => []),
+      ]);
+      const region = subdivisionName(destination.country_code, destination.state_code);
+      const url = absoluteUrl(`/destinations/${id}`);
+      jsonLd = [
+        buildGlacierJsonLd({
+          facts: glacier,
+          url,
+          parentUrl: absoluteUrl(`/destinations/${glacier.parent.id}`),
+          description: describeGlacier(glacier, region),
+          latitude: destination.lat,
+          longitude: destination.lng,
+          image: destination.hero_image,
+        }),
+        buildBreadcrumbJsonLd([
+          { name: "Glaciers", url: absoluteUrl("/glaciers") },
+          ...(mountain ? [{ name: `${mountain.name} glaciers`, url: absoluteUrl(glacierMountainPath(mountain)) }] : []),
+          { name: glacier.name, url },
+        ]),
+        buildFaqJsonLd({ items: glacierFaqs(glacier, region, routes) }),
+      ];
+    } else if (destination) {
       jsonLd = buildDestinationJsonLd({
         name: destination.name,
         url: absoluteUrl(`/destinations/${id}`),
@@ -65,9 +116,9 @@ export default async function DestinationLayout({
 
   return (
     <>
-      {jsonLd && (
-        <JsonLdScript data={jsonLd} />
-      )}
+      {Array.isArray(jsonLd)
+        ? jsonLd.map((data, index) => <JsonLdScript key={index} data={data} />)
+        : jsonLd && <JsonLdScript data={jsonLd} />}
       {children}
     </>
   );
@@ -88,6 +139,35 @@ export async function generateMetadata({
           index: false,
           follow: false,
         },
+      };
+    }
+
+    const glacier = await glacierFactsFor(destination, id);
+    if (glacier) {
+      const title = glacierPageTitle(glacier);
+      const description = describeGlacier(
+        glacier,
+        subdivisionName(destination.country_code, destination.state_code)
+      );
+      const canonicalPath = `/destinations/${id}`;
+      const images = [catalogShareImage(glacier.name, canonicalPath, {
+        imageUrl: destination.hero_image,
+        attribution: destination.hero_image_attribution,
+        attributionUrl: destination.hero_image_attribution_url,
+      })];
+      return {
+        title,
+        description,
+        alternates: { canonical: absoluteUrl(canonicalPath) },
+        openGraph: {
+          title,
+          description,
+          url: absoluteUrl(canonicalPath),
+          siteName: siteConfig.name,
+          type: "website",
+          images,
+        },
+        twitter: { card: "summary_large_image", title, description, images },
       };
     }
 
