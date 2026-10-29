@@ -51,6 +51,14 @@ test("facts serialization keeps source dates, nulls, numeric wire fields and com
   assert.match(q.text,/to_jsonb\(gf\).*-'outline'/);
   assert.doesNotMatch(q.text,/ST_AsGeoJSON\(d.boundary[,)]|ST_Simplify|SELECT s\.\*/);
   assert.match(buildGlacierFactsQuery("g","me").text,/pm.owner='peaks' OR pm.owner=\$2/);
+  // Additive, served flat from provenance; absent keys read null for older rows.
+  for (const text of [q.text,buildGlacierFactsQuery("g","me").text]) {
+    assert.match(text,/'change_baseline_year',gf.provenance->'area_change'->'baseline_year'/);
+    assert.match(text,/'percent_change_since_baseline',gf.provenance->'area_change'->'percent'/);
+    assert.match(text,/'area_history_note',gf.provenance->'area_history_note'->'text'/);
+    assert.match(text,/'area_history_note_citation',gf.provenance->'area_history_note'->'citation'/);
+    assert.match(text,/'surface_change',gf.provenance->'surface_change'/);
+  }
 });
 
 test("route/session readers expose ordered stored spans without requiring a primary session route",()=>{

@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { parseOsmGlaciers, type GlacierCandidate } from "./osm";
+import { areaChangeSinceBaseline, areaHistoryNote, checkLowAccuracySurveys, markAccuracy,
+  type AreaObservation, type LowAccuracySurveys, type SurfaceChange } from "./area-history";
 export type { GlacierCandidate, Polygon, Position } from "./osm";
 
 export const SNAPSHOT_SHA256 = "02cea8bc617563b180036921c7114b56e0234c359a0af174cf24becc37cf5cb0";
@@ -7,7 +9,15 @@ export const GEOMETRY_CREDIT = "© OpenStreetMap contributors";
 export const FACTS_CREDIT = "Beason et al. (2023), National Park Service";
 export const REPORT_URL = "https://doi.org/10.36967/2299328";
 export const SNAPSHOT_DATE = "2026-10-28";
-export interface Observation { year: number; area_km2: number | null; uncertainty_km2: number | null }
+export type Observation = AreaObservation;
+/** Beason et al. (2023) on the two oldest maps; the builder checks the quote
+ * against the saved report text. */
+export const LOW_ACCURACY_SURVEYS: LowAccuracySurveys = {
+  years: [1896, 1913],
+  text: "The 1896 and 1913 maps have poor spatial accuracy, and their glacier boundaries do not match modern mapping.",
+  citation: "Beason et al. (2023), p.6",
+  source_quote: "The older maps in 1896 and 1913 had poor spatial accuracy",
+};
 export interface GlacierFacts {
   inventory_name: string | null; kind: "glacier" | "snowfield"; observed_year: number | null;
   area_km2: number | null; area_uncertainty_km2: number | null; rank_on_mountain: number | null;
@@ -16,7 +26,9 @@ export interface GlacierFacts {
   flow_direction_deg: number | null; flow_direction_label: string | null;
   type_code: string | null; type_label: string | null;
   estimated_volume_km3: number | null; volume_uncertainty_km3: number | null;
-  area_history: Observation[]; area_history_scope: string | null; percent_change_since_earliest: number | null;
+  area_history: Observation[]; area_history_scope: string | null;
+  /** Deprecated: includes low-accuracy surveys. See provenance.area_change. */
+  percent_change_since_earliest: number | null;
   description: string | null; description_source_url: string | null;
   provenance: Record<string, unknown>;
 }
@@ -69,14 +81,15 @@ export function parseRainierFacts(report: string, candidates: GlacierCandidate[]
       topo.set(m[1].trim(), values);
     }
   }
+  const surveys = checkLowAccuracySurveys(report, LOW_ACCURACY_SURVEYS);
   const history = new Map<string, Observation[]>();
   for (const line of table(report, "Table 7.", "Table 8.")) {
     const m = line.match(/^([A-Za-z -]+?)\s{2,}(.*±.*)$/);
     if (!m) continue;
     const cells = [...m[2].matchAll(/(\d+\.\d+)\s+±\s+(\d+\.\d+)|–/g)];
     if (cells.length !== 7) throw new Error(`Unexpected Table 7 row: ${m[1]}`);
-    history.set(m[1].trim(), cells.map((v, i) => ({ year: [1896,1913,1971,1994,2009,2015,2021][i],
-      area_km2: v[1] ? number(v[1]) : null, uncertainty_km2: v[2] ? number(v[2]) : null })));
+    history.set(m[1].trim(), markAccuracy(cells.map((v, i) => ({ year: [1896,1913,1971,1994,2009,2015,2021][i],
+      area_km2: v[1] ? number(v[1]) : null, uncertainty_km2: v[2] ? number(v[2]) : null })), surveys));
   }
   const volumes = new Map<string, RegExpMatchArray>();
   const volumeStart = report.indexOf("\nTable 12. Estimated", report.indexOf("\fTable 7."));
@@ -86,8 +99,17 @@ export function parseRainierFacts(report: string, candidates: GlacierCandidate[]
     const m = line.match(/^(.+?)\s{2,}([A-Z]{3})\s+(\d+)\s+([\d,]+)\s+±\s+([\d,]+)/);
     if (m) volumes.set(m[2], m);
   }
-  if (areas.size !== 28 || topo.size !== 28 || volumes.size !== 28 || history.size !== 25)
-    throw new Error(`Incomplete report: area=${areas.size}, topography=${topo.size}, volume=${volumes.size}, history=${history.size}`);
+  // Table 11 names glaciers individually, with "N."/"S." for North/South.
+  const thinning = new Map<string, RegExpMatchArray>();
+  const thinStart = report.indexOf("\nTable 11. Total volumetric change");
+  const thinEnd = report.indexOf("\n5.6. 2021 Glacier Volume", thinStart);
+  if (thinStart < 0 || thinEnd < 0) throw new Error("Missing Table 11");
+  for (const line of report.slice(thinStart, thinEnd).split(/\r?\n/)) {
+    const m = line.match(/^([A-Z][A-Za-z. ]+?)\s{2,}(-?\d+\.\d+) ± (\d+\.\d+)\s+(-?[\d,]+) ± ([\d,]+)\s+-?\d+\.\d+ ±\s*\d+\.\d+\s*$/);
+    if (m) thinning.set(m[1].trim().replace(/^N\. /, "North ").replace(/^S\. /, "South "), m);
+  }
+  if (areas.size !== 28 || topo.size !== 28 || volumes.size !== 28 || history.size !== 25 || thinning.size !== 29)
+    throw new Error(`Incomplete report: area=${areas.size}, topography=${topo.size}, volume=${volumes.size}, history=${history.size}, thinning=${thinning.size}`);
   const result: Record<string, GlacierFacts> = {};
   for (const c of candidates) {
     const name = Object.prototype.hasOwnProperty.call(reportNames, c.name) ? reportNames[c.name] : c.name.replace(/ Glacier$/, "");
@@ -96,6 +118,14 @@ export function parseRainierFacts(report: string, candidates: GlacierCandidate[]
     const scope = name ? historyNames[name] ?? name : null;
     const h = (scope ? history.get(scope) : undefined) ?? [];
     const known = h.filter(o => o.area_km2 !== null);
+    const th = name ? thinning.get(name) : undefined;
+    const surface: SurfaceChange | null = th ? {
+      start_year: 2007, start_label: "2007/8", end_year: 2021,
+      mean_elevation_change_m: number(th[2]), mean_elevation_change_uncertainty_m: number(th[3]),
+      volume_change_km3: number(th[4]) / 1e9, volume_change_uncertainty_km3: number(th[5]) / 1e9,
+      method: "2021 SfM surface model minus the 2007/8 LiDAR bare-earth model, clipped to the 2009 glacier extents",
+      citation: "Beason et al. (2023), Table 11, pp.36–37 (m³ converted to km³)", credit: FACTS_CREDIT, source_url: REPORT_URL,
+    } : null;
     const pageKey = name?.toLowerCase().replace(/ /g, "-");
     const page = pageKey ? pages[pageKey] : undefined;
     const type = page?.match(/Glacier Type:\s*([A-Z])\s*-\s*(.*?)\s*Mount Rainier National Park/);
@@ -116,8 +146,10 @@ export function parseRainierFacts(report: string, candidates: GlacierCandidate[]
       provenance: {
         report: { doi: "10.36967/2299328", url: REPORT_URL, credit: FACTS_CREDIT, license: "U.S. Government work", observed_year: 2021 },
         tables: { area: "4, p.17 (m² converted to km²)", topography: "5, pp.20–21 (SI columns; integer mean slope)",
-          history: "7, pp.25–26 (published km²; grouped names retained)", volume: "12, pp.38–39 (m³ converted to km³; statistical estimate)" },
+          history: "7, pp.25–26 (published km²; grouped names retained; 1896 and 1913 low accuracy per p.6)",
+          surface_change: "11, pp.36–37 (individual glaciers; m³ converted to km³)", volume: "12, pp.38–39 (m³ converted to km³; statistical estimate)" },
         type_source_url: type && pageKey ? `https://www.nps.gov/places/${pageKey}-glacier.htm` : null,
+        area_history_note: areaHistoryNote(h, surveys), area_change: areaChangeSinceBaseline(h), surface_change: surface,
         history_scope: h.length ? scope : null, percent_method: known.length > 1 ? "100 * (last / first - 1), first non-null year, Table 7 scope" : null,
         note: c.kind === "snowfield" ? "Muir Snowfield is not the NPS Muir Glacier; no facts assigned."
           : !a ? "No matching individual glacier in the 2021 report; facts unknown."

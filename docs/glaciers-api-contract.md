@@ -163,16 +163,28 @@ illustrative, not claims about a user's recordings. No production rows were read
     "volume_uncertainty_km3": 0.230724615,
     "rank_on_mountain": 1,
     "area_history": [
-      {"year":1896,"area_km2":17.458,"uncertainty_km2":0.907},
-      {"year":1913,"area_km2":12.622,"uncertainty_km2":0.660},
-      {"year":1971,"area_km2":11.158,"uncertainty_km2":0.586},
-      {"year":1994,"area_km2":11.223,"uncertainty_km2":0.589},
-      {"year":2009,"area_km2":10.979,"uncertainty_km2":0.576},
-      {"year":2015,"area_km2":11.027,"uncertainty_km2":0.579},
-      {"year":2021,"area_km2":10.959,"uncertainty_km2":0.575}
+      {"year":1896,"area_km2":17.458,"uncertainty_km2":0.907,"accuracy":"low"},
+      {"year":1913,"area_km2":12.622,"uncertainty_km2":0.660,"accuracy":"low"},
+      {"year":1971,"area_km2":11.158,"uncertainty_km2":0.586,"accuracy":null},
+      {"year":1994,"area_km2":11.223,"uncertainty_km2":0.589,"accuracy":null},
+      {"year":2009,"area_km2":10.979,"uncertainty_km2":0.576,"accuracy":null},
+      {"year":2015,"area_km2":11.027,"uncertainty_km2":0.579,"accuracy":null},
+      {"year":2021,"area_km2":10.959,"uncertainty_km2":0.575,"accuracy":null}
     ],
     "area_history_scope": "Emmons",
     "percent_change_since_earliest": -37.2264864245618,
+    "change_baseline_year": 1971,
+    "percent_change_since_baseline": -1.783473740813768,
+    "area_history_note": "The 1896 and 1913 maps have poor spatial accuracy, and their glacier boundaries do not match modern mapping.",
+    "area_history_note_citation": "Beason et al. (2023), p.6",
+    "surface_change": {
+      "start_year":2007,"start_label":"2007/8","end_year":2021,
+      "mean_elevation_change_m":-7.26,"mean_elevation_change_uncertainty_m":0.39,
+      "volume_change_km3":-0.079714598,"volume_change_uncertainty_km3":0.004237619,
+      "method":"2021 SfM surface model minus the 2007/8 LiDAR bare-earth model, clipped to the 2009 glacier extents",
+      "citation":"Beason et al. (2023), Table 11, pp.36–37 (m³ converted to km³)",
+      "credit":"Beason et al. (2023), National Park Service","source_url":"https://doi.org/10.36967/2299328"
+    },
     "outline_observed_at": "2026-10-28",
     "outline_source_url": "https://www.openstreetmap.org/relation/5535843",
     "outline_source_sha256": "02cea8bc617563b180036921c7114b56e0234c359a0af174cf24becc37cf5cb0",
@@ -184,7 +196,8 @@ illustrative, not claims about a user's recordings. No production rows were read
     "parent_mountain": {"id":"<rainier-id>","name":"Mount Rainier"},
     "mountain_context": {
       "observed_year":2021,"named_glacier_count":28,"area_km2":75.496,
-      "area_uncertainty_km2":4.109,"history_start_year":1896,"percent_change_since_history_start":-41.6
+      "area_uncertainty_km2":4.109,"history_start_year":1896,"percent_change_since_history_start":-41.6,
+      "change_baseline_year":1971,"percent_change_since_baseline":-17.6
     },
     "description": "Emmons Glacier descends from Mount Rainier’s northeast side into the White River Valley. Rock debris from a 1963 rockfall off Little Tahoma covers much of its lower surface.",
     "description_credit": "National Park Service",
@@ -198,11 +211,15 @@ illustrative, not claims about a user's recordings. No production rows were read
       "tables": {
         "area":"4, p.17 (m² converted to km²)",
         "topography":"5, pp.20–21 (SI columns; integer mean slope)",
-        "history":"7, pp.25–26 (published km²; grouped names retained)",
+        "history":"7, pp.25–26 (published km²; grouped names retained; 1896 and 1913 low accuracy per p.6)",
+        "surface_change":"11, pp.36–37 (individual glaciers; m³ converted to km³)",
         "volume":"12, pp.38–39 (m³ converted to km³; statistical estimate)"
       },
       "type_source_url":"https://www.nps.gov/places/emmons-glacier.htm",
       "history_scope":"Emmons",
+      "area_history_note":{"text":"<as above>","citation":"Beason et al. (2023), p.6","low_accuracy_years":[1896,1913]},
+      "area_change":{"baseline_year":1971,"end_year":2021,"percent":-1.783473740813768,"method":"<baseline rule>"},
+      "surface_change":{"<as above>":"…"},
       "percent_method":"100 * (last / first - 1), first non-null year, Table 7 scope",
       "note":null,
       "report_sha256":"<report-sha256>",
@@ -218,7 +235,8 @@ illustrative, not claims about a user's recordings. No production rows were read
       },
       "mountain_context": {
         "observed_year":2021,"named_glacier_count":28,"area_km2":75.496,
-        "area_uncertainty_km2":4.109,"history_start_year":1896,"percent_change_since_history_start":-41.6
+        "area_uncertainty_km2":4.109,"history_start_year":1896,"percent_change_since_history_start":-41.6,
+        "change_baseline_year":1971,"percent_change_since_baseline":-17.6
       }
     }
   },
@@ -325,8 +343,45 @@ route list with its existing richer route summaries.
 
 Render `area_history_scope` with the chart and percentage. Combined histories
 must not be labeled as the individual glacier's area loss. Missing 1896 entries
-for Flett/Ohanapecosh/Sarvent stay null; percent change starts at the earliest
-non-null observation. The mountain-wide count of 28 is the **NPS inventory**,
+for Flett/Ohanapecosh/Sarvent stay null.
+
+### Survey accuracy, baseline change and thinning (additive)
+
+- `area_history[].accuracy` is `"low"` for a survey the facts source itself
+  calls low-accuracy, else `null`. Older rows and builders without such a note
+  omit the key; read a missing key as `null`. Rainier: 1896 and 1913, because
+  Beason et al. (2023, p.6) say those maps "had poor spatial accuracy" and
+  boundaries "that do not match with modern mapping". Draw these points
+  de-emphasized and show `area_history_note` (with
+  `area_history_note_citation`) as a muted footnote. Both are `null` when the
+  series has no measured low-accuracy survey.
+- `percent_change_since_baseline` runs from `change_baseline_year`, the
+  earliest measured survey that is not low-accuracy, to the latest measured
+  one, in the same `area_history_scope`. Use these for the headline; the sign
+  of the number sets the direction (Winthrop is −9.8% since 1971, though its
+  1896 map shows less ice than 2021). Both are `null` with fewer than two
+  usable surveys.
+- `percent_change_since_earliest` is **deprecated for display**. It keeps its
+  old value (from the first measured year, low-accuracy or not) so shipped
+  clients do not change; new clients fall back to it only when
+  `change_baseline_year` is absent.
+- `surface_change` is the source's mean surface-elevation change and volume
+  change over one differenced period, for this glacier alone (never the
+  combined history scope), or `null`. Fields: `start_year`, `start_label`
+  (Rainier `"2007/8"`), `end_year`, `mean_elevation_change_m`,
+  `mean_elevation_change_uncertainty_m`, `volume_change_km3`,
+  `volume_change_uncertainty_km3`, `method`, `citation`, `credit`,
+  `source_url`. Unknown values are `null`, never `0`. Rainier: Table 11
+  (2007/8 LiDAR to 2021 SfM), 28 of 29 places; Pinnacle Glacier and Muir
+  Snowfield have none.
+- `mountain_context.change_baseline_year` and
+  `percent_change_since_baseline` give the same rule for the mountain total
+  (Rainier: −17.6% since 1971).
+
+The builder stores these under the facts row's `provenance`
+(`area_history_note`, `area_change`, `surface_change`); the API serves them
+flat. A builder flags a survey only from a quote it checks against the saved
+source text (`glaciers/area-history.ts`); no runtime code names a glacier. The mountain-wide count of 28 is the **NPS inventory**,
 which includes Muir Glacier; it is not the roster of 28 OSM glacier objects.
 
 Eight saved NPS files support short glacier copy and type codes. The saved
@@ -575,8 +630,9 @@ No API, schema or app change is needed. The writer
   `facts_credit`, `facts_source_url`, `description_source_name`,
   `description_source_license`.
 - `country_code`, `state_code`, `activities` and `mountain_context`
-  (`named_glacier_count` drives the "of N" rank; `history_start_year` and
-  `percent_change_since_history_start` are optional mountain totals).
+  (`named_glacier_count` drives the "of N" rank; `history_start_year`,
+  `percent_change_since_history_start`, `change_baseline_year` and
+  `percent_change_since_baseline` are optional mountain totals).
 - `places[]`: deterministic id, name, OSM key and external ids, `kind`,
   `aliases`, MultiPolygon `boundary`, `facts` (any fact may be null), and each
   new builder's `geometry` provenance object: `schema_version: 1`,
@@ -722,8 +778,8 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
    descriptions, normalized facts, per-place geometry provenance and the full
    outline review. A changed source, parser or review changes the hash. The
    current reviewed hash is
-   `3b7f23b88afd37b1c4d2e67fac6e67bb1591aa28a79b1ed67209637e3606fbcd`
-   with platform-stable metrics (9 decimals; see
+   `7db50df9c523308c511feb4465fa1ae1567be9c291cadc492397e591bdaa446e`
+   (survey accuracy and Table 11; see the hash record) with platform-stable metrics (9 decimals; see
    [the hash record](data-audits/glacier-manifest-hashes.md)). The hash first
    applied in production was built before that rounding.
 

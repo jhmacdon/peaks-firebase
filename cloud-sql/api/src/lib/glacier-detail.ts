@@ -5,11 +5,18 @@ import { isoUtcSql } from "./glacier-crossings";
 /** Facts contain no geometry. Dates, SI units, source scope and nulls travel
  * with every value; a combined history must never become an individual one.
  * Credits, source links and mountain totals all come from the facts row.
+ * The baseline change, history note and surface change are served flat from
+ * the builder's provenance keys; a row without them reads null.
  */
 export function glacierFactsSql(): string {
   return `(to_jsonb(gf)-'destination_id'-'parent_mountain_id'-'updated_at'-'outline') || jsonb_build_object(
     'parent_mountain',jsonb_build_object('id',pm.id,'name',pm.name),
     'mountain_context',gf.provenance->'mountain_context',
+    'change_baseline_year',gf.provenance->'area_change'->'baseline_year',
+    'percent_change_since_baseline',gf.provenance->'area_change'->'percent',
+    'area_history_note',gf.provenance->'area_history_note'->'text',
+    'area_history_note_citation',gf.provenance->'area_history_note'->'citation',
+    'surface_change',gf.provenance->'surface_change',
     'description',CASE WHEN NULLIF(btrim(d.description_source_name),'') IS NOT NULL AND NULLIF(btrim(d.description_source_url),'') IS NOT NULL
       AND NULLIF(btrim(d.description_source_license),'') IS NOT NULL THEN d.description END,
     'description_credit',d.description_source_name,'description_source_url',d.description_source_url)`;

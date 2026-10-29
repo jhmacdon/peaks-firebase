@@ -116,3 +116,27 @@ URL. A mountain total that mixes area sources now has `source_url: null`
 and a `sources` list giving each credit, URL and the glaciers it supplies.
 No package has such a total today (South Cascade Glacier, the one USGS area,
 is the only glacier on its mountain), so no hash changes.
+
+## Survey accuracy and surface change (2026-10-29)
+
+Beason et al. (2023, p.6) say the 1896 and 1913 maps "had poor spatial
+accuracy" and drew glacier boundaries "that do not match with modern
+mapping". Winthrop's Table 7 row (8.235 km² in 1896, 8.688 km² in 2021) made
+the old headline read +5.5% since 1896. The Rainier builder now marks those
+two surveys `accuracy: "low"` (from a quote checked against the saved report),
+adds a series note, a headline change from the first reliable survey (1971),
+and Table 11's 2007/8–2021 surface-elevation and volume change per glacier.
+`percent_change_since_earliest` keeps its old value.
+
+| Package | Hash before | Hash after this change |
+| --- | --- | --- |
+| Rainier | `a47c05a3e67d8e8c59d15de5b971844a61572864b6406008a73a30ac293eeca7` | `7db50df9c523308c511feb4465fa1ae1567be9c291cadc492397e591bdaa446e` |
+| All other packages | | unchanged (no area history) |
+
+No outline, geometry, decision or existing fact changes: the outline decision
+report differs only in its input and output manifest hashes. A replay should
+rewrite each Rainier facts row once (`area_history` and `provenance`) and leave
+destination rows, outline revisions and route/session queues alone, as in the
+earlier provenance-only replays; no disposable-database replay was run for
+this change. Only Winthrop's headline changes sign (+5.5% since
+1896 → −9.8% since 1971).

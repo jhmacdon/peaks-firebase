@@ -179,6 +179,12 @@ Facts rules:
 - `mountain_context.named_glacier_count` is the facts source's inventory count,
   not the OSM roster count. It drives the "of N" rank.
 - `type_code`/`type_label` only where a source states them.
+- When the source says some surveys are low-accuracy, pass a
+  `LowAccuracySurveys` quote to `glaciers/area-history.ts` (Rainier:
+  `LOW_ACCURACY_SURVEYS`). It fails closed when the quote is not in the saved
+  text, marks `accuracy: "low"`, and sets the note and baseline change. Put a
+  differenced surface-elevation/volume table in `provenance.surface_change`.
+  See "Survey accuracy" in the API contract.
 - Flow direction is where ice flows towards, clockwise from north.
 
 Preview without a database:
