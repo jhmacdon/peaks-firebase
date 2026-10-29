@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { loadRainierOsmPackage, loadRainierOutlineReview, OUTLINE_DATA_DIR } from "../import-rainier-glaciers";
 import { applyGlacierManifest, glacierPlaceProvenance, manifestSha256, readGlacierManifest, sha256, validateGlacierManifest } from "../import-glacier-manifest";
 import { chooseOutline, loadOutlineSources, matchOutlineSource, normalizeGlacierName, outlineReportMarkdown, parseGlimsFeatures,
@@ -172,7 +173,7 @@ test("manifest provenance validation and review hash fail before a DB connection
 });
 
 test("offline CLI writes JSON, markdown and a readable manifest with the reviewed hash", () => {
-  const dir=mkdtempSync(join(__dirname,"../../.cache/glacier-outline-test-"));
+  const dir=mkdtempSync(join(tmpdir(),"glacier-outline-test-"));
   try {
     const input=join(dir,"osm.json"), output=join(dir,"refreshed.json"), prefix=join(dir,"report");
     writeFileSync(input,JSON.stringify(base));
