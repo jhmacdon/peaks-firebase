@@ -1,6 +1,7 @@
 # Olympic Mountains glaciers — review packet, 2026-10-29
 
-**Draft: more than 15% of the region is flagged; decisions needed (below).**
+**Draft: 4 of 14 named OSM glaciers carry counted flags (29%); two
+decisions needed (below).**
 Offline work only. Spec: `cloud-sql/migrate/src/import-olympics-glaciers.ts`.
 Decisions: [Markdown](olympics-glacier-outline-decisions-2026-10-29.md),
 [JSON](olympics-glacier-outline-decisions-2026-10-29.json).
@@ -87,16 +88,25 @@ imported, so those parents are not in this package.
 All 11 → **Olympic National Park** (`national_park`); NPS boundary (Land
 Resources Division service, analysis only), smallest margin 8 km.
 
-## Flags (6 of 14 named OSM glaciers, 43%: over the 15% stop line)
+## Flags (2026-10-29 policy: ratio and outline quality count; 4 of 14, 29%)
 
-1. White, Carrie, Fairchild held back (invalid geometry / label conflict).
-2. Queets, Cameron, Anderson keep OSM outside the ratio band.
-Parent calls flagged: Humes, Ice River, Queets.
+- **Ratio (3, counted):** Queets (1.525, just outside the band: keep OSM and
+  the flag, per policy), Cameron Glaciers (1.764), Anderson (10.165).
+- **Outline quality (1, counted, held):** White (invalid OSM geometry; the
+  stricter hole-contact rule of #285 still rejects it).
+- **Held, label (2):** Carrie and Fairchild stay held until verified
+  identities arrive.
+- **No facts (0).**
+- Parent calls flagged: Humes, Ice River, Queets (corrections pending).
 
-Questions:
-- Import the 11 now and add White, Carrie and Fairchild after OSM is fixed?
-- Accept OSM for Queets, Cameron and Anderson as flagged, or hold them?
-- Queets under Mount Queets (DEM) or Mount Olympus (common usage)?
+Still over the 15% stop line, so this stays a draft. Questions:
+- **Anderson** (OSM 0.130 km², PSU 2015 0.013 km²: the glacier has nearly
+  melted out, and OSM draws an old extent). Use the PSU 2015 outline (no
+  dated evidence for the switch rule), or hold it?
+- **Cameron Glaciers** (1.764, not "just outside"). Keep OSM with the flag,
+  or hold?
+- With Anderson and Cameron settled either way, the counted share falls to
+  2 of 14 (14%): Queets and White.
 
 ## Disposable-DB check
 
