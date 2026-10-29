@@ -9,7 +9,7 @@ Spec:
 [JSON](north-cascades-south-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`e940a5abd176a20a38d245ba33d05faaa9bb069d1a391a07da9efaaa2069973c`.
+`53ac3102b365d089a7005aca22151c59acad3a8fea56b27c05255cd9279d4e2e`.
 
 Scope: North Cascades National Park south unit (Eldorado, Boston Basin,
 Logan, Klawatti), Lake Chelan NRA edge, and the Dome/Chickamin, Spider and
@@ -208,3 +208,11 @@ missing-row queries empty; container links match the manifest exactly.
 3. Lyall, Thunder, Douglas, Yawning take the PSU 2015 outline (rule 2).
 4. Parents: nearest GNIS summit to the DEM head; the reviewed research
    checked every flagged call and agreed.
+
+## Outline overlaps (neighbour check, #290)
+
+After sources were chosen, every pair of final outlines in each package was
+measured. No pair overlaps by more than 1% of the smaller outline or 0.01 km²,
+so no group was moved to one source and nothing was clipped. Resolution:
+none needed. The decision reports' "Outline overlaps" section records the
+same result.
