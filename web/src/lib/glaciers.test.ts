@@ -12,9 +12,7 @@ import {
   formatVolumeMi3,
   glacierAreaChange,
   glacierFactRows,
-  glacierFaqs,
   glacierLeadParagraph,
-  glacierMountainFaqs,
   glacierPageTitle,
   historyScopeNote,
   parseGlacierFactsRow,
@@ -109,9 +107,6 @@ test("fact rows read plainly with the mountain rank from the facts row", () => {
 test("a combined survey history is never presented as one glacier's loss", () => {
   const facts = parseGlacierFactsRow({ ...emmonsRow, name: "Ingraham Glacier", inventory_name: "Ingraham", area_history_scope: "Cowlitz-Ingraham" });
   assert.equal(historyScopeNote(facts), "Cowlitz and Ingraham are measured together");
-  const answer = glacierFaqs(facts, "Washington", []).find((f) => f.question.startsWith("How much"))!.answer;
-  assert.match(answer, /Cowlitz and Ingraham, measured together, shrank by 37%/);
-  assert.match(answer, /does not separate Ingraham Glacier/);
   assert.match(describeGlacier(facts, "Washington"), /Cowlitz and Ingraham together down 37% since 1896/);
 });
 
@@ -130,23 +125,6 @@ test("title, description and lead stay factual and bounded", () => {
   assert.ok(description.length <= 165, description);
   assert.match(description, /^Emmons Glacier is a glacier on Mount Rainier, Washington: 4\.23 mi² \(10\.96 km²\) in 2021, from 14,147 to 4,882 ft\./);
   assert.match(glacierLeadParagraph(facts, "Washington"), /the largest of Mount Rainier’s 28 named glaciers/);
-});
-
-test("FAQ answers exist only for facts the row carries", () => {
-  const facts = parseGlacierFactsRow(emmonsRow);
-  const questions = glacierFaqs(facts, "Washington", [
-    { id: "dc", name: "Disappointment Cleaver", distance: 1, gain: 1, pass_count: 1, on_ice_m: 1, min_elevation_m: 1, max_elevation_m: 2 },
-  ]).map((f) => f.question);
-  assert.deepEqual(questions, [
-    "Where is Emmons Glacier?",
-    "How big is Emmons Glacier?",
-    "How much has Emmons Glacier shrunk?",
-    "How high is Emmons Glacier?",
-    "How much ice is in Emmons Glacier?",
-    "Which routes cross Emmons Glacier?",
-  ]);
-  const bare = parseGlacierFactsRow({ id: "p", name: "Pinnacle Glacier", kind: "glacier", parent_id: "r", parent_name: "Mount Rainier" });
-  assert.deepEqual(glacierFaqs(bare, null, []).map((f) => f.question), ["Where is Pinnacle Glacier?"]);
 });
 
 test("JSON-LD is a Landform on its mountain with SI properties", () => {
@@ -177,7 +155,7 @@ test("mountain slugs are stable and never collide", () => {
   assert.deepEqual(mountains.map((m) => m.slug), ["glacier-peak", "glacier-peak-b2"]);
 });
 
-test("mountain copy uses the inventory count and states the roster separately", () => {
+test("mountain description stays bounded and states the change", () => {
   const [mountain] = parseGlacierMountainRows([
     {
       id: "rainier",
@@ -187,12 +165,9 @@ test("mountain copy uses the inventory count and states the roster separately", 
       context: { observed_year: 2021, named_glacier_count: 28, area_km2: 75.496, history_start_year: 1896, percent_change_since_history_start: -41.6 },
     },
   ]);
-  assert.ok(describeGlacierMountain(mountain, "Washington").length <= 165);
-  const glaciers = [parseGlacierSummaryRow({ id: "e", name: "Emmons Glacier", kind: "glacier", area_km2: 10.96, observed_year: 2021 })];
-  const faqs = glacierMountainFaqs(mountain, glaciers, "Washington");
-  assert.match(faqs[0].answer, /counts 28 named glaciers .* Peaks maps the outlines of 1 named glacier there, plus 1 permanent snowfield/);
-  assert.match(faqs[1].answer, /Emmons Glacier is the largest/);
-  assert.match(faqs.at(-1)!.answer, /fell 42% between 1896 and 2021/);
+  const description = describeGlacierMountain(mountain, "Washington");
+  assert.ok(description.length <= 165, description);
+  assert.match(description, /Total ice area down 42% since 1896\./);
 });
 
 test("roster credits group by source, most used first", () => {
