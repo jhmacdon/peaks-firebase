@@ -98,6 +98,10 @@ describe("DELETE /api/account across SQL and mocked Firebase services", { skip: 
     firestore.documents.set(`users/${uid}/savedPlaces/one`, { name: "saved" });
     firestore.documents.set("sessions/own", { userId: uid });
     firestore.documents.set("sessions/own/points/one", { time: 100 });
+    firestore.documents.set("points/own", { points: [{ latitude: 47, longitude: -122 }] });
+    firestore.documents.set("points/own/chunks/one", { private: true });
+    firestore.documents.set("sessions/other", { userId: other });
+    firestore.documents.set("points/other", { points: [{ latitude: 48, longitude: -123 }] });
     firestore.documents.set("plans/shared", { userId: other, party: [uid,other] });
     firestore.documents.set("friends/shared", { users: [uid,other] });
     firestore.documents.set("friendRequests/shared", { users: [uid,other], requestedBy: other });
@@ -114,6 +118,9 @@ describe("DELETE /api/account across SQL and mocked Firebase services", { skip: 
       assert.equal(user, uid, "the retained SQL owner is never an Auth user");
       assert.equal([...firestore.documents.keys()].some((path) => path.startsWith(`users/${uid}`) || path.startsWith("sessions/own")),false);
       assert.equal(storage.files.has(ownPhoto),false);
+      assert.equal(firestore.documents.has("points/own"), false);
+      assert.equal(firestore.documents.has("points/own/chunks/one"), false);
+      assert.ok(firestore.documents.has("points/other"));
       assert.equal((await db.query("SELECT id FROM tracking_sessions WHERE user_id=$1",[uid])).rowCount,0);
       if (!authUsers.delete(user)) throw Object.assign(new Error("missing"),{ code: "auth/user-not-found" });
     });

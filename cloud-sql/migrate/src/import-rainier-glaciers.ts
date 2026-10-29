@@ -32,7 +32,9 @@ export function loadRainierOsmPackage(dir = DATA_DIR) {
     parent: { name: "Mount Rainier", features: ["summit","volcano"], country_code: "US", state_code: "WA", lat: 46.8523, lng: -121.7603, radius_m: 3000 },
     container_area: { kind: "national_park", name: "Mount Rainier National Park" },
     mountain_context: { observed_year: 2021, named_glacier_count: 28, area_km2: 75.496, area_uncertainty_km2: 4.109,
-      history_start_year: 1896, percent_change_since_history_start: -41.6 },
+      history_start_year: 1896, percent_change_since_history_start: -41.6,
+      // Table 7 totals from 1971, the first survey the report does not call low-accuracy (p.6).
+      change_baseline_year: 1971, percent_change_since_baseline: -17.6 },
     places: candidates.map(c => ({ ...c, aliases: ALIASES[c.name] ?? [],
       facts: { ...facts[c.name], provenance: { ...facts[c.name].provenance, report_sha256 } } })),
   };
@@ -43,7 +45,7 @@ export function loadRainierOsmPackage(dir = DATA_DIR) {
 export function loadRainierOutlineReview(dir = DATA_DIR, outlineDir = OUTLINE_DATA_DIR) {
   const { manifest_sha256: _hash, ...osm } = loadRainierOsmPackage(dir);
   const { sources, references, aliases } = loadOutlineSources(join(outlineDir, "outline-sources.json"));
-  return refreshGlacierOutlines(osm, sources, references, aliases);
+  return refreshGlacierOutlines(osm, sources, references, aliases, undefined, { rule: 2 });
 }
 export function loadRainierPackage(dir = DATA_DIR, outlineDir = OUTLINE_DATA_DIR) {
   return loadRainierOutlineReview(dir, outlineDir).manifest;

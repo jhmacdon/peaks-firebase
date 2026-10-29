@@ -3,7 +3,7 @@ import { afterEach, mock, test } from "node:test";
 import admin from "firebase-admin";
 import { app } from "../index";
 import db from "../db";
-import { deleteSqlOwnership } from "../routes/account";
+import { deleteSqlOwnership, legacyReportPhotoPath } from "../routes/account";
 import { AccountFirestore, AccountStorage } from "./helpers/account-services";
 import { appRequest } from "./helpers/app-request";
 
@@ -24,10 +24,11 @@ function services() {
   mock.method(db, "connect", async () => ({
     query: async (text: string) => { sql.push(text); return { rows: [], rowCount: 1 }; }, release() {},
   }));
+  const photos = mock.method(db, "query", async () => ({ rows: [], rowCount: 0 }));
   const deauthorize = mock.method(globalThis, "fetch", async () => new Response(null, { status: 200 }));
   mock.method(console, "error", () => undefined);
   mock.method(console, "warn", () => undefined);
-  return { firestore, storage, users, sql, deleteUser, deauthorize };
+  return { firestore, storage, users, sql, deleteUser, deauthorize, photos };
 }
 
 function seed(firestore: AccountFirestore, storage: AccountStorage) {
@@ -41,6 +42,9 @@ function seed(firestore: AccountFirestore, storage: AccountStorage) {
     firestore.documents.set(`${name}/other`, { [field]: other });
   }
   firestore.documents.set("plans/other", { userId: other, party: [uid, other], name: "Keep this plan" });
+  firestore.documents.set("points/owned", { points: [{ latitude: 47, longitude: -122 }] });
+  firestore.documents.set("points/owned/children/nested", { private: true });
+  firestore.documents.set("points/other", { points: [{ latitude: 48, longitude: -123 }] });
   firestore.documents.set("codes/owned", { userId: uid, reason: "strava" });
   firestore.documents.set("friends/shared", { users: [other, uid] });
   firestore.documents.set("friendRequests/shared", { users: [uid, other], requestedBy: uid, status: "pending" });
@@ -69,6 +73,7 @@ function assertDeleted(firestore: AccountFirestore, storage: AccountStorage) {
   assert.equal(firestore.documents.has("codes/owned"), false);
   assert.deepEqual(firestore.documents.get("codes/other"), { userId: other });
   assert.ok(firestore.documents.has(`users/${other}`));
+  assert.deepEqual(firestore.documents.get("points/other"), { points: [{ latitude: 48, longitude: -123 }] });
   assert.equal(storage.files.size, 4);
   assert.equal([...storage.files].some((path) => path.includes(`/${uid}/`)), false);
 }
@@ -133,6 +138,47 @@ test("a failed recursive deletion leaves its owner discoverable until all descen
   assert.equal(users.has(uid), true);
   assert.equal((await appRequest(app, "DELETE", "/api/account", { "X-Test-User": uid })).status, 200);
   assertDeleted(firestore, storage);
+});
+
+test("legacy GPS deletion fails before its session owner is removed and resumes on retry", async () => {
+  const { firestore, storage, users } = services();
+  seed(firestore, storage);
+  firestore.failDelete = true;
+  assert.equal((await appRequest(app, "DELETE", "/api/account", { "X-Test-User": uid })).status, 500);
+  assert.equal(firestore.documents.get("sessions/owned")?.userId, uid);
+  assert.ok(firestore.documents.has("points/owned"));
+  assert.equal(users.has(uid), true);
+  assert.equal((await appRequest(app, "DELETE", "/api/account", { "X-Test-User": uid })).status, 200);
+  assertDeleted(firestore, storage);
+});
+
+test("legacy photo paths accept only flat report objects in the app's Firebase bucket", () => {
+  const base = "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/";
+  assert.equal(legacyReportPhotoPath(`${base}reports%2Fphoto.jpg?alt=media&token=fixture`), "reports/photo.jpg");
+  for (const url of ["invalid", `${base}profiles%2Fother%2Favatar.jpg`, `${base}reports%2Fnested%2Fphoto.jpg`,
+    `${base.replace("donner-a8608", "other")}reports%2Fphoto.jpg`,
+    `${base.replace("googleapis.com", "example.com")}reports%2Fphoto.jpg`]) {
+    assert.equal(legacyReportPhotoPath(url), undefined);
+  }
+});
+
+test("legacy report photos are deleted before SQL references, retry failures, and keep shared objects", async () => {
+  const { storage, photos, sql, users } = services();
+  const url = (name: string) => `https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/reports%2F${name}?alt=media`;
+  const rows = [
+    { user_id: uid, download_url: url("owned.jpg") },
+    { user_id: uid, download_url: url("shared.jpg") },
+    { user_id: other, download_url: url("shared.jpg") + "&token=another-token" },
+    { user_id: other, download_url: url("other.jpg") },
+  ];
+  photos.mock.mockImplementation(async () => ({ rows, rowCount: rows.length, command: "SELECT", oid: 0, fields: [] }));
+  for (const name of ["owned", "shared", "other"]) storage.files.add(`reports/${name}.jpg`);
+  storage.failDelete = true;
+  assert.equal((await appRequest(app, "DELETE", "/api/account", { "X-Test-User": uid })).status, 500);
+  assert.equal(sql.length, 0, "SQL metadata must survive a failed photo deletion");
+  assert.equal(users.has(uid), true);
+  assert.equal((await appRequest(app, "DELETE", "/api/account", { "X-Test-User": uid })).status, 200);
+  assert.deepEqual([...storage.files].sort(), ["reports/other.jpg", "reports/shared.jpg"]);
 });
 
 test("DELETE keeps going when Strava refuses deauthorization", async () => {

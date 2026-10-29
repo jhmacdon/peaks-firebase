@@ -7,7 +7,6 @@ import {
   glacierFactRows,
   isCombinedHistory,
   type GlacierFacts,
-  type GlacierFaq,
   type GlacierRouteCrossing,
   type GlacierSummary,
 } from "../../lib/glaciers";
@@ -256,25 +255,6 @@ export function GlacierSources({ facts, className = "" }: { facts: GlacierFacts;
         Measurements describe the survey year shown; glaciers change every season. Elevations are converted from meters and
         rounded to the nearest foot.
       </p>
-    </section>
-  );
-}
-
-export function GlacierFaqList({ items, className = "" }: { items: GlacierFaq[]; className?: string }) {
-  if (items.length === 0) return null;
-  return (
-    <section id="glacier-faq" className={`scroll-mt-24 ${className}`.trim()} aria-labelledby="glacier-faq-heading">
-      <SectionHeading>
-        <span id="glacier-faq-heading">Common questions</span>
-      </SectionHeading>
-      <dl className="mt-4 grid gap-x-10 gap-y-6 sm:grid-cols-2">
-        {items.map((item) => (
-          <div key={item.question} className="border-t border-hairline pt-4">
-            <dt className="text-[15px] font-medium leading-snug text-ink">{item.question}</dt>
-            <dd className="mt-1.5 text-sm leading-6 text-ink-2">{item.answer}</dd>
-          </div>
-        ))}
-      </dl>
     </section>
   );
 }

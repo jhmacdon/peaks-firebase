@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { DISCOVER_SEARCH_PARAMETERS } from "./src/lib/catalog-seo";
 
 function parseFirebaseWebAppConfig(rawConfig: string | undefined) {
   if (!rawConfig) {
@@ -48,6 +49,11 @@ const nextConfig: NextConfig = {
   env: publicFirebaseEnv,
   async headers() {
     return [
+      ...DISCOVER_SEARCH_PARAMETERS.map((key) => ({
+        source: "/discover",
+        has: [{ type: "query" as const, key, value: ".+" }],
+        headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
+      })),
       {
         source: "/.well-known/apple-app-site-association",
         headers: [{ key: "Content-Type", value: "application/json" }],

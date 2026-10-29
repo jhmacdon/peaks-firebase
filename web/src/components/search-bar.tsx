@@ -1,7 +1,9 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+
+import { SearchSpinner } from "./search-feedback";
 
 interface SearchBarProps {
   placeholder?: string;
@@ -65,6 +67,8 @@ export default function SearchBar({
   const pathname = usePathname();
   const currentValue = searchParams.get(paramName) || "";
   const [value, setValue] = useState(currentValue);
+  const [pending, startTransition] = useTransition();
+  const searching = pending || value.trim() !== currentValue;
   const routerRef = useRef(router);
   const searchStateRef = useRef({
     pathname,
@@ -93,7 +97,7 @@ export default function SearchBar({
     }
 
     const nextQuery = params.toString();
-    routerRef.current.replace(nextQuery ? `${nextPathname}?${nextQuery}` : nextPathname);
+    startTransition(() => routerRef.current.replace(nextQuery ? `${nextPathname}?${nextQuery}` : nextPathname, { scroll: false }));
   };
 
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function SearchBar({
       const { pathname: nextPathname, paramName: nextParamName, searchParamString } =
         searchStateRef.current;
       const params = new URLSearchParams(searchParamString);
-    params.delete("page");
+      params.delete("page");
       const trimmed = value.trim();
 
       if (trimmed) {
@@ -117,17 +121,18 @@ export default function SearchBar({
       }
 
       const nextQuery = params.toString();
-      routerRef.current.replace(
-        nextQuery ? `${nextPathname}?${nextQuery}` : nextPathname
-      );
+      startTransition(() => routerRef.current.replace(
+        nextQuery ? `${nextPathname}?${nextQuery}` : nextPathname, { scroll: false }
+      ));
     }, 300);
 
     return () => clearTimeout(timer);
   }, [value, currentValue]);
 
   return (
-    <div className="relative">
-      <SearchGlyph />
+    <div className="relative" aria-busy={searching}>
+      {searching ? <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"><SearchSpinner /></span> : <SearchGlyph />}
+      <span role="status" className="sr-only">{searching ? "Updating search results…" : ""}</span>
       <input
         type="text"
         value={value}
