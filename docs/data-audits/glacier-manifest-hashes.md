@@ -69,3 +69,28 @@ No applied package changes:
 | Rainier | `3b7f23b88afd37b1c4d2e67fac6e67bb1591aa28a79b1ed67209637e3606fbcd` (unchanged) |
 | Mount Baker | `ecca694dbab15a7614ad06a83c963e8827a8d65fd9d9eeaba0f3be410c20c833` (unchanged) |
 | Glacier Peak | `9e183267f40c53f458a63c3a4be1ddf4dce23c0b1d34a02e639967a6b97ade02` (unchanged) |
+
+## Cross-package outline check (2026-10-29)
+
+`glacier-cross-package.test.ts` loads every `import-*-glaciers` package in the
+repo, applied or not. It fails when two packages share an OSM feature, or when
+a glacier overlaps another package's glacier by more than 1% of the smaller
+outline or 0.01 km² (the neighbour-check thresholds). A future region PR that
+overlaps an existing package fails CI.
+
+Run over all twelve packages together (Rainier, Baker, Glacier Peak and the
+nine region packages, merged into one tree for the check), it found no OSM
+feature in two packages and no cross-package overlap at all. Nothing needed
+resolving. The closest cross-package pairs:
+
+| Pair | Packages | Gap |
+| --- | --- | --- |
+| Colonial / Neve | North Cascades north / south | 16 m |
+| Honeycomb / Tenpeak | Glacier Peak / GPW west | 723 m |
+| Honeycomb / Moth | Glacier Peak / GPW west | 1,616 m |
+
+The same change requires a per-glacier `facts_source_url` to be an http(s)
+URL. A mountain total that mixes area sources now has `source_url: null`
+and a `sources` list giving each credit, URL and the glaciers it supplies.
+No package has such a total today (South Cascade Glacier, the one USGS area,
+is the only glacier on its mountain), so no hash changes.
