@@ -1,0 +1,1276 @@
+{
+  "way:30764271": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00745 FR4N01235A08 dArgentiere (2003-08-13, 14.256809 km²); overlaps Glacier des Rognons, Glacier des Améthystes, Glacier des Rouges du Dolent, Glacier de la Verte, Glacier du Tour Noir, Glacier d'Argentière"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:30764329": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00746 FR4N01236A02 des Grands Montets (2003-08-13, 0.239521 km²); overlaps Glacier des Grands Montets, Glacier de la Pendant"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:30764447": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00733 FR4N01235A06 du Chardonnet (2003-08-13, 1.023888 km²); overlaps Glacier du Chardonnet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:30764477": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00735 FR4N01235A05 du Trident (2003-08-13, 0.029071 km²); overlaps Glacier du Trident"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:30764480": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00745 FR4N01235A08 dArgentiere (2003-08-13, 14.256809 km²); overlaps Glacier des Rognons, Glacier des Améthystes, Glacier des Rouges du Dolent, Glacier de la Verte, Glacier du Tour Noir, Glacier d'Argentière"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:30764488": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00745 FR4N01235A08 dArgentiere (2003-08-13, 14.256809 km²); overlaps Glacier des Rognons, Glacier des Améthystes, Glacier des Rouges du Dolent, Glacier de la Verte, Glacier du Tour Noir, Glacier d'Argentière"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:30764493": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00732 Saleina (2003-08-13, 7.078119 km²); overlaps Glacier de Saleinaz"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:30764508": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00744 ORNY GLACIER D' (2003-08-13, 1.296094 km²); overlaps Glacier d'Orny, Plateau du Trient"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:30764602": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00743 TRIENT GLACIER DU (2003-08-13, 5.994952 km²); overlaps Glacier du Trient, Plateau du Trient"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:31002693": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00778 FR4N01239A02 de Bionnassay (2003-08-13, 4.686544 km²); overlaps Glacier de Bionnassay"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:31002694": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00774 FR4N01237E01 Taconnaz (2003-08-13, 4.942895 km²); overlaps Glacier de Taconnaz, Glacier des Bossons"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32668359": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00716 Prè de Bar (2003-08-13, 3.20564 km²); overlaps Ghiacciaio di Pré de Bar"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32668385": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00674 Lex Blanche (2003-08-13, 3.466885 km²); overlaps Ghiacciaio della Lex Blanche, Ghiacciaio del Petit Mont Blanc"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32668406": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00693 Freney (2003-08-13, 1.053144 km²); overlaps Ghiacciaio del Freney"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32668421": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00691 Brouillard (2003-08-13, 1.250262 km²); overlaps Ghiacciaio del Brouillard"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32673833": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00715 Triolet (2003-08-13, 3.69108 km²); overlaps Ghiacciaio di Triolet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32673844": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00718 DOLENT GLACIER DU (2003-08-13, 1.460184 km²); overlaps Glacier du Dolent"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32673847": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00751 FR4N01236A05 de la Charpoua (2003-08-13, 0.404788 km²); overlaps Glacier de la Charpoua"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32673882": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00706 Frèbouzie (2003-08-13, 2.248523 km²); overlaps Ghiacciaio di Fréboudze"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32673896": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00688 Miage (2003-08-13, 10.167394 km²); overlaps Glacier du Dôme - Ghiacciaio del Dôme, Glacier de Bionnassay - Ghiacciaio di Bionassay, Ghiacciaio del Monte Bianco, Ghiacciaio del Miage"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32673906": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00687  (2003-08-13, 0.193162 km²); overlaps Glacier de Bionnassay - Ghiacciaio di Bionassay; RGI2000-v7.0-G-11-00688 Miage (2003-08-13, 10.167394 km²); overlaps Glacier du Dôme - Ghiacciaio del Dôme, Glacier de Bionnassay - Ghiacciaio di Bionassay, Ghiacciaio del Monte Bianco, Ghiacciaio del Miage"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32673957": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00664 FR4N01144A18 des Glaciers (2003-08-13, 1.445159 km²); overlaps Glacier des Glaciers"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32673960": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00673 Estellette (2003-08-13, 0.518449 km²); overlaps Ghiacciaio d'Estellette"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32674163": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00757 FR4N01236A01 Mer de Glace/Geant (2003-08-13, 30.664491 km²); overlaps Glacier de Leschaux, Glacier du Tacul, Mer de Glace, La Vallée Blanche, Glacier du Géant, Glacier d'Envers du Plan, Glacier des Périades, Glacier du Mont Mallet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32699610": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00783 FR4N01239B03 du Miage 4 (2003-08-13, 1.15155 km²); overlaps Glacier de Miage"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32789117": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00768 FR4N01237C01 des Pelerins (2003-08-13, 0.903726 km²); overlaps Glacier des Pèlerins; RGI2000-v7.0-G-11-00769 FR4N01237C02 Arete Midi Plan (2003-08-13, 0.420576 km²); overlaps Glacier des Pèlerins; RGI2000-v7.0-G-11-00770 FR4N01237C03 du Telepherique (2003-08-13, 0.205555 km²); overlaps Glacier des Pèlerins"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32789571": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00760 FR4N01237B01 du Fou (2003-08-13, 0.028855 km²); overlaps Glacier de Blaitière; RGI2000-v7.0-G-11-00761 FR4N01237B02 du Plan (2003-08-13, 0.059242 km²); overlaps Glacier de Blaitière; RGI2000-v7.0-G-11-00762 FR4N01237B03 de Blaitiere (2003-08-13, 0.518687 km²); overlaps Glacier de Blaitière"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32848659": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00749 FR4N01236A03 du Nant Blanc (2003-08-13, 0.719472 km²); overlaps Glacier du Nant Blanc"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:32950402": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00757 FR4N01236A01 Mer de Glace/Geant (2003-08-13, 30.664491 km²); overlaps Glacier de Leschaux, Glacier du Tacul, Mer de Glace, La Vallée Blanche, Glacier du Géant, Glacier d'Envers du Plan, Glacier des Périades, Glacier du Mont Mallet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:45561171": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00745 FR4N01235A08 dArgentiere (2003-08-13, 14.256809 km²); overlaps Glacier des Rognons, Glacier des Améthystes, Glacier des Rouges du Dolent, Glacier de la Verte, Glacier du Tour Noir, Glacier d'Argentière"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:72128516": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00777 FR4N01239A01 de Tete Rousse (2003-08-13, 0.081163 km²); overlaps Glacier de Tête Rousse"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:108153677": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00767 FR4N01236A14 Trelaporte (2003-08-13, 0.198354 km²); overlaps Glacier de Trélaporte"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:108153678": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00766 FR4N01236A16 de la Thendia (2003-08-13, 0.101179 km²); overlaps Glacier de la Thendia"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:108153682": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00771 FR4N01237D01 Rond (2003-08-13, 0.134162 km²); overlaps Glacier Rond"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:108156167": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00754 FR4N01236A11 du Capucin (2003-08-13, 0.177794 km²); overlaps Glacier du Capucin"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:108156168": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00713 FR4N01236A09 Pierre Joseph (2003-08-13, 0.378071 km²); overlaps Glacier de Pierre Joseph"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:267756169": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00720 A NEUVE GLACIER DE L'-S (2003-08-13, 2.213384 km²); overlaps Glacier de l'A Neuve; RGI2000-v7.0-G-11-00721 A NEUVE GLACIER DE L'-N (2003-08-13, 1.043548 km²); overlaps Glacier de l'A Neuve; RGI2000-v7.0-G-11-00722 Grande Lui (2003-08-13, 0.410876 km²); overlaps Glacier de l'A Neuve"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:176390679": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00692 Châtelet (2003-08-13, 0.039605 km²); overlaps Ghiacciaio du Chatelet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:188343637": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00757 FR4N01236A01 Mer de Glace/Geant (2003-08-13, 30.664491 km²); overlaps Glacier de Leschaux, Glacier du Tacul, Mer de Glace, La Vallée Blanche, Glacier du Géant, Glacier d'Envers du Plan, Glacier des Périades, Glacier du Mont Mallet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:193208266": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00776 FR4N01238B01 de la Griaz (2003-08-13, 0.46656 km²); overlaps Glacier de la Griaz"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:200660239": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00747 FR4N01235A10 de la Pendant (2003-08-13, 0.424546 km²); overlaps Glacier de Lognan, Glacier de la Pendant; RGI2000-v7.0-G-11-00748 FR4N01235A09 de Lognan (2003-08-13, 0.249221 km²); overlaps Glacier de Lognan"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:200660240": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00746 FR4N01236A02 des Grands Montets (2003-08-13, 0.239521 km²); overlaps Glacier des Grands Montets, Glacier de la Pendant; RGI2000-v7.0-G-11-00747 FR4N01235A10 de la Pendant (2003-08-13, 0.424546 km²); overlaps Glacier de Lognan, Glacier de la Pendant"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:210128316": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00734 FR4N01235A07 du Milieu (2003-08-13, 0.385996 km²); overlaps Glacier du Milieu"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:210128317": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00745 FR4N01235A08 dArgentiere (2003-08-13, 14.256809 km²); overlaps Glacier des Rognons, Glacier des Améthystes, Glacier des Rouges du Dolent, Glacier de la Verte, Glacier du Tour Noir, Glacier d'Argentière"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:234540325": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-01369 Piccolo Monte Bianco /  Petit Mont Blanc (2003-08-13, 0.11152 km²); overlaps Ghiacciaio Orientale del Petit Mont Blanc"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:244065146": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00680 FR4N01239C01 d'Armancette (2003-08-13, 0.602512 km²); overlaps Glacier d'Armancette; RGI2000-v7.0-G-11-00681 FR4N01239B06 de Covagnet (2003-08-13, 0.711844 km²); overlaps Glacier d'Armancette, Glacier de Covagnet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:244065147": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00681 FR4N01239B06 de Covagnet (2003-08-13, 0.711844 km²); overlaps Glacier d'Armancette, Glacier de Covagnet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:244065148": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00679 FR4N01239D03 de la Berangere (2003-08-13, 0.148741 km²); overlaps Glacier de la Bérangère"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:247923312": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00708 Gruetta Est (2003-08-13, 0.19174 km²); overlaps Ghiacciaio del Gruetta"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:247923316": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00703 Planpincieux (2003-08-13, 1.679728 km²); overlaps Glacier de Planpincieux, Glacier des Grandes Jorasses"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:247923326": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00704 Prà Sec (2003-08-13, 0.126925 km²); overlaps Glacier de Pra Sec"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:247923330": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00705 Tronchey (2003-08-13, 0.090018 km²); overlaps Glacier de Tronchey"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:247923334": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00703 Planpincieux (2003-08-13, 1.679728 km²); overlaps Glacier de Planpincieux, Glacier des Grandes Jorasses"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:247923341": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00709 Punta Bosio (2003-08-13, 0.023403 km²); overlaps Glacier du petit Mont Gruettaz"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:247923343": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00707 Gruetta Ovest (2003-08-13, 0.297971 km²); overlaps Ghiacciaio occidental du Mont Gruettaz"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:247923349": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00701 Rochefort (2003-08-13, 0.640911 km²); overlaps Glacier de Rochefort"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:294947803": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00675  (2003-08-13, 0.179149 km²); overlaps Glacier de l'Aiguille de Tré-la-Tête Orientale"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:301715191": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00686 Col de Miage (2003-08-13, 0.126005 km²); overlaps Glacier du Col du Miage"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:301985965": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00752 FR4N01236A06 du Moine (2003-08-13, 0.038094 km²); overlaps Glacier du Moine"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:327069846": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00698 Toula (2003-08-13, 0.691326 km²); overlaps Ghiacciaio di Toula"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:363120274": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00683 FR4N01239B04 du Miage 2 (2003-08-13, 0.220617 km²); overlaps Glacier du Col des Dômes"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:394890290": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00697 Entrèves (2003-08-13, 0.207037 km²); overlaps Ghiacciaio di Entreves"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:777833954": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00694  (2003-08-13, 0.011709 km²); overlaps Glacier Oriental de l'Aiguille Blanche"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:777833955": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00695 Brenva (2003-08-13, 6.877534 km²); overlaps Glacier Septentrional des Aiguilles Blanches, Glacier du Gendarme Rouge, Ghiacciaio della Brenva"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:777833956": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00695 Brenva (2003-08-13, 6.877534 km²); overlaps Glacier Septentrional des Aiguilles Blanches, Glacier du Gendarme Rouge, Ghiacciaio della Brenva"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:777857679": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "No row with >10% overlap of this place or of the inventory row."
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:106154": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00757 FR4N01236A01 Mer de Glace/Geant (2003-08-13, 30.664491 km²); overlaps Glacier de Leschaux, Glacier du Tacul, Mer de Glace, La Vallée Blanche, Glacier du Géant, Glacier d'Envers du Plan, Glacier des Périades, Glacier du Mont Mallet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:106155": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00757 FR4N01236A01 Mer de Glace/Geant (2003-08-13, 30.664491 km²); overlaps Glacier de Leschaux, Glacier du Tacul, Mer de Glace, La Vallée Blanche, Glacier du Géant, Glacier d'Envers du Plan, Glacier des Périades, Glacier du Mont Mallet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:106239": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00773 FR4N01237D03 Bossons (2003-08-13, 10.913021 km²); overlaps Glacier des Bossons; RGI2000-v7.0-G-11-00774 FR4N01237E01 Taconnaz (2003-08-13, 4.942895 km²); overlaps Glacier de Taconnaz, Glacier des Bossons; RGI2000-v7.0-G-11-00786  (2003-08-13, 0.65814 km²); overlaps Glacier des Bossons; RGI2000-v7.0-G-11-00789  (2003-08-13, 0.030543 km²); overlaps Glacier des Bossons"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:106731": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00738 FR4N01234A01 du Tour (2003-08-13, 8.123657 km²); overlaps Glacier du Tour"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:108757": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00688 Miage (2003-08-13, 10.167394 km²); overlaps Glacier du Dôme - Ghiacciaio del Dôme, Glacier de Bionnassay - Ghiacciaio di Bionassay, Ghiacciaio del Monte Bianco, Ghiacciaio del Miage"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:2589255": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00688 Miage (2003-08-13, 10.167394 km²); overlaps Glacier du Dôme - Ghiacciaio del Dôme, Glacier de Bionnassay - Ghiacciaio di Bionassay, Ghiacciaio del Monte Bianco, Ghiacciaio del Miage"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:2590255": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00745 FR4N01235A08 dArgentiere (2003-08-13, 14.256809 km²); overlaps Glacier des Rognons, Glacier des Améthystes, Glacier des Rouges du Dolent, Glacier de la Verte, Glacier du Tour Noir, Glacier d'Argentière"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:2602489": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00757 FR4N01236A01 Mer de Glace/Geant (2003-08-13, 30.664491 km²); overlaps Glacier de Leschaux, Glacier du Tacul, Mer de Glace, La Vallée Blanche, Glacier du Géant, Glacier d'Envers du Plan, Glacier des Périades, Glacier du Mont Mallet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:3011613": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00739 GRANDS GLACIER DES (2003-08-13, 1.018729 km²); overlaps Glacier des Grands; RGI2000-v7.0-G-11-00741 Petoudes (2003-08-13, 0.727052 km²); overlaps Glacier des Grands"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:3280098": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00775 FR4N01238A01 du Bourgeat (2003-08-13, 0.264823 km²); overlaps Glacier du Bourgeat"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:3299816": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00677  (2003-08-13, 0.037815 km²); overlaps Glacier de Tré-la-Tête; RGI2000-v7.0-G-11-00678 FR4N01239D01 de Tre la Tete (2003-08-13, 8.363138 km²); overlaps Glacier de Tré-la-Tête; RGI2000-v7.0-G-11-00685 Dòmes de Miage (2003-08-13, 0.060713 km²); overlaps Glacier de Tré-la-Tête"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:5395034": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00674 Lex Blanche (2003-08-13, 3.466885 km²); overlaps Ghiacciaio della Lex Blanche, Ghiacciaio del Petit Mont Blanc; RGI2000-v7.0-G-11-00676 Trelatête Est (2003-08-13, 0.315296 km²); overlaps Ghiacciaio del Petit Mont Blanc"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:5397135": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00695 Brenva (2003-08-13, 6.877534 km²); overlaps Glacier Septentrional des Aiguilles Blanches, Glacier du Gendarme Rouge, Ghiacciaio della Brenva"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:14797906": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00740 BERONS GLACIER DES (2003-08-13, 0.302607 km²); overlaps Glacier des Berons"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:14911730": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00759  (2003-08-13, 0.761532 km²); overlaps Glacier d'Envers de Blaitière"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:14935779": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00763 FR4N01237A01 des Nantillons (2003-08-13, 0.573908 km²); overlaps Glacier des Nantillons"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:14935795": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00757 FR4N01236A01 Mer de Glace/Geant (2003-08-13, 30.664491 km²); overlaps Glacier de Leschaux, Glacier du Tacul, Mer de Glace, La Vallée Blanche, Glacier du Géant, Glacier d'Envers du Plan, Glacier des Périades, Glacier du Mont Mallet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:14973797": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00743 TRIENT GLACIER DU (2003-08-13, 5.994952 km²); overlaps Glacier du Trient, Plateau du Trient; RGI2000-v7.0-G-11-00744 ORNY GLACIER D' (2003-08-13, 1.296094 km²); overlaps Glacier d'Orny, Plateau du Trient"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:16854812": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00757 FR4N01236A01 Mer de Glace/Geant (2003-08-13, 30.664491 km²); overlaps Glacier de Leschaux, Glacier du Tacul, Mer de Glace, La Vallée Blanche, Glacier du Géant, Glacier d'Envers du Plan, Glacier des Périades, Glacier du Mont Mallet"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:19218925": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00753 FR4N01236A07 de Talefre (2003-08-13, 7.687137 km²); overlaps Glacier de Talèfre"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:363120277": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00684 FR4N01239B04 du Miage 3 (2003-08-13, 0.622232 km²); overlaps Unnamed glacier (way 363120277)"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:1394999701": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00723 PLANEREUSES GLACIER DES (2003-08-13, 0.574591 km²); overlaps Unnamed glacier (way 1394999701), Unnamed glacier (way 1394999702)"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:1394999702": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00723 PLANEREUSES GLACIER DES (2003-08-13, 0.574591 km²); overlaps Unnamed glacier (way 1394999701), Unnamed glacier (way 1394999702)"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "way:1394999703": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00724 TREUTSE BO GLACIER DE (2003-08-13, 0.435679 km²); overlaps Unnamed glacier (way 1394999703)"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ],
+  "relation:1649757": [
+    {
+      "source": "RGI 7.0, Central Europe; cached rgi7-wfs-mont-blanc.json / derived/rgi-branch-search.json",
+      "result": "RGI2000-v7.0-G-11-00784  (2003-08-13, 0.145765 km²); overlaps Unnamed glacier (relation 1649757)"
+    },
+    {
+      "source": "WGMS FoG 2026-02-10, glacier and state tables",
+      "result": "Whole-system length records: Mer de Glace 353, Miage 613, Trient 457. Leschaux 1226 is a different 0.11 km² glacier at 45.8801, 7.0108. No branch length apportioned."
+    },
+    {
+      "source": "SGI2023 r2026, acquired 2023, CC BY 4.0",
+      "result": "All Swiss row-to-place edges are recorded in inventory-crosswalk.json; Trient B90-02 and Orny B85-23 jointly overlap three places. No branch figure derived from a share of a combined row."
+    }
+  ]
+}

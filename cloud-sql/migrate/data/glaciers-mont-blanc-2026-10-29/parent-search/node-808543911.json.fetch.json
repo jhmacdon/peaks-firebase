@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Grand+Pilier+d%27Angle&lat=45.8278518&lng=6.8797936&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:42:37.272145+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Grand+Pilier+d%27Angle&lat=45.8278518&lng=6.8797936&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=111, reset=38",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c66-BxoLMQjTt4FNxF2FeSp4KUwsdg4\"",
+    "x-cloud-trace-context": "4ab38f4046957cce9ef1555c8b88aea7",
+    "date": "Thu, 29 Oct 2026 18:42:38 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3174",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "5d8bcf320f97cf641ca6b43baa22579f015239bdfaa48b05d1ac66877c859bbc",
+  "bytes": 3174
+}

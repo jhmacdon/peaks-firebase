@@ -1,0 +1,160 @@
+[
+  {
+    "label": "Mer de Glace",
+    "inventory_id": 3143,
+    "area_km2": 28.8028,
+    "date": "2015-08-29",
+    "total_osm_km2": 27.656371519,
+    "ratio": 0.960197325,
+    "union_km2": 27.656371519,
+    "covered_share": 0.916706174,
+    "unnamed_overlaps": [
+      {
+        "osm_key": "way:45561184",
+        "intersection_km2": 0.029500577,
+        "iou": 0.001023658,
+        "osm_share": 0.725141651,
+        "candidate_share": 0.001024055
+      }
+    ],
+    "members": [
+      {
+        "osm_key": "way:32674163",
+        "name": "Glacier de Leschaux",
+        "area_km2": 3.261010307
+      },
+      {
+        "osm_key": "way:32950402",
+        "name": "Glacier du Tacul",
+        "area_km2": 2.474295756
+      },
+      {
+        "osm_key": "way:188343637",
+        "name": "Mer de Glace",
+        "area_km2": 1.868076869
+      },
+      {
+        "osm_key": "relation:106154",
+        "name": "La Vallée Blanche",
+        "area_km2": 3.961397217
+      },
+      {
+        "osm_key": "relation:106155",
+        "name": "Glacier du Géant",
+        "area_km2": 10.682287122
+      },
+      {
+        "osm_key": "relation:2602489",
+        "name": "Glacier d'Envers du Plan",
+        "area_km2": 0.696371246
+      },
+      {
+        "osm_key": "relation:14935795",
+        "name": "Glacier des Périades",
+        "area_km2": 1.869641848
+      },
+      {
+        "osm_key": "relation:16854812",
+        "name": "Glacier du Mont Mallet",
+        "area_km2": 2.843291154
+      }
+    ]
+  },
+  {
+    "label": "Miage",
+    "inventory_id": 697,
+    "area_km2": 10.0851,
+    "date": "2015-08-29",
+    "total_osm_km2": 9.656304849,
+    "ratio": 0.95748231,
+    "union_km2": 9.656304848,
+    "covered_share": 0.874477466,
+    "unnamed_overlaps": [
+      {
+        "osm_key": "relation:1649757",
+        "intersection_km2": 0.136327638,
+        "iou": 0.013500507,
+        "osm_share": 0.92062607,
+        "candidate_share": 0.013516239
+      }
+    ],
+    "members": [
+      {
+        "osm_key": "way:32673896",
+        "name": "Glacier du Dôme - Ghiacciaio del Dôme",
+        "area_km2": 2.020670024
+      },
+      {
+        "osm_key": "way:32673906",
+        "name": "Glacier de Bionnassay - Ghiacciaio di Bionassay",
+        "area_km2": 1.01274679
+      },
+      {
+        "osm_key": "relation:108757",
+        "name": "Ghiacciaio del Monte Bianco",
+        "area_km2": 1.764691729
+      },
+      {
+        "osm_key": "relation:2589255",
+        "name": "Ghiacciaio del Miage",
+        "area_km2": 4.858196306
+      }
+    ]
+  },
+  {
+    "label": "Trient",
+    "inventory_id": 2900,
+    "area_km2": 5.60832,
+    "date": "2015-08-29",
+    "total_osm_km2": 5.813165924,
+    "ratio": 1.036525363,
+    "union_km2": 5.813165923,
+    "covered_share": 0.954551284,
+    "unnamed_overlaps": [],
+    "members": [
+      {
+        "osm_key": "way:30764602",
+        "name": "Glacier du Trient",
+        "area_km2": 0.510175379
+      },
+      {
+        "osm_key": "relation:14973797",
+        "name": "Plateau du Trient",
+        "area_km2": 5.302990545
+      }
+    ]
+  },
+  {
+    "label": "Argentière",
+    "inventory_id": 3192,
+    "area_km2": 11.2352,
+    "date": "2015-08-29",
+    "total_osm_km2": 10.354553349,
+    "ratio": 0.921617181,
+    "union_km2": 10.354553349,
+    "covered_share": 0.885178076,
+    "unnamed_overlaps": [],
+    "members": [
+      {
+        "osm_key": "way:30764271",
+        "name": "Glacier des Rognons",
+        "area_km2": 1.765361049
+      },
+      {
+        "osm_key": "way:30764480",
+        "name": "Glacier des Améthystes",
+        "area_km2": 1.199144497
+      },
+      {
+        "osm_key": "way:45561171",
+        "name": "Glacier de la Verte",
+        "area_km2": 0.053136283
+      },
+      {
+        "osm_key": "relation:2590255",
+        "name": "Glacier d'Argentière",
+        "area_km2": 7.33691152
+      }
+    ]
+  }
+]

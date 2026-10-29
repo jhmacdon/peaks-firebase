@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Tal%C3%A8fre&lat=45.899499&lng=7.0037821&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:15.245994+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Tal%C3%A8fre&lat=45.899499&lng=7.0037821&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=118, reset=59",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c61-9Ze6Hc7hL+qLItnI0kLVLkjPLwM\"",
+    "x-cloud-trace-context": "6feba723d304d37adf6c3be4bae0a22c",
+    "date": "Thu, 29 Oct 2026 18:41:15 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3169",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "c07252b38297c60a5d270b228ba48c6582c30bd0ab822005878f70433f6459a5",
+  "bytes": 3169
+}

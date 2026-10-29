@@ -1,0 +1,416 @@
+[
+  {
+    "osm_key": "node:10870208659",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:11536828038",
+    "wikidata": "Q22540992",
+    "coordinate_distance_m": 6.1,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:11537086260",
+    "wikidata": "Q25202890",
+    "coordinate_distance_m": 8.2,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:11537833258",
+    "wikidata": "Q22435167",
+    "coordinate_distance_m": 25.5,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:11538075850",
+    "wikidata": "Q22519922",
+    "coordinate_distance_m": 5.9,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:1241260305",
+    "wikidata": "Q2827884",
+    "coordinate_distance_m": 15.9,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:1241260441",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:12892609514",
+    "wikidata": "Q665130",
+    "coordinate_distance_m": 2.4,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:13013728246",
+    "wikidata": "Q117006822",
+    "coordinate_distance_m": 34.3,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:13013811813",
+    "wikidata": "Q24932990",
+    "coordinate_distance_m": 35.1,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:13467926092",
+    "wikidata": "Q136378786",
+    "coordinate_distance_m": 6.9,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:13467931023",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:1438494348",
+    "wikidata": "Q2334655",
+    "coordinate_distance_m": 45.0,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:167075493",
+    "wikidata": "Q404728",
+    "coordinate_distance_m": 29.7,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:2151026961",
+    "wikidata": "Q16569708",
+    "coordinate_distance_m": 1.5,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:2401280720",
+    "wikidata": "Q404686",
+    "coordinate_distance_m": 9.0,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:2409782067",
+    "wikidata": "Q3382301",
+    "coordinate_distance_m": 28.0,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:2417756510",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:2427826282",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:26862462",
+    "wikidata": "Q30466",
+    "coordinate_distance_m": 14.7,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:26862463",
+    "wikidata": "Q731683",
+    "coordinate_distance_m": 78.0,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:26863024",
+    "wikidata": "Q2403858",
+    "coordinate_distance_m": 108.6,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:281399025",
+    "wikidata": "Q583",
+    "coordinate_distance_m": 15.5,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:290497885",
+    "wikidata": "Q404720",
+    "coordinate_distance_m": 18.8,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:290497892",
+    "wikidata": "Q404697",
+    "coordinate_distance_m": 76.2,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:290497894",
+    "wikidata": "Q404738",
+    "coordinate_distance_m": 9.5,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:290497905",
+    "wikidata": "Q3646946",
+    "coordinate_distance_m": 11.5,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:307195492",
+    "wikidata": "Q3925668",
+    "coordinate_distance_m": 79.2,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:307195544",
+    "wikidata": "Q1151985",
+    "coordinate_distance_m": 2.1,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:307195579",
+    "wikidata": "Q1578316",
+    "coordinate_distance_m": 26.2,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:307676211",
+    "wikidata": "Q1705506",
+    "coordinate_distance_m": 4.7,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:340235998",
+    "wikidata": "Q404672",
+    "coordinate_distance_m": 44.4,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:344715578",
+    "wikidata": "Q2569448",
+    "coordinate_distance_m": 3.8,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:344715579",
+    "wikidata": "Q404669",
+    "coordinate_distance_m": 1096.4,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:344715662",
+    "wikidata": "Q3607103",
+    "coordinate_distance_m": 49.0,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:3559071817",
+    "wikidata": "Q30434",
+    "coordinate_distance_m": 102.2,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:3613468597",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:366260714",
+    "wikidata": "Q30493",
+    "coordinate_distance_m": 53.8,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:3668636373",
+    "wikidata": "Q118256206",
+    "coordinate_distance_m": 11.2,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:3668810726",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:367510882",
+    "wikidata": "Q31616758",
+    "coordinate_distance_m": 42.2,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:367945270",
+    "wikidata": "Q3861038",
+    "coordinate_distance_m": 66.5,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:367945278",
+    "wikidata": "Q2827894",
+    "coordinate_distance_m": 5.2,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:367945311",
+    "wikidata": "Q30472",
+    "coordinate_distance_m": 140.4,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:367945330",
+    "wikidata": "Q646311",
+    "coordinate_distance_m": 62.9,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:367945338",
+    "wikidata": "Q3607098",
+    "coordinate_distance_m": 71.3,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:369467782",
+    "wikidata": "Q117773814",
+    "coordinate_distance_m": 14.7,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:3848979146",
+    "wikidata": "Q3437614",
+    "coordinate_distance_m": 37.8,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:3977814005",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:4095457700",
+    "wikidata": "Q136838",
+    "coordinate_distance_m": 22.9,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:4357285689",
+    "wikidata": "Q3377325",
+    "coordinate_distance_m": 583.5,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:503688535",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:5818422347",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:7164832069",
+    "wikidata": "Q3607095",
+    "coordinate_distance_m": 222.1,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:7164832145",
+    "wikidata": "Q30541",
+    "coordinate_distance_m": 18.7,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:7251779831",
+    "wikidata": "Q136375919",
+    "coordinate_distance_m": 234.1,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:7256451496",
+    "wikidata": "Q30472",
+    "coordinate_distance_m": 184.5,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:7274424291",
+    "wikidata": "Q132246952",
+    "coordinate_distance_m": 4.1,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:7274427714",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:7274586194",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:7973584578",
+    "wikidata": "Q132234010",
+    "coordinate_distance_m": 0.0,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:808543830",
+    "wikidata": "Q124831309",
+    "coordinate_distance_m": 0.0,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:808543911",
+    "wikidata": "Q30441",
+    "coordinate_distance_m": 39.8,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:8394948806",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:8398131979",
+    "wikidata": "Q664824",
+    "coordinate_distance_m": 5.3,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:857445639",
+    "wikidata": "Q646311",
+    "coordinate_distance_m": 254.9,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:857445641",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:857445645",
+    "wikidata": null,
+    "coordinate_distance_m": null,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  },
+  {
+    "osm_key": "node:857445692",
+    "wikidata": "Q86660878",
+    "coordinate_distance_m": 21.6,
+    "source": "Wikidata CC0, cached wbgetentities P625"
+  }
+]

@@ -1,0 +1,3170 @@
+[
+  {
+    "osm_key": "way:30764271",
+    "name": "Glacier des Rognons",
+    "route_intersections": [
+      {
+        "osm_key": "way:311743621",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2350.6,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 5742.9,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:30764329",
+    "name": "Glacier des Grands Montets",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2281.1,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 5582.5,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:30764447",
+    "name": "Glacier du Chardonnet",
+    "route_intersections": [
+      {
+        "osm_key": "way:314238235",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 4476.9,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      },
+      {
+        "distance_m": 4592.6,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:30764477",
+    "name": "Glacier du Trident",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 5141.9,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 5329.4,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:30764480",
+    "name": "Glacier des Améthystes",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3573.4,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 4627.8,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:30764488",
+    "name": "Glacier des Rouges du Dolent",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4640.8,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 4831.6,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:30764493",
+    "name": "Glacier de Saleinaz",
+    "route_intersections": [
+      {
+        "osm_key": "way:311743623",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314229929",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314238235",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314238236",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314821108",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314822013",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314822117",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314822898",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314822899",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 300.1,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 2081.0,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:30764508",
+    "name": "Glacier d'Orny",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 145.8,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      },
+      {
+        "distance_m": 359.0,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:30764602",
+    "name": "Glacier du Trient",
+    "route_intersections": [
+      {
+        "osm_key": "way:314230479",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 1049.9,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      },
+      {
+        "distance_m": 2370.5,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:31002693",
+    "name": "Glacier de Bionnassay",
+    "route_intersections": [
+      {
+        "osm_key": "way:72128599",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:72128660",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2813.7,
+        "osm_key": "node:5856933885",
+        "name": "Refuge du Fioux"
+      },
+      {
+        "distance_m": 3357.0,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:31002694",
+    "name": "Glacier de Taconnaz",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 5040.8,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      },
+      {
+        "distance_m": 5954.2,
+        "osm_key": "node:5856933885",
+        "name": "Refuge du Fioux"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32668359",
+    "name": "Ghiacciaio di Pré de Bar",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1071.9,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      },
+      {
+        "distance_m": 1691.2,
+        "osm_key": "node:353083724",
+        "name": "Rifugio Elena"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32668385",
+    "name": "Ghiacciaio della Lex Blanche",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4889.7,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 5398.5,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32668406",
+    "name": "Ghiacciaio del Freney",
+    "route_intersections": [
+      {
+        "osm_key": "way:382746707",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2767.7,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 3427.8,
+        "osm_key": "node:850806762",
+        "name": "Rifugio Le Randonneur"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32668421",
+    "name": "Ghiacciaio del Brouillard",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3936.2,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 4486.2,
+        "osm_key": "node:850806762",
+        "name": "Rifugio Le Randonneur"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32673833",
+    "name": "Ghiacciaio di Triolet",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 684.3,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      },
+      {
+        "distance_m": 2858.2,
+        "osm_key": "node:353083724",
+        "name": "Rifugio Elena"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32673844",
+    "name": "Glacier du Dolent",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2765.7,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      },
+      {
+        "distance_m": 3263.6,
+        "osm_key": "node:353083724",
+        "name": "Rifugio Elena"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32673847",
+    "name": "Glacier de la Charpoua",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 157.3,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 6187.2,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32673882",
+    "name": "Ghiacciaio di Fréboudze",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2189.3,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 2494.7,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32673896",
+    "name": "Glacier du Dôme - Ghiacciaio del Dôme",
+    "route_intersections": [
+      {
+        "osm_key": "way:313298572",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 6108.4,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      },
+      {
+        "distance_m": 6708.8,
+        "osm_key": "node:5856933885",
+        "name": "Refuge du Fioux"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32673906",
+    "name": "Glacier de Bionnassay - Ghiacciaio di Bionassay",
+    "route_intersections": [
+      {
+        "osm_key": "way:72128599",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 5332.8,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      },
+      {
+        "distance_m": 6195.3,
+        "osm_key": "node:5856933885",
+        "name": "Refuge du Fioux"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32673957",
+    "name": "Glacier des Glaciers",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2997.0,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 4669.5,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32673960",
+    "name": "Ghiacciaio d'Estellette",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4291.5,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 5864.7,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32674163",
+    "name": "Glacier de Leschaux",
+    "route_intersections": [
+      {
+        "osm_key": "way:73028038",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:301981746",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2020.1,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 2505.9,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32699610",
+    "name": "Glacier de Miage",
+    "route_intersections": [
+      {
+        "osm_key": "way:363137871",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2882.5,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      },
+      {
+        "distance_m": 4940.0,
+        "osm_key": "node:30941606",
+        "name": "Chalet du CAF Contamines"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32789117",
+    "name": "Glacier des Pèlerins",
+    "route_intersections": [
+      {
+        "osm_key": "way:117544137",
+        "name": "Accès aux Grand Mulets",
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:278378254",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:1365542198",
+        "name": "Arête Équipée de l'Aiguille du Midi",
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": "downhill"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 5097.2,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      },
+      {
+        "distance_m": 5439.1,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32789571",
+    "name": "Glacier de Blaitière",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4520.7,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 5478.5,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32818852",
+    "name": "Glacier Blanc",
+    "route_intersections": [
+      {
+        "osm_key": "way:1376499307",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:1376499308",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2692.9,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      },
+      {
+        "distance_m": 7579.2,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32848659",
+    "name": "Glacier du Nant Blanc",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1088.1,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 5025.3,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:32950402",
+    "name": "Glacier du Tacul",
+    "route_intersections": [
+      {
+        "osm_key": "way:720905238",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:720909751",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:1469449067",
+        "name": "Vers la Brèche Puiseux",
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:1491157576",
+        "name": "Vers la Brèche Puiseux",
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2623.2,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 3985.0,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:39218506",
+    "name": "Glacier de la Floria",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2347.2,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      },
+      {
+        "distance_m": 6212.4,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:39218509",
+    "name": "Glacier de Bérard",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3481.6,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      },
+      {
+        "distance_m": 8208.2,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:39218510",
+    "name": "Glacier d'Anneuley",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3492.8,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      },
+      {
+        "distance_m": 8544.2,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:39218511",
+    "name": "Glacier de Beugeant",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3907.5,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      },
+      {
+        "distance_m": 9254.0,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:39218512",
+    "name": "Glacier de Beugeant",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3773.6,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      },
+      {
+        "distance_m": 9008.3,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:42263290",
+    "name": "Glacier des Lanchettes",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2831.2,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 3377.0,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:45561171",
+    "name": "Glacier de la Verte",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1505.7,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 6806.0,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:72128516",
+    "name": "Glacier de Tête Rousse",
+    "route_intersections": [
+      {
+        "osm_key": "way:72128537",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:130671107",
+        "name": null,
+        "sac_scale": "demanding_mountain_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:301191617",
+        "name": null,
+        "sac_scale": "demanding_mountain_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 4616.1,
+        "osm_key": "node:5856933885",
+        "name": "Refuge du Fioux"
+      },
+      {
+        "distance_m": 5649.0,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:108153677",
+    "name": "Glacier de Trélaporte",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2695.9,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 6532.3,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:108153678",
+    "name": "Glacier de la Thendia",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2895.5,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 6039.2,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:108153682",
+    "name": "Glacier Rond",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 5750.3,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      },
+      {
+        "distance_m": 7641.4,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:108156167",
+    "name": "Glacier du Capucin",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3669.9,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 3762.4,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:108156168",
+    "name": "Glacier de Pierre Joseph",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3150.4,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      },
+      {
+        "distance_m": 4041.8,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:135737649",
+    "name": "Glacier de l'A Neuve",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3039.7,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 4951.6,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:176390679",
+    "name": "Ghiacciaio du Chatelet",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3806.1,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 4567.7,
+        "osm_key": "node:850806762",
+        "name": "Rifugio Le Randonneur"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:188343637",
+    "name": "Mer de Glace",
+    "route_intersections": [
+      {
+        "osm_key": "way:73028038",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:720909751",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:973627109",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:1199253086",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:1484174878",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 1462.9,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 4511.6,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:193208253",
+    "name": "Haute Glacier du Freney",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4652.6,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 5401.4,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:193208266",
+    "name": "Glacier de la Griaz",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4744.3,
+        "osm_key": "node:5856933885",
+        "name": "Refuge du Fioux"
+      },
+      {
+        "distance_m": 6030.4,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:200660239",
+    "name": "Glacier de Lognan",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2690.9,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 5329.9,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:200660240",
+    "name": "Glacier de la Pendant",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2512.9,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 4949.5,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:210128316",
+    "name": "Glacier du Milieu",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4523.3,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 4593.0,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:210128317",
+    "name": "Glacier du Tour Noir",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4090.4,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 4955.4,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:234540325",
+    "name": "Ghiacciaio Orientale del Petit Mont Blanc",
+    "route_intersections": [
+      {
+        "osm_key": "way:346366656",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:346366657",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:430023338",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 6919.1,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 7271.1,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:236042193",
+    "name": "Glacier de Tré les Eaux",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 7860.6,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      },
+      {
+        "distance_m": 9536.9,
+        "osm_key": "node:11371480905",
+        "name": null
+      }
+    ]
+  },
+  {
+    "osm_key": "way:237093491",
+    "name": "Glacier d'Enclave",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3137.5,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 3641.1,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:237093494",
+    "name": "Glacier du Mont Tondu",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2860.3,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      },
+      {
+        "distance_m": 3767.9,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:244065146",
+    "name": "Glacier d'Armancette",
+    "route_intersections": [
+      {
+        "osm_key": "way:72128642",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 3120.0,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      },
+      {
+        "distance_m": 3505.3,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:244065147",
+    "name": "Glacier de Covagnet",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2756.5,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      },
+      {
+        "distance_m": 3783.5,
+        "osm_key": "node:30941606",
+        "name": "Chalet du CAF Contamines"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:244065148",
+    "name": "Glacier de la Bérangère",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3301.4,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      },
+      {
+        "distance_m": 4465.2,
+        "osm_key": "node:30941606",
+        "name": "Chalet du CAF Contamines"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:244065149",
+    "name": "Glacier de la Bérangère",
+    "route_intersections": [
+      {
+        "osm_key": "way:72128642",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:1190251083",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 3084.3,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      },
+      {
+        "distance_m": 4335.5,
+        "osm_key": "node:30941606",
+        "name": "Chalet du CAF Contamines"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:244065150",
+    "name": "Glacier de la Bérangère",
+    "route_intersections": [
+      {
+        "osm_key": "way:72128642",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 3499.7,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      },
+      {
+        "distance_m": 4382.5,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:244229460",
+    "name": "Ghiacciaio del Breuil",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2830.1,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 9483.4,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:244229462",
+    "name": "Ghiacciaio di Chavannes",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2864.4,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 8672.6,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:247923312",
+    "name": "Ghiacciaio del Gruetta",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1585.9,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      },
+      {
+        "distance_m": 2572.3,
+        "osm_key": "node:353083724",
+        "name": "Rifugio Elena"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:247923316",
+    "name": "Glacier de Planpincieux",
+    "route_intersections": [
+      {
+        "osm_key": "way:615361746",
+        "name": "Grandes Jorasses",
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:615361748",
+        "name": "Grandes Jorasses",
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 36.6,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 2838.0,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:247923326",
+    "name": "Glacier de Pra Sec",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1329.8,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 4426.9,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:247923330",
+    "name": "Glacier de Tronchey",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1767.0,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 4690.6,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:247923334",
+    "name": "Glacier des Grandes Jorasses",
+    "route_intersections": [
+      {
+        "osm_key": "way:615361748",
+        "name": "Grandes Jorasses",
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 312.9,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 3678.9,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:247923341",
+    "name": "Glacier du petit Mont Gruettaz",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2076.9,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      },
+      {
+        "distance_m": 2793.0,
+        "osm_key": "node:353083724",
+        "name": "Rifugio Elena"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:247923343",
+    "name": "Ghiacciaio occidental du Mont Gruettaz",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2031.7,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      },
+      {
+        "distance_m": 3496.3,
+        "osm_key": "node:353083724",
+        "name": "Rifugio Elena"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:247923349",
+    "name": "Glacier de Rochefort",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1178.0,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 1982.1,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:251507369",
+    "name": "Glacier de la Finive",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 6175.1,
+        "osm_key": "node:11371480905",
+        "name": null
+      },
+      {
+        "distance_m": 7809.7,
+        "osm_key": "node:849977275",
+        "name": "Refuge Le Peuty"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:251507370",
+    "name": "Glacier de la Finive",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 6341.7,
+        "osm_key": "node:11371480905",
+        "name": null
+      },
+      {
+        "distance_m": 8109.3,
+        "osm_key": "node:849977275",
+        "name": "Refuge Le Peuty"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:267756169",
+    "name": "Glacier de l'A Neuve",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3230.6,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      },
+      {
+        "distance_m": 4161.0,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:294947803",
+    "name": "Glacier de l'Aiguille de Tré-la-Tête Orientale",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 6545.8,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 6567.5,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:301715191",
+    "name": "Glacier du Col du Miage",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4980.1,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      },
+      {
+        "distance_m": 6583.1,
+        "osm_key": "node:5856933885",
+        "name": "Refuge du Fioux"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:301985965",
+    "name": "Glacier du Moine",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1291.7,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 6440.7,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:327069846",
+    "name": "Ghiacciaio di Toula",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1740.9,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      },
+      {
+        "distance_m": 3742.5,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:363120274",
+    "name": "Glacier du Col des Dômes",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3387.5,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      },
+      {
+        "distance_m": 4800.9,
+        "osm_key": "node:30941606",
+        "name": "Chalet du CAF Contamines"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:394890290",
+    "name": "Ghiacciaio di Entreves",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2325.7,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      },
+      {
+        "distance_m": 3937.4,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:740052752",
+    "name": "Glacier de la Plate",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4942.5,
+        "osm_key": "node:850806762",
+        "name": "Rifugio Le Randonneur"
+      },
+      {
+        "distance_m": 5338.2,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:777833954",
+    "name": "Glacier Oriental de l'Aiguille Blanche",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3891.1,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 4351.2,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:777833955",
+    "name": "Glacier Septentrional des Aiguilles Blanches",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4440.3,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 4782.8,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:777833956",
+    "name": "Glacier du Gendarme Rouge",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 5642.8,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 5713.7,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:777857679",
+    "name": "Glacier de Combalet",
+    "route_intersections": [
+      {
+        "osm_key": "way:1422690658",
+        "name": "Normale Aiguille Noire de Peuterey",
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2581.0,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 3430.4,
+        "osm_key": "node:850806762",
+        "name": "Rifugio Le Randonneur"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:1117264656",
+    "name": "Glacier de l'A Neuve",
+    "route_intersections": [
+      {
+        "osm_key": "way:135737223",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:311743622",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:311743623",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2498.6,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 4690.6,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:1393129239",
+    "name": "Glacier de Saleinaz",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1017.2,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 3664.0,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:106154",
+    "name": "La Vallée Blanche",
+    "route_intersections": [
+      {
+        "osm_key": "way:244441181",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:988113102",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:988113103",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:988113104",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:1365542198",
+        "name": "Arête Équipée de l'Aiguille du Midi",
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": "downhill"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 5066.0,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 5546.3,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:106155",
+    "name": "Glacier du Géant",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2047.9,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      },
+      {
+        "distance_m": 2261.4,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:106239",
+    "name": "Glacier des Bossons",
+    "route_intersections": [
+      {
+        "osm_key": "way:25798474",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:72128660",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:117544137",
+        "name": "Accès aux Grand Mulets",
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:117544153",
+        "name": "Les Bosses",
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:117544159",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:117544169",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:117544187",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:117544194",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:130574534",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:130574537",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:130574539",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:130574543",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:130574559",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:130671113",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:130671452",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:130671453",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:234563590",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:234563591",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:244441181",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:278378254",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314990829",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:314990897",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314992675",
+        "name": "Mont Blanc, Face Nord",
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:1093643173",
+        "name": "The Grand Mulets",
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:1161481191",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 4063.5,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      },
+      {
+        "distance_m": 5148.4,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:106731",
+    "name": "Glacier du Tour",
+    "route_intersections": [
+      {
+        "osm_key": "way:182514738",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:182514741",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:314229767",
+        "name": "Col du Passon Route",
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314238814",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314605350",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314605643",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314825387",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314826253",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314829489",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314829490",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314830759",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2584.7,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      },
+      {
+        "distance_m": 3674.8,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:108757",
+    "name": "Ghiacciaio del Monte Bianco",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 5790.1,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 6550.9,
+        "osm_key": "node:850806762",
+        "name": "Rifugio Le Randonneur"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:2589255",
+    "name": "Ghiacciaio del Miage",
+    "route_intersections": [
+      {
+        "osm_key": "way:136707646",
+        "name": null,
+        "sac_scale": "hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:311452791",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:949104661",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:1366639792",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 3151.6,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 3380.6,
+        "osm_key": "node:850806762",
+        "name": "Rifugio Le Randonneur"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:2590255",
+    "name": "Glacier d'Argentière",
+    "route_intersections": [
+      {
+        "osm_key": "way:311743621",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314229767",
+        "name": "Col du Passon Route",
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314237488",
+        "name": "Cabane Argentière Route",
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314237717",
+        "name": "Cabane Argentière-Col de Chardonet Route",
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314238272",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314238777",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314833978",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:525455426",
+        "name": null,
+        "sac_scale": "mountain_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:1546942477",
+        "name": null,
+        "sac_scale": "mountain_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2506.4,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 3207.2,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:2602489",
+    "name": "Glacier d'Envers du Plan",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 5080.8,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 5193.4,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:3011613",
+    "name": "Glacier des Grands",
+    "route_intersections": [
+      {
+        "osm_key": "way:265394493",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2359.9,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      },
+      {
+        "distance_m": 3801.1,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:3280098",
+    "name": "Glacier du Bourgeat",
+    "route_intersections": [
+      {
+        "osm_key": "way:242710872",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 5020.2,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      },
+      {
+        "distance_m": 5230.6,
+        "osm_key": "node:5856933885",
+        "name": "Refuge du Fioux"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:3299816",
+    "name": "Glacier de Tré-la-Tête",
+    "route_intersections": [
+      {
+        "osm_key": "way:72128642",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:72128652",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:371773580",
+        "name": null,
+        "sac_scale": "demanding_mountain_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:1188449209",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2209.3,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      },
+      {
+        "distance_m": 3652.5,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:5395034",
+    "name": "Ghiacciaio del Petit Mont Blanc",
+    "route_intersections": [
+      {
+        "osm_key": "way:346366657",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 6015.0,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      },
+      {
+        "distance_m": 6243.3,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:5397135",
+    "name": "Ghiacciaio della Brenva",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1955.5,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 2626.8,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:14797906",
+    "name": "Glacier des Berons",
+    "route_intersections": [
+      {
+        "osm_key": "way:152197881",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 4086.0,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      },
+      {
+        "distance_m": 4409.4,
+        "osm_key": "node:849977275",
+        "name": "Refuge Le Peuty"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:14911730",
+    "name": "Glacier d'Envers de Blaitière",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3584.2,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 5706.5,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:14935779",
+    "name": "Glacier des Nantillons",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3653.9,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 6029.8,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:14935795",
+    "name": "Glacier des Périades",
+    "route_intersections": [
+      {
+        "osm_key": "way:1469449067",
+        "name": "Vers la Brèche Puiseux",
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:1469449069",
+        "name": "Brèche Puiseux",
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2015.2,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 3684.4,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:14973797",
+    "name": "Plateau du Trient",
+    "route_intersections": [
+      {
+        "osm_key": "way:182514740",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:182514741",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      },
+      {
+        "osm_key": "way:265394493",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314230479",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314605643",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314821545",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314822898",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314822899",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314822900",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:314829490",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:315155626",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      },
+      {
+        "osm_key": "way:722800527",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 102.1,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      },
+      {
+        "distance_m": 1280.3,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:16854812",
+    "name": "Glacier du Mont Mallet",
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 1515.9,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 3688.3,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:19218925",
+    "name": "Glacier de Talèfre",
+    "route_intersections": [
+      {
+        "osm_key": "way:73028038",
+        "name": null,
+        "sac_scale": "demanding_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 561.6,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 2585.1,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:39218505",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2503.5,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      },
+      {
+        "distance_m": 6765.2,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:45561184",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 5560.6,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      },
+      {
+        "distance_m": 6475.6,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:108153680",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 6311.8,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      },
+      {
+        "distance_m": 7225.0,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:108153684",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4326.8,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 6081.1,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:108156165",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3768.5,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 3975.8,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:108156166",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3494.3,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 4425.3,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:193208286",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 5148.6,
+        "osm_key": "node:5856933885",
+        "name": "Refuge du Fioux"
+      },
+      {
+        "distance_m": 6200.9,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:237093492",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2554.3,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      },
+      {
+        "distance_m": 4311.0,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:237093493",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2739.2,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      },
+      {
+        "distance_m": 4039.5,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:244065152",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3515.3,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      },
+      {
+        "distance_m": 4652.2,
+        "osm_key": "node:30941606",
+        "name": "Chalet du CAF Contamines"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:255720520",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2953.6,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      },
+      {
+        "distance_m": 3506.5,
+        "osm_key": "node:30941606",
+        "name": "Chalet du CAF Contamines"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:265394494",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 906.0,
+        "osm_key": "node:6811522337",
+        "name": "Cabane du Trient"
+      },
+      {
+        "distance_m": 1436.2,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:306823616",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2777.1,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 5793.0,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:329938396",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3093.5,
+        "osm_key": "node:2940263651",
+        "name": "La Flégère"
+      },
+      {
+        "distance_m": 5955.4,
+        "osm_key": "node:13593106321",
+        "name": "Refuge de Bellachat"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:362556677",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3640.2,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 4569.3,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:362556678",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3595.5,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 4430.5,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:362591317",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3931.9,
+        "osm_key": "node:288877825",
+        "name": "Refuge des Mottets"
+      },
+      {
+        "distance_m": 5816.5,
+        "osm_key": "node:13140705117",
+        "name": "Refuge de Tré la Tête"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:363120277",
+    "name": null,
+    "route_intersections": [
+      {
+        "osm_key": "way:72128652",
+        "name": null,
+        "sac_scale": "difficult_alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 4002.8,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      },
+      {
+        "distance_m": 5441.5,
+        "osm_key": "node:30941606",
+        "name": "Chalet du CAF Contamines"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:363120578",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 3007.0,
+        "osm_key": "node:13124891039",
+        "name": "Auberge du Truc"
+      },
+      {
+        "distance_m": 4549.1,
+        "osm_key": "node:30941606",
+        "name": "Chalet du CAF Contamines"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:615298943",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2099.1,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      },
+      {
+        "distance_m": 3548.5,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:639446426",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2497.8,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      },
+      {
+        "distance_m": 4084.1,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:639446427",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2833.2,
+        "osm_key": "node:353084260",
+        "name": "Rifugio Cesare Dalmazzi"
+      },
+      {
+        "distance_m": 4655.8,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:740052751",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 5039.6,
+        "osm_key": "node:850806762",
+        "name": "Rifugio Le Randonneur"
+      },
+      {
+        "distance_m": 5478.5,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:761289062",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2302.0,
+        "osm_key": "node:1407251340",
+        "name": "Rifugio Pier Giorgio Frassati"
+      },
+      {
+        "distance_m": 3530.0,
+        "osm_key": "node:353083724",
+        "name": "Rifugio Elena"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:1394999701",
+    "name": null,
+    "route_intersections": [
+      {
+        "osm_key": "way:314606275",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 1183.9,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 4021.6,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:1394999702",
+    "name": null,
+    "route_intersections": [
+      {
+        "osm_key": "way:314606275",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 1583.3,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 4473.4,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:1394999703",
+    "name": null,
+    "route_intersections": [
+      {
+        "osm_key": "way:314606275",
+        "name": null,
+        "sac_scale": null,
+        "piste:type": "skitour"
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 2057.9,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 4869.4,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      }
+    ]
+  },
+  {
+    "osm_key": "way:1394999704",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 2190.1,
+        "osm_key": "node:309757022",
+        "name": "Cabane de Saleinaz CAS"
+      },
+      {
+        "distance_m": 5044.2,
+        "osm_key": "node:6811520910",
+        "name": "Cabane d'Orny"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:1649757",
+    "name": null,
+    "route_intersections": [
+      {
+        "osm_key": "way:1161481191",
+        "name": null,
+        "sac_scale": "alpine_hiking",
+        "piste:type": null
+      }
+    ],
+    "nearest_huts": [
+      {
+        "distance_m": 6580.7,
+        "osm_key": "node:353085969",
+        "name": "Rifugio Monte Bianco"
+      },
+      {
+        "distance_m": 7111.9,
+        "osm_key": "node:353084898",
+        "name": "Rifugio Pavillon"
+      }
+    ]
+  },
+  {
+    "osm_key": "relation:21283045",
+    "name": null,
+    "route_intersections": [],
+    "nearest_huts": [
+      {
+        "distance_m": 4712.6,
+        "osm_key": "node:503688752",
+        "name": "Refuge de la Charpoua"
+      },
+      {
+        "distance_m": 5414.6,
+        "osm_key": "node:353084580",
+        "name": "Rifugio Gabriele Boccalatte e Mario Piolti"
+      }
+    ]
+  }
+]

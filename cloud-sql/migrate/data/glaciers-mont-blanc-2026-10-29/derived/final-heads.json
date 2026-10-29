@@ -1,0 +1,3460 @@
+{
+  "way:30764271": {
+    "head": {
+      "lng": 6.96333333,
+      "lat": 45.94611111,
+      "elevation_m": 3253.888671875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:4357285689",
+        "name": "Petite Aiguille Verte",
+        "lat": 45.9438549,
+        "lng": 6.963623,
+        "wikidata": "Q3377325",
+        "distance_from_head_m": 251.9,
+        "osm_elevation": "3512"
+      },
+      {
+        "osm_key": "node:2401280720",
+        "name": "Aiguille des Grands Montets",
+        "lat": 45.9482017,
+        "lng": 6.9605461,
+        "wikidata": "Q404686",
+        "distance_from_head_m": 317.0,
+        "osm_elevation": "3296"
+      },
+      {
+        "osm_key": "node:13017005429",
+        "name": "Aiguille Carrée",
+        "lat": 45.94023,
+        "lng": 6.967422,
+        "wikidata": "Q132244277",
+        "distance_from_head_m": 726.4,
+        "osm_elevation": "3716"
+      }
+    ]
+  },
+  "way:30764329": {
+    "head": {
+      "lng": 6.9625,
+      "lat": 45.94416667,
+      "elevation_m": 3392.874267578125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:4357285689",
+        "name": "Petite Aiguille Verte",
+        "lat": 45.9438549,
+        "lng": 6.963623,
+        "wikidata": "Q3377325",
+        "distance_from_head_m": 93.5,
+        "osm_elevation": "3512"
+      },
+      {
+        "osm_key": "node:2401280720",
+        "name": "Aiguille des Grands Montets",
+        "lat": 45.9482017,
+        "lng": 6.9605461,
+        "wikidata": "Q404686",
+        "distance_from_head_m": 473.4,
+        "osm_elevation": "3296"
+      },
+      {
+        "osm_key": "node:13017005429",
+        "name": "Aiguille Carrée",
+        "lat": 45.94023,
+        "lng": 6.967422,
+        "wikidata": "Q132244277",
+        "distance_from_head_m": 580.0,
+        "osm_elevation": "3716"
+      }
+    ]
+  },
+  "way:30764447": {
+    "head": {
+      "lng": 7.015,
+      "lat": 45.96027778,
+      "elevation_m": 3676.924072265625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:290497894",
+        "name": "Aiguille d'Argentière",
+        "lat": 45.959721,
+        "lng": 7.020211,
+        "wikidata": "Q404738",
+        "distance_from_head_m": 407.5,
+        "osm_elevation": "3901"
+      },
+      {
+        "osm_key": "node:8384028088",
+        "name": "Le Casque",
+        "lat": 45.9550681,
+        "lng": 7.0154367,
+        "wikidata": null,
+        "distance_from_head_m": 580.3,
+        "osm_elevation": "3668"
+      },
+      {
+        "osm_key": "node:1373113835",
+        "name": "Flèche Rousse",
+        "lat": 45.9582209,
+        "lng": 7.0227325,
+        "wikidata": null,
+        "distance_from_head_m": 640.0,
+        "osm_elevation": "3879"
+      }
+    ]
+  },
+  "way:30764477": {
+    "head": {
+      "lng": 6.9975,
+      "lat": 45.96444444,
+      "elevation_m": 3187.090087890625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:290497892",
+        "name": "Aiguille de Chardonnet",
+        "lat": 45.968306,
+        "lng": 7.0015516,
+        "wikidata": "Q404697",
+        "distance_from_head_m": 531.5,
+        "osm_elevation": "3824"
+      },
+      {
+        "osm_key": "node:10870208656",
+        "name": "Aiguille du Passon",
+        "lat": 45.9740465,
+        "lng": 6.9924034,
+        "wikidata": "Q31660394",
+        "distance_from_head_m": 1138.1,
+        "osm_elevation": "3370"
+      },
+      {
+        "osm_key": "node:11538000930",
+        "name": "Aiguille Forbes",
+        "lat": 45.9732267,
+        "lng": 7.0101789,
+        "wikidata": "Q31660347",
+        "distance_from_head_m": 1383.5,
+        "osm_elevation": "3488"
+      }
+    ]
+  },
+  "way:30764480": {
+    "head": {
+      "lng": 7.03472222,
+      "lat": 45.94944444,
+      "elevation_m": 3569.614013671875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:8398131979",
+        "name": "Tour Noir",
+        "lat": 45.94884,
+        "lng": 7.0374269,
+        "wikidata": "Q664824",
+        "distance_from_head_m": 219.6,
+        "osm_elevation": "3836"
+      },
+      {
+        "osm_key": "node:8398131997",
+        "name": "Pointe Supérieure des Améthystes",
+        "lat": 45.9489461,
+        "lng": 7.030649,
+        "wikidata": null,
+        "distance_from_head_m": 319.8,
+        "osm_elevation": "3586"
+      },
+      {
+        "osm_key": "node:8398131971",
+        "name": "Aiguille de l'A Neuve",
+        "lat": 45.9528604,
+        "lng": 7.0366794,
+        "wikidata": "Q2486983",
+        "distance_from_head_m": 408.9,
+        "osm_elevation": "3753"
+      }
+    ]
+  },
+  "way:30764488": {
+    "head": {
+      "lng": 7.03555556,
+      "lat": 45.94166667,
+      "elevation_m": 3390.927001953125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:11536828038",
+        "name": "Pointe Morin",
+        "lat": 45.9435268,
+        "lng": 7.0365985,
+        "wikidata": "Q22540992",
+        "distance_from_head_m": 222.0,
+        "osm_elevation": "3587"
+      },
+      {
+        "osm_key": "node:7165008398",
+        "name": "Aiguilles Rouges du Dolent - Pointe Kurz",
+        "lat": 45.9385667,
+        "lng": 7.0357667,
+        "wikidata": null,
+        "distance_from_head_m": 345.1,
+        "osm_elevation": "3680"
+      },
+      {
+        "osm_key": "node:8398131979",
+        "name": "Tour Noir",
+        "lat": 45.94884,
+        "lng": 7.0374269,
+        "wikidata": "Q664824",
+        "distance_from_head_m": 810.7,
+        "osm_elevation": "3836"
+      }
+    ]
+  },
+  "way:30764493": {
+    "head": {
+      "lng": 7.05472222,
+      "lat": 45.95861111,
+      "elevation_m": 3341.12841796875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:11538075850",
+        "name": "Petit Darrey",
+        "lat": 45.960101,
+        "lng": 7.0568017,
+        "wikidata": "Q22519922",
+        "distance_from_head_m": 230.8,
+        "osm_elevation": "3507"
+      },
+      {
+        "osm_key": "node:290497905",
+        "name": "Grand Darray",
+        "lat": 45.9589745,
+        "lng": 7.0605282,
+        "wikidata": "Q3646946",
+        "distance_from_head_m": 450.6,
+        "osm_elevation": "3514"
+      },
+      {
+        "osm_key": "node:290497902",
+        "name": "Grand Lui",
+        "lat": 45.9582347,
+        "lng": 7.0478964,
+        "wikidata": "Q3695395",
+        "distance_from_head_m": 529.3,
+        "osm_elevation": "3509"
+      }
+    ]
+  },
+  "way:30764508": {
+    "head": {
+      "lng": 7.04666667,
+      "lat": 45.99333333,
+      "elevation_m": 3074.982177734375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:11537833258",
+        "name": "Pointe des Ravines Rousses",
+        "lat": 45.9921684,
+        "lng": 7.0476215,
+        "wikidata": "Q22435167",
+        "distance_from_head_m": 149.1,
+        "osm_elevation": "3258"
+      },
+      {
+        "osm_key": "node:12040711272",
+        "name": "Roc des Plines",
+        "lat": 45.9887069,
+        "lng": 7.0447543,
+        "wikidata": "Q22448147",
+        "distance_from_head_m": 535.2,
+        "osm_elevation": "3294"
+      },
+      {
+        "osm_key": "node:290497882",
+        "name": "Portalet",
+        "lat": 45.9916074,
+        "lng": 7.0560731,
+        "wikidata": "Q2428823",
+        "distance_from_head_m": 751.6,
+        "osm_elevation": "3344"
+      }
+    ]
+  },
+  "way:30764602": {
+    "head": {
+      "lng": 7.0325,
+      "lat": 46.00527778,
+      "elevation_m": 2902.662353515625,
+      "tile": "Copernicus_DSM_COG_10_N46_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:4095457700",
+        "name": "Petite Pointe d'Orny",
+        "lat": 46.006166,
+        "lng": 7.0372142,
+        "wikidata": "Q136838",
+        "distance_from_head_m": 377.3,
+        "osm_elevation": "3187"
+      },
+      {
+        "osm_key": "node:4095457696",
+        "name": "Pointe d'Orny",
+        "lat": 46.0021402,
+        "lng": 7.0430524,
+        "wikidata": "Q136856",
+        "distance_from_head_m": 886.6,
+        "osm_elevation": "3271"
+      },
+      {
+        "osm_key": "node:2638194494",
+        "name": "Pointe des Écandies",
+        "lat": 46.0150905,
+        "lng": 7.0390772,
+        "wikidata": "Q136995",
+        "distance_from_head_m": 1203.6,
+        "osm_elevation": "2873"
+      }
+    ]
+  },
+  "way:31002693": {
+    "head": {
+      "lng": 6.84166667,
+      "lat": 45.84111111,
+      "elevation_m": 4287.42333984375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:3559071817",
+        "name": "Dôme du Goûter",
+        "lat": 45.8425807,
+        "lng": 6.8434727,
+        "wikidata": "Q30434",
+        "distance_from_head_m": 215.1,
+        "osm_elevation": "4304"
+      },
+      {
+        "osm_key": "node:2037238366",
+        "name": "Pointe Bayeux",
+        "lat": 45.8467909,
+        "lng": 6.8433769,
+        "wikidata": "Q3393540",
+        "distance_from_head_m": 645.3,
+        "osm_elevation": "4258"
+      },
+      {
+        "osm_key": "node:857445692",
+        "name": "Piton des Italiens",
+        "lat": 45.8372078,
+        "lng": 6.8304317,
+        "wikidata": "Q86660878",
+        "distance_from_head_m": 972.5,
+        "osm_elevation": "4002"
+      }
+    ]
+  },
+  "way:31002694": {
+    "head": {
+      "lng": 6.83472222,
+      "lat": 45.85694444,
+      "elevation_m": 3501.008544921875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:1438494348",
+        "name": "Aiguille du Goûter",
+        "lat": 45.8509504,
+        "lng": 6.8312381,
+        "wikidata": "Q2334655",
+        "distance_from_head_m": 719.1,
+        "osm_elevation": "3863"
+      },
+      {
+        "osm_key": "node:2037238366",
+        "name": "Pointe Bayeux",
+        "lat": 45.8467909,
+        "lng": 6.8433769,
+        "wikidata": "Q3393540",
+        "distance_from_head_m": 1313.0,
+        "osm_elevation": "4258"
+      },
+      {
+        "osm_key": "node:4108275426",
+        "name": "Pointe Bravais",
+        "lat": 45.8513515,
+        "lng": 6.8507174,
+        "wikidata": null,
+        "distance_from_head_m": 1386.1,
+        "osm_elevation": "4057"
+      }
+    ]
+  },
+  "way:32668359": {
+    "head": {
+      "lng": 7.0475,
+      "lat": 45.92,
+      "elevation_m": 3630.875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:12892609514",
+        "name": "Mont Dolent / Monte Dolent",
+        "lat": 45.9219579,
+        "lng": 7.046165,
+        "wikidata": "Q665130",
+        "distance_from_head_m": 241.0,
+        "osm_elevation": "3820"
+      },
+      {
+        "osm_key": "node:3977833821",
+        "name": "Mont Grépillon",
+        "lat": 45.9174423,
+        "lng": 7.0510691,
+        "wikidata": "Q124917476",
+        "distance_from_head_m": 396.4,
+        "osm_elevation": "3576"
+      },
+      {
+        "osm_key": "node:503688535",
+        "name": "Pointe de Pré de Bar Est",
+        "lat": 45.9212942,
+        "lng": 7.03817,
+        "wikidata": null,
+        "distance_from_head_m": 735.9,
+        "osm_elevation": "3658"
+      }
+    ]
+  },
+  "way:32668385": {
+    "head": {
+      "lng": 6.80944444,
+      "lat": 45.795,
+      "elevation_m": 3654.132080078125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:3613468597",
+        "name": "Aiguille de Tré-la-Tête Centrale Nord-Ouest",
+        "lat": 45.7955742,
+        "lng": 6.8133076,
+        "wikidata": null,
+        "distance_from_head_m": 306.2,
+        "osm_elevation": "3908"
+      },
+      {
+        "osm_key": "node:3668810726",
+        "name": "Aiguille de Tré-la-Tête Nord",
+        "lat": 45.7982424,
+        "lng": 6.8114176,
+        "wikidata": null,
+        "distance_from_head_m": 391.6,
+        "osm_elevation": "3892"
+      },
+      {
+        "osm_key": "node:26862463",
+        "name": "Aiguille de Tré-la-Tête Centrale Sud-Est",
+        "lat": 45.7946096,
+        "lng": 6.8150821,
+        "wikidata": "Q731683",
+        "distance_from_head_m": 439.2,
+        "osm_elevation": "3930"
+      }
+    ]
+  },
+  "way:32668406": {
+    "head": {
+      "lng": 6.8775,
+      "lat": 45.82222222,
+      "elevation_m": 3662.612060546875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:2409782067",
+        "name": "Pic Eccles",
+        "lat": 45.8216427,
+        "lng": 6.8748036,
+        "wikidata": "Q3382301",
+        "distance_from_head_m": 218.7,
+        "osm_elevation": "4041"
+      },
+      {
+        "osm_key": "node:367945311",
+        "name": "Aiguille Blanche de Peuterey - Nord",
+        "lat": 45.8237506,
+        "lng": 6.8812639,
+        "wikidata": "Q30472",
+        "distance_from_head_m": 337.6,
+        "osm_elevation": "4098"
+      },
+      {
+        "osm_key": "node:7256451497",
+        "name": "Aiguille Blanche de Peuterey - Centrale",
+        "lat": 45.8233827,
+        "lng": 6.881749,
+        "wikidata": "Q30472",
+        "distance_from_head_m": 353.6,
+        "osm_elevation": "4112"
+      }
+    ]
+  },
+  "way:32668421": {
+    "head": {
+      "lng": 6.8725,
+      "lat": 45.82194444,
+      "elevation_m": 3981.234619140625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:2409782067",
+        "name": "Pic Eccles",
+        "lat": 45.8216427,
+        "lng": 6.8748036,
+        "wikidata": "Q3382301",
+        "distance_from_head_m": 181.6,
+        "osm_elevation": "4041"
+      },
+      {
+        "osm_key": "node:808544051",
+        "name": "Picco Luigi Amedeo",
+        "lat": 45.8219084,
+        "lng": 6.8651312,
+        "wikidata": "Q30411",
+        "distance_from_head_m": 571.0,
+        "osm_elevation": "4460"
+      },
+      {
+        "osm_key": "node:808543806",
+        "name": "Punta Innominata",
+        "lat": 45.816311,
+        "lng": 6.8764093,
+        "wikidata": "Q3925678",
+        "distance_from_head_m": 695.8,
+        "osm_elevation": "3731"
+      }
+    ]
+  },
+  "way:32673833": {
+    "head": {
+      "lng": 7.02111111,
+      "lat": 45.91361111,
+      "elevation_m": 3471.51025390625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:7274427714",
+        "name": "Pointe Isabelle Sud / Punta Isabella Sud",
+        "lat": 45.9138529,
+        "lng": 7.0182842,
+        "wikidata": null,
+        "distance_from_head_m": 220.3,
+        "osm_elevation": "3761"
+      },
+      {
+        "osm_key": "node:7274427713",
+        "name": "Pointe Isabelle Nord / Punta Isabella Nord",
+        "lat": 45.9143064,
+        "lng": 7.0182171,
+        "wikidata": "Q132892635",
+        "distance_from_head_m": 236.9,
+        "osm_elevation": "3761"
+      },
+      {
+        "osm_key": "node:7274586193",
+        "name": "Petite Aiguille de Triolet Occidentale",
+        "lat": 45.9167397,
+        "lng": 7.0217121,
+        "wikidata": null,
+        "distance_from_head_m": 351.0,
+        "osm_elevation": "3800"
+      }
+    ]
+  },
+  "way:32673844": {
+    "head": {
+      "lng": 7.04888889,
+      "lat": 45.92222222,
+      "elevation_m": 3529.19775390625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:12892609514",
+        "name": "Mont Dolent / Monte Dolent",
+        "lat": 45.9219579,
+        "lng": 7.046165,
+        "wikidata": "Q665130",
+        "distance_from_head_m": 212.7,
+        "osm_elevation": "3820"
+      },
+      {
+        "osm_key": "node:3977833821",
+        "name": "Mont Grépillon",
+        "lat": 45.9174423,
+        "lng": 7.0510691,
+        "wikidata": "Q124917476",
+        "distance_from_head_m": 557.6,
+        "osm_elevation": "3576"
+      },
+      {
+        "osm_key": "node:503688535",
+        "name": "Pointe de Pré de Bar Est",
+        "lat": 45.9212942,
+        "lng": 7.03817,
+        "wikidata": null,
+        "distance_from_head_m": 835.5,
+        "osm_elevation": "3658"
+      }
+    ]
+  },
+  "way:32673847": {
+    "head": {
+      "lng": 6.96416667,
+      "lat": 45.92972222,
+      "elevation_m": 3331.603759765625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:369467782",
+        "name": "Le Cardinal",
+        "lat": 45.9281947,
+        "lng": 6.9655031,
+        "wikidata": "Q117773814",
+        "distance_from_head_m": 198.8,
+        "osm_elevation": "3638"
+      },
+      {
+        "osm_key": "node:2940263653",
+        "name": "L'Enfant de Chœur",
+        "lat": 45.9261209,
+        "lng": 6.9641385,
+        "wikidata": "Q117773554",
+        "distance_from_head_m": 400.5,
+        "osm_elevation": "3477"
+      },
+      {
+        "osm_key": "node:503688748",
+        "name": "Aiguille Sans Nom",
+        "lat": 45.9333605,
+        "lng": 6.9642238,
+        "wikidata": "Q132233740",
+        "distance_from_head_m": 404.6,
+        "osm_elevation": "3982"
+      }
+    ]
+  },
+  "way:32673882": {
+    "head": {
+      "lng": 6.995,
+      "lat": 45.87111111,
+      "elevation_m": 3492.4541015625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:7274424291",
+        "name": "Pointe des Hirondelles Sud",
+        "lat": 45.8738943,
+        "lng": 6.999101,
+        "wikidata": "Q132246952",
+        "distance_from_head_m": 443.4,
+        "osm_elevation": "3526"
+      },
+      {
+        "osm_key": "node:7274424290",
+        "name": "Pointe des Hirondelles Nord",
+        "lat": 45.8746301,
+        "lng": 6.9993746,
+        "wikidata": null,
+        "distance_from_head_m": 517.5,
+        "osm_elevation": "3520"
+      },
+      {
+        "osm_key": "node:26863024",
+        "name": "Grandes Jorasses / Pointe Walker",
+        "lat": 45.8681562,
+        "lng": 6.9889831,
+        "wikidata": "Q2403858",
+        "distance_from_head_m": 570.1,
+        "osm_elevation": "4208"
+      }
+    ]
+  },
+  "way:32673896": {
+    "head": {
+      "lng": 6.84222222,
+      "lat": 45.84055556,
+      "elevation_m": 4232.83544921875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:3559071817",
+        "name": "Dôme du Goûter",
+        "lat": 45.8425807,
+        "lng": 6.8434727,
+        "wikidata": "Q30434",
+        "distance_from_head_m": 245.1,
+        "osm_elevation": "4304"
+      },
+      {
+        "osm_key": "node:2037238366",
+        "name": "Pointe Bayeux",
+        "lat": 45.8467909,
+        "lng": 6.8433769,
+        "wikidata": "Q3393540",
+        "distance_from_head_m": 699.1,
+        "osm_elevation": "4258"
+      },
+      {
+        "osm_key": "node:857445692",
+        "name": "Piton des Italiens",
+        "lat": 45.8372078,
+        "lng": 6.8304317,
+        "wikidata": "Q86660878",
+        "distance_from_head_m": 986.3,
+        "osm_elevation": "4002"
+      }
+    ]
+  },
+  "way:32673906": {
+    "head": {
+      "lng": 6.82972222,
+      "lat": 45.83666667,
+      "elevation_m": 3927.4384765625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:857445692",
+        "name": "Piton des Italiens",
+        "lat": 45.8372078,
+        "lng": 6.8304317,
+        "wikidata": "Q86660878",
+        "distance_from_head_m": 81.5,
+        "osm_elevation": "4002"
+      },
+      {
+        "osm_key": "node:3968742779",
+        "name": "Tour des Aiguilles Grise",
+        "lat": 45.8313394,
+        "lng": 6.8286875,
+        "wikidata": "Q136375907",
+        "distance_from_head_m": 597.8,
+        "osm_elevation": "3825"
+      },
+      {
+        "osm_key": "node:366260714",
+        "name": "Aiguille de Bionnassay",
+        "lat": 45.836054,
+        "lng": 6.8186739,
+        "wikidata": "Q30493",
+        "distance_from_head_m": 858.6,
+        "osm_elevation": "4052"
+      }
+    ]
+  },
+  "way:32673957": {
+    "head": {
+      "lng": 6.80138889,
+      "lat": 45.78,
+      "elevation_m": 3669.720703125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:307676211",
+        "name": "Aiguille des Glaciers",
+        "lat": 45.7783901,
+        "lng": 6.802571,
+        "wikidata": "Q1705506",
+        "distance_from_head_m": 201.1,
+        "osm_elevation": "3815"
+      },
+      {
+        "osm_key": "node:527040376",
+        "name": "Dôme des Glaciers",
+        "lat": 45.7792528,
+        "lng": 6.7978047,
+        "wikidata": "Q130459352",
+        "distance_from_head_m": 290.1,
+        "osm_elevation": "3592"
+      },
+      {
+        "osm_key": "node:7251779825",
+        "name": "Aiguille de la Lex Blanche",
+        "lat": 45.7864985,
+        "lng": 6.8031214,
+        "wikidata": "Q124831026",
+        "distance_from_head_m": 735.0,
+        "osm_elevation": "3684"
+      }
+    ]
+  },
+  "way:32673960": {
+    "head": {
+      "lng": 6.80666667,
+      "lat": 45.77472222,
+      "elevation_m": 3225.3515625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:3668636373",
+        "name": "Petite Aiguille des Glaciers",
+        "lat": 45.7712476,
+        "lng": 6.804148,
+        "wikidata": "Q118256206",
+        "distance_from_head_m": 432.9,
+        "osm_elevation": "3463"
+      },
+      {
+        "osm_key": "node:307676211",
+        "name": "Aiguille des Glaciers",
+        "lat": 45.7783901,
+        "lng": 6.802571,
+        "wikidata": "Q1705506",
+        "distance_from_head_m": 517.0,
+        "osm_elevation": "3815"
+      },
+      {
+        "osm_key": "node:527040376",
+        "name": "Dôme des Glaciers",
+        "lat": 45.7792528,
+        "lng": 6.7978047,
+        "wikidata": "Q130459352",
+        "distance_from_head_m": 852.2,
+        "osm_elevation": "3592"
+      }
+    ]
+  },
+  "way:32674163": {
+    "head": {
+      "lng": 7.00444444,
+      "lat": 45.88527778,
+      "elevation_m": 3419.777099609375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:307195544",
+        "name": "Aiguille de Leschaux",
+        "lat": 45.8872044,
+        "lng": 7.0066752,
+        "wikidata": "Q1151985",
+        "distance_from_head_m": 275.2,
+        "osm_elevation": "3759"
+      },
+      {
+        "osm_key": "node:367945279",
+        "name": "Petites Jorasses",
+        "lat": 45.8817052,
+        "lng": 7.0026095,
+        "wikidata": "Q3900992",
+        "distance_from_head_m": 421.9,
+        "osm_elevation": "3650"
+      },
+      {
+        "osm_key": "node:7274341129",
+        "name": "L'Aiguillon",
+        "lat": 45.890312,
+        "lng": 7.0038915,
+        "wikidata": null,
+        "distance_from_head_m": 561.4,
+        "osm_elevation": "3489"
+      }
+    ]
+  },
+  "way:32699610": {
+    "head": {
+      "lng": 6.81555556,
+      "lat": 45.83083333,
+      "elevation_m": 3598.514404296875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:366260714",
+        "name": "Aiguille de Bionnassay",
+        "lat": 45.836054,
+        "lng": 6.8186739,
+        "wikidata": "Q30493",
+        "distance_from_head_m": 628.8,
+        "osm_elevation": "4052"
+      },
+      {
+        "osm_key": "node:6563278829",
+        "name": "Aiguille de Tricot",
+        "lat": 45.8371417,
+        "lng": 6.8080445,
+        "wikidata": "Q113486363",
+        "distance_from_head_m": 911.4,
+        "osm_elevation": "3665"
+      },
+      {
+        "osm_key": "node:3968742779",
+        "name": "Tour des Aiguilles Grise",
+        "lat": 45.8313394,
+        "lng": 6.8286875,
+        "wikidata": "Q136375907",
+        "distance_from_head_m": 1019.0,
+        "osm_elevation": "3825"
+      }
+    ]
+  },
+  "way:32789117": {
+    "head": {
+      "lng": 6.88888889,
+      "lat": 45.87944444,
+      "elevation_m": 3695.09814453125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:167075493",
+        "name": "Aiguille du Midi",
+        "lat": 45.8786426,
+        "lng": 6.8873514,
+        "wikidata": "Q404728",
+        "distance_from_head_m": 148.7,
+        "osm_elevation": "3842"
+      },
+      {
+        "osm_key": "node:705002228",
+        "name": "Gros Rognon",
+        "lat": 45.8686104,
+        "lng": 6.9043902,
+        "wikidata": "Q18214850",
+        "distance_from_head_m": 1700.4,
+        "osm_elevation": "3541"
+      },
+      {
+        "osm_key": "node:2151026983",
+        "name": "Pointe Lachenal",
+        "lat": 45.8646998,
+        "lng": 6.8958205,
+        "wikidata": "Q7208326",
+        "distance_from_head_m": 1725.1,
+        "osm_elevation": "3613"
+      }
+    ]
+  },
+  "way:32789571": {
+    "head": {
+      "lng": 6.90722222,
+      "lat": 45.89222222,
+      "elevation_m": 3593.899658203125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:344715578",
+        "name": "Aiguille du Plan",
+        "lat": 45.8917008,
+        "lng": 6.907229,
+        "wikidata": "Q2569448",
+        "distance_from_head_m": 58.0,
+        "osm_elevation": "3673"
+      },
+      {
+        "osm_key": "node:1241260315",
+        "name": "Dent du Crocodile",
+        "lat": 45.8928174,
+        "lng": 6.9077016,
+        "wikidata": "Q10265127",
+        "distance_from_head_m": 75.9,
+        "osm_elevation": "3640"
+      },
+      {
+        "osm_key": "node:1241259959",
+        "name": "Dent du Caïman",
+        "lat": 45.8944205,
+        "lng": 6.9090321,
+        "wikidata": "Q3023318",
+        "distance_from_head_m": 281.7,
+        "osm_elevation": "3554"
+      }
+    ]
+  },
+  "way:32848659": {
+    "head": {
+      "lng": 6.96444444,
+      "lat": 45.93583333,
+      "elevation_m": 3694.27294921875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:7973584578",
+        "name": "Pointe Croux",
+        "lat": 45.9344081,
+        "lng": 6.9653857,
+        "wikidata": "Q132234010",
+        "distance_from_head_m": 174.4,
+        "osm_elevation": "4023"
+      },
+      {
+        "osm_key": "node:7973584577",
+        "name": "Pointe Petigax",
+        "lat": 45.9336881,
+        "lng": 6.9659328,
+        "wikidata": null,
+        "distance_from_head_m": 264.9,
+        "osm_elevation": null
+      },
+      {
+        "osm_key": "node:503688748",
+        "name": "Aiguille Sans Nom",
+        "lat": 45.9333605,
+        "lng": 6.9642238,
+        "wikidata": "Q132233740",
+        "distance_from_head_m": 275.5,
+        "osm_elevation": "3982"
+      }
+    ]
+  },
+  "way:32950402": {
+    "head": {
+      "lng": 6.92888889,
+      "lat": 45.87694444,
+      "elevation_m": 2641.168212890625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:13013728246",
+        "name": "Petit Rognon",
+        "lat": 45.8797529,
+        "lng": 6.9193466,
+        "wikidata": "Q117006822",
+        "distance_from_head_m": 802.0,
+        "osm_elevation": "3009"
+      },
+      {
+        "osm_key": "node:367945276",
+        "name": "Dent du Requin",
+        "lat": 45.8876199,
+        "lng": 6.9176383,
+        "wikidata": "Q3023323",
+        "distance_from_head_m": 1472.3,
+        "osm_elevation": "3422"
+      },
+      {
+        "osm_key": "node:503688820",
+        "name": "Pointe Yeld",
+        "lat": 45.865858,
+        "lng": 6.9438731,
+        "wikidata": null,
+        "distance_from_head_m": 1692.7,
+        "osm_elevation": "3560"
+      }
+    ]
+  },
+  "way:45561171": {
+    "head": {
+      "lng": 6.96944444,
+      "lat": 45.93472222,
+      "elevation_m": 4092.10400390625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:26862462",
+        "name": "Aiguille Verte",
+        "lat": 45.9345904,
+        "lng": 6.9700185,
+        "wikidata": "Q30466",
+        "distance_from_head_m": 46.8,
+        "osm_elevation": "4121"
+      },
+      {
+        "osm_key": "node:503688744",
+        "name": "Grande Rocheuse",
+        "lat": 45.9344891,
+        "lng": 6.9727513,
+        "wikidata": "Q30476",
+        "distance_from_head_m": 257.0,
+        "osm_elevation": "4102"
+      },
+      {
+        "osm_key": "node:7973584577",
+        "name": "Pointe Petigax",
+        "lat": 45.9336881,
+        "lng": 6.9659328,
+        "wikidata": null,
+        "distance_from_head_m": 294.9,
+        "osm_elevation": null
+      }
+    ]
+  },
+  "way:72128516": {
+    "head": {
+      "lng": 6.82361111,
+      "lat": 45.85611111,
+      "elevation_m": 3319.703857421875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:1438494348",
+        "name": "Aiguille du Goûter",
+        "lat": 45.8509504,
+        "lng": 6.8312381,
+        "wikidata": "Q2334655",
+        "distance_from_head_m": 823.5,
+        "osm_elevation": "3863"
+      },
+      {
+        "osm_key": "node:4383819029",
+        "name": "Les Rognes",
+        "lat": 45.8630631,
+        "lng": 6.8153502,
+        "wikidata": "Q113482729",
+        "distance_from_head_m": 1003.4,
+        "osm_elevation": "2853"
+      },
+      {
+        "osm_key": "node:2037238366",
+        "name": "Pointe Bayeux",
+        "lat": 45.8467909,
+        "lng": 6.8433769,
+        "wikidata": "Q3393540",
+        "distance_from_head_m": 1848.6,
+        "osm_elevation": "4258"
+      }
+    ]
+  },
+  "way:108153677": {
+    "head": {
+      "lng": 6.92472222,
+      "lat": 45.90555556,
+      "elevation_m": 2759.6826171875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:1241260441",
+        "name": "La Tour Rouge",
+        "lat": 45.9032079,
+        "lng": 6.9249313,
+        "wikidata": null,
+        "distance_from_head_m": 261.5,
+        "osm_elevation": "2899"
+      },
+      {
+        "osm_key": "node:1241260305",
+        "name": "Aiguille de la République",
+        "lat": 45.9056685,
+        "lng": 6.9212635,
+        "wikidata": "Q2827884",
+        "distance_from_head_m": 267.9,
+        "osm_elevation": "3305"
+      },
+      {
+        "osm_key": "node:367945274",
+        "name": "Aiguille des Grands Charmoz",
+        "lat": 45.9042308,
+        "lng": 6.9188413,
+        "wikidata": "Q404688",
+        "distance_from_head_m": 478.3,
+        "osm_elevation": "3445"
+      }
+    ]
+  },
+  "way:108153678": {
+    "head": {
+      "lng": 6.92055556,
+      "lat": 45.90944444,
+      "elevation_m": 2686.74755859375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:1241260305",
+        "name": "Aiguille de la République",
+        "lat": 45.9056685,
+        "lng": 6.9212635,
+        "wikidata": "Q2827884",
+        "distance_from_head_m": 423.4,
+        "osm_elevation": "3305"
+      },
+      {
+        "osm_key": "node:367945274",
+        "name": "Aiguille des Grands Charmoz",
+        "lat": 45.9042308,
+        "lng": 6.9188413,
+        "wikidata": "Q404688",
+        "distance_from_head_m": 594.7,
+        "osm_elevation": "3445"
+      },
+      {
+        "osm_key": "node:369467780",
+        "name": "Aiguille de l'M",
+        "lat": 45.9122272,
+        "lng": 6.9125998,
+        "wikidata": "Q18474735",
+        "distance_from_head_m": 688.9,
+        "osm_elevation": "2844"
+      }
+    ]
+  },
+  "way:108153682": {
+    "head": {
+      "lng": 6.87916667,
+      "lat": 45.88027778,
+      "elevation_m": 2920.006591796875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:167075493",
+        "name": "Aiguille du Midi",
+        "lat": 45.8786426,
+        "lng": 6.8873514,
+        "wikidata": "Q404728",
+        "distance_from_head_m": 659.1,
+        "osm_elevation": "3842"
+      },
+      {
+        "osm_key": "node:10944787347",
+        "name": "Mont Corbeau",
+        "lat": 45.8809117,
+        "lng": 6.8552587,
+        "wikidata": "Q123518743",
+        "distance_from_head_m": 1852.0,
+        "osm_elevation": "2322"
+      },
+      {
+        "osm_key": "node:13013796735",
+        "name": "Les Grands Mulets",
+        "lat": 45.8671178,
+        "lng": 6.8615768,
+        "wikidata": "Q31639382",
+        "distance_from_head_m": 1998.8,
+        "osm_elevation": "3057"
+      }
+    ]
+  },
+  "way:108156167": {
+    "head": {
+      "lng": 6.96555556,
+      "lat": 45.88527778,
+      "elevation_m": 3046.551025390625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:344715662",
+        "name": "Aiguille du Tacul",
+        "lat": 45.884347,
+        "lng": 6.9607788,
+        "wikidata": "Q3607103",
+        "distance_from_head_m": 383.9,
+        "osm_elevation": "3444"
+      },
+      {
+        "osm_key": "node:367945277",
+        "name": "Les Périades",
+        "lat": 45.8809491,
+        "lng": 6.9621884,
+        "wikidata": "Q3830848",
+        "distance_from_head_m": 547.4,
+        "osm_elevation": "3503"
+      },
+      {
+        "osm_key": "node:503688825",
+        "name": "Pointe Sisyphe",
+        "lat": 45.8745972,
+        "lng": 6.9600284,
+        "wikidata": null,
+        "distance_from_head_m": 1262.3,
+        "osm_elevation": "3460"
+      }
+    ]
+  },
+  "way:108156168": {
+    "head": {
+      "lng": 7.00027778,
+      "lat": 45.89777778,
+      "elevation_m": 3348.083984375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:307195579",
+        "name": "Aiguille de Talèfre",
+        "lat": 45.899499,
+        "lng": 7.0037821,
+        "wikidata": "Q1578316",
+        "distance_from_head_m": 331.9,
+        "osm_elevation": "3730"
+      },
+      {
+        "osm_key": "node:307195567",
+        "name": "Aiguille de l'Éboulement",
+        "lat": 45.8931672,
+        "lng": 7.0030077,
+        "wikidata": "Q1657146",
+        "distance_from_head_m": 554.5,
+        "osm_elevation": "3599"
+      },
+      {
+        "osm_key": "node:7274341129",
+        "name": "L'Aiguillon",
+        "lat": 45.890312,
+        "lng": 7.0038915,
+        "wikidata": null,
+        "distance_from_head_m": 876.0,
+        "osm_elevation": "3489"
+      }
+    ]
+  },
+  "way:267756169": {
+    "head": {
+      "lng": 7.04472222,
+      "lat": 45.92305556,
+      "elevation_m": 3683.162841796875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:12892609514",
+        "name": "Mont Dolent / Monte Dolent",
+        "lat": 45.9219579,
+        "lng": 7.046165,
+        "wikidata": "Q665130",
+        "distance_from_head_m": 165.4,
+        "osm_elevation": "3820"
+      },
+      {
+        "osm_key": "node:503688535",
+        "name": "Pointe de Pré de Bar Est",
+        "lat": 45.9212942,
+        "lng": 7.03817,
+        "wikidata": null,
+        "distance_from_head_m": 543.3,
+        "osm_elevation": "3658"
+      },
+      {
+        "osm_key": "node:3977833821",
+        "name": "Mont Grépillon",
+        "lat": 45.9174423,
+        "lng": 7.0510691,
+        "wikidata": "Q124917476",
+        "distance_from_head_m": 794.1,
+        "osm_elevation": "3576"
+      }
+    ]
+  },
+  "way:176390679": {
+    "head": {
+      "lng": 6.88277778,
+      "lat": 45.81055556,
+      "elevation_m": 3061.803955078125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:808543830",
+        "name": "Aiguille Croux",
+        "lat": 45.8107123,
+        "lng": 6.8850697,
+        "wikidata": "Q124831309",
+        "distance_from_head_m": 178.5,
+        "osm_elevation": "3256"
+      },
+      {
+        "osm_key": "node:808543806",
+        "name": "Punta Innominata",
+        "lat": 45.816311,
+        "lng": 6.8764093,
+        "wikidata": "Q3925678",
+        "distance_from_head_m": 808.2,
+        "osm_elevation": "3731"
+      },
+      {
+        "osm_key": "node:13467931023",
+        "name": "Punta Welzenbach",
+        "lat": 45.8111394,
+        "lng": 6.8932571,
+        "wikidata": null,
+        "distance_from_head_m": 814.8,
+        "osm_elevation": "3355"
+      }
+    ]
+  },
+  "way:188343637": {
+    "head": {
+      "lng": 6.93583333,
+      "lat": 45.90277778,
+      "elevation_m": 2113.949462890625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:13013811813",
+        "name": "Tête de Trélaporte",
+        "lat": 45.9081159,
+        "lng": 6.9308257,
+        "wikidata": "Q24932990",
+        "distance_from_head_m": 708.9,
+        "osm_elevation": "2552"
+      },
+      {
+        "osm_key": "node:1241260441",
+        "name": "La Tour Rouge",
+        "lat": 45.9032079,
+        "lng": 6.9249313,
+        "wikidata": null,
+        "distance_from_head_m": 844.9,
+        "osm_elevation": "2899"
+      },
+      {
+        "osm_key": "node:1241259938",
+        "name": "Aiguille de Roc",
+        "lat": 45.9019708,
+        "lng": 6.9209798,
+        "wikidata": "Q2827880",
+        "distance_from_head_m": 1152.8,
+        "osm_elevation": "3409"
+      }
+    ]
+  },
+  "way:193208266": {
+    "head": {
+      "lng": 6.82666667,
+      "lat": 45.85805556,
+      "elevation_m": 3229.9287109375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:1438494348",
+        "name": "Aiguille du Goûter",
+        "lat": 45.8509504,
+        "lng": 6.8312381,
+        "wikidata": "Q2334655",
+        "distance_from_head_m": 865.7,
+        "osm_elevation": "3863"
+      },
+      {
+        "osm_key": "node:4383819029",
+        "name": "Les Rognes",
+        "lat": 45.8630631,
+        "lng": 6.8153502,
+        "wikidata": "Q113482729",
+        "distance_from_head_m": 1038.3,
+        "osm_elevation": "2853"
+      },
+      {
+        "osm_key": "node:2037238366",
+        "name": "Pointe Bayeux",
+        "lat": 45.8467909,
+        "lng": 6.8433769,
+        "wikidata": "Q3393540",
+        "distance_from_head_m": 1801.0,
+        "osm_elevation": "4258"
+      }
+    ]
+  },
+  "way:200660239": {
+    "head": {
+      "lng": 6.95861111,
+      "lat": 45.94833333,
+      "elevation_m": 3166.778076171875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:2401280720",
+        "name": "Aiguille des Grands Montets",
+        "lat": 45.9482017,
+        "lng": 6.9605461,
+        "wikidata": "Q404686",
+        "distance_from_head_m": 150.3,
+        "osm_elevation": "3296"
+      },
+      {
+        "osm_key": "node:4357285689",
+        "name": "Petite Aiguille Verte",
+        "lat": 45.9438549,
+        "lng": 6.963623,
+        "wikidata": "Q3377325",
+        "distance_from_head_m": 631.0,
+        "osm_elevation": "3512"
+      },
+      {
+        "osm_key": "node:13017005429",
+        "name": "Aiguille Carrée",
+        "lat": 45.94023,
+        "lng": 6.967422,
+        "wikidata": "Q132244277",
+        "distance_from_head_m": 1129.6,
+        "osm_elevation": "3716"
+      }
+    ]
+  },
+  "way:200660240": {
+    "head": {
+      "lng": 6.95888889,
+      "lat": 45.94777778,
+      "elevation_m": 3197.913330078125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:2401280720",
+        "name": "Aiguille des Grands Montets",
+        "lat": 45.9482017,
+        "lng": 6.9605461,
+        "wikidata": "Q404686",
+        "distance_from_head_m": 136.5,
+        "osm_elevation": "3296"
+      },
+      {
+        "osm_key": "node:4357285689",
+        "name": "Petite Aiguille Verte",
+        "lat": 45.9438549,
+        "lng": 6.963623,
+        "wikidata": "Q3377325",
+        "distance_from_head_m": 569.4,
+        "osm_elevation": "3512"
+      },
+      {
+        "osm_key": "node:13017005429",
+        "name": "Aiguille Carrée",
+        "lat": 45.94023,
+        "lng": 6.967422,
+        "wikidata": "Q132244277",
+        "distance_from_head_m": 1067.5,
+        "osm_elevation": "3716"
+      }
+    ]
+  },
+  "way:210128316": {
+    "head": {
+      "lng": 7.01777778,
+      "lat": 45.95833333,
+      "elevation_m": 3716.731689453125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:290497894",
+        "name": "Aiguille d'Argentière",
+        "lat": 45.959721,
+        "lng": 7.020211,
+        "wikidata": "Q404738",
+        "distance_from_head_m": 243.3,
+        "osm_elevation": "3901"
+      },
+      {
+        "osm_key": "node:1373113835",
+        "name": "Flèche Rousse",
+        "lat": 45.9582209,
+        "lng": 7.0227325,
+        "wikidata": null,
+        "distance_from_head_m": 383.2,
+        "osm_elevation": "3879"
+      },
+      {
+        "osm_key": "node:8384028088",
+        "name": "Le Casque",
+        "lat": 45.9550681,
+        "lng": 7.0154367,
+        "wikidata": null,
+        "distance_from_head_m": 405.7,
+        "osm_elevation": "3668"
+      }
+    ]
+  },
+  "way:210128317": {
+    "head": {
+      "lng": 7.03666667,
+      "lat": 45.94805556,
+      "elevation_m": 3680.760009765625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:8398131979",
+        "name": "Tour Noir",
+        "lat": 45.94884,
+        "lng": 7.0374269,
+        "wikidata": "Q664824",
+        "distance_from_head_m": 105.2,
+        "osm_elevation": "3836"
+      },
+      {
+        "osm_key": "node:8398131997",
+        "name": "Pointe Supérieure des Améthystes",
+        "lat": 45.9489461,
+        "lng": 7.030649,
+        "wikidata": null,
+        "distance_from_head_m": 475.7,
+        "osm_elevation": "3586"
+      },
+      {
+        "osm_key": "node:11536828038",
+        "name": "Pointe Morin",
+        "lat": 45.9435268,
+        "lng": 7.0365985,
+        "wikidata": "Q22540992",
+        "distance_from_head_m": 503.6,
+        "osm_elevation": "3587"
+      }
+    ]
+  },
+  "way:234540325": {
+    "head": {
+      "lng": 6.83305556,
+      "lat": 45.79138889,
+      "elevation_m": 3388.41552734375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:367510882",
+        "name": "Petit Mont Blanc",
+        "lat": 45.7917719,
+        "lng": 6.8329652,
+        "wikidata": "Q31616758",
+        "distance_from_head_m": 43.2,
+        "osm_elevation": "3431"
+      },
+      {
+        "osm_key": "node:13467936287",
+        "name": "Aiguille de l'Aigle",
+        "lat": 45.7947586,
+        "lng": 6.8300809,
+        "wikidata": "Q136367780",
+        "distance_from_head_m": 440.0,
+        "osm_elevation": "3553"
+      },
+      {
+        "osm_key": "node:2427826282",
+        "name": "Aiguille de Tré-la-Tête Orientale",
+        "lat": 45.7943135,
+        "lng": 6.8181647,
+        "wikidata": null,
+        "distance_from_head_m": 1199.5,
+        "osm_elevation": "3892"
+      }
+    ]
+  },
+  "way:244065146": {
+    "head": {
+      "lng": 6.79,
+      "lat": 45.81055556,
+      "elevation_m": 3647.875732421875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:857445645",
+        "name": "Dômes de Miage - Pointe Sud-Ouest",
+        "lat": 45.8104261,
+        "lng": 6.7897905,
+        "wikidata": null,
+        "distance_from_head_m": 21.7,
+        "osm_elevation": "3670"
+      },
+      {
+        "osm_key": "node:857445641",
+        "name": "Dômes de Miage (2nd dôme)",
+        "lat": 45.813531,
+        "lng": 6.7939263,
+        "wikidata": null,
+        "distance_from_head_m": 449.5,
+        "osm_elevation": "3633"
+      },
+      {
+        "osm_key": "node:367945330",
+        "name": "Dômes de Miage",
+        "lat": 45.8152681,
+        "lng": 6.8002767,
+        "wikidata": "Q646311",
+        "distance_from_head_m": 953.4,
+        "osm_elevation": "3673"
+      }
+    ]
+  },
+  "way:244065147": {
+    "head": {
+      "lng": 6.78888889,
+      "lat": 45.81361111,
+      "elevation_m": 3316.274658203125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:857445645",
+        "name": "Dômes de Miage - Pointe Sud-Ouest",
+        "lat": 45.8104261,
+        "lng": 6.7897905,
+        "wikidata": null,
+        "distance_from_head_m": 361.0,
+        "osm_elevation": "3670"
+      },
+      {
+        "osm_key": "node:857445641",
+        "name": "Dômes de Miage (2nd dôme)",
+        "lat": 45.813531,
+        "lng": 6.7939263,
+        "wikidata": null,
+        "distance_from_head_m": 390.5,
+        "osm_elevation": "3633"
+      },
+      {
+        "osm_key": "node:367945330",
+        "name": "Dômes de Miage",
+        "lat": 45.8152681,
+        "lng": 6.8002767,
+        "wikidata": "Q646311",
+        "distance_from_head_m": 901.6,
+        "osm_elevation": "3673"
+      }
+    ]
+  },
+  "way:244065148": {
+    "head": {
+      "lng": 6.77833333,
+      "lat": 45.80222222,
+      "elevation_m": 3365.141845703125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:367945338",
+        "name": "Aiguille de la Bérangère",
+        "lat": 45.8027724,
+        "lng": 6.7787895,
+        "wikidata": "Q3607098",
+        "distance_from_head_m": 70.7,
+        "osm_elevation": "3425"
+      },
+      {
+        "osm_key": "node:857445645",
+        "name": "Dômes de Miage - Pointe Sud-Ouest",
+        "lat": 45.8104261,
+        "lng": 6.7897905,
+        "wikidata": null,
+        "distance_from_head_m": 1273.2,
+        "osm_elevation": "3670"
+      },
+      {
+        "osm_key": "node:11646993694",
+        "name": "Pointe de Chaborgne",
+        "lat": 45.7987332,
+        "lng": 6.7568421,
+        "wikidata": "Q131413655",
+        "distance_from_head_m": 1710.5,
+        "osm_elevation": "2754"
+      }
+    ]
+  },
+  "way:247923312": {
+    "head": {
+      "lng": 7.02444444,
+      "lat": 45.88416667,
+      "elevation_m": 3223.2998046875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:367945270",
+        "name": "Monte Gruetta",
+        "lat": 45.8842279,
+        "lng": 7.0209502,
+        "wikidata": "Q3861038",
+        "distance_from_head_m": 270.6,
+        "osm_elevation": "3686"
+      },
+      {
+        "osm_key": "node:307195544",
+        "name": "Aiguille de Leschaux",
+        "lat": 45.8872044,
+        "lng": 7.0066752,
+        "wikidata": "Q1151985",
+        "distance_from_head_m": 1416.3,
+        "osm_elevation": "3759"
+      },
+      {
+        "osm_key": "node:367945279",
+        "name": "Petites Jorasses",
+        "lat": 45.8817052,
+        "lng": 7.0026095,
+        "wikidata": "Q3900992",
+        "distance_from_head_m": 1712.1,
+        "osm_elevation": "3650"
+      }
+    ]
+  },
+  "way:247923316": {
+    "head": {
+      "lng": 6.97944444,
+      "lat": 45.86583333,
+      "elevation_m": 3641.003173828125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:307195492",
+        "name": "Pointe Hélène / Punta Elena",
+        "lat": 45.8687569,
+        "lng": 6.9793403,
+        "wikidata": "Q3925668",
+        "distance_from_head_m": 325.2,
+        "osm_elevation": "4045"
+      },
+      {
+        "osm_key": "node:503688816",
+        "name": "Pointe Marguerite / Punta Margherita",
+        "lat": 45.8685716,
+        "lng": 6.9778602,
+        "wikidata": "Q3925690",
+        "distance_from_head_m": 328.3,
+        "osm_elevation": "4065"
+      },
+      {
+        "osm_key": "node:7164832201",
+        "name": "Pointe Young",
+        "lat": 45.8684087,
+        "lng": 6.9760926,
+        "wikidata": "Q136405203",
+        "distance_from_head_m": 386.5,
+        "osm_elevation": "3996"
+      }
+    ]
+  },
+  "way:247923326": {
+    "head": {
+      "lng": 6.99361111,
+      "lat": 45.86305556,
+      "elevation_m": 3198.741943359375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:3977814005",
+        "name": "Aiguille de Tronchey",
+        "lat": 45.8642725,
+        "lng": 6.9986809,
+        "wikidata": null,
+        "distance_from_head_m": 415.2,
+        "osm_elevation": "3495"
+      },
+      {
+        "osm_key": "node:26863024",
+        "name": "Grandes Jorasses / Pointe Walker",
+        "lat": 45.8681562,
+        "lng": 6.9889831,
+        "wikidata": "Q2403858",
+        "distance_from_head_m": 670.9,
+        "osm_elevation": "4208"
+      },
+      {
+        "osm_key": "node:5819009077",
+        "name": "Pointe Walker / Punta Walker",
+        "lat": 45.8688108,
+        "lng": 6.9880181,
+        "wikidata": null,
+        "distance_from_head_m": 772.7,
+        "osm_elevation": "4203"
+      }
+    ]
+  },
+  "way:247923330": {
+    "head": {
+      "lng": 6.99611111,
+      "lat": 45.86472222,
+      "elevation_m": 3367.2626953125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:3977814005",
+        "name": "Aiguille de Tronchey",
+        "lat": 45.8642725,
+        "lng": 6.9986809,
+        "wikidata": null,
+        "distance_from_head_m": 205.2,
+        "osm_elevation": "3495"
+      },
+      {
+        "osm_key": "node:26863024",
+        "name": "Grandes Jorasses / Pointe Walker",
+        "lat": 45.8681562,
+        "lng": 6.9889831,
+        "wikidata": "Q2403858",
+        "distance_from_head_m": 671.1,
+        "osm_elevation": "4208"
+      },
+      {
+        "osm_key": "node:3977814006",
+        "name": "Aiguille de l'Évêque",
+        "lat": 45.8613073,
+        "lng": 7.0045012,
+        "wikidata": "Q16487658",
+        "distance_from_head_m": 752.5,
+        "osm_elevation": "3258"
+      }
+    ]
+  },
+  "way:247923334": {
+    "head": {
+      "lng": 6.98861111,
+      "lat": 45.86833333,
+      "elevation_m": 4158.98828125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:26863024",
+        "name": "Grandes Jorasses / Pointe Walker",
+        "lat": 45.8681562,
+        "lng": 6.9889831,
+        "wikidata": "Q2403858",
+        "distance_from_head_m": 34.9,
+        "osm_elevation": "4208"
+      },
+      {
+        "osm_key": "node:5819009077",
+        "name": "Pointe Walker / Punta Walker",
+        "lat": 45.8688108,
+        "lng": 6.9880181,
+        "wikidata": null,
+        "distance_from_head_m": 70.2,
+        "osm_elevation": "4203"
+      },
+      {
+        "osm_key": "node:7165004784",
+        "name": "Pointe Whymper / Punta Whymper",
+        "lat": 45.8687625,
+        "lng": 6.9849822,
+        "wikidata": "Q3816904",
+        "distance_from_head_m": 285.0,
+        "osm_elevation": "4180"
+      }
+    ]
+  },
+  "way:247923341": {
+    "head": {
+      "lng": 7.02805556,
+      "lat": 45.87638889,
+      "elevation_m": 2785.12109375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:367945270",
+        "name": "Monte Gruetta",
+        "lat": 45.8842279,
+        "lng": 7.0209502,
+        "wikidata": "Q3861038",
+        "distance_from_head_m": 1030.7,
+        "osm_elevation": "3686"
+      },
+      {
+        "osm_key": "node:307195544",
+        "name": "Aiguille de Leschaux",
+        "lat": 45.8872044,
+        "lng": 7.0066752,
+        "wikidata": "Q1151985",
+        "distance_from_head_m": 2045.9,
+        "osm_elevation": "3759"
+      },
+      {
+        "osm_key": "node:367945279",
+        "name": "Petites Jorasses",
+        "lat": 45.8817052,
+        "lng": 7.0026095,
+        "wikidata": "Q3900992",
+        "distance_from_head_m": 2056.7,
+        "osm_elevation": "3650"
+      }
+    ]
+  },
+  "way:247923343": {
+    "head": {
+      "lng": 7.01388889,
+      "lat": 45.885,
+      "elevation_m": 3593.193115234375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:367945270",
+        "name": "Monte Gruetta",
+        "lat": 45.8842279,
+        "lng": 7.0209502,
+        "wikidata": "Q3861038",
+        "distance_from_head_m": 553.3,
+        "osm_elevation": "3686"
+      },
+      {
+        "osm_key": "node:307195544",
+        "name": "Aiguille de Leschaux",
+        "lat": 45.8872044,
+        "lng": 7.0066752,
+        "wikidata": "Q1151985",
+        "distance_from_head_m": 609.8,
+        "osm_elevation": "3759"
+      },
+      {
+        "osm_key": "node:367945279",
+        "name": "Petites Jorasses",
+        "lat": 45.8817052,
+        "lng": 7.0026095,
+        "wikidata": "Q3900992",
+        "distance_from_head_m": 946.8,
+        "osm_elevation": "3650"
+      }
+    ]
+  },
+  "way:247923349": {
+    "head": {
+      "lng": 6.95166667,
+      "lat": 45.855,
+      "elevation_m": 3240.463623046875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:5818422347",
+        "name": "Pointe Sella",
+        "lat": 45.8616766,
+        "lng": 6.9518096,
+        "wikidata": null,
+        "distance_from_head_m": 742.5,
+        "osm_elevation": "4009"
+      },
+      {
+        "osm_key": "node:7164832145",
+        "name": "Dent du Géant / Pointe Graham",
+        "lat": 45.861898,
+        "lng": 6.9518989,
+        "wikidata": "Q30541",
+        "distance_from_head_m": 767.2,
+        "osm_elevation": "4013"
+      },
+      {
+        "osm_key": "node:503688821",
+        "name": "Aiguilles Marbrées Nord",
+        "lat": 45.8513736,
+        "lng": 6.9409793,
+        "wikidata": "Q136377008",
+        "distance_from_head_m": 920.7,
+        "osm_elevation": "3535"
+      }
+    ]
+  },
+  "way:294947803": {
+    "head": {
+      "lng": 6.82083333,
+      "lat": 45.79416667,
+      "elevation_m": 3710.853271484375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:2427826282",
+        "name": "Aiguille de Tré-la-Tête Orientale",
+        "lat": 45.7943135,
+        "lng": 6.8181647,
+        "wikidata": null,
+        "distance_from_head_m": 207.5,
+        "osm_elevation": "3892"
+      },
+      {
+        "osm_key": "node:26862463",
+        "name": "Aiguille de Tré-la-Tête Centrale Sud-Est",
+        "lat": 45.7946096,
+        "lng": 6.8150821,
+        "wikidata": "Q731683",
+        "distance_from_head_m": 448.6,
+        "osm_elevation": "3930"
+      },
+      {
+        "osm_key": "node:3613468597",
+        "name": "Aiguille de Tré-la-Tête Centrale Nord-Ouest",
+        "lat": 45.7955742,
+        "lng": 6.8133076,
+        "wikidata": null,
+        "distance_from_head_m": 604.1,
+        "osm_elevation": "3908"
+      }
+    ]
+  },
+  "way:301715191": {
+    "head": {
+      "lng": 6.81444444,
+      "lat": 45.825,
+      "elevation_m": 3358.42578125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:7251779831",
+        "name": "Pyramides des Aiguilles Grises",
+        "lat": 45.8217004,
+        "lng": 6.8291992,
+        "wikidata": "Q136375919",
+        "distance_from_head_m": 1200.7,
+        "osm_elevation": "3364"
+      },
+      {
+        "osm_key": "node:366260714",
+        "name": "Aiguille de Bionnassay",
+        "lat": 45.836054,
+        "lng": 6.8186739,
+        "wikidata": "Q30493",
+        "distance_from_head_m": 1272.1,
+        "osm_elevation": "4052"
+      },
+      {
+        "osm_key": "node:3968742779",
+        "name": "Tour des Aiguilles Grise",
+        "lat": 45.8313394,
+        "lng": 6.8286875,
+        "wikidata": "Q136375907",
+        "distance_from_head_m": 1309.6,
+        "osm_elevation": "3825"
+      }
+    ]
+  },
+  "way:301985965": {
+    "head": {
+      "lng": 6.96194444,
+      "lat": 45.91305556,
+      "elevation_m": 2901.629638671875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:367945278",
+        "name": "Aiguille du Moine",
+        "lat": 45.9166313,
+        "lng": 6.9614334,
+        "wikidata": "Q2827894",
+        "distance_from_head_m": 399.6,
+        "osm_elevation": "3412"
+      },
+      {
+        "osm_key": "node:3061852072",
+        "name": "Tête du Couvercle",
+        "lat": 45.9091154,
+        "lng": 6.958822,
+        "wikidata": null,
+        "distance_from_head_m": 500.3,
+        "osm_elevation": "2735"
+      },
+      {
+        "osm_key": "node:369467786",
+        "name": "La Nonne",
+        "lat": 45.9200985,
+        "lng": 6.9605821,
+        "wikidata": "Q117773303",
+        "distance_from_head_m": 790.2,
+        "osm_elevation": "3341"
+      }
+    ]
+  },
+  "way:327069846": {
+    "head": {
+      "lng": 6.91944444,
+      "lat": 45.84444444,
+      "elevation_m": 3366.642333984375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:7164832069",
+        "name": "Aiguille d'Entrèves",
+        "lat": 45.8448332,
+        "lng": 6.9170955,
+        "wikidata": "Q3607095",
+        "distance_from_head_m": 187.0,
+        "osm_elevation": "3604"
+      },
+      {
+        "osm_key": "node:964735608",
+        "name": "Aiguille de Toula",
+        "lat": 45.8479385,
+        "lng": 6.9217665,
+        "wikidata": "Q3607096",
+        "distance_from_head_m": 428.1,
+        "osm_elevation": "3528"
+      },
+      {
+        "osm_key": "node:13467926092",
+        "name": "Pic de la Brenva",
+        "lat": 45.8392346,
+        "lng": 6.9144103,
+        "wikidata": "Q136378786",
+        "distance_from_head_m": 698.3,
+        "osm_elevation": "3504"
+      }
+    ]
+  },
+  "way:363120274": {
+    "head": {
+      "lng": 6.79444444,
+      "lat": 45.81638889,
+      "elevation_m": 3319.755615234375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:857445641",
+        "name": "Dômes de Miage (2nd dôme)",
+        "lat": 45.813531,
+        "lng": 6.7939263,
+        "wikidata": null,
+        "distance_from_head_m": 320.3,
+        "osm_elevation": "3633"
+      },
+      {
+        "osm_key": "node:367945330",
+        "name": "Dômes de Miage",
+        "lat": 45.8152681,
+        "lng": 6.8002767,
+        "wikidata": "Q646311",
+        "distance_from_head_m": 468.9,
+        "osm_elevation": "3673"
+      },
+      {
+        "osm_key": "node:857445639",
+        "name": "Dômes de Miage (5ème dôme)",
+        "lat": 45.8158975,
+        "lng": 6.8032859,
+        "wikidata": "Q646311",
+        "distance_from_head_m": 687.4,
+        "osm_elevation": "3672"
+      }
+    ]
+  },
+  "way:394890290": {
+    "head": {
+      "lng": 6.91666667,
+      "lat": 45.84027778,
+      "elevation_m": 3307.1171875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:13467926092",
+        "name": "Pic de la Brenva",
+        "lat": 45.8392346,
+        "lng": 6.9144103,
+        "wikidata": "Q136378786",
+        "distance_from_head_m": 209.8,
+        "osm_elevation": "3504"
+      },
+      {
+        "osm_key": "node:7164832069",
+        "name": "Aiguille d'Entrèves",
+        "lat": 45.8448332,
+        "lng": 6.9170955,
+        "wikidata": "Q3607095",
+        "distance_from_head_m": 507.6,
+        "osm_elevation": "3604"
+      },
+      {
+        "osm_key": "node:7259293215",
+        "name": "Brèche d'Entrèves",
+        "lat": 45.8382555,
+        "lng": 6.9231838,
+        "wikidata": null,
+        "distance_from_head_m": 552.7,
+        "osm_elevation": "3070"
+      }
+    ]
+  },
+  "way:777833954": {
+    "head": {
+      "lng": 6.89138889,
+      "lat": 45.825,
+      "elevation_m": 3316.059326171875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:7256451496",
+        "name": "Aiguille Blanche de Peuterey - Sud",
+        "lat": 45.8230537,
+        "lng": 6.8840772,
+        "wikidata": "Q30472",
+        "distance_from_head_m": 606.5,
+        "osm_elevation": "4099"
+      },
+      {
+        "osm_key": "node:3855245114",
+        "name": "Punta Gugliermina",
+        "lat": 45.8195725,
+        "lng": 6.8871082,
+        "wikidata": "Q3902552",
+        "distance_from_head_m": 688.7,
+        "osm_elevation": "3893"
+      },
+      {
+        "osm_key": "node:7256451497",
+        "name": "Aiguille Blanche de Peuterey - Centrale",
+        "lat": 45.8233827,
+        "lng": 6.881749,
+        "wikidata": "Q30472",
+        "distance_from_head_m": 768.3,
+        "osm_elevation": "4112"
+      }
+    ]
+  },
+  "way:777833955": {
+    "head": {
+      "lng": 6.88111111,
+      "lat": 45.82472222,
+      "elevation_m": 3935.185302734375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:367945311",
+        "name": "Aiguille Blanche de Peuterey - Nord",
+        "lat": 45.8237506,
+        "lng": 6.8812639,
+        "wikidata": "Q30472",
+        "distance_from_head_m": 108.7,
+        "osm_elevation": "4098"
+      },
+      {
+        "osm_key": "node:7256451497",
+        "name": "Aiguille Blanche de Peuterey - Centrale",
+        "lat": 45.8233827,
+        "lng": 6.881749,
+        "wikidata": "Q30472",
+        "distance_from_head_m": 156.9,
+        "osm_elevation": "4112"
+      },
+      {
+        "osm_key": "node:7256451496",
+        "name": "Aiguille Blanche de Peuterey - Sud",
+        "lat": 45.8230537,
+        "lng": 6.8840772,
+        "wikidata": "Q30472",
+        "distance_from_head_m": 295.4,
+        "osm_elevation": "4099"
+      }
+    ]
+  },
+  "way:777833956": {
+    "head": {
+      "lng": 6.87388889,
+      "lat": 45.83666667,
+      "elevation_m": 4245.97802734375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:281399025",
+        "name": "Mont Blanc / Monte Bianco",
+        "lat": 45.8327056,
+        "lng": 6.8651706,
+        "wikidata": "Q583",
+        "distance_from_head_m": 806.3,
+        "osm_elevation": "4807.3"
+      },
+      {
+        "osm_key": "node:7164818567",
+        "name": "Monte Bianco di Courmayeur",
+        "lat": 45.8283806,
+        "lng": 6.8696737,
+        "wikidata": "Q30395",
+        "distance_from_head_m": 977.5,
+        "osm_elevation": "4748"
+      },
+      {
+        "osm_key": "node:808543911",
+        "name": "Grand Pilier d'Angle",
+        "lat": 45.8278518,
+        "lng": 6.8797936,
+        "wikidata": "Q30441",
+        "distance_from_head_m": 1081.7,
+        "osm_elevation": "4243"
+      }
+    ]
+  },
+  "way:777857679": {
+    "head": {
+      "lng": 6.89638889,
+      "lat": 45.81111111,
+      "elevation_m": 2782.12353515625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:13467931023",
+        "name": "Punta Welzenbach",
+        "lat": 45.8111394,
+        "lng": 6.8932571,
+        "wikidata": null,
+        "distance_from_head_m": 242.8,
+        "osm_elevation": "3355"
+      },
+      {
+        "osm_key": "node:3859704621",
+        "name": "Picco Gamba",
+        "lat": 45.8089825,
+        "lng": 6.8943344,
+        "wikidata": null,
+        "distance_from_head_m": 285.3,
+        "osm_elevation": "3067"
+      },
+      {
+        "osm_key": "node:3859704622",
+        "name": "Punta Brendel",
+        "lat": 45.812771,
+        "lng": 6.8932991,
+        "wikidata": null,
+        "distance_from_head_m": 302.4,
+        "osm_elevation": "3586"
+      }
+    ]
+  },
+  "relation:106154": {
+    "head": {
+      "lng": 6.88888889,
+      "lat": 45.86416667,
+      "elevation_m": 3710.08203125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:2417756510",
+        "name": "Triangle du Tacul",
+        "lat": 45.8608217,
+        "lng": 6.888008,
+        "wikidata": null,
+        "distance_from_head_m": 378.1,
+        "osm_elevation": "3970"
+      },
+      {
+        "osm_key": "node:2151026983",
+        "name": "Pointe Lachenal",
+        "lat": 45.8646998,
+        "lng": 6.8958205,
+        "wikidata": "Q7208326",
+        "distance_from_head_m": 540.0,
+        "osm_elevation": "3613"
+      },
+      {
+        "osm_key": "node:344715573",
+        "name": "Mont Blanc du Tacul",
+        "lat": 45.8565897,
+        "lng": 6.8879554,
+        "wikidata": "Q30438",
+        "distance_from_head_m": 845.6,
+        "osm_elevation": "4248"
+      }
+    ]
+  },
+  "relation:106155": {
+    "head": {
+      "lng": 6.88583333,
+      "lat": 45.85027778,
+      "elevation_m": 3747.30615234375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:2151026961",
+        "name": "L'Isolée",
+        "lat": 45.8545834,
+        "lng": 6.8909713,
+        "wikidata": "Q16569708",
+        "distance_from_head_m": 622.6,
+        "osm_elevation": "4114"
+      },
+      {
+        "osm_key": "node:2151026980",
+        "name": "Pointe Carmen",
+        "lat": 45.8545513,
+        "lng": 6.8917806,
+        "wikidata": "Q16593000",
+        "distance_from_head_m": 661.8,
+        "osm_elevation": "4109"
+      },
+      {
+        "osm_key": "node:2151026984",
+        "name": "Pointe Médiane",
+        "lat": 45.854535,
+        "lng": 6.8920627,
+        "wikidata": null,
+        "distance_from_head_m": 675.9,
+        "osm_elevation": "4097"
+      }
+    ]
+  },
+  "relation:106239": {
+    "head": {
+      "lng": 6.86472222,
+      "lat": 45.83277778,
+      "elevation_m": 4810.71728515625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:281399025",
+        "name": "Mont Blanc / Monte Bianco",
+        "lat": 45.8327056,
+        "lng": 6.8651706,
+        "wikidata": "Q583",
+        "distance_from_head_m": 35.7,
+        "osm_elevation": "4807.3"
+      },
+      {
+        "osm_key": "node:3848979146",
+        "name": "Rocher de la Tournette",
+        "lat": 45.8328834,
+        "lng": 6.8599134,
+        "wikidata": "Q3437614",
+        "distance_from_head_m": 372.8,
+        "osm_elevation": "4677"
+      },
+      {
+        "osm_key": "node:7164818567",
+        "name": "Monte Bianco di Courmayeur",
+        "lat": 45.8283806,
+        "lng": 6.8696737,
+        "wikidata": "Q30395",
+        "distance_from_head_m": 621.5,
+        "osm_elevation": "4748"
+      }
+    ]
+  },
+  "relation:106731": {
+    "head": {
+      "lng": 7.00583333,
+      "lat": 45.96944444,
+      "elevation_m": 3635.319091796875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:290497892",
+        "name": "Aiguille de Chardonnet",
+        "lat": 45.968306,
+        "lng": 7.0015516,
+        "wikidata": "Q404697",
+        "distance_from_head_m": 354.3,
+        "osm_elevation": "3824"
+      },
+      {
+        "osm_key": "node:11538000930",
+        "name": "Aiguille Forbes",
+        "lat": 45.9732267,
+        "lng": 7.0101789,
+        "wikidata": "Q31660347",
+        "distance_from_head_m": 538.2,
+        "osm_elevation": "3488"
+      },
+      {
+        "osm_key": "node:10870208656",
+        "name": "Aiguille du Passon",
+        "lat": 45.9740465,
+        "lng": 6.9924034,
+        "wikidata": "Q31660394",
+        "distance_from_head_m": 1157.2,
+        "osm_elevation": "3370"
+      }
+    ]
+  },
+  "relation:108757": {
+    "head": {
+      "lng": 6.85694444,
+      "lat": 45.82777778,
+      "elevation_m": 4014.556884765625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:3848979146",
+        "name": "Rocher de la Tournette",
+        "lat": 45.8328834,
+        "lng": 6.8599134,
+        "wikidata": "Q3437614",
+        "distance_from_head_m": 612.6,
+        "osm_elevation": "4677"
+      },
+      {
+        "osm_key": "node:7251834346",
+        "name": "Pointe Pfann",
+        "lat": 45.8305785,
+        "lng": 6.8481517,
+        "wikidata": null,
+        "distance_from_head_m": 749.1,
+        "osm_elevation": "3984"
+      },
+      {
+        "osm_key": "node:7164818516",
+        "name": "Petite Bosse",
+        "lat": 45.8352313,
+        "lng": 6.8559139,
+        "wikidata": "Q2415466",
+        "distance_from_head_m": 832.6,
+        "osm_elevation": "4547"
+      }
+    ]
+  },
+  "relation:2589255": {
+    "head": {
+      "lng": 6.80861111,
+      "lat": 45.81305556,
+      "elevation_m": 3318.1494140625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:857445639",
+        "name": "Dômes de Miage (5ème dôme)",
+        "lat": 45.8158975,
+        "lng": 6.8032859,
+        "wikidata": "Q646311",
+        "distance_from_head_m": 519.8,
+        "osm_elevation": "3672"
+      },
+      {
+        "osm_key": "node:367945330",
+        "name": "Dômes de Miage",
+        "lat": 45.8152681,
+        "lng": 6.8002767,
+        "wikidata": "Q646311",
+        "distance_from_head_m": 691.2,
+        "osm_elevation": "3673"
+      },
+      {
+        "osm_key": "node:857445641",
+        "name": "Dômes de Miage (2nd dôme)",
+        "lat": 45.813531,
+        "lng": 6.7939263,
+        "wikidata": null,
+        "distance_from_head_m": 1139.3,
+        "osm_elevation": "3633"
+      }
+    ]
+  },
+  "relation:2590255": {
+    "head": {
+      "lng": 7.04027778,
+      "lat": 45.92416667,
+      "elevation_m": 3308.76123046875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:503688535",
+        "name": "Pointe de Pré de Bar Est",
+        "lat": 45.9212942,
+        "lng": 7.03817,
+        "wikidata": null,
+        "distance_from_head_m": 358.6,
+        "osm_elevation": "3658"
+      },
+      {
+        "osm_key": "node:12892609514",
+        "name": "Mont Dolent / Monte Dolent",
+        "lat": 45.9219579,
+        "lng": 7.046165,
+        "wikidata": "Q665130",
+        "distance_from_head_m": 517.4,
+        "osm_elevation": "3820"
+      },
+      {
+        "osm_key": "node:2739732467",
+        "name": "Pointe de Pré de Bar Est",
+        "lat": 45.9212068,
+        "lng": 7.0346514,
+        "wikidata": null,
+        "distance_from_head_m": 545.6,
+        "osm_elevation": "3608"
+      }
+    ]
+  },
+  "relation:2602489": {
+    "head": {
+      "lng": 6.90694444,
+      "lat": 45.89138889,
+      "elevation_m": 3583.743408203125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:344715578",
+        "name": "Aiguille du Plan",
+        "lat": 45.8917008,
+        "lng": 6.907229,
+        "wikidata": "Q2569448",
+        "distance_from_head_m": 41.1,
+        "osm_elevation": "3673"
+      },
+      {
+        "osm_key": "node:1241260315",
+        "name": "Dent du Crocodile",
+        "lat": 45.8928174,
+        "lng": 6.9077016,
+        "wikidata": "Q10265127",
+        "distance_from_head_m": 169.3,
+        "osm_elevation": "3640"
+      },
+      {
+        "osm_key": "node:1241259959",
+        "name": "Dent du Caïman",
+        "lat": 45.8944205,
+        "lng": 6.9090321,
+        "wikidata": "Q3023318",
+        "distance_from_head_m": 373.8,
+        "osm_elevation": "3554"
+      }
+    ]
+  },
+  "relation:3011613": {
+    "head": {
+      "lng": 7.01138889,
+      "lat": 45.99944444,
+      "elevation_m": 3270.894775390625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:8394948806",
+        "name": "Aiguilles du Pissoir",
+        "lat": 45.9972907,
+        "lng": 7.0103174,
+        "wikidata": null,
+        "distance_from_head_m": 253.4,
+        "osm_elevation": "3439"
+      },
+      {
+        "osm_key": "node:8394948816",
+        "name": "Aiguille du Midi des Grands",
+        "lat": 45.9992365,
+        "lng": 7.0069276,
+        "wikidata": null,
+        "distance_from_head_m": 345.4,
+        "osm_elevation": "3302"
+      },
+      {
+        "osm_key": "node:290497885",
+        "name": "Aiguille du Tour",
+        "lat": 45.9945308,
+        "lng": 7.0100128,
+        "wikidata": "Q404720",
+        "distance_from_head_m": 556.6,
+        "osm_elevation": "3542"
+      }
+    ]
+  },
+  "relation:3280098": {
+    "head": {
+      "lng": 6.83027778,
+      "lat": 45.85888889,
+      "elevation_m": 3217.677734375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:1438494348",
+        "name": "Aiguille du Goûter",
+        "lat": 45.8509504,
+        "lng": 6.8312381,
+        "wikidata": "Q2334655",
+        "distance_from_head_m": 885.8,
+        "osm_elevation": "3863"
+      },
+      {
+        "osm_key": "node:4383819029",
+        "name": "Les Rognes",
+        "lat": 45.8630631,
+        "lng": 6.8153502,
+        "wikidata": "Q113482729",
+        "distance_from_head_m": 1245.7,
+        "osm_elevation": "2853"
+      },
+      {
+        "osm_key": "node:2037238366",
+        "name": "Pointe Bayeux",
+        "lat": 45.8467909,
+        "lng": 6.8433769,
+        "wikidata": "Q3393540",
+        "distance_from_head_m": 1684.8,
+        "osm_elevation": "4258"
+      }
+    ]
+  },
+  "relation:3299816": {
+    "head": {
+      "lng": 6.81138889,
+      "lat": 45.79833333,
+      "elevation_m": 3858.45947265625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:3668810726",
+        "name": "Aiguille de Tré-la-Tête Nord",
+        "lat": 45.7982424,
+        "lng": 6.8114176,
+        "wikidata": null,
+        "distance_from_head_m": 10.4,
+        "osm_elevation": "3892"
+      },
+      {
+        "osm_key": "node:3613468597",
+        "name": "Aiguille de Tré-la-Tête Centrale Nord-Ouest",
+        "lat": 45.7955742,
+        "lng": 6.8133076,
+        "wikidata": null,
+        "distance_from_head_m": 341.0,
+        "osm_elevation": "3908"
+      },
+      {
+        "osm_key": "node:367945332",
+        "name": "Tête Carrée",
+        "lat": 45.8017236,
+        "lng": 6.811815,
+        "wikidata": null,
+        "distance_from_head_m": 378.4,
+        "osm_elevation": "3752"
+      }
+    ]
+  },
+  "relation:5395034": {
+    "head": {
+      "lng": 6.81472222,
+      "lat": 45.795,
+      "elevation_m": 3892.370849609375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:26862463",
+        "name": "Aiguille de Tré-la-Tête Centrale Sud-Est",
+        "lat": 45.7946096,
+        "lng": 6.8150821,
+        "wikidata": "Q731683",
+        "distance_from_head_m": 51.6,
+        "osm_elevation": "3930"
+      },
+      {
+        "osm_key": "node:3613468597",
+        "name": "Aiguille de Tré-la-Tête Centrale Nord-Ouest",
+        "lat": 45.7955742,
+        "lng": 6.8133076,
+        "wikidata": null,
+        "distance_from_head_m": 126.9,
+        "osm_elevation": "3908"
+      },
+      {
+        "osm_key": "node:2427826282",
+        "name": "Aiguille de Tré-la-Tête Orientale",
+        "lat": 45.7943135,
+        "lng": 6.8181647,
+        "wikidata": null,
+        "distance_from_head_m": 277.6,
+        "osm_elevation": "3892"
+      }
+    ]
+  },
+  "relation:5397135": {
+    "head": {
+      "lng": 6.88,
+      "lat": 45.83111111,
+      "elevation_m": 3806.60546875,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:808543911",
+        "name": "Grand Pilier d'Angle",
+        "lat": 45.8278518,
+        "lng": 6.8797936,
+        "wikidata": "Q30441",
+        "distance_from_head_m": 362.8,
+        "osm_elevation": "4243"
+      },
+      {
+        "osm_key": "node:3855245113",
+        "name": "Pic Moore",
+        "lat": 45.8356232,
+        "lng": 6.8878074,
+        "wikidata": null,
+        "distance_from_head_m": 785.9,
+        "osm_elevation": "3557"
+      },
+      {
+        "osm_key": "node:367945311",
+        "name": "Aiguille Blanche de Peuterey - Nord",
+        "lat": 45.8237506,
+        "lng": 6.8812639,
+        "wikidata": "Q30472",
+        "distance_from_head_m": 824.3,
+        "osm_elevation": "4098"
+      }
+    ]
+  },
+  "relation:14797906": {
+    "head": {
+      "lng": 6.98972222,
+      "lat": 46.00361111,
+      "elevation_m": 3074.998291015625,
+      "tile": "Copernicus_DSM_COG_10_N46_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:10870208659",
+        "name": "Pointes des Grands",
+        "lat": 46.0029179,
+        "lng": 6.990594,
+        "wikidata": null,
+        "distance_from_head_m": 102.3,
+        "osm_elevation": "3101"
+      },
+      {
+        "osm_key": "node:10870208658",
+        "name": "Pointe des Berons",
+        "lat": 46.005868,
+        "lng": 6.9844032,
+        "wikidata": "Q7208346",
+        "distance_from_head_m": 481.4,
+        "osm_elevation": "2964"
+      },
+      {
+        "osm_key": "node:12040710338",
+        "name": "Croix des Berons",
+        "lat": 46.0075411,
+        "lng": 6.9935356,
+        "wikidata": null,
+        "distance_from_head_m": 527.0,
+        "osm_elevation": "2902"
+      }
+    ]
+  },
+  "relation:14911730": {
+    "head": {
+      "lng": 6.91,
+      "lat": 45.89111111,
+      "elevation_m": 3298.44189453125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:344715578",
+        "name": "Aiguille du Plan",
+        "lat": 45.8917008,
+        "lng": 6.907229,
+        "wikidata": "Q2569448",
+        "distance_from_head_m": 224.3,
+        "osm_elevation": "3673"
+      },
+      {
+        "osm_key": "node:1241260315",
+        "name": "Dent du Crocodile",
+        "lat": 45.8928174,
+        "lng": 6.9077016,
+        "wikidata": "Q10265127",
+        "distance_from_head_m": 260.1,
+        "osm_elevation": "3640"
+      },
+      {
+        "osm_key": "node:1241259959",
+        "name": "Dent du Caïman",
+        "lat": 45.8944205,
+        "lng": 6.9090321,
+        "wikidata": "Q3023318",
+        "distance_from_head_m": 375.5,
+        "osm_elevation": "3554"
+      }
+    ]
+  },
+  "relation:14935779": {
+    "head": {
+      "lng": 6.91527778,
+      "lat": 45.9,
+      "elevation_m": 3319.3818359375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:344715579",
+        "name": "Aiguille de Blaitière",
+        "lat": 45.8992786,
+        "lng": 6.9130467,
+        "wikidata": "Q404669",
+        "distance_from_head_m": 190.4,
+        "osm_elevation": "3522"
+      },
+      {
+        "osm_key": "node:14124434675",
+        "name": "Aiguille de Chamonix",
+        "lat": 45.8998108,
+        "lng": 6.9121465,
+        "wikidata": null,
+        "distance_from_head_m": 243.2,
+        "osm_elevation": "3507"
+      },
+      {
+        "osm_key": "node:1241260056",
+        "name": "Aiguille des Ciseaux",
+        "lat": 45.898177,
+        "lng": 6.9127198,
+        "wikidata": null,
+        "distance_from_head_m": 283.3,
+        "osm_elevation": "3479"
+      }
+    ]
+  },
+  "relation:14935795": {
+    "head": {
+      "lng": 6.95,
+      "lat": 45.8625,
+      "elevation_m": 3729.95947265625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:7164832145",
+        "name": "Dent du Géant / Pointe Graham",
+        "lat": 45.861898,
+        "lng": 6.9518989,
+        "wikidata": "Q30541",
+        "distance_from_head_m": 161.6,
+        "osm_elevation": "4013"
+      },
+      {
+        "osm_key": "node:5818422347",
+        "name": "Pointe Sella",
+        "lat": 45.8616766,
+        "lng": 6.9518096,
+        "wikidata": null,
+        "distance_from_head_m": 167.4,
+        "osm_elevation": "4009"
+      },
+      {
+        "osm_key": "node:503688820",
+        "name": "Pointe Yeld",
+        "lat": 45.865858,
+        "lng": 6.9438731,
+        "wikidata": null,
+        "distance_from_head_m": 603.7,
+        "osm_elevation": "3560"
+      }
+    ]
+  },
+  "relation:14973797": {
+    "head": {
+      "lng": 7.01111111,
+      "lat": 45.99416667,
+      "elevation_m": 3450.735595703125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:290497885",
+        "name": "Aiguille du Tour",
+        "lat": 45.9945308,
+        "lng": 7.0100128,
+        "wikidata": "Q404720",
+        "distance_from_head_m": 94.0,
+        "osm_elevation": "3542"
+      },
+      {
+        "osm_key": "node:290497888",
+        "name": "Aiguille Purtscheller",
+        "lat": 45.991467,
+        "lng": 7.012429,
+        "wikidata": "Q22371076",
+        "distance_from_head_m": 317.0,
+        "osm_elevation": "3478"
+      },
+      {
+        "osm_key": "node:8394948806",
+        "name": "Aiguilles du Pissoir",
+        "lat": 45.9972907,
+        "lng": 7.0103174,
+        "wikidata": null,
+        "distance_from_head_m": 352.7,
+        "osm_elevation": "3439"
+      }
+    ]
+  },
+  "relation:16854812": {
+    "head": {
+      "lng": 6.95972222,
+      "lat": 45.86222222,
+      "elevation_m": 3941.741943359375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:340235998",
+        "name": "Aiguille de Rochefort",
+        "lat": 45.8621023,
+        "lng": 6.9599716,
+        "wikidata": "Q404672",
+        "distance_from_head_m": 23.5,
+        "osm_elevation": "4001"
+      },
+      {
+        "osm_key": "node:7274424294",
+        "name": "Doigt de Rochefort",
+        "lat": 45.8637755,
+        "lng": 6.9637978,
+        "wikidata": "Q136378969",
+        "distance_from_head_m": 359.8,
+        "osm_elevation": "3931"
+      },
+      {
+        "osm_key": "node:367945280",
+        "name": "Mont Mallet",
+        "lat": 45.8655629,
+        "lng": 6.9610616,
+        "wikidata": "Q971497",
+        "distance_from_head_m": 385.7,
+        "osm_elevation": "3970"
+      }
+    ]
+  },
+  "relation:19218925": {
+    "head": {
+      "lng": 7.02305556,
+      "lat": 45.91694444,
+      "elevation_m": 3752.7666015625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:7274586194",
+        "name": "Petite Aiguille de Triolet Orientale",
+        "lat": 45.9166576,
+        "lng": 7.0226777,
+        "wikidata": null,
+        "distance_from_head_m": 43.3,
+        "osm_elevation": "3798"
+      },
+      {
+        "osm_key": "node:7274586195",
+        "name": "Aiguille de Triolet",
+        "lat": 45.9164659,
+        "lng": 7.0242018,
+        "wikidata": "Q404676",
+        "distance_from_head_m": 103.4,
+        "osm_elevation": "3870"
+      },
+      {
+        "osm_key": "node:7274586193",
+        "name": "Petite Aiguille de Triolet Occidentale",
+        "lat": 45.9167397,
+        "lng": 7.0217121,
+        "wikidata": null,
+        "distance_from_head_m": 106.4,
+        "osm_elevation": "3800"
+      }
+    ]
+  },
+  "way:363120277": {
+    "head": {
+      "lng": 6.80083333,
+      "lat": 45.81555556,
+      "elevation_m": 3630.29541015625,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:367945330",
+        "name": "Dômes de Miage",
+        "lat": 45.8152681,
+        "lng": 6.8002767,
+        "wikidata": "Q646311",
+        "distance_from_head_m": 53.7,
+        "osm_elevation": "3673"
+      },
+      {
+        "osm_key": "node:857445639",
+        "name": "Dômes de Miage (5ème dôme)",
+        "lat": 45.8158975,
+        "lng": 6.8032859,
+        "wikidata": "Q646311",
+        "distance_from_head_m": 193.8,
+        "osm_elevation": "3672"
+      },
+      {
+        "osm_key": "node:857445641",
+        "name": "Dômes de Miage (2nd dôme)",
+        "lat": 45.813531,
+        "lng": 6.7939263,
+        "wikidata": null,
+        "distance_from_head_m": 580.7,
+        "osm_elevation": "3633"
+      }
+    ]
+  },
+  "way:1394999701": {
+    "head": {
+      "lng": 7.05861111,
+      "lat": 45.95972222,
+      "elevation_m": 3387.945068359375,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:11538075850",
+        "name": "Petit Darrey",
+        "lat": 45.960101,
+        "lng": 7.0568017,
+        "wikidata": "Q22519922",
+        "distance_from_head_m": 146.1,
+        "osm_elevation": "3507"
+      },
+      {
+        "osm_key": "node:290497905",
+        "name": "Grand Darray",
+        "lat": 45.9589745,
+        "lng": 7.0605282,
+        "wikidata": "Q3646946",
+        "distance_from_head_m": 169.9,
+        "osm_elevation": "3514"
+      },
+      {
+        "osm_key": "node:11537610175",
+        "name": "Tita Naire",
+        "lat": 45.9639416,
+        "lng": 7.0648415,
+        "wikidata": "Q22509647",
+        "distance_from_head_m": 672.4,
+        "osm_elevation": "3177"
+      }
+    ]
+  },
+  "way:1394999702": {
+    "head": {
+      "lng": 7.06972222,
+      "lat": 45.96,
+      "elevation_m": 2957.823486328125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:11537086260",
+        "name": "Crête Sèche",
+        "lat": 45.9596501,
+        "lng": 7.0769228,
+        "wikidata": "Q25202890",
+        "distance_from_head_m": 558.0,
+        "osm_elevation": "3022"
+      },
+      {
+        "osm_key": "node:11537610175",
+        "name": "Tita Naire",
+        "lat": 45.9639416,
+        "lng": 7.0648415,
+        "wikidata": "Q22509647",
+        "distance_from_head_m": 578.3,
+        "osm_elevation": "3177"
+      },
+      {
+        "osm_key": "node:290497905",
+        "name": "Grand Darray",
+        "lat": 45.9589745,
+        "lng": 7.0605282,
+        "wikidata": "Q3646946",
+        "distance_from_head_m": 719.8,
+        "osm_elevation": "3514"
+      }
+    ]
+  },
+  "way:1394999703": {
+    "head": {
+      "lng": 7.06222222,
+      "lat": 45.96,
+      "elevation_m": 3277.828125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:290497905",
+        "name": "Grand Darray",
+        "lat": 45.9589745,
+        "lng": 7.0605282,
+        "wikidata": "Q3646946",
+        "distance_from_head_m": 173.6,
+        "osm_elevation": "3514"
+      },
+      {
+        "osm_key": "node:11538075850",
+        "name": "Petit Darrey",
+        "lat": 45.960101,
+        "lng": 7.0568017,
+        "wikidata": "Q22519922",
+        "distance_from_head_m": 419.1,
+        "osm_elevation": "3507"
+      },
+      {
+        "osm_key": "node:11537610175",
+        "name": "Tita Naire",
+        "lat": 45.9639416,
+        "lng": 7.0648415,
+        "wikidata": "Q22509647",
+        "distance_from_head_m": 482.8,
+        "osm_elevation": "3177"
+      }
+    ]
+  },
+  "relation:1649757": {
+    "head": {
+      "lng": 6.85916667,
+      "lat": 45.83305556,
+      "elevation_m": 4643.34814453125,
+      "tile": "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif",
+      "method": "Highest valid Copernicus GLO-30 pixel centre inside the whole selected outline; 30 m surface model; not a surveyed glacier head."
+    },
+    "parent_candidates": [
+      {
+        "osm_key": "node:3848979146",
+        "name": "Rocher de la Tournette",
+        "lat": 45.8328834,
+        "lng": 6.8599134,
+        "wikidata": "Q3437614",
+        "distance_from_head_m": 60.9,
+        "osm_elevation": "4677"
+      },
+      {
+        "osm_key": "node:7164818516",
+        "name": "Petite Bosse",
+        "lat": 45.8352313,
+        "lng": 6.8559139,
+        "wikidata": "Q2415466",
+        "distance_from_head_m": 349.3,
+        "osm_elevation": "4547"
+      },
+      {
+        "osm_key": "node:281399025",
+        "name": "Mont Blanc / Monte Bianco",
+        "lat": 45.8327056,
+        "lng": 6.8651706,
+        "wikidata": "Q583",
+        "distance_from_head_m": 466.8,
+        "osm_elevation": "4807.3"
+      }
+    ]
+  }
+}

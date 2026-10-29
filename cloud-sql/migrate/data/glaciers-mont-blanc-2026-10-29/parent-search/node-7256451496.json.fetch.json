@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+Blanche+de+Peuterey+-+Sud&lat=45.8230537&lng=6.8840772&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:42:20.276440+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+Blanche+de+Peuterey+-+Sud&lat=45.8230537&lng=6.8840772&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=117, reset=55",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c93-bQiZjFQXOBwnQBHLdD05DdiQV3k\"",
+    "x-cloud-trace-context": "d71c3b9484e0af0b1b13dc3c31e267c8",
+    "date": "Thu, 29 Oct 2026 18:42:21 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3219",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "3355250b81228d94bce18c9f6d173bd4b68622189a7f42be81bcbbb01b4a928b",
+  "bytes": 3219
+}

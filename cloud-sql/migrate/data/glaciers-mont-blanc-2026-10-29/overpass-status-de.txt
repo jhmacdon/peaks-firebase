@@ -1,0 +1,6 @@
+Connected as: 1205116756
+Current time: 2026-10-29T17:39:24Z
+Announced endpoint: gall.openstreetmap.de/
+Rate limit: 2
+2 slots available now.
+Currently running queries (pid, space limit, time limit, start time):

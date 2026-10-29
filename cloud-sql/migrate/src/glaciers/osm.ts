@@ -55,7 +55,8 @@ function rings(lines: Position[][]): Position[][] {
   }
   return result;
 }
-function linework(element: OverpassElement): Polygon[] {
+/** Complete way/multipolygon geometry shared by glacier and country imports. */
+export function parseOsmPolygon(element: OverpassElement): Polygon[] {
   const read = (e: OverpassElement): Position[][] => {
     if (!Array.isArray(e.geometry) || e.geometry.some(p => !Number.isFinite(p.lat) ||
       !Number.isFinite(p.lon ?? p.lng) || Math.abs(p.lat)>90 || Math.abs((p.lon ?? p.lng)!)>180))
@@ -109,7 +110,7 @@ export function parseOsmGlaciers(snapshot: unknown, options: OsmGlacierOptions =
     }
     return { id: deterministicLakeDestinationId(e.type, e.id), name: e.tags!.name.trim(), osm_key: key,
       kind: snowfields.has(e.tags!.name.trim()) ? "snowfield" : "glacier",
-      external_ids, boundary: { type: "MultiPolygon", coordinates: linework(e) } } satisfies GlacierCandidate;
+      external_ids, boundary: { type: "MultiPolygon", coordinates: parseOsmPolygon(e) } } satisfies GlacierCandidate;
   });
   if (!roster) return places;
   const kept = places.filter(p => roster.has(p.osm_key));

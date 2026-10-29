@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Dent+du+G%C3%A9ant&lat=45.861898&lng=6.9518989&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:42:12.568793+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Dent+du+G%C3%A9ant&lat=45.861898&lng=6.9518989&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=119, reset=60",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"af1-deeearPq0/vQwfNHu0rZZImprwQ\"",
+    "x-cloud-trace-context": "894694c5321ccaea59f52ad3219c6a78",
+    "date": "Thu, 29 Oct 2026 18:42:16 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "2801",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "b6e3660f9914e21615f1904b7b696a72a31a7a1225e634d2e2b1f11d050f172a",
+  "bytes": 2801
+}

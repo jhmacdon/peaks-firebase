@@ -1,0 +1,25 @@
+{
+  "url": "https://docs.sentinel-hub.com/api/latest/static/files/data/dem/resources/license/License-COPDEM-30.pdf",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:32:07.208775+00:00",
+  "status": 200,
+  "final_url": "https://docs.sentinel-hub.com/api/latest/static/files/data/dem/resources/license/License-COPDEM-30.pdf",
+  "response_headers": {
+    "Content-Type": "application/pdf",
+    "Content-Length": "113786",
+    "Connection": "close",
+    "Server": "AmazonS3",
+    "Last-Modified": "Thu, 06 Aug 2026 11:28:45 GMT",
+    "Date": "Thu, 29 Oct 2026 17:32:08 GMT",
+    "ETag": "\"a87b232ad933d89a3b43e2367432eb2a\"",
+    "X-Cache": "RefreshHit from cloudfront",
+    "Via": "1.1 25ca38be067f09a4880109c0e364469a.cloudfront.net (CloudFront)",
+    "X-Amz-Cf-Pop": "SEA73-P3",
+    "X-Amz-Cf-Id": "feKQuRUGL1A5DNecxVgI-A7F6ijx8l3EiG35aykd4H8pUofgeM1NNw=="
+  },
+  "sha256": "9cd37d37ea654bbcaf0a2e059e6a3a5b5f76072824d8dd860ccf274ada8951bd",
+  "bytes": 113786
+}

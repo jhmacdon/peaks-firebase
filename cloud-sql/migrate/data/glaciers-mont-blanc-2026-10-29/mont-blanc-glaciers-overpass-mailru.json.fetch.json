@@ -1,0 +1,24 @@
+{
+  "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  "method": "POST",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0",
+    "Content-Type": "application/x-www-form-urlencoded"
+  },
+  "fetched_at": "2026-10-29T17:35:30.910152+00:00",
+  "status": 504,
+  "final_url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  "response_headers": {
+    "Date": "Thu, 29 Oct 2026 17:36:26 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Maps-Platform, X-Maps-Access-Token",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT",
+    "Server": "nginx/portaladmins"
+  },
+  "sha256": "9e8d149c02b9ab7719f9e6cfdf696730c39abead6f27e39eb13793b7d2adbb82",
+  "bytes": 695
+}

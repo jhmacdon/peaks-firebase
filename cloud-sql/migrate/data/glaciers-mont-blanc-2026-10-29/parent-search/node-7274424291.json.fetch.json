@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pointe+des+Hirondelles+Sud&lat=45.8738943&lng=6.999101&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:42:22.288753+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pointe+des+Hirondelles+Sud&lat=45.8738943&lng=6.999101&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=116, reset=53",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c70-Upn96gM8Z8i9UaakfjZzyCrv+5U\"",
+    "x-cloud-trace-context": "cea92cc26f3b533661995c81cca2c6e4;o=1",
+    "date": "Thu, 29 Oct 2026 18:42:23 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3184",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "aa93f3b49850e1be6508cbd3d40044947895a0f0c11abf320c4d1d9c85ed719e",
+  "bytes": 3184
+}

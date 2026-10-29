@@ -22,8 +22,10 @@ type Package = { module: string; manifest: GlacierManifest };
 function crossPackageProblems(packages: Package[]): string[] {
   const owner = new Map<string, string>(), twice: string[] = [];
   for (const { module, manifest } of packages) for (const p of manifest.places) {
-    if (owner.has(p.osm_key)) twice.push(`${p.osm_key} (${p.name}) in ${owner.get(p.osm_key)} and ${module}`);
-    owner.set(p.osm_key, module);
+    for (const key of p.osm_keys ?? [p.osm_key]) {
+      if (owner.has(key)) twice.push(`${key} (${p.name}) in ${owner.get(key)} and ${module}`);
+      owner.set(key, module);
+    }
   }
   const found: string[] = [...twice];
   for (let x = 0; x < packages.length; x++) for (let y = x + 1; y < packages.length; y++) {

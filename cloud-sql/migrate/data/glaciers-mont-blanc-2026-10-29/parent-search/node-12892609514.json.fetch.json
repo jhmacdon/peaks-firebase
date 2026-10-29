@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Mont+Dolent&lat=45.9219579&lng=7.046165&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:40:06.548959+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Mont+Dolent&lat=45.9219579&lng=7.046165&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=112, reset=3",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c1e-YcY4l+RGCUkfyWnfoNGAMYhZYzQ\"",
+    "x-cloud-trace-context": "dc601ebf3df79c89f22f52a9d952eea5",
+    "date": "Thu, 29 Oct 2026 18:40:11 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3102",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "3885c7ece36043ac9ad1429e72dbd342706391032c1f31171060b41a29804105",
+  "bytes": 3102
+}

@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Tr%C3%A9-la-T%C3%AAte+Centrale+Sud-Est&lat=45.7946096&lng=6.8150821&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:40:52.285948+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Tr%C3%A9-la-T%C3%AAte+Centrale+Sud-Est&lat=45.7946096&lng=6.8150821&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=107, reset=21",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"caa-ni0O7ogn74MGzNh/MiyDAZStXqw\"",
+    "x-cloud-trace-context": "11cbaa60e615f05acf0d69c52b59b24a",
+    "date": "Thu, 29 Oct 2026 18:40:53 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3242",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "061934afb8a62bc68c6616c069c52c25afa6b7afa8dbdd6ef95f37bf63287bda",
+  "bytes": 3242
+}

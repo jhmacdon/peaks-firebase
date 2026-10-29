@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Grand+Darray&lat=45.9589745&lng=7.0605282&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:06.556110+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Grand+Darray&lat=45.9589745&lng=7.0605282&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=101, reset=7",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c09-pvmarJ3lgpG/Q4ynrFchgHjLod0\"",
+    "x-cloud-trace-context": "e58a6385a0f82da6137ccc9a8c2270e9",
+    "date": "Thu, 29 Oct 2026 18:41:07 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3081",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "7a6c0e48e697007fd43e8d7a4defd34844b9a374aea40b42d4ae3d6e0eaf245e",
+  "bytes": 3081
+}

@@ -1,0 +1,22 @@
+{
+  "url": "https://wgms.ch/downloads/DOI-WGMS-FoG-2026-02-10.zip",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:54:15.115047+00:00",
+  "status": 200,
+  "final_url": "https://wgms.ch/downloads/DOI-WGMS-FoG-2026-02-10.zip",
+  "response_headers": {
+    "date": "Thu, 29 Oct 2026 17:54:15 GMT",
+    "server": "Apache",
+    "connection": "Upgrade",
+    "last-modified": "Tue, 24 Feb 2026 16:03:08 GMT",
+    "etag": "\"2553133-64b94060b8559\"",
+    "accept-ranges": "bytes",
+    "content-length": "39137587",
+    "content-type": "application/zip"
+  },
+  "sha256": "60e925b5ad7e319df6742790f02fa14b6012bea49a75b4c6a04b8f50ac30d612",
+  "bytes": 39137587
+}
