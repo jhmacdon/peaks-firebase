@@ -9,13 +9,15 @@ export const OUTLINE_DATA_DIR = resolve(__dirname, "../data/glaciers-adams-glims
 const WILDERNESS = "mount-adams-wilderness";
 const place = (inventory: string, container: string | null): RegionPlace => ({ parent: "mount-adams", inventory, container });
 
-/** 10 of the 13 named OSM glaciers. Containers from the USFS EDW wilderness
+/** 12 of the 13 named OSM glaciers. Containers from the USFS EDW wilderness
  * boundary: the eastern glaciers lie on Yakama Nation land, and Adams and
- * Gotchen Glaciers cross the line, so they keep no container. Held back for
- * an OSM fix: "Avalanche Glacier" (relation:4104274) and "White Salmon
- * Glacier" (relation:4104279) carry each other's names (GNIS points and the
- * inventory agree), and a second "Mazama Glacier" (relation:18735239, same
- * GNIS id, no overlap with the inventory's Mazama). */
+ * Gotchen Glaciers cross the line, so they keep no container. Avalanche
+ * (relation:4104274) and White Salmon (relation:4104279) keep their OSM
+ * names, which match the USGS description (White Salmon is the upper glacier
+ * feeding Avalanche below); the GNIS points and inventory names are crossed
+ * there, so each takes the inventory row lying on it. Held back: a second
+ * "Mazama Glacier" (relation:18735239, same GNIS id, no overlap with the
+ * inventory's Mazama). */
 export const ADAMS_SPEC: RegionSpec = {
   label: "Mount Adams", data_dir: DATA_DIR, outline_dir: OUTLINE_DATA_DIR,
   files: { osm: "adams-glaciers-overpass.json", rgi: "rgi7-wfs-adams.json", glims: "glims-wfs-adams.json" },
@@ -31,6 +33,10 @@ export const ADAMS_SPEC: RegionSpec = {
     "relation:4104277": place("Lyman Glacier", null), "relation:18735240": place("Mazama Glacier", null),
     "relation:18735485": place("Pinnacle Glacier", WILDERNESS), "relation:4104278": place("Rusk Glacier", null),
     "relation:4104280": place("Wilson Glacier", null),
+    "relation:4104274": { ...place("White Salmon Glacier", WILDERNESS),
+      inventory_note: "PSU/GNIS name for this outline is White Salmon Glacier; name follows OSM and USGS descriptions" }, // Avalanche Glacier
+    "relation:4104279": { ...place("Avalanche Glacier", WILDERNESS),
+      inventory_note: "PSU/GNIS name for this outline is Avalanche Glacier; name follows OSM and USGS descriptions" }, // White Salmon Glacier
   },
   default_parent: "mount-adams",
   parents: { "mount-adams": { name: "Mount Adams", features: ["summit", "volcano"], country_code: "US", state_code: "WA",
@@ -39,8 +45,7 @@ export const ADAMS_SPEC: RegionSpec = {
   inventory: {
     cohort: { observed_at: "2019-08-31", submission_id: "814", chief_affl: "Portland State University" },
     rgi_outline_years: "1969",
-    /** Every named cohort glacier of Mount Adams, including Avalanche and
-     * White Salmon (held back above): they count towards "of 12".
+    /** Every named cohort glacier of Mount Adams: "of 12".
      * "White Salmon  Glacier" (double space) is a third White Salmon part. */
     mountains: { "mount-adams": { label: "Mount Adams", names: {
       "Adams Glacier": 4, "Avalanche Glacier": 1, "Crescent Glacier": 2, "Gotchen Glacier": 2, "Klickitat Glacier": 2,
@@ -52,6 +57,7 @@ export const ADAMS_SPEC: RegionSpec = {
   },
   activities: ["outdoor-trek", "ski"],
   country_code: "US", state_code: "WA",
+  outline_rule: 2,
 };
 
 export const loadAdamsOsmPackage = () => loadRegionOsmPackage(ADAMS_SPEC);

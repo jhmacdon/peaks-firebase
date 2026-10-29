@@ -1,8 +1,8 @@
 # Mount Adams and Mount St. Helens glaciers — review packet, 2026-10-29
 
-**Adams: 10 glaciers; flags 0 ratio, 0 no facts, 3 held** (1 outline-quality
-problem counted: 1 of 13, 8%; the Avalanche/White Salmon pair stays held
-until their identities are verified). **St. Helens: 1 glacier, no flags.**
+**Adams: 12 glaciers; flags 0 ratio, 0 no facts, 1 held** (the duplicate
+Mazama: 1 outline-quality problem counted, 1 of 13, 8%). **St. Helens: 1
+glacier, no flags.** Outline rule 2 (#290).
 Two packages, one apply each:
 `import-adams-glaciers.ts` and `import-st-helens-glaciers.ts`. Both read
 byte-identical copies of one snapshot set (box 46.13,-122.26,46.27,-121.38).
@@ -11,10 +11,13 @@ Decisions: [Adams](adams-glacier-outline-decisions-2026-10-29.md),
 
 | Package | Reviewed manifest SHA-256 (platform-stable) |
 | --- | --- |
-| Mount Adams | `c1108988a040ecede5ffd1f81c4a27e1bd0ae6da078af210f7868c5b4e4f3967` |
-| Mount St. Helens | `71c1d7fe95dee1a238685ccae4c44c67b801e5464947a5c153d9786e6eee31b7` |
+| Mount Adams | `7179238830408a34ebba06f22cdce9664024f51bfaff0e72186474ce93bb665e` |
+| Mount St. Helens | `9d0f0d49e702b75d825c02460f53f397e2e996f1a49b1f26834989974920b687` |
 
-Both hashes changed with the hole-contact fix (#285): the 1969 Pinnacle
+Later changes: Avalanche and White Salmon imported (below), outline rule 2,
+and the St. Helens parent renamed "Mount Saint Helens", the exact name of
+the Peaks row (6PxfQ1g48SrbplzGd6UH) that the apply step checks. Before
+that, both hashes changed with the hole-contact fix (#285): the 1969 Pinnacle
 Glacier reference outline (GLIMS feature 762530) touches its exterior twice
 and is now rejected as invalid. It was dated extent evidence only; Pinnacle
 keeps OSM (ratio 1.292, in band) and no decision, geometry or fact changed.
@@ -37,34 +40,27 @@ keeps OSM (ratio 1.292, in band) and no decision, geometry or fact changed.
 "White Salmon  Glacier" (double space) is counted as a third White Salmon
 part (normalised names, #277).
 
-Held back (flagged). The duplicate Mazama is an outline-quality flag.
+**Avalanche / White Salmon: imported under their OSM names** (reviewed
+decision, 2026-10-29). OSM's labels match the descriptive evidence (USGS
+OFR 2018-1013 Fig. 2, Wikipedia, AAJ): White Salmon Glacier is the upper
+glacier feeding Avalanche Glacier below. It is the GNIS name points and the
+PSU names that are crossed here. Each takes the PSU row lying on it, never
+the PSU row with its name, and provenance records "PSU/GNIS name for this
+outline is X; name follows OSM and USGS descriptions":
 
-**Avalanche / White Salmon: still held, because the sources disagree.** The
-reviewed decision was to rename relation:4104274 to White Salmon and
-relation:4104279 to Avalanche, "if each GNIS point falls inside the polygon
-you rename". Checked against the GNIS Domestic Names file:
+| OSM | Peaks name | PSU 2019 row on it | Facts | Outline |
+| --- | --- | --- | --- | --- |
+| relation:4104274 | Avalanche Glacier | "White Salmon Glacier" (3 parts, 57–98% inside) | 1.181 km²; head 3,532 m (RGI "White Salmon", 54% inside) | OSM (ratio 0.963) |
+| relation:4104279 | White Salmon Glacier | "Avalanche Glacier" (94% inside) | 0.402 km²; head null (no RGI row) | PSU 2019 (rule 2: OSM 1.049 km², ratio 2.61) |
 
-| Evidence | relation:4104274 (OSM "Avalanche"; lower, centroid 46.188,-121.507) | relation:4104279 (OSM "White Salmon"; upper, centroid 46.194,-121.516) |
-| --- | --- | --- |
-| GNIS 1528088 White Salmon Glacier (46.18294,-121.50859) | inside | — |
-| GNIS 1515991 Avalanche Glacier (46.19993,-121.50402) | — | inside |
-| PSU 2019 "White Salmon" parts | 57–98% inside | — |
-| PSU 2019 "Avalanche" | — | 94% inside |
-| Decision text: White Salmon is the UPPER glacier (given as 46.19984,-121.50286) | — | inside (so White Salmon = 4104279) |
-| Decision text: Avalanche is the LOWER glacier (given as 46.18457,-121.51008) | inside (so Avalanche = 4104274) | — |
+Both lie inside Mount Adams Wilderness (EDW, 50 m margin). The outline
+matcher crosses the two names (`outline-sources.json` aliases) so each PSU
+outline is matched by overlap.
 
-GNIS and the PSU inventory support the requested rename. The decision's own
-coordinates and its upper/lower description support OSM's current labels:
-its coordinates for the two GNIS ids are the other id's GNIS position. Per
-the rule ("if not, hold and say so") both stay held until one reading is
-confirmed. If GNIS/PSU is right, the change is two roster entries with
-`label` corrections (#288); if the upper/lower description is right, the
-OSM labels stand and only the inventory crosswalk changes.
+Held back: the duplicate Mazama (outline-quality flag).
 
 | OSM | Name | Why |
 | --- | --- | --- |
-| relation:4104274 | Avalanche Glacier | Names swapped: this polygon holds the GNIS White Salmon point and 57–98% of the inventory's White Salmon parts. |
-| relation:4104279 | White Salmon Glacier | Names swapped: holds the GNIS Avalanche point and 94% of the inventory's Avalanche. |
 | relation:18735239 | Mazama Glacier | Second relation with the same GNIS id (1522832); no overlap with the inventory's Mazama, which matches relation:18735240. |
 
 | Glacier | OSM km² | GLIMS 2019 | Facts | OSM/facts | IoU / share | Chosen |
@@ -79,8 +75,10 @@ OSM labels stand and only the inventory crosswalk changes.
 | Mazama | 0.694 | 0.858 | 0.858 | 0.809 | 0.732 / 0.765 | osm |
 | Crescent | 0.183 | 0.207 | 0.207 | 0.885 | 0.633 / 0.731 | osm |
 | Gotchen | 0.367 | 0.102 | 0.102 | 3.609 | 0.276 / 0.997 | **GLIMS 2019** (1969 reference fits OSM better) |
+| Avalanche (PSU row "White Salmon") | 1.137 | 1.181 | 1.181 | 0.963 | 0.468 / 0.626 | osm |
+| White Salmon (PSU row "Avalanche") | 1.049 | 0.402 | 0.402 | 2.610 | 0.351 / 0.937 | **GLIMS 2019** (rule 2: OSM undated) |
 
-No outline flags. RGI 1969 has no "Avalanche Glacier" row (`rgi_absent`).
+No outline flags. RGI 1969 has no "Avalanche Glacier" row (`rgi_absent`), so the White Salmon place (which takes that row) has no head elevation.
 
 | Glacier | DEM head (m) | Nearest summit to head | Call |
 | --- | ---: | --- | --- |
@@ -90,9 +88,9 @@ No outline flags. RGI 1969 has no "Avalanche Glacier" row (`rgi_absent`).
 | Wilson | 3,221 | Mount Adams 1.2 km | clear |
 | Pinnacle | 3,271 | Mount Adams 1.5 km | clear |
 | Mazama | 3,393 | Pikers Peak (Adams' false summit) 448 m | clear |
-| Lava | 2,963 | North Cleaver ridge 340 m; Mount Adams 1.9 km | ⚑ north flank, low head |
-| Crescent | 2,825 | Pikers Peak 1.7 km | ⚑ south side below Pikers Peak |
-| Gotchen | 2,613 | Pikers Peak 2.9 km | ⚑ low south flank |
+| Lava | 2,963 | North Cleaver ridge 340 m; Mount Adams 1.9 km | checked (north flank) |
+| Crescent | 2,825 | Pikers Peak 1.7 km | checked (south side) |
+| Gotchen | 2,613 | Pikers Peak 2.9 km | checked (south flank) |
 
 Containers (USFS EDW Mount Adams Wilderness): **Mount Adams Wilderness** for
 Crescent (margin 450 m), Lava (986 m) and Pinnacle (1,480 m). No container for

@@ -1,5 +1,12 @@
 {
-  "aliases": {},
+  "aliases": {
+    "Avalanche Glacier": [
+      "White Salmon Glacier"
+    ],
+    "White Salmon Glacier": [
+      "Avalanche Glacier"
+    ]
+  },
   "sources": [
     {
       "key": "glims-2019-08-31",

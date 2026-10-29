@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
+  "rule": "Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=46.2024 +lon_0=-121.4908 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-  "input_manifest_sha256": "0f4ea3f5fed43b9f040623358016b377a78ce4f3238fa2f82e847819502e1209",
-  "output_manifest_sha256": "c1108988a040ecede5ffd1f81c4a27e1bd0ae6da078af210f7868c5b4e4f3967",
+  "input_manifest_sha256": "3b84fcb52409086d1083154aebf343ee432120c7521a1bf57ec87271cdfdd21c",
+  "output_manifest_sha256": "7179238830408a34ebba06f22cdce9664024f51bfaff0e72186474ce93bb665e",
   "sources": [
     {
       "key": "glims-2019-08-31",
@@ -60,6 +60,46 @@
               "iou": 0.747187317,
               "osm_share": 0.764285231,
               "candidate_share": 0.970929933
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "A6DAB19D75F0EE746143",
+            "name": "White Salmon Glacier",
+            "feature_ids": [
+              "1013535",
+              "1013550",
+              "1013556"
+            ],
+            "glacier_ids": [
+              "G238493E46186N",
+              "G238499E46198N",
+              "G238505E46193N"
+            ],
+            "area_km2": 1.180535299,
+            "overlap": {
+              "intersection_km2": 0.738749506,
+              "iou": 0.467946002,
+              "osm_share": 0.649780892,
+              "candidate_share": 0.625775025
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "CDD648B5A1230D40739C",
+            "name": "Avalanche Glacier",
+            "feature_ids": [
+              "1013545"
+            ],
+            "glacier_ids": [
+              "G238494E46201N"
+            ],
+            "area_km2": 0.402076535,
+            "overlap": {
+              "intersection_km2": 0.376699385,
+              "iou": 0.350524991,
+              "osm_share": 0.359002422,
+              "candidate_share": 0.936884779
             },
             "parts_without_osm_overlap": []
           },
@@ -386,22 +426,6 @@
             ],
             "name": "WA",
             "reason": "Unnamed inventory feature; no name crosswalk"
-          },
-          {
-            "name": "White Salmon Glacier",
-            "feature_ids": [
-              "1013535",
-              "1013550",
-              "1013556"
-            ],
-            "reason": "No name/alias crosswalk"
-          },
-          {
-            "name": "Avalanche Glacier",
-            "feature_ids": [
-              "1013545"
-            ],
-            "reason": "No name/alias crosswalk"
           }
         ],
         "ambiguous": [],
@@ -1138,13 +1162,6 @@
             "reason": "No name/alias crosswalk"
           },
           {
-            "name": "White Salmon Glacier",
-            "feature_ids": [
-              "762599"
-            ],
-            "reason": "No name/alias crosswalk"
-          },
-          {
             "name": "Klickitat Glacier WA",
             "feature_ids": [
               "762661"
@@ -1152,7 +1169,19 @@
             "reason": "No name/alias crosswalk"
           }
         ],
-        "ambiguous": [],
+        "ambiguous": [
+          {
+            "name": "White Salmon Glacier",
+            "feature_ids": [
+              "762599"
+            ],
+            "reason": "Name and overlap match several places",
+            "place_ids": [
+              "A6DAB19D75F0EE746143",
+              "CDD648B5A1230D40739C"
+            ]
+          }
+        ],
         "invalid": [
           {
             "name": "Pinnacle Glacier",
@@ -1203,6 +1232,40 @@
         "candidate_iou": 0.747187317,
         "basis": "Inferred older extent: OSM fits the dated historical inventory substantially better than the newer inventory; not a verified OSM observation date"
       },
+      "chosen_source": "osm",
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+    },
+    {
+      "id": "A6DAB19D75F0EE746143",
+      "glacier": "Avalanche Glacier",
+      "osm_area_km2": 1.136920946,
+      "glims_area_km2": 1.180535299,
+      "facts_area_km2": 1.180535,
+      "osm_ratio": 0.963055687,
+      "glims_ratio": 1.000000253,
+      "candidates": [
+        {
+          "source_key": "glims-2019-08-31",
+          "area_km2": 1.180535299,
+          "ratio": 1.000000253,
+          "observed_at": "2019-08-31",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.738749506,
+            "iou": 0.467946002,
+            "osm_share": 0.649780892,
+            "candidate_share": 0.625775025
+          },
+          "feature_ids": [
+            "1013535",
+            "1013550",
+            "1013556"
+          ],
+          "parts_without_osm_overlap": []
+        }
+      ],
+      "extent_evidence": null,
       "chosen_source": "osm",
       "flagged": false,
       "reason": "OSM/facts ratio is within [0.67, 1.5]"
@@ -1343,6 +1406,38 @@
       "chosen_source": "osm",
       "flagged": false,
       "reason": "OSM/facts ratio is within [0.67, 1.5]"
+    },
+    {
+      "id": "CDD648B5A1230D40739C",
+      "glacier": "White Salmon Glacier",
+      "osm_area_km2": 1.049294829,
+      "glims_area_km2": 0.402076535,
+      "facts_area_km2": 0.402077,
+      "osm_ratio": 2.609686277,
+      "glims_ratio": 0.999998844,
+      "candidates": [
+        {
+          "source_key": "glims-2019-08-31",
+          "area_km2": 0.402076535,
+          "ratio": 0.999998844,
+          "observed_at": "2019-08-31",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.376699385,
+            "iou": 0.350524991,
+            "osm_share": 0.359002422,
+            "candidate_share": 0.936884779
+          },
+          "feature_ids": [
+            "1013545"
+          ],
+          "parts_without_osm_overlap": []
+        }
+      ],
+      "extent_evidence": null,
+      "chosen_source": "glims-2019-08-31",
+      "flagged": false,
+      "reason": "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2)"
     },
     {
       "id": "72433D17B0002CA9D60D",

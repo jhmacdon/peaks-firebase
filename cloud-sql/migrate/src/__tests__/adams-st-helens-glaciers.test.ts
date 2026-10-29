@@ -20,14 +20,18 @@ test("one snapshot for both mountains; hashes and base date", () => {
   assert.equal(loadAdamsOutlineReview().manifest.manifest_sha256, adams.manifest.manifest_sha256);
 });
 
-test("Adams: 10 places; swapped Avalanche/White Salmon and the second Mazama held back", () => {
+test("Adams: 12 places; Avalanche and White Salmon keep OSM names and take the inventory row on them", () => {
   const all = parseOsmGlaciers(snapshot).filter(p => p.boundary.coordinates.flat(2).every(([lng]) => lng > -121.8));
-  assert.deepEqual(all.filter(p => !(p.osm_key in ADAMS_SPEC.roster)).map(p => p.osm_key).sort(),
-    ["relation:18735239", "relation:4104274", "relation:4104279"]);
-  assert.equal(adams.manifest.places.length, 10);
-  assert.equal(adams.manifest.mountain_context.named_glacier_count, 12, "Avalanche and White Salmon count towards of-N");
+  assert.deepEqual(all.filter(p => !(p.osm_key in ADAMS_SPEC.roster)).map(p => p.osm_key), ["relation:18735239"]);
+  assert.equal(adams.manifest.places.length, 12);
+  assert.equal(adams.manifest.mountain_context.named_glacier_count, 12);
   assert.deepEqual(adams.manifest.places.filter(p => placeContainer(adams.manifest, p)).map(p => p.name).sort(),
-    ["Crescent Glacier", "Lava Glacier", "Pinnacle Glacier"]);
+    ["Avalanche Glacier", "Crescent Glacier", "Lava Glacier", "Pinnacle Glacier", "White Salmon Glacier"]);
+  const byKey = (k: string) => adams.manifest.places.find(p => p.osm_key === k)!;
+  assert.deepEqual([byKey("relation:4104274").name, byKey("relation:4104274").facts.inventory_name], ["Avalanche Glacier", "White Salmon Glacier"]);
+  assert.deepEqual([byKey("relation:4104279").name, byKey("relation:4104279").facts.inventory_name], ["White Salmon Glacier", "Avalanche Glacier"]);
+  assert.match(String(byKey("relation:4104279").facts.provenance.inventory_crosswalk), /PSU\/GNIS name for this outline is Avalanche Glacier/);
+  assert.equal(byKey("relation:4104279").facts.head_elevation_m, null, "RGI 1969 has no Avalanche row");
   assert.equal(loadAdamsOsmPackage().places.find(p => p.name === "Mazama Glacier")!.osm_key, "relation:18735240");
 });
 
@@ -37,10 +41,11 @@ test("Adams facts and decisions", () => {
   assert.equal(place("Adams Glacier").facts.rank_on_mountain, 1);
   assert.ok(Math.abs(place("Adams Glacier").facts.area_km2! - 3.866506) < 1e-6);
   assert.equal(place("Adams Glacier").facts.head_elevation_m, 3735);
-  assert.deepEqual(adams.report.decisions.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(), ["Gotchen Glacier", "Lyman Glacier"]);
+  assert.deepEqual(adams.report.decisions.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(),
+    ["Gotchen Glacier", "Lyman Glacier", "White Salmon Glacier"]);
+  assert.match(adams.report.decisions.find(d => d.glacier === "White Salmon Glacier")!.reason, /rule 2/);
   assert.deepEqual(adams.report.decisions.filter(d => d.flagged).map(d => d.glacier), []);
-  assert.deepEqual(adams.report.sources[0].audit.unmatched.filter(u => u.name.trim() && u.name !== "WA").map(u => u.name).sort(),
-    ["Avalanche Glacier", "White Salmon Glacier"]);
+  assert.deepEqual(adams.report.sources[0].audit.unmatched.filter(u => u.name.trim() && u.name !== "WA").map(u => u.name), []);
 });
 
 test("St. Helens: Crater Glacier only, from the 2019-09-09 cohort", () => {
@@ -54,6 +59,7 @@ test("St. Helens: Crater Glacier only, from the 2019-09-09 cohort", () => {
   assert.equal(m.mountain_context.named_glacier_count, 1);
   assert.equal(helens.report.decisions[0].chosen_source, "osm");
   assert.equal(helens.report.decisions[0].flagged, false);
+  assert.equal(m.parent.name, "Mount Saint Helens", "the Peaks row's exact name");
 });
 
 test("apply gates", async () => {

@@ -1,7 +1,8 @@
 import { resolve } from "node:path";
 import { importRegionGlaciers, loadRegionOsmPackage, loadRegionOutlineReview, type RegionSpec } from "./glaciers/region-builder";
 
-/** Mount St. Helens: Crater Glacier only. The same Adams + St. Helens
+/** Mount St. Helens: Crater Glacier only. The parent row is named "Mount
+ * Saint Helens" in Peaks (the apply step checks the exact name). The same Adams + St. Helens
  * snapshots, with the PSU 2019-09-09 cohort (Crater's only cohort); see
  * docs/data-audits/adams-st-helens-glaciers-2026-10-29.md. */
 export const DATA_DIR = resolve(__dirname, "../data/glaciers-st-helens-2026-10-29");
@@ -23,7 +24,7 @@ export const ST_HELENS_SPEC: RegionSpec = {
   snapshot_date: "2026-05-31",
   roster: { "relation:6695149": { parent: "mount-st-helens", inventory: "Crater Glacier", container: MONUMENT, aliases: ["Tulutson Glacier"] } }, // OSM alt_name
   default_parent: "mount-st-helens",
-  parents: { "mount-st-helens": { name: "Mount St. Helens", features: ["summit", "volcano"], country_code: "US", state_code: "WA",
+  parents: { "mount-st-helens": { name: "Mount Saint Helens", features: ["summit", "volcano"], country_code: "US", state_code: "WA",
     lat: 46.1912, lng: -122.1944, radius_m: 3000 } },
   container_areas: { [MONUMENT]: { kind: "national_monument", name: "Mount St. Helens National Volcanic Monument" } },
   inventory: {
@@ -35,6 +36,7 @@ export const ST_HELENS_SPEC: RegionSpec = {
   },
   activities: ["outdoor-trek", "ski"],
   country_code: "US", state_code: "WA",
+  outline_rule: 2,
 };
 
 export const loadStHelensOsmPackage = () => loadRegionOsmPackage(ST_HELENS_SPEC);
