@@ -30,6 +30,7 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   applicationName: siteConfig.name,
+  robots: { "max-image-preview": "large" },
   keywords: [
     "peaks",
     "hiking",

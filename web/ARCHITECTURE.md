@@ -301,6 +301,33 @@ cover record use their generated `/share-image` card. This fallback uses an
 ordinary route handler: an `opengraph-image` metadata file would override the
 cover URL chosen by `generateMetadata`.
 
+Catalog browse pages (`/lists` and `/areas`) give each page in a sequence its
+own canonical URL, title, and description. Page one omits `?page=1`; searches
+and area-filter combinations use `noindex, follow`. Discover's query variants
+receive `X-Robots-Tag: noindex, follow` through Next headers, preserving static
+browse rendering. Its clean URL stays indexable. Canonical URLs default to
+`https://getpeaks.app`; an explicit `NEXT_PUBLIC_SITE_URL` can override the origin.
+
+Destination trip-report indexes render published reports on the server, with
+page-specific metadata and an auth-only write button. Empty indexes are
+`noindex, follow`; missing destinations 404, and out-of-range pages redirect.
+The reports sitemap includes only `moderation_state = 'published'` rows. Field
+guide URLs come from the same `GUIDES` registry as the guide index. A sitemap
+with more than 50,000 entries fails rather than serving invalid XML.
+
+Discover keeps query/filter/page changes in native history, which Next syncs to
+`useSearchParams`. It avoids re-rendering the server browse page before a client
+search starts and preserves Back/Forward and ordinary links. The request hook
+keys results and errors by query and retry attempt, ignores superseded responses,
+shows a longer-wait message after 8 seconds, and offers retry after a 30-second
+client timeout (the server request itself is not cancelled). Loading feedback
+covers homepage navigation, route loading, hydration, filter changes, and the
+list/area search fields. Motion respects reduced-motion preferences.
+
+Activity guides retain their editorial metadata during a transient catalog
+failure; fallback data marks the render uncacheable instead of emitting `noindex`
+for an otherwise valid guide. Unsupported activities remain `noindex`.
+
 The root sitemap index and landing/static child sitemaps do not query the
 database. Three destination chunks cover the current 82,977-row catalog and
 must be raised before the catalog reaches 120,001 rows. Catalog child sitemaps

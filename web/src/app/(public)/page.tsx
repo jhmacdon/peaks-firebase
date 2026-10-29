@@ -5,7 +5,7 @@ import { AppScreenshots } from "../../components/app-screenshots";
 import { JsonLdScript } from "../../components/json-ld-script";
 import { ExploreHero } from "../../components/explore-hero";
 import ListCard from "../../components/list-card";
-import { subdivisionName } from "../../lib/regions";
+import { subdivisionName, usStateSlugFromCode } from "../../lib/regions";
 import { Button } from "../../components/ui/button";
 import { SectionHeading } from "../../components/ui/section-heading";
 import {
@@ -152,7 +152,7 @@ export default async function LandingPage() {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {[["WA", "Washington"], ["CO", "Colorado"], ["CA", "California"], ["NH", "New Hampshire"], ["NY", "New York"], ["OR", "Oregon"]].map(([code, label]) => (
-            <Button key={code} href={`/discover?state=${code}`} variant="secondary">{label}</Button>
+            <Link key={code} href={`/peaks/${usStateSlugFromCode(code)}`} prefetch={false} className="inline-flex min-h-12 items-center rounded-full border border-border px-5 py-2.5 font-semibold hover:underline">{label} peaks</Link>
           ))}
         </div>
       </section>

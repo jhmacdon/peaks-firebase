@@ -1,0 +1,75 @@
+{
+  "aliases": {
+    "Avalanche Glacier": [
+      "White Salmon Glacier"
+    ],
+    "White Salmon Glacier": [
+      "Avalanche Glacier"
+    ]
+  },
+  "sources": [
+    {
+      "key": "glims-2019-08-31",
+      "purpose": "candidate",
+      "file": "glims-wfs-adams.json",
+      "source_sha256": "cc0dea77d7a1968aa524ab051a894141be3db7a2978a89d2ca772d774f7d5ad7",
+      "geometry_source": "GLIMS / Portland State University US inventory",
+      "source_url": "https://doi.org/10.15760/geology-data.03",
+      "observed_at": "2019-08-31",
+      "snapshot_at": "2026-10-29",
+      "credit": "Fountain, Glenn & McNeil (2023), via GLIMS",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "license_ok": true,
+      "submission_id": "814",
+      "chief_affl": "Portland State University",
+      "unnamed_names": [
+        "",
+        "WA"
+      ],
+      "expected_features": 48
+    },
+    {
+      "key": "glims-1980-09-09-reference",
+      "purpose": "historical_reference",
+      "file": "glims-wfs-adams.json",
+      "source_sha256": "cc0dea77d7a1968aa524ab051a894141be3db7a2978a89d2ca772d774f7d5ad7",
+      "geometry_source": "GLIMS historical inventory (reference only)",
+      "source_url": "https://doi.org/10.7265/N5V98602",
+      "observed_at": "1980-09-09",
+      "snapshot_at": "2026-10-29",
+      "credit": "GLIMS Glacier Database, NSIDC-0272 (historical comparison only)",
+      "license": "Not cleared for replacement in this packet",
+      "license_url": "https://nsidc.org/data/nsidc-0272/versions/1",
+      "license_ok": false,
+      "submission_id": "744",
+      "chief_affl": "Portland State University",
+      "unnamed_names": [
+        "",
+        "WA"
+      ],
+      "expected_features": 10
+    },
+    {
+      "key": "glims-1969-09-09-reference",
+      "purpose": "historical_reference",
+      "file": "glims-wfs-adams.json",
+      "source_sha256": "cc0dea77d7a1968aa524ab051a894141be3db7a2978a89d2ca772d774f7d5ad7",
+      "geometry_source": "GLIMS historical inventory (reference only)",
+      "source_url": "https://doi.org/10.7265/N5V98602",
+      "observed_at": "1969-09-09",
+      "snapshot_at": "2026-10-29",
+      "credit": "GLIMS Glacier Database, NSIDC-0272 (historical comparison only)",
+      "license": "Not cleared for replacement in this packet",
+      "license_url": "https://nsidc.org/data/nsidc-0272/versions/1",
+      "license_ok": false,
+      "submission_id": "744",
+      "chief_affl": "Portland State University",
+      "unnamed_names": [
+        "",
+        "WA"
+      ],
+      "expected_features": 81
+    }
+  ]
+}

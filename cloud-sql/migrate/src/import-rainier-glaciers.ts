@@ -43,7 +43,7 @@ export function loadRainierOsmPackage(dir = DATA_DIR) {
 export function loadRainierOutlineReview(dir = DATA_DIR, outlineDir = OUTLINE_DATA_DIR) {
   const { manifest_sha256: _hash, ...osm } = loadRainierOsmPackage(dir);
   const { sources, references, aliases } = loadOutlineSources(join(outlineDir, "outline-sources.json"));
-  return refreshGlacierOutlines(osm, sources, references, aliases);
+  return refreshGlacierOutlines(osm, sources, references, aliases, undefined, { rule: 2 });
 }
 export function loadRainierPackage(dir = DATA_DIR, outlineDir = OUTLINE_DATA_DIR) {
   return loadRainierOutlineReview(dir, outlineDir).manifest;

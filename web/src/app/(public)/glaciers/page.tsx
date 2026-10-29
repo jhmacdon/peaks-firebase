@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLdScript } from "../../../components/json-ld-script";
 import { Breadcrumb } from "../../../components/detail-sections";
-import { GlacierFaqList } from "../../../components/glacier/glacier-sections";
 import { PageHeader } from "../../../components/ui/page-header";
 import { SectionHeading } from "../../../components/ui/section-heading";
 import { Topline } from "../../../components/ui/topline";
@@ -14,9 +13,8 @@ import {
   formatAreaMi2,
   formatPercentChange,
   glacierMountainPath,
-  type GlacierFaq,
 } from "../../../lib/glaciers";
-import { buildFaqJsonLd, buildListJsonLd } from "../../../lib/json-ld";
+import { buildListJsonLd } from "../../../lib/json-ld";
 import { formatRegion } from "../../../lib/regions";
 import { absoluteUrl, siteConfig } from "../../../lib/seo";
 
@@ -52,25 +50,6 @@ export default async function GlaciersIndexPage() {
   const glacierTotal = mountains.reduce((sum, m) => sum + m.glacier_count, 0);
   const mappedArea = mountains.reduce((sum, m) => sum + (m.mapped_area_km2 ?? 0), 0);
 
-  const faqs: GlacierFaq[] = [
-    {
-      question: "Which mountains have glacier pages on Peaks?",
-      answer: `Peaks maps ${glacierTotal} named glaciers on ${mountains.length} ${mountains.length === 1 ? "mountain" : "mountains"}: ${mountains
-        .map((m) => m.name)
-        .join(", ")}. More mountains are added as their glacier inventories are reviewed.`,
-    },
-    {
-      question: "Where do the glacier measurements come from?",
-      answer:
-        "Area, elevations, length, slope, and survey history come from published glacier inventories, credited on every glacier page. Outlines come from OpenStreetMap or GLIMS glacier inventories; each page names its outline source and date.",
-    },
-    {
-      question: "Can I track glacier crossings?",
-      answer:
-        "Yes. The Peaks iPhone app records your climbs and marks each glacier you crossed, with distance on ice and the elevation band, on the activity timeline.",
-    },
-  ];
-
   const jsonLd = [
     buildListJsonLd({
       name: "Glaciers by mountain",
@@ -82,7 +61,6 @@ export default async function GlaciersIndexPage() {
       { name: "Discover", url: absoluteUrl("/discover") },
       { name: "Glaciers", url: absoluteUrl("/glaciers") },
     ]),
-    buildFaqJsonLd({ items: faqs }),
   ];
 
   return (
@@ -155,7 +133,6 @@ export default async function GlaciersIndexPage() {
           })}
         </div>
 
-        <GlacierFaqList items={faqs} className="mt-16" />
       </div>
     </>
   );

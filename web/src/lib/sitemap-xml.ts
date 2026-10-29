@@ -6,7 +6,7 @@ export const DESTINATION_SITEMAP_CHUNK_SIZE = 40_000;
 // Raise this count before the catalog reaches the current capacity.
 export const DESTINATION_SITEMAP_CHUNK_COUNT = 3;
 
-export const CATALOG_SITEMAP_IDS = ["areas", "routes", "lists", "glaciers"] as const;
+export const CATALOG_SITEMAP_IDS = ["areas", "routes", "lists", "glaciers", "reports"] as const;
 export const STATIC_SITEMAP_IDS = ["landing", "static"] as const;
 
 export function sitemapIds(): string[] {
@@ -70,6 +70,9 @@ export function buildSitemapIndexXml(urls: string[]): string {
 }
 
 export function buildUrlSetXml(entries: SitemapUrlEntry[]): string {
+  if (entries.length > 50_000) {
+    throw new Error("Sitemaps cannot contain more than 50,000 URLs; split this catalog into chunks.");
+  }
   const urls = entries
     .map((entry) => {
       const lastModified = isoDate(entry.lastModified);

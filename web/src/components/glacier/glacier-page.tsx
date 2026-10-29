@@ -14,7 +14,6 @@ import {
   formatAreaMi2,
   formatPercentChange,
   glacierAreaChange,
-  glacierFaqs,
   glacierLeadParagraph,
   glacierMountainPath,
   isCombinedHistory,
@@ -41,7 +40,6 @@ import { Topline, type ToplineStat } from "../ui/topline";
 import { GlacierAreaHistory } from "./glacier-area-history";
 import {
   GlacierFactList,
-  GlacierFaqList,
   GlacierRoutes,
   GlacierSiblings,
   GlacierSources,
@@ -81,7 +79,6 @@ export async function GlacierDetailPage({
   const stateName = subdivisionName(dest.country_code, dest.state_code);
   const kind = kindWord(facts.kind);
   const lead = glacierLeadParagraph(facts, stateName);
-  const faqs = glacierFaqs(facts, stateName, routes);
   const change = glacierAreaChange(facts);
   const hasHistory = measuredHistory(facts.area_history).length >= 2;
   const credited =
@@ -161,7 +158,6 @@ export async function GlacierDetailPage({
             ...(hasCoords ? [{ id: "glacier-map", label: "Map" }] : []),
             ...(hasHistory ? [{ id: "glacier-history", label: "History" }] : []),
             { id: "glacier-routes", label: "Routes" },
-            ...(faqs.length ? [{ id: "glacier-faq", label: "Questions" }] : []),
             { id: "glacier-sources", label: "Sources" },
           ]}
         />
@@ -218,8 +214,6 @@ export async function GlacierDetailPage({
             {tripReportCount > 0 ? (
               <DestinationReports destinationId={id} reports={tripReports} totalCount={tripReportCount} />
             ) : null}
-
-            <GlacierFaqList items={faqs} />
 
             <GlacierSources facts={facts} />
           </div>
