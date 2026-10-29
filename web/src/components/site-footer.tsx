@@ -20,6 +20,7 @@ const COLUMNS: Array<{
       { label: "Lists", href: "/lists" },
       { label: "Areas", href: "/areas" },
       { label: "Peaks by state", href: "/peaks" },
+      { label: "Glaciers", href: "/glaciers" },
       { label: "California fire lookouts", href: "/fire-lookouts/california" },
       { label: "Washington fire lookouts", href: "/fire-lookouts/washington" },
     ],

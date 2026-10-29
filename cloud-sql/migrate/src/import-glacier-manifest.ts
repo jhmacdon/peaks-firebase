@@ -45,6 +45,10 @@ export type GlacierManifestPlace = {
   /** Required for new builders; old single-source manifests use package defaults. */
   geometry?: GlacierGeometryProvenance;
   facts: GlacierManifestFacts;
+  /** This place's facts credit when it differs from the package's (a USGS
+   * area, say); the writer falls back to `facts_credit` / `facts_source_url`. */
+  facts_credit?: string;
+  facts_source_url?: string | null;
 };
 export type GlacierManifest = {
   source_sha256: string; geometry_observed_at: string;
@@ -133,6 +137,7 @@ export function validateGlacierManifest(m: GlacierManifest): GlacierManifest {
     if (!["glacier", "snowfield"].includes(p.kind) || p.facts?.kind !== p.kind) fail(`kind for ${p.name}`);
     if (p.boundary?.type !== "MultiPolygon" || !p.boundary.coordinates?.length) fail(`boundary for ${p.name}`);
     if (!Array.isArray(p.aliases)) fail(`aliases for ${p.name}`);
+    if (own(p, "facts_credit") && !p.facts_credit?.trim()) fail(`facts_credit for ${p.name}`);
     if (p.parent_key !== undefined && !own(m.parents, p.parent_key)) fail(`parent_key for ${p.name}`);
     if (m.container_areas ? !own(p, "container_area_key") || (p.container_area_key !== null && !own(m.container_areas, p.container_area_key!))
       : own(p, "container_area_key")) fail(`container_area_key for ${p.name}`);
@@ -284,7 +289,7 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
             pkg.country_code,pkg.state_code,`{${pkg.activities.join(",")}}`,described ? pkg.description_source_license : null]);
         const facts = serialized.facts;
         const parameters: unknown[] = [place.id,parentId,...factColumns.map(c => ["area_history","provenance"].includes(c) ? JSON.stringify(facts[c]) : facts[c]),
-          pkg.facts_credit,pkg.facts_source_url,geometry.credit,geometry.license,geometry.observed_at ?? geometry.snapshot_at,
+          place.facts_credit ?? pkg.facts_credit,place.facts_source_url !== undefined ? place.facts_source_url : pkg.facts_source_url,geometry.credit,geometry.license,geometry.observed_at ?? geometry.snapshot_at,
           geometry.source_url,geometry.source_sha256,JSON.stringify(place.boundary)];
         const columns = ["destination_id","parent_mountain_id",...factColumns,"facts_credit","facts_source_url","geometry_credit","geometry_license",
           "outline_observed_at","outline_source_url","outline_source_sha256","outline"];

@@ -6,7 +6,7 @@ export const DESTINATION_SITEMAP_CHUNK_SIZE = 40_000;
 // Raise this count before the catalog reaches the current capacity.
 export const DESTINATION_SITEMAP_CHUNK_COUNT = 3;
 
-export const CATALOG_SITEMAP_IDS = ["areas", "routes", "lists"] as const;
+export const CATALOG_SITEMAP_IDS = ["areas", "routes", "lists", "glaciers"] as const;
 export const STATIC_SITEMAP_IDS = ["landing", "static"] as const;
 
 export function sitemapIds(): string[] {
