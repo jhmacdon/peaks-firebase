@@ -3,7 +3,7 @@
   "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=48.7768 +lon_0=-121.8144 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
   "input_manifest_sha256": "3be5a8502c6a0a424f72283e5b5d36d430a0d03b2c27c11ef5510baf8d62db08",
-  "output_manifest_sha256": "3586a87dba5b42f0571af85bcc2cfc194e8381e3125d879590bfa7d8ec9baf78",
+  "output_manifest_sha256": "c082ef875e6d6bf8e3173183bf62c3c791a873bb87de0f3771ee596393694c13",
   "sources": [
     {
       "key": "glims-2015-09-09",
@@ -28,12 +28,12 @@
               "G238133E48772N",
               "G238139E48774N"
             ],
-            "area_km2": 0.7947868386428351,
+            "area_km2": 0.794786839,
             "overlap": {
-              "intersection_km2": 0.7489812340042008,
-              "iou": 0.8456201977358612,
-              "osm_share": 0.8917370708246626,
-              "candidate_share": 0.9423674343716472
+              "intersection_km2": 0.748981234,
+              "iou": 0.845620198,
+              "osm_share": 0.891737071,
+              "candidate_share": 0.942367434
             },
             "parts_without_osm_overlap": [
               "1013147"
@@ -48,12 +48,12 @@
             "glacier_ids": [
               "G238149E48785N"
             ],
-            "area_km2": 6.055772558683964,
+            "area_km2": 6.055772559,
             "overlap": {
-              "intersection_km2": 5.488883947920836,
-              "iou": 0.8714425136436116,
-              "osm_share": 0.9576312986172181,
-              "candidate_share": 0.9063887216255816
+              "intersection_km2": 5.488883948,
+              "iou": 0.871442514,
+              "osm_share": 0.957631299,
+              "candidate_share": 0.906388722
             },
             "parts_without_osm_overlap": []
           },
@@ -74,12 +74,12 @@
               "G238175E48820N",
               "G238188E48822N"
             ],
-            "area_km2": 0.6625711324264582,
+            "area_km2": 0.662571132,
             "overlap": {
-              "intersection_km2": 0.6028903419049907,
-              "iou": 0.8240704290702667,
-              "osm_share": 0.8972654456869693,
-              "candidate_share": 0.9099254591685796
+              "intersection_km2": 0.602890342,
+              "iou": 0.824070429,
+              "osm_share": 0.897265446,
+              "candidate_share": 0.909925459
             },
             "parts_without_osm_overlap": [
               "1013187"
@@ -94,12 +94,12 @@
             "glacier_ids": [
               "G238158E48759N"
             ],
-            "area_km2": 4.381793246810095,
+            "area_km2": 4.381793247,
             "overlap": {
-              "intersection_km2": 3.7849442115949223,
-              "iou": 0.8509183718754685,
-              "osm_share": 0.9827907977661805,
-              "candidate_share": 0.8637888641483317
+              "intersection_km2": 3.784944212,
+              "iou": 0.850918372,
+              "osm_share": 0.982790798,
+              "candidate_share": 0.863788864
             },
             "parts_without_osm_overlap": []
           },
@@ -112,12 +112,12 @@
             "glacier_ids": [
               "G238169E48750N"
             ],
-            "area_km2": 3.0151694116757057,
+            "area_km2": 3.015169412,
             "overlap": {
-              "intersection_km2": 2.6481962401809,
-              "iou": 0.8419642759696713,
-              "osm_share": 0.9531760988568408,
-              "candidate_share": 0.8782910273387069
+              "intersection_km2": 2.64819624,
+              "iou": 0.841964276,
+              "osm_share": 0.953176099,
+              "candidate_share": 0.878291027
             },
             "parts_without_osm_overlap": []
           },
@@ -130,12 +130,12 @@
             "glacier_ids": [
               "G238177E48790N"
             ],
-            "area_km2": 3.6999093534180534,
+            "area_km2": 3.699909353,
             "overlap": {
-              "intersection_km2": 3.2846164676836067,
-              "iou": 0.8746705344554209,
-              "osm_share": 0.9834273841862379,
-              "candidate_share": 0.887755929655198
+              "intersection_km2": 3.284616468,
+              "iou": 0.874670534,
+              "osm_share": 0.983427384,
+              "candidate_share": 0.88775593
             },
             "parts_without_osm_overlap": []
           },
@@ -148,12 +148,12 @@
             "glacier_ids": [
               "G238190E48752N"
             ],
-            "area_km2": 1.9204968650797296,
+            "area_km2": 1.920496865,
             "overlap": {
-              "intersection_km2": 1.746124210002466,
-              "iou": 0.7162079507464407,
-              "osm_share": 0.7713788566536975,
-              "candidate_share": 0.9092044052516459
+              "intersection_km2": 1.74612421,
+              "iou": 0.716207951,
+              "osm_share": 0.771378857,
+              "candidate_share": 0.909204405
             },
             "parts_without_osm_overlap": []
           },
@@ -170,12 +170,12 @@
               "G238198E48804N",
               "G238214E48810N"
             ],
-            "area_km2": 4.424000534225279,
+            "area_km2": 4.424000534,
             "overlap": {
-              "intersection_km2": 3.6228931878252397,
-              "iou": 0.7816752004610299,
-              "osm_share": 0.9450187293233395,
-              "candidate_share": 0.818917891125362
+              "intersection_km2": 3.622893188,
+              "iou": 0.7816752,
+              "osm_share": 0.945018729,
+              "candidate_share": 0.818917891
             },
             "parts_without_osm_overlap": [
               "1013206",
@@ -191,12 +191,12 @@
             "glacier_ids": [
               "G238199E48784N"
             ],
-            "area_km2": 3.1963082793517206,
+            "area_km2": 3.196308279,
             "overlap": {
-              "intersection_km2": 2.8284195322995456,
-              "iou": 0.5459872940361212,
-              "osm_share": 0.5877250829424369,
-              "candidate_share": 0.8849019822559823
+              "intersection_km2": 2.828419532,
+              "iou": 0.545987294,
+              "osm_share": 0.587725083,
+              "candidate_share": 0.884901982
             },
             "parts_without_osm_overlap": []
           },
@@ -209,12 +209,12 @@
             "glacier_ids": [
               "G238200E48757N"
             ],
-            "area_km2": 1.887704508393227,
+            "area_km2": 1.887704508,
             "overlap": {
-              "intersection_km2": 1.1427172020799081,
-              "iou": 0.5945668302484819,
-              "osm_share": 0.970918095210823,
-              "candidate_share": 0.6053474985089506
+              "intersection_km2": 1.142717202,
+              "iou": 0.59456683,
+              "osm_share": 0.970918095,
+              "candidate_share": 0.605347499
             },
             "parts_without_osm_overlap": []
           },
@@ -227,12 +227,12 @@
             "glacier_ids": [
               "G238208E48772N"
             ],
-            "area_km2": 3.381430436340659,
+            "area_km2": 3.381430436,
             "overlap": {
-              "intersection_km2": 2.8473888459429393,
-              "iou": 0.8355926981279516,
-              "osm_share": 0.9908834158394282,
-              "candidate_share": 0.8420663679316577
+              "intersection_km2": 2.847388846,
+              "iou": 0.835592698,
+              "osm_share": 0.990883416,
+              "candidate_share": 0.842066368
             },
             "parts_without_osm_overlap": []
           },
@@ -249,12 +249,12 @@
               "G238226E48808N",
               "G238229E48805N"
             ],
-            "area_km2": 2.0041482426312145,
+            "area_km2": 2.004148243,
             "overlap": {
-              "intersection_km2": 1.5860947656616515,
-              "iou": 0.7573132133011445,
-              "osm_share": 0.9461780519332397,
-              "candidate_share": 0.7914059109616027
+              "intersection_km2": 1.586094766,
+              "iou": 0.757313213,
+              "osm_share": 0.946178052,
+              "candidate_share": 0.791405911
             },
             "parts_without_osm_overlap": [
               "1013285"
@@ -275,12 +275,12 @@
               "G238238E48814N",
               "G238241E48818N"
             ],
-            "area_km2": 1.0153957859498393,
+            "area_km2": 1.015395786,
             "overlap": {
-              "intersection_km2": 0.8030994776871518,
-              "iou": 0.6081246730694734,
-              "osm_share": 0.7246096238507072,
-              "candidate_share": 0.7909226025947138
+              "intersection_km2": 0.803099478,
+              "iou": 0.608124673,
+              "osm_share": 0.724609624,
+              "candidate_share": 0.790922603
             },
             "parts_without_osm_overlap": [
               "1013320"
@@ -641,12 +641,12 @@
             "glacier_ids": [
               "G238139E48774N"
             ],
-            "area_km2": 0.9390670168740696,
+            "area_km2": 0.939067017,
             "overlap": {
-              "intersection_km2": 0.7560347075111933,
-              "iou": 0.7390766343278165,
-              "osm_share": 0.9001349365103462,
-              "candidate_share": 0.8050913235435024
+              "intersection_km2": 0.756034708,
+              "iou": 0.739076634,
+              "osm_share": 0.900134937,
+              "candidate_share": 0.805091324
             },
             "parts_without_osm_overlap": []
           },
@@ -659,12 +659,12 @@
             "glacier_ids": [
               "G238149E48785N"
             ],
-            "area_km2": 6.833682118693355,
+            "area_km2": 6.833682119,
             "overlap": {
-              "intersection_km2": 5.589359838762235,
-              "iou": 0.8012210479813198,
-              "osm_share": 0.975161065822921,
-              "candidate_share": 0.8179133506185033
+              "intersection_km2": 5.589359839,
+              "iou": 0.801221048,
+              "osm_share": 0.975161066,
+              "candidate_share": 0.817913351
             },
             "parts_without_osm_overlap": []
           },
@@ -677,12 +677,12 @@
             "glacier_ids": [
               "G238158E48759N"
             ],
-            "area_km2": 4.9959228426203435,
+            "area_km2": 4.995922843,
             "overlap": {
-              "intersection_km2": 3.7647350345267485,
-              "iou": 0.740738385772245,
-              "osm_share": 0.977543324582247,
-              "candidate_share": 0.7535614846589901
+              "intersection_km2": 3.764735035,
+              "iou": 0.740738386,
+              "osm_share": 0.977543325,
+              "candidate_share": 0.753561485
             },
             "parts_without_osm_overlap": []
           },
@@ -695,12 +695,12 @@
             "glacier_ids": [
               "G238175E48810N"
             ],
-            "area_km2": 0.5364390244371341,
+            "area_km2": 0.536439024,
             "overlap": {
-              "intersection_km2": 0.26465778041146665,
-              "iou": 0.4865000835666683,
-              "osm_share": 0.9722118976443361,
-              "candidate_share": 0.49336041629179095
+              "intersection_km2": 0.26465778,
+              "iou": 0.486500084,
+              "osm_share": 0.972211898,
+              "candidate_share": 0.493360416
             },
             "parts_without_osm_overlap": []
           },
@@ -713,12 +713,12 @@
             "glacier_ids": [
               "G238175E48820N"
             ],
-            "area_km2": 1.0867905387941015,
+            "area_km2": 1.086790539,
             "overlap": {
-              "intersection_km2": 0.6446936025517912,
-              "iou": 0.5787109216418423,
-              "osm_share": 0.9594801117519483,
-              "candidate_share": 0.5932086998725079
+              "intersection_km2": 0.644693603,
+              "iou": 0.578710922,
+              "osm_share": 0.959480112,
+              "candidate_share": 0.5932087
             },
             "parts_without_osm_overlap": []
           },
@@ -731,12 +731,12 @@
             "glacier_ids": [
               "G238177E48790N"
             ],
-            "area_km2": 3.570596487502453,
+            "area_km2": 3.570596488,
             "overlap": {
-              "intersection_km2": 3.1560974178779984,
-              "iou": 0.8406245024998711,
-              "osm_share": 0.9449482636520943,
-              "candidate_share": 0.8839132141995728
+              "intersection_km2": 3.156097418,
+              "iou": 0.840624502,
+              "osm_share": 0.944948264,
+              "candidate_share": 0.883913214
             },
             "parts_without_osm_overlap": []
           },
@@ -749,12 +749,12 @@
             "glacier_ids": [
               "G238190E48752N"
             ],
-            "area_km2": 2.128225157968912,
+            "area_km2": 2.128225158,
             "overlap": {
-              "intersection_km2": 1.749986336230536,
-              "iou": 0.6624021403316964,
-              "osm_share": 0.7730850139230344,
-              "candidate_share": 0.8222749973976666
+              "intersection_km2": 1.749986336,
+              "iou": 0.66240214,
+              "osm_share": 0.773085014,
+              "candidate_share": 0.822274997
             },
             "parts_without_osm_overlap": []
           },
@@ -767,12 +767,12 @@
             "glacier_ids": [
               "G238198E48804N"
             ],
-            "area_km2": 5.396634756019644,
+            "area_km2": 5.396634756,
             "overlap": {
-              "intersection_km2": 3.6572354819927844,
-              "iou": 0.6562332271858852,
-              "osm_share": 0.9539767939180462,
-              "candidate_share": 0.6776881607400507
+              "intersection_km2": 3.657235482,
+              "iou": 0.656233227,
+              "osm_share": 0.953976794,
+              "candidate_share": 0.677688161
             },
             "parts_without_osm_overlap": []
           },
@@ -785,12 +785,12 @@
             "glacier_ids": [
               "G238199E48784N"
             ],
-            "area_km2": 3.1488904024873334,
+            "area_km2": 3.148890402,
             "overlap": {
-              "intersection_km2": 2.4372855366321917,
-              "iou": 0.441210145915363,
-              "osm_share": 0.506450272957545,
-              "candidate_share": 0.7740140891238897
+              "intersection_km2": 2.437285537,
+              "iou": 0.441210146,
+              "osm_share": 0.506450273,
+              "candidate_share": 0.774014089
             },
             "parts_without_osm_overlap": []
           },
@@ -803,12 +803,12 @@
             "glacier_ids": [
               "G238200E48757N"
             ],
-            "area_km2": 2.155271638081949,
+            "area_km2": 2.155271638,
             "overlap": {
-              "intersection_km2": 1.1275327720341553,
-              "iou": 0.5114260538762596,
-              "osm_share": 0.9580165322781476,
-              "candidate_share": 0.5231511203096356
+              "intersection_km2": 1.127532772,
+              "iou": 0.511426054,
+              "osm_share": 0.958016532,
+              "candidate_share": 0.52315112
             },
             "parts_without_osm_overlap": []
           },
@@ -821,12 +821,12 @@
             "glacier_ids": [
               "G238208E48772N"
             ],
-            "area_km2": 6.289900755232262,
+            "area_km2": 6.289900755,
             "overlap": {
-              "intersection_km2": 2.8281276297001696,
-              "iou": 0.4464036707381369,
-              "osm_share": 0.9841805660438862,
-              "candidate_share": 0.44962992895358295
+              "intersection_km2": 2.82812763,
+              "iou": 0.446403671,
+              "osm_share": 0.984180566,
+              "candidate_share": 0.449629929
             },
             "parts_without_osm_overlap": []
           },
@@ -839,12 +839,12 @@
             "glacier_ids": [
               "G238220E48799N"
             ],
-            "area_km2": 2.365169759182667,
+            "area_km2": 2.365169759,
             "overlap": {
-              "intersection_km2": 1.5383493201054135,
-              "iou": 0.6145683526474652,
-              "osm_share": 0.917695710497455,
-              "candidate_share": 0.6504181419252636
+              "intersection_km2": 1.53834932,
+              "iou": 0.614568353,
+              "osm_share": 0.91769571,
+              "candidate_share": 0.650418142
             },
             "parts_without_osm_overlap": []
           },
@@ -857,12 +857,12 @@
             "glacier_ids": [
               "G238231E48814N"
             ],
-            "area_km2": 1.1888397228461942,
+            "area_km2": 1.188839723,
             "overlap": {
-              "intersection_km2": 0.7228448784482849,
-              "iou": 0.45914881175246663,
-              "osm_share": 0.6521986005809121,
-              "candidate_share": 0.6080255097110367
+              "intersection_km2": 0.722844878,
+              "iou": 0.459148812,
+              "osm_share": 0.652198601,
+              "candidate_share": 0.60802551
             },
             "parts_without_osm_overlap": []
           }
@@ -1104,12 +1104,12 @@
             "glacier_ids": [
               "G238169E48750N"
             ],
-            "area_km2": 2.8878980415360807,
+            "area_km2": 2.887898042,
             "overlap": {
-              "intersection_km2": 2.285524344908756,
-              "iou": 0.6760585937637915,
-              "osm_share": 0.82263812094743,
-              "candidate_share": 0.7914144862583442
+              "intersection_km2": 2.285524345,
+              "iou": 0.676058594,
+              "osm_share": 0.822638121,
+              "candidate_share": 0.791414486
             },
             "parts_without_osm_overlap": []
           }
@@ -1426,23 +1426,23 @@
     {
       "id": "4FFA37AABB14FCB74BBB",
       "glacier": "Park Glacier",
-      "osm_area_km2": 4.812487359122237,
-      "glims_area_km2": 3.1963082793517206,
+      "osm_area_km2": 4.812487359,
+      "glims_area_km2": 3.196308279,
       "facts_area_km2": 3.19631,
-      "osm_ratio": 1.5056384891084522,
-      "glims_ratio": 0.9999994616766585,
+      "osm_ratio": 1.505638489,
+      "glims_ratio": 0.999999462,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 3.1963082793517206,
-          "ratio": 0.9999994616766585,
+          "area_km2": 3.196308279,
+          "ratio": 0.999999462,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 2.8284195322995456,
-            "iou": 0.5459872940361212,
-            "osm_share": 0.5877250829424369,
-            "candidate_share": 0.8849019822559823
+            "intersection_km2": 2.828419532,
+            "iou": 0.545987294,
+            "osm_share": 0.587725083,
+            "candidate_share": 0.884901982
           },
           "feature_ids": [
             "1013223"
@@ -1458,23 +1458,23 @@
     {
       "id": "69406CFC889FA7FBF622",
       "glacier": "Boulder Glacier",
-      "osm_area_km2": 2.8735861357925443,
-      "glims_area_km2": 3.381430436340659,
+      "osm_area_km2": 2.873586136,
+      "glims_area_km2": 3.381430436,
       "facts_area_km2": 3.38143,
-      "osm_ratio": 0.849813876316394,
-      "glims_ratio": 1.0000001290402756,
+      "osm_ratio": 0.849813876,
+      "glims_ratio": 1.000000129,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 3.381430436340659,
-          "ratio": 1.0000001290402756,
+          "area_km2": 3.381430436,
+          "ratio": 1.000000129,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 2.8473888459429393,
-            "iou": 0.8355926981279516,
-            "osm_share": 0.9908834158394282,
-            "candidate_share": 0.8420663679316577
+            "intersection_km2": 2.847388846,
+            "iou": 0.835592698,
+            "osm_share": 0.990883416,
+            "candidate_share": 0.842066368
           },
           "feature_ids": [
             "1013231"
@@ -1490,23 +1490,23 @@
     {
       "id": "39AC24A5AF47435BC9C1",
       "glacier": "Deming Glacier",
-      "osm_area_km2": 3.8512206465484358,
-      "glims_area_km2": 4.381793246810095,
+      "osm_area_km2": 3.851220647,
+      "glims_area_km2": 4.381793247,
       "facts_area_km2": 4.38179,
-      "osm_ratio": 0.8789149289556177,
-      "glims_ratio": 1.0000007409780238,
+      "osm_ratio": 0.878914929,
+      "glims_ratio": 1.000000741,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 4.381793246810095,
-          "ratio": 1.0000007409780238,
+          "area_km2": 4.381793247,
+          "ratio": 1.000000741,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 3.7849442115949223,
-            "iou": 0.8509183718754685,
-            "osm_share": 0.9827907977661805,
-            "candidate_share": 0.8637888641483317
+            "intersection_km2": 3.784944212,
+            "iou": 0.850918372,
+            "osm_share": 0.982790798,
+            "candidate_share": 0.863788864
           },
           "feature_ids": [
             "1013154"
@@ -1522,23 +1522,23 @@
     {
       "id": "D1EB1D72746B71D41018",
       "glacier": "Roosevelt Glacier",
-      "osm_area_km2": 3.339968482168662,
-      "glims_area_km2": 3.6999093534180534,
+      "osm_area_km2": 3.339968482,
+      "glims_area_km2": 3.699909353,
       "facts_area_km2": 3.69991,
-      "osm_ratio": 0.9027161423301275,
-      "glims_ratio": 0.9999998252438717,
+      "osm_ratio": 0.902716142,
+      "glims_ratio": 0.999999825,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 3.6999093534180534,
-          "ratio": 0.9999998252438717,
+          "area_km2": 3.699909353,
+          "ratio": 0.999999825,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 3.2846164676836067,
-            "iou": 0.8746705344554209,
-            "osm_share": 0.9834273841862379,
-            "candidate_share": 0.887755929655198
+            "intersection_km2": 3.284616468,
+            "iou": 0.874670534,
+            "osm_share": 0.983427384,
+            "candidate_share": 0.88775593
           },
           "feature_ids": [
             "1013164"
@@ -1554,23 +1554,23 @@
     {
       "id": "03354EE8D3ED28A9E196",
       "glacier": "Coleman Glacier",
-      "osm_area_km2": 5.73172990048108,
-      "glims_area_km2": 6.055772558683964,
+      "osm_area_km2": 5.7317299,
+      "glims_area_km2": 6.055772559,
       "facts_area_km2": 6.05577,
-      "osm_ratio": 0.94649068582213,
-      "glims_ratio": 1.0000004225200039,
+      "osm_ratio": 0.946490686,
+      "glims_ratio": 1.000000423,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 6.055772558683964,
-          "ratio": 1.0000004225200039,
+          "area_km2": 6.055772559,
+          "ratio": 1.000000423,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 5.488883947920836,
-            "iou": 0.8714425136436116,
-            "osm_share": 0.9576312986172181,
-            "candidate_share": 0.9063887216255816
+            "intersection_km2": 5.488883948,
+            "iou": 0.871442514,
+            "osm_share": 0.957631299,
+            "candidate_share": 0.906388722
           },
           "feature_ids": [
             "1013152"
@@ -1586,23 +1586,23 @@
     {
       "id": "9B1487D24157E3D0C06C",
       "glacier": "Easton Glacier",
-      "osm_area_km2": 2.778286450276002,
-      "glims_area_km2": 3.0151694116757057,
+      "osm_area_km2": 2.77828645,
+      "glims_area_km2": 3.015169412,
       "facts_area_km2": 3.01517,
-      "osm_ratio": 0.9214360882723037,
-      "glims_ratio": 0.999999804878566,
+      "osm_ratio": 0.921436088,
+      "glims_ratio": 0.999999805,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 3.0151694116757057,
-          "ratio": 0.999999804878566,
+          "area_km2": 3.015169412,
+          "ratio": 0.999999805,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 2.6481962401809,
-            "iou": 0.8419642759696713,
-            "osm_share": 0.9531760988568408,
-            "candidate_share": 0.8782910273387069
+            "intersection_km2": 2.64819624,
+            "iou": 0.841964276,
+            "osm_share": 0.953176099,
+            "candidate_share": 0.878291027
           },
           "feature_ids": [
             "1013163"
@@ -1618,23 +1618,23 @@
     {
       "id": "7F79DB14C041E8427C41",
       "glacier": "Talum Glaciers",
-      "osm_area_km2": 1.1769450046471543,
-      "glims_area_km2": 1.887704508393227,
+      "osm_area_km2": 1.176945005,
+      "glims_area_km2": 1.887704508,
       "facts_area_km2": 1.8877,
-      "osm_ratio": 0.6234809581221351,
-      "glims_ratio": 1.000002388299638,
+      "osm_ratio": 0.623480958,
+      "glims_ratio": 1.000002388,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 1.887704508393227,
-          "ratio": 1.000002388299638,
+          "area_km2": 1.887704508,
+          "ratio": 1.000002388,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 1.1427172020799081,
-            "iou": 0.5945668302484819,
-            "osm_share": 0.970918095210823,
-            "candidate_share": 0.6053474985089506
+            "intersection_km2": 1.142717202,
+            "iou": 0.59456683,
+            "osm_share": 0.970918095,
+            "candidate_share": 0.605347499
           },
           "feature_ids": [
             "1013217"
@@ -1650,23 +1650,23 @@
     {
       "id": "9046ABA1DBF2D13B563A",
       "glacier": "Squak Glacier",
-      "osm_area_km2": 2.263640226771694,
-      "glims_area_km2": 1.9204968650797296,
+      "osm_area_km2": 2.263640227,
+      "glims_area_km2": 1.920496865,
       "facts_area_km2": 1.9205,
-      "osm_ratio": 1.178672338855347,
-      "glims_ratio": 0.9999983676541159,
+      "osm_ratio": 1.178672339,
+      "glims_ratio": 0.999998368,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 1.9204968650797296,
-          "ratio": 0.9999983676541159,
+          "area_km2": 1.920496865,
+          "ratio": 0.999998368,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 1.746124210002466,
-            "iou": 0.7162079507464407,
-            "osm_share": 0.7713788566536975,
-            "candidate_share": 0.9092044052516459
+            "intersection_km2": 1.74612421,
+            "iou": 0.716207951,
+            "osm_share": 0.771378857,
+            "candidate_share": 0.909204405
           },
           "feature_ids": [
             "1013181"
@@ -1682,23 +1682,23 @@
     {
       "id": "DBC431E7D862718FDA97",
       "glacier": "Mazama Glacier",
-      "osm_area_km2": 3.8336734240382038,
-      "glims_area_km2": 4.424000534225279,
+      "osm_area_km2": 3.833673424,
+      "glims_area_km2": 4.424000534,
       "facts_area_km2": 4.422936,
-      "osm_ratio": 0.8667711728223524,
-      "glims_ratio": 1.000240684971539,
+      "osm_ratio": 0.866771173,
+      "glims_ratio": 1.000240685,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 4.424000534225279,
-          "ratio": 1.000240684971539,
+          "area_km2": 4.424000534,
+          "ratio": 1.000240685,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 3.6228931878252397,
-            "iou": 0.7816752004610299,
-            "osm_share": 0.9450187293233395,
-            "candidate_share": 0.818917891125362
+            "intersection_km2": 3.622893188,
+            "iou": 0.7816752,
+            "osm_share": 0.945018729,
+            "candidate_share": 0.818917891
           },
           "feature_ids": [
             "1013205",
@@ -1719,23 +1719,23 @@
     {
       "id": "B9EE32A28C8747D5DFFE",
       "glacier": "Rainbow Glacier",
-      "osm_area_km2": 1.6763174356252803,
-      "glims_area_km2": 2.0041482426312145,
+      "osm_area_km2": 1.676317436,
+      "glims_area_km2": 2.004148243,
       "facts_area_km2": 2.004152,
-      "osm_ratio": 0.8364223051072376,
-      "glims_ratio": 0.9999981252076762,
+      "osm_ratio": 0.836422305,
+      "glims_ratio": 0.999998125,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 2.0041482426312145,
-          "ratio": 0.9999981252076762,
+          "area_km2": 2.004148243,
+          "ratio": 0.999998125,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 1.5860947656616515,
-            "iou": 0.7573132133011445,
-            "osm_share": 0.9461780519332397,
-            "candidate_share": 0.7914059109616027
+            "intersection_km2": 1.586094766,
+            "iou": 0.757313213,
+            "osm_share": 0.946178052,
+            "candidate_share": 0.791405911
           },
           "feature_ids": [
             "1013263",
@@ -1755,10 +1755,10 @@
     {
       "id": "0A63EE8B979CF780E4A3",
       "glacier": "No Name Glacier",
-      "osm_area_km2": 0.27222232216323516,
+      "osm_area_km2": 0.272222322,
       "glims_area_km2": null,
       "facts_area_km2": 0.374886,
-      "osm_ratio": 0.7261469411053898,
+      "osm_ratio": 0.726146941,
       "glims_ratio": null,
       "candidates": [],
       "extent_evidence": null,
@@ -1769,23 +1769,23 @@
     {
       "id": "8CACA048DC42862BF983",
       "glacier": "Thunder Glacier",
-      "osm_area_km2": 0.8399126362567346,
-      "glims_area_km2": 0.7947868386428351,
+      "osm_area_km2": 0.839912636,
+      "glims_area_km2": 0.794786839,
       "facts_area_km2": 0.794787,
-      "osm_ratio": 1.056777018568163,
-      "glims_ratio": 0.9999997969806188,
+      "osm_ratio": 1.056777018,
+      "glims_ratio": 0.999999797,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 0.7947868386428351,
-          "ratio": 0.9999997969806188,
+          "area_km2": 0.794786839,
+          "ratio": 0.999999797,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 0.7489812340042008,
-            "iou": 0.8456201977358612,
-            "osm_share": 0.8917370708246626,
-            "candidate_share": 0.9423674343716472
+            "intersection_km2": 0.748981234,
+            "iou": 0.845620198,
+            "osm_share": 0.891737071,
+            "candidate_share": 0.942367434
           },
           "feature_ids": [
             "1013147",
@@ -1804,23 +1804,23 @@
     {
       "id": "99FA03C8B03187E62003",
       "glacier": "Hadley Glacier",
-      "osm_area_km2": 0.6719197142863365,
-      "glims_area_km2": 0.6625711324264582,
+      "osm_area_km2": 0.671919714,
+      "glims_area_km2": 0.662571132,
       "facts_area_km2": 0.662571,
-      "osm_ratio": 1.0141097547075504,
-      "glims_ratio": 1.0000001998675736,
+      "osm_ratio": 1.014109754,
+      "glims_ratio": 1.000000199,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 0.6625711324264582,
-          "ratio": 1.0000001998675736,
+          "area_km2": 0.662571132,
+          "ratio": 1.000000199,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 0.6028903419049907,
-            "iou": 0.8240704290702667,
-            "osm_share": 0.8972654456869693,
-            "candidate_share": 0.9099254591685796
+            "intersection_km2": 0.602890342,
+            "iou": 0.824070429,
+            "osm_share": 0.897265446,
+            "candidate_share": 0.909925459
           },
           "feature_ids": [
             "1013155",
@@ -1842,23 +1842,23 @@
     {
       "id": "E2644F7634CE872C7707",
       "glacier": "Sholes Glacier",
-      "osm_area_km2": 1.1083201923531396,
-      "glims_area_km2": 1.0153957859498393,
+      "osm_area_km2": 1.108320192,
+      "glims_area_km2": 1.015395786,
       "facts_area_km2": 1.015396,
-      "osm_ratio": 1.0915152239649748,
-      "glims_ratio": 0.9999997891953871,
+      "osm_ratio": 1.091515224,
+      "glims_ratio": 0.999999789,
       "candidates": [
         {
           "source_key": "glims-2015-09-09",
-          "area_km2": 1.0153957859498393,
-          "ratio": 0.9999997891953871,
+          "area_km2": 1.015395786,
+          "ratio": 0.999999789,
           "observed_at": "2015-09-09",
           "license_ok": true,
           "overlap": {
-            "intersection_km2": 0.8030994776871518,
-            "iou": 0.6081246730694734,
-            "osm_share": 0.7246096238507072,
-            "candidate_share": 0.7909226025947138
+            "intersection_km2": 0.803099478,
+            "iou": 0.608124673,
+            "osm_share": 0.724609624,
+            "candidate_share": 0.790922603
           },
           "feature_ids": [
             "1013289",

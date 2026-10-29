@@ -192,3 +192,34 @@ test("verified OSM observations take priority over historical-fit inferences", (
   assert.equal(r.report.decisions[0].extent_evidence!.observed_at,"2024-01-01");
   assert.equal(r.report.decisions[0].chosen_source,"osm","a 2019 candidate is older than verified 2024 imagery");
 });
+
+test("manifest hashes survive last-digit metric differences (libm differs between platforms)", async () => {
+  const { rawOutlineMetrics, stableMetric, METRIC_DECIMALS } = await import("../glaciers/outline-geometry");
+  const { loadBakerOsmPackage, OUTLINE_DATA_DIR: BAKER_OUTLINE_DIR } = await import("../import-baker-glaciers");
+  assert.equal(METRIC_DECIMALS, 9);
+  assert.equal(stableMetric(1.1297744327013741), 1.129774433);
+  assert.equal(stableMetric(-1e-12), 0);
+  assert.equal(stableMetric(stableMetric(0.123456789499)), stableMetric(0.123456789499), "rounding is idempotent");
+  // Scale every raw output by a few ulps, alternating sign, as another libm would.
+  const perturbed = (origin: { lat: number; lng: number }, scale: number) => {
+    const raw = rawOutlineMetrics(origin);
+    let n = 0;
+    const nudge = (x: number) => x * (1 + scale * (n++ % 2 ? -1 : 1));
+    return { ...raw, area: (o: Outline) => nudge(raw.area(o)),
+      overlap: (a: Outline, b: Outline) => { const o = raw.overlap(a, b);
+        return { intersection_km2: nudge(o.intersection_km2), iou: nudge(o.iou), osm_share: nudge(o.osm_share), candidate_share: nudge(o.candidate_share) }; } };
+  };
+  for (const [osm, dir] of [[base, OUTLINE_DATA_DIR], [loadBakerOsmPackage(), BAKER_OUTLINE_DIR]] as const) {
+    const { manifest_sha256: _hash, ...body } = osm;
+    const { sources, references, aliases } = loadOutlineSources(join(dir, "outline-sources.json"));
+    const reference = refreshGlacierOutlines(body, sources, references, aliases);
+    for (const scale of [4e-16, 3e-15, -2e-14]) {
+      const shifted = refreshGlacierOutlines(body, sources, references, aliases, perturbed(body.parent, scale));
+      assert.equal(shifted.manifest.manifest_sha256, reference.manifest.manifest_sha256, `${body.parent.name} at ${scale}`);
+      assert.equal(JSON.stringify(shifted.report), JSON.stringify(reference.report));
+    }
+    const p = body.places[0];
+    assert.notEqual(perturbed(body.parent, 3e-15).area(p.boundary), rawOutlineMetrics(body.parent).area(p.boundary), "the nudge reaches raw outputs");
+    assert.deepEqual(JSON.stringify(reference.report).match(/\d\.\d{10,}/g) ?? [], [], "computed metrics carry at most 9 decimals");
+  }
+});
