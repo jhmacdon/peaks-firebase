@@ -4,9 +4,9 @@ Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, 
 
 Areas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Overlap is IoU / candidate share. ⚑ means review remains due. Historical fits infer extent age; they do not date OSM imagery.
 
-Input manifest: `dbf0b7809f8639cf6e1a6742ca0ae0a87fc24b0c43d283d442bfaa5558157283`
+Input manifest: `beee6964ec2d863a8cdc2318fc7bb7a081ceeeeb10cb6a0da6acd408b4e67b12`
 
-Output manifest: `a4135b2ff33fe896bf9402b6e2d2db33443ab422fa2c70bb386d1e628c8ede60`
+Output manifest: `4bfd90c43328d320b2046645773782d5defb2150fb22f4ff94c48ed7316a61b0`
 
 | Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |

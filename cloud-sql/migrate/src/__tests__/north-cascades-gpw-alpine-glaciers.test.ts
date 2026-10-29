@@ -29,7 +29,12 @@ test("each package: hashes, one cohort, roster size, every place in a wilderness
 test("parents, of-N and facts", () => {
   const west = packages[0].review.manifest, entiat = packages[1].review.manifest, alpine = packages[2].review.manifest;
   const find = (m: typeof west, n: string) => m.places.find(p => p.name === n)!;
-  assert.equal(placeParent(west, find(west, "Clark Glacier")).mountain_context.named_glacier_count, 4);
+  assert.equal(placeParent(west, find(west, "Clark Glacier")).mountain_context.named_glacier_count, 2);
+  for (const n of ["Pilz Glacier", "Butterfly Glacier"]) {
+    assert.equal(placeParent(west, find(west, n)).parent.name, "Luahna Peak", n);
+    assert.equal(placeParent(west, find(west, n)).mountain_context.named_glacier_count, 2);
+  }
+  assert.equal(placeParent(west, find(west, "Moth Glacier")).parent.name, "Neyah Point");
   assert.equal(find(west, "Pride Glacier").facts.area_km2, null);
   assert.equal(placeParent(entiat, find(entiat, "Company Glacier")).parent.name, "Bonanza Peak");
   assert.equal(find(entiat, "Company Glacier").facts.observed_year, 2017);

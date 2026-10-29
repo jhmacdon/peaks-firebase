@@ -2,8 +2,8 @@
   "schema_version": 1,
   "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=48.0501 +lon_0=-120.9685 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-  "input_manifest_sha256": "dbf0b7809f8639cf6e1a6742ca0ae0a87fc24b0c43d283d442bfaa5558157283",
-  "output_manifest_sha256": "a4135b2ff33fe896bf9402b6e2d2db33443ab422fa2c70bb386d1e628c8ede60",
+  "input_manifest_sha256": "beee6964ec2d863a8cdc2318fc7bb7a081ceeeeb10cb6a0da6acd408b4e67b12",
+  "output_manifest_sha256": "4bfd90c43328d320b2046645773782d5defb2150fb22f4ff94c48ed7316a61b0",
   "sources": [
     {
       "key": "glims-2015-09-09",

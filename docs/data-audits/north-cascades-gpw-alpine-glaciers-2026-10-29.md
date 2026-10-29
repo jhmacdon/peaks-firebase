@@ -8,7 +8,7 @@ facts. Three packages, one apply each, because their PSU cohorts differ:
 
 | Package | Spec | Places | Cohort | Reviewed manifest SHA-256 |
 | --- | --- | ---: | --- | --- |
-| Glacier Peak Wilderness west (Dakobed, Monte Cristo) | `import-glacier-peak-wilderness-west-glaciers.ts` | 8 | 2015-09-09 | `a4135b2ff33fe896bf9402b6e2d2db33443ab422fa2c70bb386d1e628c8ede60` |
+| Glacier Peak Wilderness west (Dakobed, Monte Cristo) | `import-glacier-peak-wilderness-west-glaciers.ts` | 8 | 2015-09-09 | `4bfd90c43328d320b2046645773782d5defb2150fb22f4ff94c48ed7316a61b0` |
 | Entiat and Chelan Mountains | `import-entiat-chelan-glaciers.ts` | 9 | 2017-09-09 | `c941fe42f13341022a353f7c9efcd0a1a513b1f79b7dcb8a4864b46f3e3abcea` |
 | Alpine Lakes and Stuart Range | `import-alpine-lakes-glaciers.ts` | 10 | 2015-09-09 | `f79d7db2a8493992eee7a110cb9a6380f459920decfbc77a2060a9dba74c4549` |
 
@@ -47,8 +47,17 @@ counted.
 - Switched to the 2015 inventory outline (1957 reference fits OSM better):
   Colchuck, Snow Creek (not flagged).
 
-Flagged parents: Richardson, Pilz, Butterfly (heads 1.0–2.5 km from Clark
-Mountain; Butterfly Butte is lower), Moth (Tenpeak 862 m), Columbia
+Parent corrections from the reviewed research (2026-10-29): **Pilz** and
+**Butterfly → Luahna Peak** (Wikipedia: north slopes of Luahna Peak; northwest
+slopes of its NW summit; DEM heads 79 m and 869 m from the OSM summit node),
+**Moth → Neyah Point**, flagged "parent inferred" (climbing reports only; DEM
+head 84 m from the OSM node). Luahna Peak and Neyah Point are not in GNIS:
+their points are OSM nodes 8826387283 (48.06063,-120.98489, 2,560 m) and
+8826387492 (48.07788,-121.02369, 2,464 m), base 2026-07-15. The Peaks
+catalog must hold both summits for the apply step.
+
+Flagged parents still standing (research agreed): Richardson (Clark
+Mountain; its head is 769 m from Luahna Peak and 979 m from Clark), Columbia
 (Wilmans Peaks is nearer but lower), Isella (Bonanza 866 m), Lyman and
 Hanging (Chiwawa Mountain 0.8–1.7 km), Spider (Red Mountain 1.6 km),
 Overcoat (head next to Chimney Rock; named after Overcoat Peak 586 m away).
@@ -68,18 +77,20 @@ Overcoat (head next to Chimney Rock; named after Overcoat Peak 586 m away).
 
 | Glacier | Parent | DEM head (m) | Nearest GNIS summit to head | Container |
 | --- | --- | ---: | --- | --- |
-| Butterfly Glacier | Clark Mountain | 2495 | Clark Mountain 2539 m | glacier-peak-wilderness |
+| Butterfly Glacier | Luahna Peak | 2495 | Luahna Peak 869 m (OSM node) | glacier-peak-wilderness |
 | Clark Glacier | Clark Mountain | 2522 | Clark Mountain 84 m | glacier-peak-wilderness |
-| Pilz Glacier | Clark Mountain | 2500 | Clark Mountain 1611 m | glacier-peak-wilderness |
+| Pilz Glacier | Luahna Peak | 2500 | Luahna Peak 79 m (OSM node) | glacier-peak-wilderness |
 | Richardson Glacier | Clark Mountain | 2388 | Clark Mountain 982 m | glacier-peak-wilderness |
 | Columbia Glacier | Columbia Peak | 1719 | Wilmans Peaks 691 m | henry-m-jackson-wilderness |
 | Pride Glacier | Kyes Peak | 1936 | Kyes Peak 269 m | henry-m-jackson-wilderness |
-| Moth Glacier | Tenpeak Mountain | 2476 | Tenpeak Mountain 862 m | glacier-peak-wilderness |
+| Moth Glacier | Neyah Point ⚑ inferred | 2476 | Neyah Point 84 m (OSM node) | glacier-peak-wilderness |
 | Tenpeak Glaciers | Tenpeak Mountain | 2453 | Tenpeak Mountain 51 m | glacier-peak-wilderness |
 
 | Parent key | Name | lat, lng | radius | of N |
 | --- | --- | --- | ---: | ---: |
-| (default) | Clark Mountain | 48.0501, -120.9685 | 1500 | 4 |
+| (default) | Clark Mountain | 48.0501, -120.9685 | 1500 | 2 |
+| luahna-peak | Luahna Peak | 48.0606, -120.9849 (OSM) | 1500 | 2 |
+| neyah-point | Neyah Point | 48.0779, -121.0237 (OSM) | 1500 | — |
 | tenpeak-mountain | Tenpeak Mountain | 48.0772, -121.0343 | 1500 | — |
 | kyes-peak | Kyes Peak | 47.9647, -121.3337 | 1500 | — |
 | columbia-peak | Columbia Peak | 47.9616, -121.3614 | 1500 | 1 |
