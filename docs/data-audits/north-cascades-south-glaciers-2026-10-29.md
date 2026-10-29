@@ -1,6 +1,6 @@
 # North Cascades (south) glaciers — review packet, 2026-10-29
 
-**42 glaciers. Flags: 4 ratio (9.5%), 7 no facts, 0 held.** Under the
+**42 glaciers. Flags: 0 ratio, 7 no facts, 0 held.** Outline rule 2 (#290). Under the
 2026-10-29 policy only ratio and outline-quality flags count towards the 15%
 stop rule; glaciers with no inventory row are imported with null facts.
 Spec:
@@ -9,7 +9,7 @@ Spec:
 [JSON](north-cascades-south-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`65ce3140a971e15321a56c1849076a9bc621d1c63256489fb237c749bac4a3c9`.
+`8e9103e4bd23bac7993e62ab5c97396ef8e0bffd34e22b18782a0187884f52f6`.
 
 Scope: North Cascades National Park south unit (Eldorado, Boston Basin,
 Logan, Klawatti), Lake Chelan NRA edge, and the Dome/Chickamin, Spider and
@@ -36,9 +36,9 @@ Hurry-up Peak by proximity, flagged).
 
 ## Flags
 
-- **Ratio (4), counted:** just outside the 0.67–1.5 band with no better
-  candidate. OSM kept, flag kept, imported: Lyall (1.545), Thunder (1.510),
-  Douglas (1.523), Yawning (1.621).
+- **Ratio (0).** Lyall (1.545), Thunder (1.510), Douglas (1.523) and Yawning
+  (1.621) take the PSU 2015 outline under outline rule 2 (OSM extents are
+  undated; the inventory is dated and closer to the facts area).
 - **No facts (7), not counted:** no named row in any cleared PSU cohort;
   imported with every fact null: Backbone, Cache, Goat Creek, Kindy,
   Mutchler, Perdition, Snowking.
@@ -75,7 +75,7 @@ features checked `summit`.
 | Katsuk Glacier | 0.726 | 0.723 | 0.723 | 1.004 | 0.953 / 0.978 | osm |
 | Quien Sabe Glacier | 0.736 | 0.708 | 0.708 | 1.039 | 0.872 / 0.950 | osm |
 | Spire Glacier | 0.741 | 0.688 | 0.688 | 1.077 | 0.884 / 0.975 | osm |
-| Douglas Glacier | 1.008 | 0.662 | 0.662 | 1.523 | 0.526 / 0.870 | osm ⚑ ratio |
+| Douglas Glacier | 1.008 | 0.662 | 0.662 | 1.523 | 0.526 / 0.870 | **GLIMS 2015** (rule 2) |
 | Kimtah Glacier | 0.543 | 0.639 | 0.639 | 0.851 | 0.808 / 0.827 | osm |
 | Wyeth Glacier | 0.487 | 0.523 | 0.523 | 0.932 | 0.785 / 0.849 | osm |
 | Goode Glacier | 0.388 | — | 0.482 (2017) | 0.805 | — / — | osm |
@@ -88,9 +88,9 @@ features checked `summit`.
 | Blue Glacier | 0.234 | 0.225 | 0.225 | 1.044 | 0.918 / 0.978 | osm |
 | S Glacier | 0.233 | 0.163 | 0.163 | 1.426 | 0.622 / 0.930 | osm |
 | Sahale Glacier | 0.156 | 0.149 | 0.149 | 1.045 | 0.717 / 0.854 | osm |
-| Thunder Glacier | 0.198 | 0.131 | 0.131 | 1.510 | 0.591 / 0.933 | osm ⚑ ratio |
-| Yawning Glacier | 0.201 | 0.124 | 0.124 | 1.621 | 0.469 / 0.837 | osm ⚑ ratio |
-| Lyall Glacier | 0.046 | 0.030 | 0.030 | 1.545 | 0.450 / 0.790 | osm ⚑ ratio |
+| Thunder Glacier | 0.198 | 0.131 | 0.131 | 1.510 | 0.591 / 0.933 | **GLIMS 2015** (rule 2) |
+| Yawning Glacier | 0.201 | 0.124 | 0.124 | 1.621 | 0.469 / 0.837 | **GLIMS 2015** (rule 2) |
+| Lyall Glacier | 0.046 | 0.030 | 0.030 | 1.545 | 0.450 / 0.790 | **GLIMS 2015** (rule 2) |
 | Cache Glacier | 0.196 | — | — | — | — / — | osm ⚑ no facts |
 | Perdition Glacier | 0.248 | — | — | — | — / — | osm ⚑ no facts |
 | Kindy Glacier | 0.562 | — | — | — | — / — | osm ⚑ no facts |
@@ -174,7 +174,7 @@ features checked `summit`.
 | spider-mountain | Spider Mountain | 48.4094, -121.0361 | 1500 | 2 |
 | storm-king | Storm King | 48.4912, -120.9303 | 1500 | 1 |
 
-Flagged parent calls (17 of 42): Fremont (Logan 720 m), Spire (no summit
+Parent calls checked by the reviewed research, all agreed (17 of 42; none unclear): Fremont (Logan 720 m), Spire (no summit
 within 3.5 km; Dome Peak), Lyall (Frisco 681 m), Cache (Mix-up 814 m),
 Perdition and Backbone (no summit near the head; Eldorado Peak), Neve
 (Snowfield 1.2 km), Thunder (Buckner 942 m), Blue (Gunsight Peak, lower than
@@ -203,6 +203,6 @@ missing-row queries empty; container links match the manifest exactly.
    is more recent, so it is used. The release gives only 50 m area bins, not
    explicit head or terminus elevations, so the elevation span stays null
    and the head elevation stays RGI `zmax_m`.
-3. Lyall, Thunder, Douglas, Yawning: OSM kept, flag kept.
-4. Parents: nearest GNIS summit to the DEM head; researched corrections
-   for the flagged calls will be applied when they arrive.
+3. Lyall, Thunder, Douglas, Yawning take the PSU 2015 outline (rule 2).
+4. Parents: nearest GNIS summit to the DEM head; the reviewed research
+   checked every flagged call and agreed.
