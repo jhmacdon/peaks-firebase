@@ -487,7 +487,7 @@ node --import tsx src/import-rainier-glaciers.ts \
 ```
 
 The reviewed output hash is
-`7db50df9c523308c511feb4465fa1ae1567be9c291cadc492397e591bdaa446e`
+`5ed2165785fc61d8ee7fd2c091c5e9806a38e1bbb01648bce5840078fcf67885`
 with platform-stable metrics (9 decimals; see
 [the hash record](data-audits/glacier-manifest-hashes.md)). The hash first
 applied in production was built before that rounding.

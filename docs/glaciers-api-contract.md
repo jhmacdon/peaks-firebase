@@ -175,7 +175,7 @@ illustrative, not claims about a user's recordings. No production rows were read
     "percent_change_since_earliest": -37.2264864245618,
     "change_baseline_year": 1971,
     "percent_change_since_baseline": -1.783473740813768,
-    "area_history_note": "The 1896 and 1913 maps have poor spatial accuracy, and their glacier boundaries do not match modern mapping.",
+    "area_history_note": "The 1896 and 1913 maps have poor spatial accuracy.",
     "area_history_note_citation": "Beason et al. (2023), p.6",
     "surface_change": {
       "start_year":2007,"start_label":"2007/8","end_year":2021,
@@ -350,8 +350,7 @@ for Flett/Ohanapecosh/Sarvent stay null.
 - `area_history[].accuracy` is `"low"` for a survey the facts source itself
   calls low-accuracy, else `null`. Older rows and builders without such a note
   omit the key; read a missing key as `null`. Rainier: 1896 and 1913, because
-  Beason et al. (2023, p.6) say those maps "had poor spatial accuracy" and
-  boundaries "that do not match with modern mapping". Draw these points
+  Beason et al. (2023, p.6) say those maps "had poor spatial accuracy". Draw these points
   de-emphasized and show `area_history_note` (with
   `area_history_note_citation`) as a muted footnote. Both are `null` when the
   series has no measured low-accuracy survey.
@@ -778,7 +777,7 @@ DDL runs as postgres; the runtime role receives DML and narrow function calls.
    descriptions, normalized facts, per-place geometry provenance and the full
    outline review. A changed source, parser or review changes the hash. The
    current reviewed hash is
-   `7db50df9c523308c511feb4465fa1ae1567be9c291cadc492397e591bdaa446e`
+   `5ed2165785fc61d8ee7fd2c091c5e9806a38e1bbb01648bce5840078fcf67885`
    (survey accuracy and Table 11; see the hash record) with platform-stable metrics (9 decimals; see
    [the hash record](data-audits/glacier-manifest-hashes.md)). The hash first
    applied in production was built before that rounding.

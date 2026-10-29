@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DATA_DIR, loadRainierPackage, loadRainierOsmPackage, importRainierGlaciers } from "../import-rainier-glaciers";
-import { parseGlaciers, sha256, SNAPSHOT_SHA256 } from "../glaciers/rainier";
+import { parseGlaciers, parseRainierFacts, sha256, SNAPSHOT_SHA256 } from "../glaciers/rainier";
 import { parseGlacierBackfillOptions } from "../backfill-glacier-crossings";
 
 const coords=(points: number[][])=>points.map(([lon,lat])=>({lon,lat}));
@@ -138,6 +138,7 @@ test("low-accuracy surveys come from the report text; the headline starts at the
   assert.equal(p.area_change.baseline_year,1971);
   assert.equal(p.area_change.end_year,2021);
   assert.ok(Math.abs(p.area_change.percent-((8.688/9.631-1)*100))<1e-10);
+  assert.equal(p.area_history_note.text,"The 1896 and 1913 maps have poor spatial accuracy.");
   assert.equal(p.area_history_note.citation,"Beason et al. (2023), p.6");
   assert.deepEqual(p.area_history_note.low_accuracy_years,[1896,1913]);
   // Flett has no 1896 map; the note names only the measured low year.
@@ -171,4 +172,14 @@ test("Table 11 surface and volume change maps to individual glaciers, abbreviati
   assert.equal(surface("Ingraham Glacier").mean_elevation_change_m,-3.42);
   // The m³ column keeps a loss the rounded km³ column prints as 0.000.
   assert.equal(surface("Columbia Crest Glacier").volume_change_km3,-.00031482);
+});
+
+test("Table 11 is read from the table body, not the List of Tables entry",()=>{
+  const report=readFileSync(join(DATA_DIR,"nps-beason-2023-report.txt"),"utf8");
+  const candidates=parseGlaciers(JSON.parse(readFileSync(join(DATA_DIR,"rainier-glaciers-overpass.json"),"utf8")));
+  const heading="\nTable 11. Total volumetric change of glaciers at Mount Rainier National Park from 2007/8";
+  const body=report.lastIndexOf(heading);
+  assert.ok(body>report.indexOf("\fTable 7.") && report.indexOf("\nTable 11. Total volumetric change")<body,"the contents entry comes first");
+  const withoutBody=report.slice(0,body)+"\nTable 11 heading removed"+report.slice(body+heading.length);
+  assert.throws(()=>parseRainierFacts(withoutBody,candidates,{}),/Missing Table 11/);
 });

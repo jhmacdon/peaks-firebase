@@ -14,7 +14,7 @@ export type Observation = AreaObservation;
  * against the saved report text. */
 export const LOW_ACCURACY_SURVEYS: LowAccuracySurveys = {
   years: [1896, 1913],
-  text: "The 1896 and 1913 maps have poor spatial accuracy, and their glacier boundaries do not match modern mapping.",
+  text: "The 1896 and 1913 maps have poor spatial accuracy.",
   citation: "Beason et al. (2023), p.6",
   source_quote: "The older maps in 1896 and 1913 had poor spatial accuracy",
 };
@@ -101,7 +101,8 @@ export function parseRainierFacts(report: string, candidates: GlacierCandidate[]
   }
   // Table 11 names glaciers individually, with "N."/"S." for North/South.
   const thinning = new Map<string, RegExpMatchArray>();
-  const thinStart = report.indexOf("\nTable 11. Total volumetric change");
+  // Skip the List of Tables entry: the table body follows Table 7.
+  const thinStart = report.indexOf("\nTable 11. Total volumetric change", report.indexOf("\fTable 7."));
   const thinEnd = report.indexOf("\n5.6. 2021 Glacier Volume", thinStart);
   if (thinStart < 0 || thinEnd < 0) throw new Error("Missing Table 11");
   for (const line of report.slice(thinStart, thinEnd).split(/\r?\n/)) {
