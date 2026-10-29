@@ -17,7 +17,7 @@ const split: InventoryConfig = { cohort: BAKER_SPEC.inventory.cohort, rgi_outlin
     colfax: { label: "Colfax Peak", names: { "Thunder Glacier": 2, "Bastile Glacier": 1 } } } };
 
 test("Baker built through the generic region builder keeps its applied facts and stable hash", () => {
-  assert.equal(loadBakerPackage().manifest_sha256, "c082ef875e6d6bf8e3173183bf62c3c791a873bb87de0f3771ee596393694c13");
+  assert.equal(loadBakerPackage().manifest_sha256, "ecca694dbab15a7614ad06a83c963e8827a8d65fd9d9eeaba0f3be410c20c833");
 });
 
 test("per-mountain ranks and contexts; names unique across mountains", () => {

@@ -3,7 +3,7 @@
   "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=48.7768 +lon_0=-121.8144 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
   "input_manifest_sha256": "3be5a8502c6a0a424f72283e5b5d36d430a0d03b2c27c11ef5510baf8d62db08",
-  "output_manifest_sha256": "c082ef875e6d6bf8e3173183bf62c3c791a873bb87de0f3771ee596393694c13",
+  "output_manifest_sha256": "ecca694dbab15a7614ad06a83c963e8827a8d65fd9d9eeaba0f3be410c20c833",
   "sources": [
     {
       "key": "glims-2015-09-09",
@@ -120,6 +120,34 @@
               "candidate_share": 0.878291027
             },
             "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "0A63EE8B979CF780E4A3",
+            "name": "No Name Glacier",
+            "feature_ids": [
+              "1013167",
+              "1013169",
+              "1013170",
+              "1013175",
+              "1013182"
+            ],
+            "glacier_ids": [
+              "G238175E48810N",
+              "G238178E48806N",
+              "G238178E48808N",
+              "G238180E48811N",
+              "G238184E48809N"
+            ],
+            "area_km2": 0.374885852,
+            "overlap": {
+              "intersection_km2": 0.262987608,
+              "iou": 0.684648598,
+              "osm_share": 0.966076571,
+              "candidate_share": 0.701513824
+            },
+            "parts_without_osm_overlap": [
+              "1013170"
+            ]
           },
           {
             "place_id": "D1EB1D72746B71D41018",
@@ -605,19 +633,7 @@
           }
         ],
         "ambiguous": [],
-        "invalid": [
-          {
-            "name": "No Name Glacier",
-            "feature_ids": [
-              "1013167",
-              "1013169",
-              "1013170",
-              "1013175",
-              "1013182"
-            ],
-            "reason": "Error: Orphan outline hole"
-          }
-        ]
+        "invalid": []
       }
     },
     {
@@ -1756,11 +1772,35 @@
       "id": "0A63EE8B979CF780E4A3",
       "glacier": "No Name Glacier",
       "osm_area_km2": 0.272222322,
-      "glims_area_km2": null,
+      "glims_area_km2": 0.374885852,
       "facts_area_km2": 0.374886,
       "osm_ratio": 0.726146941,
-      "glims_ratio": null,
-      "candidates": [],
+      "glims_ratio": 0.999999605,
+      "candidates": [
+        {
+          "source_key": "glims-2015-09-09",
+          "area_km2": 0.374885852,
+          "ratio": 0.999999605,
+          "observed_at": "2015-09-09",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.262987608,
+            "iou": 0.684648598,
+            "osm_share": 0.966076571,
+            "candidate_share": 0.701513824
+          },
+          "feature_ids": [
+            "1013167",
+            "1013169",
+            "1013170",
+            "1013175",
+            "1013182"
+          ],
+          "parts_without_osm_overlap": [
+            "1013170"
+          ]
+        }
+      ],
       "extent_evidence": null,
       "chosen_source": "osm",
       "flagged": false,

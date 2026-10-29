@@ -94,7 +94,8 @@ test("outline decisions: OSM retained everywhere; Park and Talum flagged; cohort
   const { report, manifest } = review;
   assert.ok(report.decisions.every(d => d.chosen_source === "osm"));
   assert.deepEqual(report.decisions.filter(d => d.flagged).map(d => d.glacier).sort(), ["Park Glacier", "Talum Glaciers"]);
-  assert.deepEqual(report.sources[0].audit.invalid.map(i => i.name), ["No Name Glacier"]);
+  assert.deepEqual(report.sources[0].audit.invalid, [], "No Name's holes touch their exterior at a vertex: valid");
+  assert.equal(report.decisions.find(d => d.glacier === "No Name Glacier")!.glims_ratio !== null, true);
   assert.deepEqual(report.sources[0].audit.unmatched.filter(u => u.name.trim() && u.name !== "WA").map(u => u.name).sort(),
     ["Bastile Glacier", "Camp Kiser", "Coleman Pinnacle"]);
   for (const p of manifest.places) {

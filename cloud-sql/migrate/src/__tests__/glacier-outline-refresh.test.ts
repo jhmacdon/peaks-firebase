@@ -223,3 +223,19 @@ test("manifest hashes survive last-digit metric differences (libm differs betwee
     assert.deepEqual(JSON.stringify(reference.report).match(/\d\.\d{10,}/g) ?? [], [], "computed metrics carry at most 9 decimals");
   }
 });
+
+test("holes and parts may touch at a shared vertex; a hole outside its exterior still fails", async () => {
+  const { parseOsmGlaciers } = await import("../glaciers/osm");
+  const [x, y] = [-121.76, 46.85], d = .01;
+  const outer = [[x,y],[x+d,y],[x+d,y+d],[x,y+d],[x,y]];
+  const touching = [[x,y],[x+d/2,y+d/4],[x+d/4,y+d/2],[x,y]]; // starts on the exterior's corner
+  assert.doesNotThrow(() => metrics.validate(outline([outer, touching])));
+  assert.ok(metrics.area(outline([outer, touching])) < metrics.area(outline([outer])));
+  assert.throws(() => metrics.validate(outline([outer, [[x+2*d,y],[x+3*d,y],[x+3*d,y+d],[x+2*d,y]]])), /Orphan/);
+  assert.throws(() => metrics.validate(outline([outer, outer.slice().reverse()])), /Orphan|Self-intersection|Degenerate/);
+  const way = (ref: number, pts: number[][]) => ({ type: "way", ref, geometry: pts.map(([lon, lat]) => ({ lon, lat })) });
+  const parsed = parseOsmGlaciers({ elements: [{ type: "relation", id: 7, tags: { natural: "glacier", name: "Touching Glacier" },
+    members: [{ ...way(1, outer), role: "outer" }, { ...way(2, touching), role: "inner" }] }] });
+  assert.equal(parsed[0].boundary.coordinates[0].length, 2, "the touching hole stays with its outer ring");
+});
+
