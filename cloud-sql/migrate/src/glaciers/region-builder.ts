@@ -36,6 +36,9 @@ export type RegionSpec = {
   /** Cohort glaciers per parent key; parents without one get no "of N". */
   inventory: InventoryConfig;
   activities: string[];
+  /** ISO 3166-1 alpha-2 and the subdivision code every place gets. */
+  country_code: string;
+  state_code: string;
 };
 
 export function loadRegionOsmPackage(spec: RegionSpec) {
@@ -61,7 +64,7 @@ export function loadRegionOsmPackage(spec: RegionSpec) {
     geometry_observed_at: spec.snapshot_date, geometry_source: "OpenStreetMap", geometry_credit: "© OpenStreetMap contributors",
     geometry_license: "ODbL-1.0", facts_credit: FACTS_CREDIT, facts_source_url: PSU_URL,
     description_source_name: null, description_source_license: null,
-    country_code: "US", state_code: "WA", activities: spec.activities,
+    country_code: spec.country_code, state_code: spec.state_code, activities: spec.activities,
     parent: spec.parents[spec.default_parent],
     ...(others.length ? { parents: Object.fromEntries(others.map(k => [k, { ...spec.parents[k], mountain_context: context(k) }])) } : {}),
     container_areas: spec.container_areas,

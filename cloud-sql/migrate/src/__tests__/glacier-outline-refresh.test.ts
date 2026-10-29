@@ -239,6 +239,25 @@ test("holes and parts may touch at a shared vertex; a hole outside its exterior 
   assert.equal(parsed[0].boundary.coordinates[0].length, 2, "the touching hole stays with its outer ring");
 });
 
+test("a hole that leaves its exterior through shared vertices, or touches it twice, fails", () => {
+  const [x, y] = [-121.76, 46.85], d = .01;
+  const outer = [[x,y],[x+d,y],[x+d,y+d],[x,y+d],[x,y]];
+  // First free vertex lies inside; the next one is outside the exterior. The
+  // old single-vertex probe accepted this and returned the wrong area.
+  const exits = [[x+d/2,y+d/2],[x,y],[x-d/4,y+d/2],[x,y+d],[x+d/2,y+d/2]];
+  assert.throws(() => metrics.validate(outline([outer, exits])), /Orphan|split/);
+  // Touching the exterior at two corners cuts the interior in two.
+  const twice = [[x,y],[x+d/2,y+d/4],[x+d,y+d],[x+d/4,y+d/2],[x,y]];
+  assert.throws(() => metrics.validate(outline([outer, twice])), /split/);
+  // Two holes that each touch the exterior and each other close a loop.
+  const left = [[x,y],[x+d/2,y+d/2],[x+d/8,y+d/2],[x,y]], right = [[x+d/2,y+d/2],[x+d,y+d],[x+d/2,y+7*d/8],[x+d/2,y+d/2]];
+  assert.throws(() => metrics.validate(outline([outer, left, right])), /split/);
+  assert.doesNotThrow(() => metrics.validate(outline([outer, left])), "one shared vertex stays valid");
+  // A second part that dips into the first between shared vertices overlaps it.
+  const part = [[x,y],[x+d/2,y+d/2],[x,y+d],[x-d,y+d/2],[x,y]];
+  assert.throws(() => metrics.validate(outline([outer], [part])), /Overlapping|crossing/);
+});
+
 test("WFS rows that share an anlys_id form one multi-part analysis; conflicting rows fail", () => {
   const row = (fid: string, anlys_id: number, glac_id: string, name: string, x: number) => ({ id: fid, type: "Feature",
     geometry: { type: "Polygon", coordinates: square(x) }, properties: { line_type: "glac_bound", anlys_id, glac_id, glac_name: name,
