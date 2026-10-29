@@ -191,10 +191,21 @@ export function parseGlimsFeatures(raw: unknown, cohort: { observed_at: string; 
       boundary: { type: "MultiPolygon" as const, coordinates: f.geometry.type === "Polygon" ? [f.geometry.coordinates as number[][][]] : f.geometry.coordinates as number[][][][] } };
   });
   if (!features.length) throw new Error("Empty GLIMS analysis cohort");
-  return features;
+  // The WFS can return one multi-part analysis as several rows with the same
+  // anlys_id. Keep each analysis as one feature with all its polygons, in WFS
+  // order; rows that disagree on glacier or name are not one analysis.
+  const byId = new Map<string, OutlineFeature>();
+  for (const f of features) {
+    const seen = byId.get(f.id);
+    if (!seen) { byId.set(f.id, f); continue; }
+    if (seen.glacier_id !== f.glacier_id || seen.name !== f.name) throw new Error(`Conflicting GLIMS rows for analysis ${f.id}`);
+    seen.boundary = { type: "MultiPolygon", coordinates: [...seen.boundary.coordinates, ...f.boundary.coordinates] };
+  }
+  return [...byId.values()];
 }
 export type OutlineRefreshConfig = {
   aliases?: Record<string, string[]>;
+  /** `expected_features` counts analyses: WFS rows sharing an anlys_id are one feature. */
   sources: (Omit<OutlineSource, "features"> & { file: string; chief_affl: string; purpose: "candidate" | "historical_reference"; expected_features: number })[];
 };
 export function loadOutlineSources(configPath: string) {
