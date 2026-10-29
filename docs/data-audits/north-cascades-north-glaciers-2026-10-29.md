@@ -1,6 +1,10 @@
 # North Cascades (north) glaciers — review packet, 2026-10-29
 
-**Draft: 10 of 25 named OSM glaciers flagged (40%).** Spec:
+**23 glaciers. Flags: 2 ratio (2 of 25 named OSM glaciers, 8%), 6 no facts,
+2 held.** Under the 2026-10-29 policy only ratio and outline-quality flags
+count towards the 15% stop rule; glaciers with no inventory row are imported
+with null facts; the Noisy Creek / Green Lake pair stays held until verified
+identities arrive. Spec:
 `cloud-sql/migrate/src/import-north-cascades-north-glaciers.ts`. Decisions:
 [Markdown](north-cascades-north-glacier-outline-decisions-2026-10-29.md),
 [JSON](north-cascades-north-glacier-outline-decisions-2026-10-29.json).
@@ -40,10 +44,13 @@ Neve (south package); held back, flagged:
 ## Outline decisions
 
 All 23 keep OSM. Flagged:
-- No cohort row, all facts null: Table Mountain, Sisters, Ruth, Diobsud,
-  Spillway, Lower Price (the PSU inventory left them unnamed).
-- Outside the band, no dated evidence: Whatcom (OSM/facts 1.720), West Nooksack
-  (5.512; the cohort's "West Nooksack Glacier" is a 0.019 km² part).
+- **Ratio (2, counted):** outside the band, no dated evidence and no better
+  candidate: Whatcom (OSM/facts 1.720), West Nooksack (5.512; the cohort's
+  "West Nooksack Glacier" is a 0.019 km² part).
+- **No facts (6, not counted):** no named row in any cleared PSU cohort;
+  imported with null facts: Table Mountain, Sisters, Ruth, Diobsud,
+  Spillway, Lower Price.
+- **Held (2):** Noisy Creek, Green Lake (above).
 
 | Glacier | OSM km² | GLIMS 2015 | Facts | OSM/facts | IoU / share | Chosen |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -108,9 +115,11 @@ PG 15.19 / PostGIS 3.6.4; 14 parent fixtures, NPS park and EDW Pasayten
 polygons. Import, replay unchanged; a line up Shuksan crosses Crystal twice;
 backfill drained; verify SQL per parent: all missing-row queries empty.
 
-## Questions
+## Decisions applied (2026-10-29)
 
-1. The PSU cohort leaves six of these glaciers unnamed. Import them with null
-   facts (flagged), or hold them?
-2. Noisy Creek / Green Lake: which name belongs to which polygon?
-3. Twin Sisters parent: "South Twin" or "Twin Sisters Mountain"?
+1. The six unnamed-in-PSU glaciers are imported with null facts, flagged
+   "no facts", not counted. No other cleared PSU cohort names them.
+2. Whatcom and West Nooksack keep OSM with the flag (no better candidate).
+3. Noisy Creek / Green Lake stay held until verified identities arrive.
+4. Parents (including Sisters: currently South Twin) keep the DEM-head
+   method; researched corrections will be applied when they arrive.
