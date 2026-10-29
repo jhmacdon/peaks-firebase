@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { BAKER_SPEC, DATA_DIR, OUTLINE_DATA_DIR, loadBakerPackage } from "../import-baker-glaciers";
 import { BAKER_INVENTORY } from "../glaciers/baker";
 import { inventoryFacts, inventoryMountainContext, parseInventory, type InventoryConfig } from "../glaciers/psu-inventory";
 import { loadRegionOsmPackage, loadRegionOutlineReview, type RegionSpec } from "../glaciers/region-builder";
-import { placeParent } from "../import-glacier-manifest";
+import { placeParent, sha256 } from "../import-glacier-manifest";
+import { usgsBenchmarkArea } from "../glaciers/usgs-benchmark";
 
 const glims = JSON.parse(readFileSync(join(OUTLINE_DATA_DIR, "glims-wfs-baker.json"), "utf8"));
 const rgi = JSON.parse(readFileSync(join(DATA_DIR, "rgi7-wfs-baker.json"), "utf8"));
@@ -118,4 +120,93 @@ test("split WFS analyses count once; far-apart same-name parts need listed glac_
 test("country and state codes come from the spec", () => {
   const m = loadRegionOsmPackage({ ...BAKER_SPEC, country_code: "CA", state_code: "BC" });
   assert.deepEqual([m.country_code, m.state_code], ["CA", "BC"]);
+});
+
+test("a mountain may take its names from another dated cohort of the cleared submission", () => {
+  type Row = { properties: Record<string, unknown> };
+  const rows = glims.features as Row[];
+  const later = rows.filter(f => ["Thunder Glacier", "Bastile Glacier"].includes(String(f.properties.glac_name)) && String(f.properties.src_date).startsWith("2015"))
+    .map((f, i) => ({ ...f, properties: { ...f.properties, src_date: "2017-09-09T00:00:00Z", anlys_id: 9_000_000 + i, db_area: .5 } }));
+  const both = { ...glims, features: [...rows.filter(f => !(["Thunder Glacier", "Bastile Glacier"].includes(String(f.properties.glac_name))
+    && String(f.properties.src_date).startsWith("2015"))), ...later] };
+  both.numberMatched = both.numberReturned = both.features.length;
+  const cohort = { ...split.cohort, observed_at: "2017-09-09" };
+  const config: InventoryConfig = { ...split, mountains: { ...split.mountains, colfax: { ...split.mountains.colfax, cohort } } };
+  assert.throws(() => parseInventory(both, rgi, split), /Incomplete 2015 GLIMS cohort: Thunder Glacier/);
+  const inv = parseInventory(both, rgi, config);
+  assert.equal(inventoryMountainContext(inv, config, "colfax").observed_year, 2017);
+  assert.equal(inventoryMountainContext(inv, config, "mount-baker").observed_year, 2015);
+  const thunder = { id: "x", name: "Thunder Glacier", osm_key: "way:1", external_ids: {}, kind: "glacier" as const,
+    boundary: { type: "MultiPolygon" as const, coordinates: [] } };
+  const f = inventoryFacts(inv, config, "colfax", thunder, "Thunder Glacier");
+  assert.equal(f.observed_year, 2017);
+  assert.equal((f.provenance.area as { cohort: { src_date: string } }).cohort.src_date, "2017-09-09");
+  assert.throws(() => parseInventory(both, rgi, { ...config, mountains: { ...config.mountains, colfax: { ...config.mountains.colfax,
+    cohort: { ...cohort, submission_id: "744" } } } }), /outside the cleared submission/);
+});
+
+test("an area source replaces the cohort area, keeps it as a cross-check, and never mixes on one mountain", () => {
+  const source = (area_km2: number) => ({ area_km2, observed_at: "2021-08-13", credit: "USGS test", url: "https://example.org/usgs",
+    license: "CC0-1.0", license_url: "https://creativecommons.org/publicdomain/zero/1.0/", method: "test", files: {} });
+  const inv = parseInventory(glims, rgi, split);
+  const thunder = { id: "x", name: "Thunder Glacier", osm_key: "way:1", external_ids: {}, kind: "glacier" as const,
+    boundary: { type: "MultiPolygon" as const, coordinates: [] } };
+  assert.throws(() => inventoryFacts(inv, { ...split, area_sources: { "Thunder Glacier": source(9) } }, "colfax", thunder, "Thunder Glacier"), /mixes area years or sources/);
+  const config = { ...split, area_sources: { "Thunder Glacier": source(.1), "Bastile Glacier": source(.2) } };
+  const f = inventoryFacts(inv, config, "colfax", thunder, "Thunder Glacier");
+  assert.deepEqual([f.area_km2, f.observed_year, f.rank_on_mountain], [.1, 2021, 2]);
+  const area = f.provenance.area as { credit: string; cohort_cross_check: { area_km2: number } };
+  assert.equal(area.credit, "USGS test");
+  assert.equal(area.cohort_cross_check.area_km2, inv.areas.get("Thunder Glacier")!.area_km2);
+  assert.deepEqual(inventoryMountainContext(inv, config, "colfax"), { observed_year: 2021, named_glacier_count: 2, area_km2: .3,
+    source: "USGS test", source_url: "https://example.org/usgs", scope: "Named glaciers of Colfax Peak, 2021 areas from USGS test; unnamed ice excluded" });
+  assert.throws(() => parseInventory(glims, rgi, { ...split, area_sources: { "Nowhere Glacier": source(1) } }), /names no inventory glacier/);
+  const m = loadRegionOsmPackage({ ...BAKER_SPEC, inventory: { ...BAKER_SPEC.inventory, area_sources: {} } });
+  assert.equal(m.facts_credit, loadBakerPackage().facts_credit, "no source, no new credit");
+});
+
+test("USGS benchmark area: latest DEM year, checked against the geodetic area and the reviewed bytes", () => {
+  const dir = mkdtempSync(join(tmpdir(), "usgs-"));
+  try {
+    const alt = "Year,1575,1625\n2015,1.0,0.8\n2021,0.9,0.85\n2025,0.8,0.8\n", geo = "Date,Area_max,Area_min\n2015/10/14,1800000,1800000\n2021/08/13,1800000,1750000\n";
+    writeFileSync(join(dir, "alt.csv"), alt); writeFileSync(join(dir, "geo.csv"), geo);
+    const files = { area_altitude: "alt.csv", geodetics: "geo.csv" }, release = { url: "https://doi.org/x", version: "ver 10.0" };
+    const hashes = { area_altitude: sha256(Buffer.from(alt)), geodetics: sha256(Buffer.from(geo)) };
+    const s = usgsBenchmarkArea(dir, files, hashes, release);
+    assert.deepEqual([s.area_km2, s.observed_at], [1.75, "2021-08-13"], "the DEM year, not the later interpolated 2025 row");
+    assert.throws(() => usgsBenchmarkArea(dir, files, { ...hashes, geodetics: "0".repeat(64) }, release), /Unreviewed USGS file/);
+    const off = geo.replace("1750000", "1700000");
+    writeFileSync(join(dir, "geo.csv"), off);
+    assert.throws(() => usgsBenchmarkArea(dir, files, { ...hashes, geodetics: sha256(Buffer.from(off)) }, release), /disagrees/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("a roster label correction renames the place, drops OSM's Wikidata tag and records the OSM name", () => {
+  const base = loadRegionOsmPackage(BAKER_SPEC), before = base.places.find(p => p.osm_key === "relation:4778054")!;
+  const relabel = (name: string) => ({ ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
+    "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], label: { name, method: "GNIS point inside polygon" } } } });
+  const m = loadRegionOsmPackage(relabel("Colfax Glacier")), after = m.places.find(p => p.osm_key === "relation:4778054")!;
+  assert.equal(before.name, "Thunder Glacier");
+  assert.equal(after.name, "Colfax Glacier");
+  assert.equal(after.id, before.id, "the destination id still follows the OSM element");
+  assert.equal(after.external_ids.osm_relation, before.external_ids.osm_relation);
+  assert.equal("wikidata" in after.external_ids, false);
+  assert.deepEqual(after.facts.provenance.label, { corrected_from_osm_name: "Thunder Glacier",
+    ...(before.external_ids.wikidata ? { dropped_osm_wikidata: before.external_ids.wikidata } : {}),
+    method: "GNIS point inside polygon", note: 'Label corrected from OSM name "Thunder Glacier"; OpenStreetMap itself is unchanged' });
+  assert.equal("label" in after, false, "the correction lives in provenance, not on the place");
+  assert.equal(after.facts.area_km2, before.facts.area_km2, "facts still follow the roster's inventory name");
+  assert.throws(() => loadRegionOsmPackage(relabel("Park Glacier")), /uniquely named/);
+  assert.throws(() => loadRegionOsmPackage(relabel("Thunder Glacier")), /Invalid label correction/);
+});
+
+test("an inventory crosswalk note lands in provenance; keep_osm needs outline rule 2", () => {
+  const note = "PSU/GNIS name for this outline is Bastile Glacier; name follows OSM";
+  const spec = { ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
+    "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], inventory_note: note } } };
+  assert.equal(loadRegionOsmPackage(spec).places.find(p => p.osm_key === "relation:4778054")!.facts.provenance.inventory_crosswalk, note);
+  const keep = { ...BAKER_SPEC, roster: { ...BAKER_SPEC.roster,
+    "relation:4778054": { ...BAKER_SPEC.roster["relation:4778054"], keep_osm: "reviewed" } } };
+  assert.throws(() => loadRegionOutlineReview(keep), /keep_osm needs outline rule 2/);
+  assert.equal(loadRegionOutlineReview({ ...keep, outline_rule: 2 }).report.decisions.length, 14);
 });
