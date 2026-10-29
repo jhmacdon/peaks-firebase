@@ -25,6 +25,7 @@ test("the database-free sitemap roster covers the current catalog", () => {
     "routes",
     "lists",
     "glaciers",
+    "reports",
     "landing",
     "static",
   ]);
