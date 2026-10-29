@@ -7,7 +7,7 @@ Decisions: [Markdown](olympics-glacier-outline-decisions-2026-10-29.md),
 [JSON](olympics-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`1db392586603dd1ecc203a3ff10c4da61bc24a01810ed5f9fe74ee4e9bdd126b`.
+`b758ee9d3586c2d2ecdcb5974caa084256f69bc298966809d774be2755f31519`.
 
 ## Sources and licences
 
@@ -119,3 +119,11 @@ polygon. Import, replay unchanged; a line from the Hoh valley to the summit
 crosses Hoh (886 m) and Blue (three passes) in route and session; backfill
 drained; `glacier-region-verify.sql` run per parent: all missing-row queries
 empty; credits OSM 9 (2026-07-15) and PSU 2 (2015-09-09).
+
+## Outline overlaps (neighbour check, #290)
+
+After sources were chosen, every pair of final outlines in each package was
+measured. No pair overlaps by more than 1% of the smaller outline or 0.01 km²,
+so no group was moved to one source and nothing was clipped. Resolution:
+none needed. The decision reports' "Outline overlaps" section records the
+same result.
