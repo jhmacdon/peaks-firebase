@@ -64,6 +64,7 @@ export const OLYMPICS_SPEC: RegionSpec = {
     rgi_ids: { "Cameron Glaciers": "RGI2000-v7.0-G-02-13848" },
   },
   activities: ["outdoor-trek", "ski"],
+  country_code: "US", state_code: "WA",
 };
 
 export const loadOlympicsOsmPackage = () => loadRegionOsmPackage(OLYMPICS_SPEC);
