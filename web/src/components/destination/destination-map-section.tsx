@@ -21,7 +21,7 @@ export function DestinationMapSection({
   name: string | null;
   lat: number | null;
   lng: number | null;
-  boundary: GeoJSON.Polygon | null;
+  boundary: GeoJSON.Polygon | GeoJSON.MultiPolygon | null;
   className?: string;
 }) {
   return (
