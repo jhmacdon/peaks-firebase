@@ -1,0 +1,6 @@
+URL: https://rgidata.org/user_guide/01_introduction.html
+Fetched: 2026-10-29 (User-Agent: PeaksApp-glacier-import/1.0)
+SHA-256 of fetched HTML: be04e1f0cd16a5da247f7eda2cedde9494e43fe084f5e7ef9af8acc5a8d3464c
+Verbatim excerpts:
+  "The RGI may be used freely under the Creative Commons Attribution 4.0 International License with due acknowledgement (by proper referencing, see below)."
+  "All outlines for RGI 7.0 are derived from the GLIMS database and comply with the GLIMS license agreement."
