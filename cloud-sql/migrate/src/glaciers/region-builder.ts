@@ -1,10 +1,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseOsmGlaciers } from "./osm";
-import { FACTS_CREDIT, PSU_URL, inventoryFacts, inventoryMountainContext, parseInventory, type InventoryConfig } from "./psu-inventory";
+import { FACTS_CREDIT, PSU_URL, RGI_CREDIT, inventoryFacts, inventoryMountainContext, parseInventory, type InventoryConfig } from "./psu-inventory";
 import { applyGlacierManifest, manifestSha256, sha256, validateGlacierManifest, type GlacierContainerArea, type GlacierManifest,
   type GlacierParent } from "../import-glacier-manifest";
-import { loadOutlineSources, outlineReportMarkdown, refreshGlacierOutlines } from "./outline-refresh";
+import { loadOutlineSources, normalizeGlacierName, outlineReportMarkdown, refreshGlacierOutlines } from "./outline-refresh";
 
 /** One roster place: an OSM element chosen for this package. */
 export type RegionPlace = {
@@ -20,8 +20,9 @@ export type RegionPlace = {
    * name and its Wikidata tag describe that other glacier, so both are
    * dropped; provenance records the correction and how it was verified. */
   label?: { name: string; method: string };
-  /** Why `inventory` names another glacier: the inventory row lying on this
-   * polygon carries a name the reviewed identity rejects. Recorded in provenance. */
+  /** A reviewed reason for taking `inventory` facts under a different name
+   * (the inventory row lying on this polygon carries a name the reviewed
+   * identity rejects). Required whenever the two names differ. */
   inventory_note?: string;
   /** A reviewed decision to keep an out-of-band OSM outline (outline rule 2). */
   keep_osm?: string;
@@ -96,11 +97,19 @@ export function loadRegionOsmPackage(spec: RegionSpec) {
       if (r.inventory !== null) used.add(r.inventory);
       if (r.inventory !== null && !(r.inventory in (spec.inventory.mountains[r.parent]?.names ?? {})))
         throw new Error(`${c.name}: ${r.inventory} is not listed under its parent ${r.parent}`);
+      // Facts must describe the glacier named here. A different inventory
+      // name needs a reviewed reason; a label correction never carries facts
+      // across names on its own.
+      if (r.inventory !== null && normalizeGlacierName(r.inventory) !== normalizeGlacierName(c.name) && !r.inventory_note?.trim())
+        throw new Error(`${c.name} takes inventory facts named ${r.inventory}; add a reviewed inventory_note`);
       const facts = inventoryFacts(inventory, spec.inventory, r.parent, c, r.inventory);
+      const source = r.inventory !== null ? spec.inventory.area_sources?.[r.inventory] : undefined;
       return { ...c, aliases: r.aliases ?? [], ...(r.parent === spec.default_parent ? {} : { parent_key: r.parent }),
         container_area_key: r.container,
         facts: { ...facts, provenance: { ...facts.provenance, glims_sha256: spec.sha256.glims, rgi_sha256: spec.sha256.rgi,
-          ...(label ? { label } : {}), ...(r.inventory_note ? { inventory_crosswalk: r.inventory_note } : {}) } } };
+          ...(label ? { label } : {}), ...(r.inventory_note ? { inventory_crosswalk: r.inventory_note } : {}) } },
+        ...(source ? { facts_credit: [source.credit, ...(facts.head_elevation_m !== null ? [RGI_CREDIT] : [])].join("; "),
+          facts_source_url: source.url } : {}) };
     }),
   };
   validateGlacierManifest(manifest);
