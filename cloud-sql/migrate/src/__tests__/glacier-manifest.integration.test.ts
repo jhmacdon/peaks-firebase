@@ -158,7 +158,9 @@ test("identity: a same-name glacier from another OSM element imports; same-name 
     await assert.rejects(apply(one(ids[3],`Other Glacier ${token}`,keys[0],30)),/Identity collision/,"a reused OSM element still collides");
   } finally {
     if (previous===undefined) delete process.env.GLACIER_DATABASE_URL; else process.env.GLACIER_DATABASE_URL=previous;
-    await c.query("DELETE FROM destinations WHERE id=ANY($1::text[])",[[...ids,poi,parent]]);
-    c.release();await pool.end();
+    try {
+      await c.query("DELETE FROM destinations WHERE id=ANY($1::text[])",[ids]);
+      await c.query("DELETE FROM destinations WHERE id=ANY($1::text[])",[[poi,parent]]);
+    } finally { c.release(); await pool.end(); }
   }
 });
