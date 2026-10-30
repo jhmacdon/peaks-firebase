@@ -56,6 +56,21 @@ test("an area's boundary reaches its map shape and yields non-empty tiles", {
     assert.equal((await shape()).west, -121.6, "a reshaped boundary reshapes the map shape");
     assert.ok(!(await tile(tileAt(-121.75, 46.85, 14))).includes(Buffer.from(id)), "old footprint is gone");
 
+    // Islands far apart are stored as separate pieces, each found by its own tiles.
+    const islands = `${id}-islands`;
+    await client.query(`INSERT INTO areas
+        (id, name, search_name, kind, source, source_id, source_version,
+         boundary, centroid, bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng)
+      VALUES ($1, 'Tile Fixture Refuge', 'tile fixture refuge', 'wildlife_refuge', 'test', $1, 'test',
+        ST_Multi(ST_Union(ST_MakeEnvelope(-134.5,58.2,-134.4,58.3,4326), ST_MakeEnvelope(-131.7,55.3,-131.6,55.4,4326))),
+        ST_SetSRID(ST_MakePoint(-133, 56.8), 4326), 55.3, 58.3, -134.5, -131.6)`, [islands]);
+    const pieces = (await client.query(
+      "SELECT piece, ST_NumGeometries(shape) AS parts FROM area_map_shapes WHERE area_id=$1 ORDER BY piece", [islands])).rows;
+    assert.deepEqual(pieces, [{ piece: 1, parts: 1 }, { piece: 2, parts: 1 }]);
+    for (const [lng, lat] of [[-134.45, 58.25], [-131.65, 55.35]]) {
+      assert.ok((await tile(tileAt(lng, lat, 12))).includes(Buffer.from(islands)), `island at ${lng},${lat}`);
+    }
+
     await client.query("DELETE FROM areas WHERE id=$1", [id]);
     assert.equal(await shape(), undefined, "deleting the area deletes its shape");
   } finally {

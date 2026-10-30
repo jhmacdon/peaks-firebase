@@ -20,6 +20,14 @@
 -- backfill inserts and never rewrites areas rows, takes no row locks there,
 -- and does not bump areas.updated_at.
 --
+-- Each area is stored as pieces: its polygon parts grouped by the 100 km Web
+-- Mercator cell holding each part's bbox center. No polygon is cut, so fills
+-- and edges show no seams, and the tile query collects an area's pieces back
+-- into one feature. Without pieces, a zoom-12 tile near Juneau clipped all
+-- 667k points of Tongass National Forest's 19,379 islands (30 ms on a laptop
+-- for a 200-byte tile); with them it reads one cell. A single part stays whole
+-- (the largest kept part is 44k points).
+--
 -- Storage: the 3 m shape keeps about 45% of boundary points (3.9M to 1.75M
 -- over 123 WA and Alaska areas), so about 12M points and roughly 250 MB with
 -- indexes for all 3,869 areas, on a 10 GB disk with 3.1 GB used. No new
@@ -31,9 +39,11 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 
 CREATE TABLE IF NOT EXISTS public.area_map_shapes (
-  area_id TEXT PRIMARY KEY REFERENCES public.areas(id) ON DELETE CASCADE,
+  area_id TEXT NOT NULL REFERENCES public.areas(id) ON DELETE CASCADE,
+  piece INTEGER NOT NULL,
   shape public.geometry(MultiPolygon,3857) NOT NULL,
-  shape_low public.geometry(MultiPolygon,3857)
+  shape_low public.geometry(MultiPolygon,3857),
+  PRIMARY KEY (area_id, piece)
 );
 CREATE INDEX IF NOT EXISTS area_map_shapes_shape_idx ON public.area_map_shapes USING GIST(shape);
 CREATE INDEX IF NOT EXISTS area_map_shapes_shape_low_idx ON public.area_map_shapes USING GIST(shape_low);
@@ -41,36 +51,50 @@ ALTER TABLE public.area_map_shapes OWNER TO postgres;
 REVOKE INSERT, UPDATE, DELETE ON public.area_map_shapes FROM "peaks-api";
 GRANT SELECT ON public.area_map_shapes TO "peaks-api";
 
--- MultiPolygon in 3857, or NULL when nothing survives the tolerance. Each
--- part is repaired on its own: ST_MakeValid over Tongass National Forest as one
--- 19,392-part MultiPolygon took 7.4 s on a laptop, part by part 0.5 s, and a
--- valid boundary's parts do not overlap (the result still passes ST_IsValid).
--- ST_AsMVTGeom makes its own output valid in any case.
-CREATE OR REPLACE FUNCTION public.area_map_shape(boundary public.geometry, tolerance double precision)
-RETURNS public.geometry LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+-- Simplify, then repair each part on its own. ST_MakeValid over Tongass as
+-- one 19,392-part MultiPolygon took 7.4 s on a laptop; part by part, 0.5 s.
+-- A valid boundary's parts do not overlap, and ST_AsMVTGeom makes its own
+-- output valid in any case. Returns no rows when nothing survives.
+CREATE OR REPLACE FUNCTION public.area_map_parts(shape public.geometry, tolerance double precision)
+RETURNS SETOF public.geometry LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
 SET search_path=pg_catalog,public,pg_temp AS $$
-  SELECT public.ST_Multi(public.ST_Collect(p.geom))
-  FROM public.ST_Dump(public.ST_Simplify(public.ST_Transform(boundary, 3857), tolerance)) d,
+  SELECT p.geom
+  FROM public.ST_Dump(public.ST_Simplify(shape, tolerance)) d,
        LATERAL public.ST_Dump(public.ST_CollectionExtract(public.ST_MakeValid(d.geom), 3)) p
 $$;
-ALTER FUNCTION public.area_map_shape(public.geometry, double precision) OWNER TO postgres;
+ALTER FUNCTION public.area_map_parts(public.geometry, double precision) OWNER TO postgres;
+
+-- One row per 100 km cell: the 3 m shape, and the 100 m shape made from it
+-- (NULL when the cell's parts are sub-pixel at zoom 10).
+CREATE OR REPLACE FUNCTION public.area_map_pieces(boundary public.geometry)
+RETURNS TABLE(piece integer, shape public.geometry, shape_low public.geometry)
+LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+SET search_path=pg_catalog,public,pg_temp AS $$
+  WITH parts AS (
+    SELECT g,
+      floor((public.ST_XMin(g) + public.ST_XMax(g)) / 200000.0) AS cell_x,
+      floor((public.ST_YMin(g) + public.ST_YMax(g)) / 200000.0) AS cell_y
+    FROM public.area_map_parts(public.ST_Transform(boundary, 3857), 3) g
+  ), pieces AS (
+    SELECT (row_number() OVER (ORDER BY cell_x, cell_y))::integer AS piece,
+      public.ST_Multi(public.ST_Collect(g)) AS shape
+    FROM parts GROUP BY cell_x, cell_y
+  )
+  SELECT piece, shape,
+    (SELECT public.ST_Multi(public.ST_Collect(l)) FROM public.area_map_parts(shape, 100) l)
+  FROM pieces
+$$;
+ALTER FUNCTION public.area_map_pieces(public.geometry) OWNER TO postgres;
 
 CREATE OR REPLACE FUNCTION public.refresh_area_map_shape()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
-DECLARE
-  detail public.geometry;
 BEGIN
   IF TG_OP='UPDATE'
     AND public.ST_AsEWKB(OLD.boundary) IS NOT DISTINCT FROM public.ST_AsEWKB(NEW.boundary)
     AND EXISTS (SELECT 1 FROM public.area_map_shapes WHERE area_id=NEW.id) THEN RETURN NULL; END IF;
-  detail := public.area_map_shape(NEW.boundary, 3);
-  IF detail IS NULL THEN
-    DELETE FROM public.area_map_shapes WHERE area_id=NEW.id;
-  ELSE
-    INSERT INTO public.area_map_shapes(area_id, shape, shape_low)
-      VALUES (NEW.id, detail, public.area_map_shape(NEW.boundary, 100))
-      ON CONFLICT (area_id) DO UPDATE SET shape=EXCLUDED.shape, shape_low=EXCLUDED.shape_low;
-  END IF;
+  DELETE FROM public.area_map_shapes WHERE area_id=NEW.id;
+  INSERT INTO public.area_map_shapes(area_id, piece, shape, shape_low)
+    SELECT NEW.id, p.piece, p.shape, p.shape_low FROM public.area_map_pieces(NEW.boundary) p;
   RETURN NULL;
 END $$;
 ALTER FUNCTION public.refresh_area_map_shape() OWNER TO postgres;
@@ -81,9 +105,9 @@ CREATE TRIGGER trg_areas_map_shape AFTER INSERT OR UPDATE OF boundary ON public.
   FOR EACH ROW EXECUTE FUNCTION public.refresh_area_map_shape();
 COMMIT;
 
--- Backfill, 25 areas per commit so no single statement runs long on the
--- largest boundaries and a rerun resumes where it stopped. Rows the trigger
--- already wrote are kept.
+-- Backfill, 25 areas per commit so no transaction runs long on the largest
+-- boundaries and a rerun resumes where it stopped. Each area's pieces land in
+-- one statement; areas the trigger already wrote are skipped.
 SET statement_timeout = 0;
 DO $$
 DECLARE
@@ -95,11 +119,11 @@ BEGIN
     WHERE NOT EXISTS (SELECT 1 FROM public.area_map_shapes s WHERE s.area_id=a.id)
     ORDER BY a.id
   LOOP
-    INSERT INTO public.area_map_shapes(area_id, shape, shape_low)
-    SELECT a.id, d.shape, public.area_map_shape(a.boundary, 100)
-    FROM public.areas a, LATERAL (SELECT public.area_map_shape(a.boundary, 3) AS shape) d
-    WHERE a.id=area.id AND d.shape IS NOT NULL
-    ON CONFLICT (area_id) DO NOTHING;
+    INSERT INTO public.area_map_shapes(area_id, piece, shape, shape_low)
+    SELECT a.id, p.piece, p.shape, p.shape_low
+    FROM public.areas a, LATERAL public.area_map_pieces(a.boundary) p
+    WHERE a.id=area.id
+      AND NOT EXISTS (SELECT 1 FROM public.area_map_shapes s WHERE s.area_id=a.id);
     done := done + 1;
     IF done % 25 = 0 THEN COMMIT; END IF;
   END LOOP;
@@ -112,6 +136,7 @@ ANALYZE public.area_map_shapes;
 -- Verify (must return 0; an area missing here is missing from the map):
 --   SELECT count(*) FROM areas a WHERE NOT EXISTS (SELECT 1 FROM area_map_shapes s WHERE s.area_id=a.id);
 -- Invalid shapes should be a handful at most: simplifying parts one at a time
--- can make two neighbouring islands touch (3 of 123 WA/Alaska areas in a local
--- run). Tiles still render; ST_AsMVTGeom repairs its output.
+-- can make two neighbouring islands touch (36 of 523 pieces for 123 WA and
+-- Alaska areas in a local run). Tiles still render; ST_AsMVTGeom repairs its
+-- output.
 --   SELECT count(*) FROM area_map_shapes WHERE NOT ST_IsValid(shape) OR NOT COALESCE(ST_IsValid(shape_low), true);

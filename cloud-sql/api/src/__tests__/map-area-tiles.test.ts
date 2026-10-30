@@ -35,13 +35,15 @@ test("tile addresses must be whole numbers inside the zoom's grid", () => {
 test("the query reads stored 3857 shapes and never transforms or simplifies per request", () => {
   const detail = buildAreaTileQuery({ z: 12, x: 662, y: 1443 });
   assert.match(detail.text, /JOIN area_map_shapes s ON s\.shape && tile\.search/);
-  assert.match(detail.text, /ST_AsMVTGeom\(s\.shape, tile\.envelope, 4096, 64, true\)/);
+  assert.match(detail.text, /ST_Collect\(s\.shape\), 3\) AS shape/);
+  assert.match(detail.text, /GROUP BY s\.area_id/);
+  assert.match(detail.text, /ST_AsMVTGeom\(shapes\.shape, tile\.envelope, 4096, 64, true\)/);
   assert.match(detail.text, /ST_AsMVT\(f, 'areas', 4096, 'geom'\)/);
   assert.doesNotMatch(detail.text, /ST_Transform|ST_Simplify|geography|boundary/);
   assert.deepEqual(detail.values, [12, 662, 1443]);
   const low = buildAreaTileQuery({ z: 10, x: 165, y: 360 });
   assert.match(low.text, /s\.shape_low && tile\.search/);
-  assert.match(low.text, /ST_AsMVTGeom\(s\.shape_low,/);
+  assert.match(low.text, /ST_Collect\(s\.shape_low\)/);
   assert.match(buildAreaTileQuery({ z: 11, x: 331, y: 721 }).text, /s\.shape && tile\.search/);
 });
 

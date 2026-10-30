@@ -53,9 +53,10 @@ export const AREA_RANK_SQL = `CASE a.kind::text
     ELSE 1 END`;
 
 /**
- * One indexed bbox test on the stored 3857 shape, then clip. No transform or
- * simplify of a boundary runs per request. Features are ordered low rank
- * first, so forests draw under the wilderness and parks inside them.
+ * One indexed bbox test on the stored 3857 pieces, then clip. No transform or
+ * simplify of a boundary runs per request. An area's pieces in reach collect
+ * back into one feature. Features are ordered low rank first, so forests draw
+ * under the wilderness and parks inside them.
  */
 export function buildAreaTileQuery({ z, x, y }: TileAddress) {
   const column = z >= AREA_TILE_DETAIL_ZOOM ? "shape" : "shape_low";
@@ -63,12 +64,14 @@ export function buildAreaTileQuery({ z, x, y }: TileAddress) {
     text: `WITH tile AS (
         SELECT ST_TileEnvelope($1, $2, $3) AS envelope,
                ST_TileEnvelope($1, $2, $3, margin => ${AREA_TILE_BUFFER}.0 / ${AREA_TILE_EXTENT}) AS search
+      ), shapes AS (
+        SELECT s.area_id, ST_CollectionExtract(ST_Collect(s.${column}), 3) AS shape
+        FROM tile JOIN area_map_shapes s ON s.${column} && tile.search
+        GROUP BY s.area_id
       ), features AS (
         SELECT a.id, a.name, a.kind::text AS kind, a.parent_area_id, ${AREA_RANK_SQL} AS rank,
-               ST_AsMVTGeom(s.${column}, tile.envelope, ${AREA_TILE_EXTENT}, ${AREA_TILE_BUFFER}, true) AS geom
-        FROM tile
-        JOIN area_map_shapes s ON s.${column} && tile.search
-        JOIN areas a ON a.id = s.area_id
+               ST_AsMVTGeom(shapes.shape, tile.envelope, ${AREA_TILE_EXTENT}, ${AREA_TILE_BUFFER}, true) AS geom
+        FROM tile, shapes JOIN areas a ON a.id = shapes.area_id
       )
       SELECT ST_AsMVT(f, 'areas', ${AREA_TILE_EXTENT}, 'geom') AS tile
       FROM (SELECT * FROM features WHERE geom IS NOT NULL ORDER BY rank, id) f`,
