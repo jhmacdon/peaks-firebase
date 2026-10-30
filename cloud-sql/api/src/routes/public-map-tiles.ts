@@ -90,6 +90,58 @@ const tileRateLimit = rateLimit({
   message: { error: "Too many tile requests" },
 });
 
+// Low-zoom tiles cover whole regions and every device in them asks for the
+// same ones, so each instance keeps recent tiles (empty ones included) and
+// joins identical requests already in flight. A shared-core db-f1-micro tile
+// costs up to a few hundred ms under load; a hit costs nothing. Bounded by
+// bytes; an hour keeps a PAD-US re-import visible the same day.
+const TILE_CACHE_MAX_BYTES = 32 * 1024 * 1024;
+const TILE_CACHE_TTL_MS = 60 * 60 * 1000;
+const TILE_CACHE_ENTRY_OVERHEAD = 128;
+const tileCache = new Map<string, { tile: Buffer; at: number }>();
+const tilesInFlight = new Map<string, Promise<Buffer>>();
+let tileCacheBytes = 0;
+
+export function clearAreaTileCache() {
+  tileCache.clear();
+  tileCacheBytes = 0;
+}
+
+function forget(key: string) {
+  const entry = tileCache.get(key);
+  if (!entry) return;
+  tileCache.delete(key);
+  tileCacheBytes -= entry.tile.length + TILE_CACHE_ENTRY_OVERHEAD;
+}
+
+function remember(key: string, tile: Buffer) {
+  forget(key);
+  tileCache.set(key, { tile, at: Date.now() });
+  tileCacheBytes += tile.length + TILE_CACHE_ENTRY_OVERHEAD;
+  // Map iteration is insertion order, and hits re-insert, so the first key is the least recent.
+  while (tileCacheBytes > TILE_CACHE_MAX_BYTES) forget(tileCache.keys().next().value!);
+}
+
+export async function loadAreaTile(address: TileAddress): Promise<Buffer> {
+  const key = `${address.z}/${address.x}/${address.y}`;
+  const hit = tileCache.get(key);
+  if (hit && Date.now() - hit.at < TILE_CACHE_TTL_MS) {
+    tileCache.delete(key);
+    tileCache.set(key, hit);
+    return hit.tile;
+  }
+  const pending = tilesInFlight.get(key);
+  if (pending) return pending;
+  const load = (async () => {
+    const { text, values } = buildAreaTileQuery(address);
+    const tile: Buffer = (await db.query(text, values)).rows[0]?.tile ?? Buffer.alloc(0);
+    remember(key, tile);
+    return tile;
+  })().finally(() => tilesInFlight.delete(key));
+  tilesInFlight.set(key, load);
+  return load;
+}
+
 router.get("/:z/:x/:file", tileRateLimit, asyncRoute(async (req, res) => {
   const address = parseTileAddress(req.params.z, req.params.x, req.params.file);
   if (!address) {
@@ -105,15 +157,14 @@ router.get("/:z/:x/:file", tileRateLimit, asyncRoute(async (req, res) => {
     res.set("Cache-Control", "no-store").status(503).json({ error: "Area tiles are unavailable" });
     return;
   }
-  const { text, values } = buildAreaTileQuery(address);
-  const tile: Buffer | null = (await db.query(text, values)).rows[0]?.tile ?? null;
+  const tile = await loadAreaTile(address);
   res.set("Cache-Control", AREA_TILE_CACHE_CONTROL);
-  if (!tile || tile.length === 0) {
+  if (tile.length === 0) {
     res.status(204).end();
     return;
   }
   res.vary("Accept-Encoding");
-  // Polygon tiles shrink by about half; the Mapbox HTTP stack sends gzip.
+  // Polygon tiles shrink by about a quarter; the Mapbox HTTP stack sends gzip.
   if (req.acceptsEncodings("gzip") && tile.length > 1024) {
     res.set("Content-Encoding", "gzip");
     res.type(AREA_TILE_CONTENT_TYPE).send(await gzipAsync(tile));

@@ -3,11 +3,11 @@ import { afterEach, mock, test } from "node:test";
 import { app } from "../index";
 import db from "../db";
 import {
-  AREA_TILE_CACHE_CONTROL, AREA_TILE_CONTENT_TYPE, buildAreaTileQuery, parseTileAddress,
+  AREA_TILE_CACHE_CONTROL, AREA_TILE_CONTENT_TYPE, buildAreaTileQuery, clearAreaTileCache, parseTileAddress,
 } from "../routes/public-map-tiles";
 import { appRequest } from "./helpers/app-request";
 
-afterEach(() => mock.restoreAll());
+afterEach(() => { mock.restoreAll(); clearAreaTileCache(); });
 const rainier = "/api/map/areas/12/662/1443.mvt";
 const schemaProbe = (sql: string) => sql.includes("information_schema.columns");
 
@@ -87,6 +87,22 @@ test("empty and below-range tiles answer 204, out-of-range ones 400", async () =
   assert.equal(queries.length, 1);
 });
 
+test("each instance serves repeat and concurrent tile requests from one query", async () => {
+  const queries = mockTiles(Buffer.from([0x1a, 0x02]));
+  const [first, second] = await Promise.all([appRequest(app, "GET", rainier), appRequest(app, "GET", rainier)]);
+  assert.equal(first.status, 200);
+  assert.equal(second.status, 200);
+  assert.equal((await appRequest(app, "GET", rainier)).status, 200);
+  assert.equal(queries.length, 1);
+  assert.equal((await appRequest(app, "GET", "/api/map/areas/12/662/1444.mvt")).status, 200);
+  assert.equal(queries.length, 2, "another tile is its own query");
+  // An hour later the tile is read again.
+  const start = Date.now();
+  mock.method(Date, "now", () => start + 61 * 60_000);
+  assert.equal((await appRequest(app, "GET", rainier)).status, 200);
+  assert.equal(queries.length, 3);
+});
+
 test("other methods and paths under /api/map/areas still require auth", async () => {
   const queries = mockTiles(Buffer.from([1]));
   for (const [method, path] of [
@@ -99,7 +115,7 @@ test("other methods and paths under /api/map/areas still require auth", async ()
 test("before the migration, tiles answer 503 without caching", async () => {
   // hasColumn caches its answer for a minute; step past it both ways.
   const start = Date.now();
-  mock.method(Date, "now", () => start + 120_000);
+  mock.method(Date, "now", () => start + 3 * 60 * 60_000);
   const queries = mockTiles(Buffer.from([1]), false);
   const response = await appRequest(app, "GET", rainier);
   assert.equal(response.status, 503);
