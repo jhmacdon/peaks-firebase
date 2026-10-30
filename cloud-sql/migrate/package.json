@@ -92,6 +92,7 @@
     "import:st-helens-glaciers": "tsx src/import-st-helens-glaciers.ts",
     "import:olympics-glaciers": "tsx src/import-olympics-glaciers.ts",
     "import:glacier-peak-glaciers": "tsx src/import-glacier-peak-glaciers.ts",
+    "import:goat-rocks-glaciers": "tsx src/import-goat-rocks-glaciers.ts",
     "import:glacier-manifest": "tsx src/import-glacier-manifest.ts",
     "backfill:glacier-crossings": "tsx src/backfill-glacier-crossings.ts",
     "refresh:glacier-outlines": "tsx src/refresh-glacier-outlines.ts"
