@@ -1,0 +1,15 @@
+{
+  "route_id": "kG03P8ClfUZ1AVbCOtot",
+  "route_name": "Mount Hinman via Necklace Valley and West Route",
+  "segments": [
+    {"segment_id": "wa-osm-40af7038f1da8571c66b", "ordinal": 16, "direction": "forward", "distance_m": 99, "stable_hash": "665c8c43693fd6454863b183e42a8279"}
+  ],
+  "before": {"display_name": "Hinman Glacier", "kind": "glacier"},
+  "after": {"display_name": "Mount Hinman West Ridge Trail", "kind": "scramble"},
+  "reason": "Hinman Glacier is gone: in August 2022 Mauri Pelto's team found only stranded patches of snow and ice, too thin to flow, and a lake now fills much of its basin. OSM still maps the old outline. The edge sits between two scramble edges of Mount Hinman West Ridge Trail and takes their name and kind. Foss Glacier (ordinal 18) still exists and is unchanged.",
+  "sources": [
+    "https://www.kuow.org/stories/rip-washington-s-hinman-glacier-gone-after-thousands-of-years",
+    "https://www.openstreetmap.org/relation/13209365"
+  ],
+  "reported_by": "Claude, from the 2026-10-28 mapped-ice batch; Josiah approved 2026-10-29"
+}

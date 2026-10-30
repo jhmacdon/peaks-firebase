@@ -1,0 +1,17 @@
+{
+  "route_id": "qojql4CaD3IF6GZfW0TE",
+  "route_name": "Worm Flows Route",
+  "segments": [
+    {"segment_id": "wa-osm-2e4be864676f0e54b83e", "ordinal": 24, "direction": "forward", "distance_m": 74.5, "stable_hash": "70d5d38e07f7072e39ee8cd53aad3496"},
+    {"segment_id": "wa-osm-0a34bd11189f1ed4c08e", "ordinal": 26, "direction": "forward", "distance_m": 126.6, "stable_hash": "65c18c4e7e70399ed0ae382d52b7870a"}
+  ],
+  "before": {"display_name": "Swift Glacier", "kind": "glacier"},
+  "after": {"display_name": "Worm Flows Climbing Route", "kind": "climbers_route"},
+  "reason": "Swift Glacier lost most of its ice in the 1980 eruption; what is left is debris-covered remnant ice, not a glacier the route crosses. OSM still maps the old outline, and the route only grazes its edge, so the timeline alternated Worm Flows / Swift Glacier twice. Both edges are part of the Worm Flows climbers route.",
+  "sources": [
+    "https://www.usgs.gov/volcanoes/mount-st.-helens/glaciation-mount-st-helens",
+    "https://www.schweizerbart.de/papers/zfg/detail/43/93659/Shoestring_Glacier_Seventeen_years_later_Mount_St_Helens_USA",
+    "https://www.openstreetmap.org/relation/9690999"
+  ],
+  "reported_by": "Josiah, 2026-10-29 (session timeline screenshot)"
+}

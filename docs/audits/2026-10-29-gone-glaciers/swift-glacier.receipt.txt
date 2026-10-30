@@ -1,0 +1,4 @@
+BEGIN
+DO
+{"route": {"id": "qojql4CaD3IF6GZfW0TE", "difficulty": "strenuous", "terrain_category": "mountaineering"}, "segments": [{"id": "wa-osm-0a34bd11189f1ed4c08e", "kind": "climbers_route", "display_name": "Worm Flows Climbing Route"}, {"id": "wa-osm-2e4be864676f0e54b83e", "kind": "climbers_route", "display_name": "Worm Flows Climbing Route"}], "verified_at": "2026-10-29T19:11:21.527682+00:00"}
+COMMIT
