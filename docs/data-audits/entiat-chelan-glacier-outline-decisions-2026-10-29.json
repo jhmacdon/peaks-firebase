@@ -1,0 +1,2819 @@
+{
+  "schema_version": 1,
+  "rule": "Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
+  "crs": "+proj=laea +lat_0=48.2382 +lon_0=-120.8663 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
+  "input_manifest_sha256": "fe3e387cd25cb7a3980715e6a6dd838faea125259ffd9fc05ac5fac2286e9809",
+  "output_manifest_sha256": "bc317b8300376b81c05699c5b9dc9154b51fb7fda78f078bad9f85a285f806a8",
+  "sources": [
+    {
+      "key": "glims-2017-09-09",
+      "observed_at": "2017-09-09",
+      "submission_id": "814",
+      "source_sha256": "85ce8a2c5c971f5924d6aeb984e84f4a7f4cc0e3784dbae347d630ddec6d2bfc",
+      "source_url": "https://doi.org/10.15760/geology-data.03",
+      "credit": "Fountain, Glenn & McNeil (2023), via GLIMS",
+      "license": "CC0-1.0",
+      "license_ok": true,
+      "purpose": "candidate",
+      "audit": {
+        "matches": [
+          {
+            "place_id": "B9F0E6EC6EEF6C7BF2C7",
+            "name": "Grant Glacier",
+            "feature_ids": [
+              "1014425"
+            ],
+            "glacier_ids": [
+              "G239102E48226N"
+            ],
+            "area_km2": 0.154205725,
+            "overlap": {
+              "intersection_km2": 0.147281061,
+              "iou": 0.946231701,
+              "osm_share": 0.990288291,
+              "candidate_share": 0.955094643
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "50ABF9F5997B5D78737D",
+            "name": "Dark Glacier",
+            "feature_ids": [
+              "1014426",
+              "1014430",
+              "1014436"
+            ],
+            "glacier_ids": [
+              "G239103E48263N",
+              "G239107E48263N",
+              "G239113E48260N"
+            ],
+            "area_km2": 0.503644802,
+            "overlap": {
+              "intersection_km2": 0.475327941,
+              "iou": 0.894012809,
+              "osm_share": 0.944305887,
+              "candidate_share": 0.943776127
+            },
+            "parts_without_osm_overlap": [
+              "1014426"
+            ]
+          },
+          {
+            "place_id": "1D0248D899ACFFA04D53",
+            "name": "Lyman Glacier",
+            "feature_ids": [
+              "1014429"
+            ],
+            "glacier_ids": [
+              "G239104E48172N"
+            ],
+            "area_km2": 0.213892657,
+            "overlap": {
+              "intersection_km2": 0.208464022,
+              "iou": 0.970423123,
+              "osm_share": 0.995582387,
+              "candidate_share": 0.974619812
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "7771CE14A9B67F142B15",
+            "name": "Spider Glacier",
+            "feature_ids": [
+              "1014440"
+            ],
+            "glacier_ids": [
+              "G239119E48165N"
+            ],
+            "area_km2": 0.050311794,
+            "overlap": {
+              "intersection_km2": 0.048953365,
+              "iou": 0.957306274,
+              "osm_share": 0.983430845,
+              "candidate_share": 0.972999787
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "6C9C71E4720ABB51DB3E",
+            "name": "Isella Glacier",
+            "feature_ids": [
+              "1014445",
+              "1014454"
+            ],
+            "glacier_ids": [
+              "G239133E48234N",
+              "G239138E48234N"
+            ],
+            "area_km2": 0.324832286,
+            "overlap": {
+              "intersection_km2": 0.308468558,
+              "iou": 0.939811124,
+              "osm_share": 0.98912428,
+              "candidate_share": 0.949624071
+            },
+            "parts_without_osm_overlap": [
+              "1014454"
+            ]
+          },
+          {
+            "place_id": "8B8158432C7576C98DCE",
+            "name": "Company Glacier",
+            "feature_ids": [
+              "1014446",
+              "1014458",
+              "1014460"
+            ],
+            "glacier_ids": [
+              "G239133E48248N",
+              "G239139E48249N",
+              "G239141E48246N"
+            ],
+            "area_km2": 0.98825121,
+            "overlap": {
+              "intersection_km2": 0.840776295,
+              "iou": 0.796413442,
+              "osm_share": 0.925732243,
+              "candidate_share": 0.850771835
+            },
+            "parts_without_osm_overlap": [
+              "1014458",
+              "1014460"
+            ]
+          },
+          {
+            "place_id": "42C2A460121AD74399AA",
+            "name": "Mary Green Glacier",
+            "feature_ids": [
+              "1014466"
+            ],
+            "glacier_ids": [
+              "G239144E48238N"
+            ],
+            "area_km2": 0.646795817,
+            "overlap": {
+              "intersection_km2": 0.635771195,
+              "iou": 0.94477271,
+              "osm_share": 0.960508605,
+              "candidate_share": 0.98295502
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "4025186AC8F20B684483",
+            "name": "Entiat Glacier",
+            "feature_ids": [
+              "1014523",
+              "1014532",
+              "1014536",
+              "1014540"
+            ],
+            "glacier_ids": [
+              "G239201E48142N",
+              "G239207E48141N",
+              "G239214E48140N",
+              "G239218E48140N"
+            ],
+            "area_km2": 0.453141993,
+            "overlap": {
+              "intersection_km2": 0.389736947,
+              "iou": 0.789901819,
+              "osm_share": 0.906377259,
+              "candidate_share": 0.86007687
+            },
+            "parts_without_osm_overlap": [
+              "1014536",
+              "1014540"
+            ]
+          }
+        ],
+        "unmatched": [
+          {
+            "feature_ids": [
+              "1014185"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014193"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014204"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014231"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014250"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014240"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014299"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014300"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014301"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014303"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014306"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014317"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014331"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014332"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014336"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014337"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014343"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014350"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014358"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014359"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014363"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014368"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014369"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014371"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014374"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014377"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014378"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014379"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014384"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014386"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014387"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014394"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014399"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014402"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014398"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014403"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014412"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014411"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014413"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014416"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014417"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014418"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014419"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014420"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014422"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014435"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014437"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014438"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014441"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014442"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014443"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014451"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014452"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014455"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014462"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014464"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014469"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014470"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014471"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014472"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014473"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014481"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014482"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014480"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014485"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014487"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014498"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014499"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014507"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014511"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014514"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014515"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014516"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014524"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014518"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014520"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014521"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014527"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014528"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014531"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014525"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014533"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014546"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014547"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014550"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "1014551"
+            ],
+            "name": "",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "name": "David Glacier",
+            "feature_ids": [
+              "1014275"
+            ],
+            "reason": "No name/alias crosswalk"
+          }
+        ],
+        "ambiguous": [],
+        "invalid": []
+      }
+    },
+    {
+      "key": "glims-1984-09-09-reference",
+      "observed_at": "1984-09-09",
+      "submission_id": "744",
+      "source_sha256": "85ce8a2c5c971f5924d6aeb984e84f4a7f4cc0e3784dbae347d630ddec6d2bfc",
+      "source_url": "https://doi.org/10.7265/N5V98602",
+      "credit": "GLIMS Glacier Database, NSIDC-0272 (historical comparison only)",
+      "license": "Not cleared for replacement in this packet",
+      "license_ok": false,
+      "purpose": "historical_reference",
+      "audit": {
+        "matches": [
+          {
+            "place_id": "B9F0E6EC6EEF6C7BF2C7",
+            "name": "Grant Glacier",
+            "feature_ids": [
+              "763648"
+            ],
+            "glacier_ids": [
+              "G239102E48226N"
+            ],
+            "area_km2": 0.364351374,
+            "overlap": {
+              "intersection_km2": 0.147985069,
+              "iou": 0.405336661,
+              "osm_share": 0.995021894,
+              "candidate_share": 0.406160315
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "1D0248D899ACFFA04D53",
+            "name": "Lyman Glacier",
+            "feature_ids": [
+              "763654"
+            ],
+            "glacier_ids": [
+              "G239104E48172N"
+            ],
+            "area_km2": 0.463523969,
+            "overlap": {
+              "intersection_km2": 0.209389021,
+              "iou": 0.451732888,
+              "osm_share": 1,
+              "candidate_share": 0.451732888
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "7771CE14A9B67F142B15",
+            "name": "Spider Glacier",
+            "feature_ids": [
+              "763667"
+            ],
+            "glacier_ids": [
+              "G239119E48165N"
+            ],
+            "area_km2": 0.115089758,
+            "overlap": {
+              "intersection_km2": 0.049697354,
+              "iou": 0.431510948,
+              "osm_share": 0.998376935,
+              "candidate_share": 0.431813869
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "6C9C71E4720ABB51DB3E",
+            "name": "Isella Glacier",
+            "feature_ids": [
+              "763681"
+            ],
+            "glacier_ids": [
+              "G239133E48234N"
+            ],
+            "area_km2": 0.527168943,
+            "overlap": {
+              "intersection_km2": 0.297144316,
+              "iou": 0.548353205,
+              "osm_share": 0.95281237,
+              "candidate_share": 0.563660512
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "8B8158432C7576C98DCE",
+            "name": "Company Glacier",
+            "feature_ids": [
+              "763683"
+            ],
+            "glacier_ids": [
+              "G239133E48248N"
+            ],
+            "area_km2": 1.252009604,
+            "overlap": {
+              "intersection_km2": 0.806298462,
+              "iou": 0.595520294,
+              "osm_share": 0.887770609,
+              "candidate_share": 0.644003416
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "42C2A460121AD74399AA",
+            "name": "Mary Green Glacier",
+            "feature_ids": [
+              "763692"
+            ],
+            "glacier_ids": [
+              "G239144E48238N"
+            ],
+            "area_km2": 0.56362919,
+            "overlap": {
+              "intersection_km2": 0.529244304,
+              "iou": 0.760085371,
+              "osm_share": 0.79957021,
+              "candidate_share": 0.93899378
+            },
+            "parts_without_osm_overlap": []
+          },
+          {
+            "place_id": "4025186AC8F20B684483",
+            "name": "Entiat Glacier",
+            "feature_ids": [
+              "763763"
+            ],
+            "glacier_ids": [
+              "G239207E48141N"
+            ],
+            "area_km2": 0.802657575,
+            "overlap": {
+              "intersection_km2": 0.424608785,
+              "iou": 0.525477976,
+              "osm_share": 0.987475653,
+              "candidate_share": 0.529003647
+            },
+            "parts_without_osm_overlap": []
+          }
+        ],
+        "unmatched": [
+          {
+            "feature_ids": [
+              "763078"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763090"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763099"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763110"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763121"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763118"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763129"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763130"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763178"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763190"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763197"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763202"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763200"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763203"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763207"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763209"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763215"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763216"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763223"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763227"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763237"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763244"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763245"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763247"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763248"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763251"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763252"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763253"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763255"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763256"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763259"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763261"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763262"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763263"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763268"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763271"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763274"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763273"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763288"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763294"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763290"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763303"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763304"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763306"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763311"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763312"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763315"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763317"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763318"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763322"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763329"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763330"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763332"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763344"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763355"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763356"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763358"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763360"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763362"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763369"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763382"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763395"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763413"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763421"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763433"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763434"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763440"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763445"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763446"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763455"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763460"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763461"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763462"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763465"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763470"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763476"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763485"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763486"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763521"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763533"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763540"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763562"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763574"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763587"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763612"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763625"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763628"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763621"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763627"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763630"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763631"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763635"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763636"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763640"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763645"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763672"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763689"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763699"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763701"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763702"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763707"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763709"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763715"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763724"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763727"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763738"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763744"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763748"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763750"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763752"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763754"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763755"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763760"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763756"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763761"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763757"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763765"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763775"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763776"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763777"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763778"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763781"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763782"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763785"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763789"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "name": "Milk Lake Glacier",
+            "feature_ids": [
+              "763184",
+              "763188"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Sitkum Glacier",
+            "feature_ids": [
+              "763238"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Scimitar Glacier",
+            "feature_ids": [
+              "763225"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Ptarmigan Glacier",
+            "feature_ids": [
+              "763232"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Kennedy Glacier",
+            "feature_ids": [
+              "763235"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "White Chuck Glacier",
+            "feature_ids": [
+              "763242"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Vista Glacier",
+            "feature_ids": [
+              "763260"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Ermine Glacier",
+            "feature_ids": [
+              "763275"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Dusty Glacier",
+            "feature_ids": [
+              "763276"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Chocolate Glacier",
+            "feature_ids": [
+              "763289"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Cool Glacier",
+            "feature_ids": [
+              "763280"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "White River Glacier",
+            "feature_ids": [
+              "763283"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "North Guardian Glacier",
+            "feature_ids": [
+              "763297"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Suiattle Glacier",
+            "feature_ids": [
+              "763299"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Honeycomb Glacier",
+            "feature_ids": [
+              "763343"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Butterfly Glacier",
+            "feature_ids": [
+              "763472"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Pilz Glacier",
+            "feature_ids": [
+              "763515"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Richardson Glacier",
+            "feature_ids": [
+              "763534"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Clark Glacier",
+            "feature_ids": [
+              "763560"
+            ],
+            "reason": "No name/alias crosswalk"
+          }
+        ],
+        "ambiguous": [],
+        "invalid": []
+      }
+    },
+    {
+      "key": "glims-1979-09-09-reference",
+      "observed_at": "1979-09-09",
+      "submission_id": "744",
+      "source_sha256": "85ce8a2c5c971f5924d6aeb984e84f4a7f4cc0e3784dbae347d630ddec6d2bfc",
+      "source_url": "https://doi.org/10.7265/N5V98602",
+      "credit": "GLIMS Glacier Database, NSIDC-0272 (historical comparison only)",
+      "license": "Not cleared for replacement in this packet",
+      "license_ok": false,
+      "purpose": "historical_reference",
+      "audit": {
+        "matches": [],
+        "unmatched": [
+          {
+            "feature_ids": [
+              "762542"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762553"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762571"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762581"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762595"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762600"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762612"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "name": "Vesper Glacier",
+            "feature_ids": [
+              "762564"
+            ],
+            "reason": "No name/alias crosswalk"
+          }
+        ],
+        "ambiguous": [],
+        "invalid": []
+      }
+    },
+    {
+      "key": "glims-1968-09-09-reference",
+      "observed_at": "1968-09-09",
+      "submission_id": "744",
+      "source_sha256": "85ce8a2c5c971f5924d6aeb984e84f4a7f4cc0e3784dbae347d630ddec6d2bfc",
+      "source_url": "https://doi.org/10.7265/N5V98602",
+      "credit": "GLIMS Glacier Database, NSIDC-0272 (historical comparison only)",
+      "license": "Not cleared for replacement in this packet",
+      "license_ok": false,
+      "purpose": "historical_reference",
+      "audit": {
+        "matches": [],
+        "unmatched": [
+          {
+            "feature_ids": [
+              "763797"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          }
+        ],
+        "ambiguous": [],
+        "invalid": []
+      }
+    },
+    {
+      "key": "glims-1963-09-09-reference",
+      "observed_at": "1963-09-09",
+      "submission_id": "744",
+      "source_sha256": "85ce8a2c5c971f5924d6aeb984e84f4a7f4cc0e3784dbae347d630ddec6d2bfc",
+      "source_url": "https://doi.org/10.7265/N5V98602",
+      "credit": "GLIMS Glacier Database, NSIDC-0272 (historical comparison only)",
+      "license": "Not cleared for replacement in this packet",
+      "license_ok": false,
+      "purpose": "historical_reference",
+      "audit": {
+        "matches": [],
+        "unmatched": [
+          {
+            "feature_ids": [
+              "762690"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762778"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762823"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762904"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "name": "David Glacier",
+            "feature_ids": [
+              "763502"
+            ],
+            "reason": "No name/alias crosswalk"
+          }
+        ],
+        "ambiguous": [],
+        "invalid": []
+      }
+    },
+    {
+      "key": "glims-1958-09-09-reference",
+      "observed_at": "1958-09-09",
+      "submission_id": "744",
+      "source_sha256": "85ce8a2c5c971f5924d6aeb984e84f4a7f4cc0e3784dbae347d630ddec6d2bfc",
+      "source_url": "https://doi.org/10.7265/N5V98602",
+      "credit": "GLIMS Glacier Database, NSIDC-0272 (historical comparison only)",
+      "license": "Not cleared for replacement in this packet",
+      "license_ok": false,
+      "purpose": "historical_reference",
+      "audit": {
+        "matches": [
+          {
+            "place_id": "50ABF9F5997B5D78737D",
+            "name": "Dark Glacier",
+            "feature_ids": [
+              "763665"
+            ],
+            "glacier_ids": [
+              "G239113E48260N"
+            ],
+            "area_km2": 0.677828876,
+            "overlap": {
+              "intersection_km2": 0.482691362,
+              "iou": 0.691040118,
+              "osm_share": 0.958934361,
+              "candidate_share": 0.712113897
+            },
+            "parts_without_osm_overlap": []
+          }
+        ],
+        "unmatched": [
+          {
+            "feature_ids": [
+              "762849"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762853"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762855"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762858"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762863"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762865"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762866"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762874"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762886"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762889"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762897"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762899"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762898"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762906"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762908"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762911"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762922"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "762932"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763220"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763224"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763231"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763414"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763428"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763469"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763456"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763474"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763477"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763482"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763490"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763493"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763496"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763498"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763511"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763555"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763568"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763664"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763668"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763669"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763674"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763686"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763696"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763695"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763703"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763708"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763780"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763784"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763786"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763787"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763788"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "feature_ids": [
+              "763790"
+            ],
+            "name": "WA",
+            "reason": "Unnamed inventory feature; no name crosswalk"
+          },
+          {
+            "name": "Columbia Peak",
+            "feature_ids": [
+              "762854"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Columbia Glacier",
+            "feature_ids": [
+              "762871"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Kyes Peak",
+            "feature_ids": [
+              "762891"
+            ],
+            "reason": "No name/alias crosswalk"
+          },
+          {
+            "name": "Chickamin Glacier",
+            "feature_ids": [
+              "763457"
+            ],
+            "reason": "No name/alias crosswalk"
+          }
+        ],
+        "ambiguous": [],
+        "invalid": []
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "id": "4025186AC8F20B684483",
+      "glacier": "Entiat Glacier",
+      "osm_area_km2": 0.429994181,
+      "glims_area_km2": 0.453141993,
+      "facts_area_km2": 0.453142,
+      "osm_ratio": 0.948917075,
+      "glims_ratio": 0.999999985,
+      "candidates": [
+        {
+          "source_key": "glims-2017-09-09",
+          "area_km2": 0.453141993,
+          "ratio": 0.999999985,
+          "observed_at": "2017-09-09",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.389736947,
+            "iou": 0.789901819,
+            "osm_share": 0.906377259,
+            "candidate_share": 0.86007687
+          },
+          "feature_ids": [
+            "1014523",
+            "1014532",
+            "1014536",
+            "1014540"
+          ],
+          "parts_without_osm_overlap": [
+            "1014536",
+            "1014540"
+          ]
+        }
+      ],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+    },
+    {
+      "id": "782311CA248A846164DF",
+      "glacier": "Hanging Glacier",
+      "osm_area_km2": 0.062596152,
+      "glims_area_km2": null,
+      "facts_area_km2": null,
+      "osm_ratio": null,
+      "glims_ratio": null,
+      "candidates": [],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": true,
+      "reason": "No individual facts area; retain OSM for review"
+    },
+    {
+      "id": "8B8158432C7576C98DCE",
+      "glacier": "Company Glacier",
+      "osm_area_km2": 0.90822838,
+      "glims_area_km2": 0.98825121,
+      "facts_area_km2": 0.98825,
+      "osm_ratio": 0.919026947,
+      "glims_ratio": 1.000001224,
+      "candidates": [
+        {
+          "source_key": "glims-2017-09-09",
+          "area_km2": 0.98825121,
+          "ratio": 1.000001224,
+          "observed_at": "2017-09-09",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.840776295,
+            "iou": 0.796413442,
+            "osm_share": 0.925732243,
+            "candidate_share": 0.850771835
+          },
+          "feature_ids": [
+            "1014446",
+            "1014458",
+            "1014460"
+          ],
+          "parts_without_osm_overlap": [
+            "1014458",
+            "1014460"
+          ]
+        }
+      ],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+    },
+    {
+      "id": "42C2A460121AD74399AA",
+      "glacier": "Mary Green Glacier",
+      "osm_area_km2": 0.661910983,
+      "glims_area_km2": 0.646795817,
+      "facts_area_km2": 0.646796,
+      "osm_ratio": 1.023369011,
+      "glims_ratio": 0.999999717,
+      "candidates": [
+        {
+          "source_key": "glims-2017-09-09",
+          "area_km2": 0.646795817,
+          "ratio": 0.999999717,
+          "observed_at": "2017-09-09",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.635771195,
+            "iou": 0.94477271,
+            "osm_share": 0.960508605,
+            "candidate_share": 0.98295502
+          },
+          "feature_ids": [
+            "1014466"
+          ],
+          "parts_without_osm_overlap": []
+        }
+      ],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+    },
+    {
+      "id": "6C9C71E4720ABB51DB3E",
+      "glacier": "Isella Glacier",
+      "osm_area_km2": 0.311860263,
+      "glims_area_km2": 0.324832286,
+      "facts_area_km2": 0.324832,
+      "osm_ratio": 0.96006632,
+      "glims_ratio": 1.00000088,
+      "candidates": [
+        {
+          "source_key": "glims-2017-09-09",
+          "area_km2": 0.324832286,
+          "ratio": 1.00000088,
+          "observed_at": "2017-09-09",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.308468558,
+            "iou": 0.939811124,
+            "osm_share": 0.98912428,
+            "candidate_share": 0.949624071
+          },
+          "feature_ids": [
+            "1014445",
+            "1014454"
+          ],
+          "parts_without_osm_overlap": [
+            "1014454"
+          ]
+        }
+      ],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+    },
+    {
+      "id": "B9F0E6EC6EEF6C7BF2C7",
+      "glacier": "Grant Glacier",
+      "osm_area_km2": 0.14872544,
+      "glims_area_km2": 0.154205725,
+      "facts_area_km2": 0.154206,
+      "osm_ratio": 0.964459489,
+      "glims_ratio": 0.999998217,
+      "candidates": [
+        {
+          "source_key": "glims-2017-09-09",
+          "area_km2": 0.154205725,
+          "ratio": 0.999998217,
+          "observed_at": "2017-09-09",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.147281061,
+            "iou": 0.946231701,
+            "osm_share": 0.990288291,
+            "candidate_share": 0.955094643
+          },
+          "feature_ids": [
+            "1014425"
+          ],
+          "parts_without_osm_overlap": []
+        }
+      ],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+    },
+    {
+      "id": "1D0248D899ACFFA04D53",
+      "glacier": "Lyman Glacier",
+      "osm_area_km2": 0.209389021,
+      "glims_area_km2": 0.213892657,
+      "facts_area_km2": 0.213893,
+      "osm_ratio": 0.978942841,
+      "glims_ratio": 0.999998396,
+      "candidates": [
+        {
+          "source_key": "glims-2017-09-09",
+          "area_km2": 0.213892657,
+          "ratio": 0.999998396,
+          "observed_at": "2017-09-09",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.208464022,
+            "iou": 0.970423123,
+            "osm_share": 0.995582387,
+            "candidate_share": 0.974619812
+          },
+          "feature_ids": [
+            "1014429"
+          ],
+          "parts_without_osm_overlap": []
+        }
+      ],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+    },
+    {
+      "id": "7771CE14A9B67F142B15",
+      "glacier": "Spider Glacier",
+      "osm_area_km2": 0.049778147,
+      "glims_area_km2": 0.050311794,
+      "facts_area_km2": 0.050312,
+      "osm_ratio": 0.989389152,
+      "glims_ratio": 0.999995906,
+      "candidates": [
+        {
+          "source_key": "glims-2017-09-09",
+          "area_km2": 0.050311794,
+          "ratio": 0.999995906,
+          "observed_at": "2017-09-09",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.048953365,
+            "iou": 0.957306274,
+            "osm_share": 0.983430845,
+            "candidate_share": 0.972999787
+          },
+          "feature_ids": [
+            "1014440"
+          ],
+          "parts_without_osm_overlap": []
+        }
+      ],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+    },
+    {
+      "id": "50ABF9F5997B5D78737D",
+      "glacier": "Dark Glacier",
+      "osm_area_km2": 0.503362255,
+      "glims_area_km2": 0.503644802,
+      "facts_area_km2": 0.503645,
+      "osm_ratio": 0.999438603,
+      "glims_ratio": 0.999999607,
+      "candidates": [
+        {
+          "source_key": "glims-2017-09-09",
+          "area_km2": 0.503644802,
+          "ratio": 0.999999607,
+          "observed_at": "2017-09-09",
+          "license_ok": true,
+          "overlap": {
+            "intersection_km2": 0.475327941,
+            "iou": 0.894012809,
+            "osm_share": 0.944305887,
+            "candidate_share": 0.943776127
+          },
+          "feature_ids": [
+            "1014426",
+            "1014430",
+            "1014436"
+          ],
+          "parts_without_osm_overlap": [
+            "1014426"
+          ]
+        }
+      ],
+      "extent_evidence": null,
+      "chosen_source": "osm",
+      "flagged": false,
+      "reason": "OSM/facts ratio is within [0.67, 1.5]"
+    }
+  ],
+  "neighbour_overlaps": []
+}
