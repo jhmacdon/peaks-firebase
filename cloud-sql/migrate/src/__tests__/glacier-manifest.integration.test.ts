@@ -142,7 +142,8 @@ test("identity: a same-name glacier from another OSM element imports; same-name 
   const shared=`Twin Glacier ${token}`, keys=[0,1].map(i=>`way:${Date.now()}${i}${Math.floor(Math.random()*10000)}`);
   const one=(id:string,name:string,osm_key:string,x:number): GlacierManifest=>({...rest,
     parent:{...base.parent,name:parent,lat:46.85,lng:-121.76,features:["summit"]},container_areas:{},
-    places:[{...base.places[0],id,name,osm_key,external_ids:{},aliases:[],container_area_key:null,
+    // Real packages record the OSM element in external_ids; the same-name rule relies on it.
+    places:[{...base.places[0],id,name,osm_key,external_ids:{osm_way:osm_key.slice(4)},aliases:[],container_area_key:null,
       boundary:{type:"MultiPolygon" as const,coordinates:[[ring(x)]]}}]});
   const apply=(m:GlacierManifest)=>{ const hash=manifestSha256(m);
     return applyGlacierManifest({...m,manifest_sha256:hash},["--apply",`--expected-manifest-sha256=${hash}`,`--parent-mountain-id=${parent}`]); };
