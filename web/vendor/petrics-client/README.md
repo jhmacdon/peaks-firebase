@@ -73,3 +73,17 @@ When a track call names a `userId` and no `anonymousId`, the `userId` is sent as
 npm install
 npm test
 ```
+
+## Foreground activity
+
+Petrics active users count `app_opened` events with
+`petrics_activity: "foreground"`. Initialization, identity restoration, profile
+updates, background work and server events do not count. A sign-in that finishes
+while the UI is visible records the signed-in visit too; reports merge it with
+the anonymous visit. Repeated identity calls do not add opens. Opt-out applies.
+This state stays in memory, so a background relaunch cannot inherit a visible visit.
+
+Set `trackAppOpens: true` in browser options. The SDK records a visible initial
+page and hidden-to-visible returns, including back/forward cache restores.
+Hidden tabs, prerendered documents, Node processes and `platform: "server"` do
+not record opens. The option defaults to false for existing integrations.

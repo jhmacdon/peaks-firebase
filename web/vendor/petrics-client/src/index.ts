@@ -35,6 +35,8 @@ export interface PetricsOptions {
   maxEventAgeMs?: number;
   /** Default 30 minutes. */
   sessionTimeoutMs?: number;
+  /** Track app_opened on visible browser visits. Off by default; never runs on servers. */
+  trackAppOpens?: boolean;
   /** Per-request timeout; default 30_000. A timeout counts as retryable. */
   requestTimeoutMs?: number;
   /** Test hook. */
@@ -84,7 +86,7 @@ export interface Petrics {
 
 export const DEFAULT_ENDPOINT = "https://petrics-collector-5kar4p37xq-uc.a.run.app";
 const LIB = "petrics-js";
-const LIB_VERSION = "2.0.0";
+const LIB_VERSION = "2.1.0";
 const MAX_BATCH = 200;
 const BASE_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 5 * 60_000;
@@ -135,6 +137,8 @@ class PetricsClient implements Petrics {
   private failures = 0;
   private retryAfterMs: number | undefined;
   private stopped = false;
+  private foreground = false;
+  private readonly trackAppOpens: boolean;
   /** True while the last state save failed; memory is then newer than storage. */
   private stateDirty = false;
   private unloadInFlight: Promise<void> | undefined;
@@ -171,6 +175,7 @@ class PetricsClient implements Petrics {
       this.now,
     );
     this.context = buildContext(options);
+    this.trackAppOpens = options.trackAppOpens === true && this.context.platform === "web";
     this.state = this.readStoredState() ?? this.freshState(false);
 
     this.people = {
@@ -241,9 +246,11 @@ class PetricsClient implements Petrics {
 
   identify(userId: string): void {
     if (this.refreshState().optedOut) return;
+    const changed = this.state.userId !== userId;
     this.mutateState((state) => {
       state.userId = userId;
     });
+    if (changed && this.foreground) this.recordAppOpen();
   }
 
   reset(): void {
@@ -406,11 +413,27 @@ class PetricsClient implements Petrics {
       if (event?.key === this.keys.state || event?.key === null) this.refreshState();
     });
     if (doc && typeof doc.addEventListener === "function" && typeof doc.removeEventListener === "function") {
+      const visible = () => {
+        const active = this.trackAppOpens && doc.visibilityState === "visible" && !this.stopped;
+        const opened = active && !this.foreground;
+        this.foreground = active;
+        if (opened) this.recordAppOpen();
+      };
       listen(doc as EventTargetLike, "visibilitychange", () => {
+        visible();
         if (doc.visibilityState === "hidden") this.flushOnUnload();
       });
-      listen(winTarget, "pagehide", () => this.flushOnUnload());
+      listen(winTarget, "pagehide", () => {
+        this.foreground = false;
+        this.flushOnUnload();
+      });
+      listen(winTarget, "pageshow", visible);
+      visible();
     }
+  }
+
+  private recordAppOpen(): void {
+    this.track("app_opened", { petrics_activity: "foreground" });
   }
 
   private nextTimerDelay(): number {

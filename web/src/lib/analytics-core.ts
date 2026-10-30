@@ -17,8 +17,8 @@ export function petricsOptions(env: PetricsEnv, canCollect: boolean): PetricsOpt
   if (!canCollect || !sourceKey) return null;
   const endpoint = env.endpoint?.trim();
   return endpoint
-    ? { sourceKey, endpoint, platform: "web" }
-    : { sourceKey, platform: "web" };
+    ? { sourceKey, endpoint, platform: "web", trackAppOpens: true }
+    : { sourceKey, platform: "web", trackAppOpens: true };
 }
 
 /** True only in a real browser that isn't driven by tests or automation. */
