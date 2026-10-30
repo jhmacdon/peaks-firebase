@@ -254,7 +254,13 @@ export async function applyGlacierManifest(pkg: GlacierManifest & { manifest_sha
         if (!shape.rows[0]?.valid || shape.rows[0].empty || !shape.rows[0].inside) throw new Error(`Invalid/out-of-area boundary: ${place.name}`);
         const collision = await client.query(`SELECT id FROM destinations WHERE id=$1 OR external_ids @> $2::jsonb
           OR ($4::jsonb<>'{}'::jsonb AND external_ids @> $4::jsonb)
-          OR (owner='peaks' AND lower(name)=lower($3) AND ST_DWithin(location,ST_MakePoint($5,$6)::geography,30000))`,
+          OR (owner='peaks' AND lower(name)=lower($3) AND ST_DWithin(location,ST_MakePoint($5,$6)::geography,30000)
+            -- Another imported glacier with a different OSM element is a
+            -- distinct glacier that shares a name (two Spider Glaciers lie 28
+            -- km apart in the North Cascades), not this place under a new ID.
+            -- The OSM and Wikidata clauses above still catch true duplicates.
+            AND NOT (EXISTS (SELECT 1 FROM destination_glacier_facts gf WHERE gf.destination_id=destinations.id)
+              AND (external_ids ? 'osm_way' OR external_ids ? 'osm_relation') AND NOT external_ids @> $2::jsonb))`,
           [place.id,JSON.stringify({ [place.osm_key.startsWith("way:") ? "osm_way" : "osm_relation"]: place.osm_key.split(":")[1] }),place.name,
             JSON.stringify(place.external_ids.wikidata ? {wikidata:place.external_ids.wikidata}:{}),p.lng,p.lat]);
         if (collision.rows.some(r => r.id !== place.id)) throw new Error(`Identity collision: ${place.name}`);
