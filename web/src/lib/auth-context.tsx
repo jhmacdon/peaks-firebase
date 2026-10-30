@@ -210,9 +210,9 @@ function signInMethod(providerId: string | null | undefined): string {
   return providerId;
 }
 
-/** Identifies the user first, so the event carries the user ID. Never sends email or name. */
+/** Identifies the account and sets its first name before tracking sign-in. */
 function trackSignedIn(result: UserCredential, method: string): void {
-  identify(result.user.uid);
+  identify(result.user.uid, result.user.displayName);
   track("Signed In", {
     method,
     new_user: getAdditionalUserInfo(result)?.isNewUser ?? false,
@@ -266,7 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        identify(firebaseUser.uid);
+        identify(firebaseUser.uid, firebaseUser.displayName);
         const tokenResult: IdTokenResult = await firebaseUser.getIdTokenResult();
         setUser(firebaseUser);
         setIsAdmin(tokenResult.claims.admin === true);
@@ -360,7 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await firebaseSignOut(auth);
     } catch (error) {
-      if (auth.currentUser) identify(auth.currentUser.uid);
+      if (auth.currentUser) identify(auth.currentUser.uid, auth.currentUser.displayName);
       throw error;
     }
   };
