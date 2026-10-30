@@ -74,6 +74,12 @@ class FakeClient implements AnalyticsClient {
   userId: string | undefined;
   resets = 0;
   readonly sent: SentEvent[] = [];
+  readonly profiles: { userId: string | undefined; properties: Record<string, unknown> }[] = [];
+  people = {
+    set: (properties: Record<string, unknown>): void => {
+      this.profiles.push({ userId: this.userId, properties });
+    },
+  };
 
   track(event: string, properties: Record<string, unknown> = {}): void {
     this.sent.push({ event, anonymous_id: this.anonymousId, user_id: this.userId, properties });
@@ -147,6 +153,31 @@ test("switching users with no sign-out in between starts a fresh anonymous ID", 
   const last = client.sent.at(-1)!;
   assert.equal(last.user_id, "uid-b");
   assert.equal(last.anonymous_id, "anon-2");
+});
+
+test("names follow sign-in, a later profile name, and an account switch", () => {
+  const client = new FakeClient();
+  const analytics = createAnalytics(() => client, () => page);
+  analytics.identify("uid-a");
+  analytics.identify("uid-a", "  Zoë\nSmith ");
+  analytics.identify("uid-a", "D’Arcy Smith");
+  analytics.identify("uid-b", "Jean-Luc Picard");
+  assert.deepEqual(client.profiles, [
+    { userId: "uid-a", properties: { first_name: "Zoë" } },
+    { userId: "uid-a", properties: { first_name: "D’Arcy" } },
+    { userId: "uid-b", properties: { first_name: "Jean-Luc" } },
+  ]);
+  assert.equal(client.resets, 1);
+  assert.equal(client.sent.length, 0);
+});
+
+test("missing names do not erase a known name or use email", () => {
+  const client = new FakeClient();
+  const analytics = createAnalytics(() => client, () => page);
+  for (const name of [undefined, null, "", " \n\t ", "fan@example.com"]) {
+    analytics.identify("uid-a", name);
+  }
+  assert.deepEqual(client.profiles, []);
 });
 
 test("resetIfIdentified keeps a signed-out visitor's anonymous ID across loads", () => {

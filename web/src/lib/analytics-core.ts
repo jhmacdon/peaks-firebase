@@ -59,6 +59,7 @@ export interface AnalyticsClient {
   readonly userId: string | undefined;
   track(event: string, properties?: Properties): void;
   identify(userId: string): void;
+  people: { set(properties: Properties): void };
   reset(): void;
 }
 
@@ -73,7 +74,7 @@ export interface PageInfo {
 
 export interface Analytics {
   track(event: string, properties?: Properties): void;
-  identify(userId: string): void;
+  identify(userId: string, displayName?: string | null): void;
   reset(): void;
   resetIfIdentified(): void;
   pageView(path: string): void;
@@ -104,11 +105,14 @@ export function createAnalytics(
     },
 
     /** Ties later events to a Firebase UID. A different user first gets a fresh anonymous ID. */
-    identify(userId) {
+    identify(userId, displayName) {
       run((client) => {
-        if (client.userId === userId) return;
-        if (client.userId !== undefined) client.reset();
-        client.identify(userId);
+        if (client.userId !== userId) {
+          if (client.userId !== undefined) client.reset();
+          client.identify(userId);
+        }
+        const firstName = displayName?.trim().split(/\s+/)[0];
+        if (firstName && !firstName.includes("@")) client.people.set({ first_name: firstName });
       });
     },
 
