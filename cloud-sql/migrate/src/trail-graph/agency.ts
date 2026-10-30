@@ -1,8 +1,8 @@
 import { join } from 'node:path';
 import { Grid, hash, length, lineIndex, midpoint, nearest, pointDistance, samples, unique, type Primitive } from './geo';
 import { vertexIndex, type SourceFeature } from './features';
-import { classifyTerrain, glacierIndex, provenance, refresh, SOURCES } from './topology';
-import type { AltSource, Coord, Glacier, Segment, Tags } from './types';
+import { classifyLine, glacierIndex, provenance, refresh, SOURCES } from './topology';
+import type { AltSource, Coord, Glacier, Segment, Tags, Way } from './types';
 import { geojsonFeatures } from './io';
 import { displayName } from './display-names';
 import { intersectsBbox, type Bbox } from './state';
@@ -90,7 +90,9 @@ export function conflate(segments: Segment[], agencies: AgencyLine[], glaciers: 
         const set = cuts.get(hit.value.segment) ?? new Set<number>(); set.add(hit.value.vertex); cuts.set(hit.value.segment, set);
       }
     }
-    const { kind, terrain } = classifyTerrain({ id: 0, nodes: [], tags: { highway: 'path' }, relations: [] }, midpoint(coords), ice);
+    const path: Way = { id: 0, nodes: [], tags: { highway: 'path' }, relations: [] };
+    // The midpoint types the line; remnant ice also needs every vertex inside it.
+    const { kind, terrain } = classifyLine(path, [midpoint(coords), ...coords], ice)[0];
     const segment = refresh({ id: '', name: a.name, trail_names: a.names, kind, sac_scale: null, trail_visibility: null,
       osm_way_ids: [], osm_edge_way_ids: [], relation_names: [], relations: [], start_node: '', end_node: '', coords, node_ids: ids, length_m: 0,
       provenance: provenance([], a.retrieved_at, a.source, a.id), ...(terrain ? { terrain } : {}), alt_sources: [{ source: a.source, id: a.id, name: a.name, number: a.number, ...(a.tags ? { tags: a.tags } : {}) }] });
