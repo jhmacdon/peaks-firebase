@@ -17,6 +17,7 @@ import tripReports, { drainTripReportPhotoDeletions } from "./routes/trip-report
 import account from "./routes/account";
 import adminRoutes from "./routes/admin";
 import publicAirQuality from "./routes/public-air-quality";
+import publicMapTiles from "./routes/public-map-tiles";
 import pool, { processingPool } from "./db";
 import { drainSessionRematchQueue, sweepStuckSessions } from "./processing";
 import { drainRouteGlacierQueue } from "./lib/glacier-crossings";
@@ -40,6 +41,10 @@ app.get("/health", (_req, res) => {
 // no user data. Keeping this before /api auth avoids linking public AirNow
 // viewport requests to a signed-in user.
 app.use("/public/air-quality", publicAirQuality);
+// Protected-area vector tiles. Public for the same reason, and because Mapbox
+// fetches tiles without the app's auth header. Only GET /:z/:x/:y.mvt is
+// handled here; any other path or method falls through to the /api auth gate.
+app.use("/api/map/areas", publicMapTiles);
 
 // Shared by every /internal/* endpoint below: Cloud Scheduler calls them with
 // an OIDC token whose audience is this service and whose subject is the
