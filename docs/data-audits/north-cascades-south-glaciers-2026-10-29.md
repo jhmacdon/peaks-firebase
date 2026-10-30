@@ -9,8 +9,8 @@ Spec:
 [JSON](north-cascades-south-glacier-outline-decisions-2026-10-29.json).
 
 Reviewed manifest SHA-256 (platform-stable):
-`cb8be9b286949614ef3a55953fefe106eb75194c547aa26af6e0b6a81441252d`
-(was `53ac3102…` before the apply-time parent check below).
+`3de0073a113b07af759e297ba4afc42f1333b5cf46947b68148eb089fb328d75`
+(was `53ac3102…`, then `cb8be9b2…`, before the apply-time checks below).
 
 ## Apply-time parent check (2026-10-29)
 
@@ -27,6 +27,11 @@ now uses the Peaks rows, and the tables below keep the original GNIS analysis:
 | Frisco Mountain (Lyall) | held | no Frisco in Peaks; nearest Peaks summit 3.7 km away. Lyall is not imported, and Lewis, counted only at Frisco, goes with it |
 
 41 places import.
+
+The first production apply stopped before any write: Thunder Glacier's PSU
+2015 outline (rule 2) runs 0.012 km² (9% of 0.131 km²) past the production
+North Cascades National Park polygon. Thunder now keeps no container, like
+Cache, S and Sandalee.
 
 Scope: North Cascades National Park south unit (Eldorado, Boston Basin,
 Logan, Klawatti), Lake Chelan NRA edge, and the Dome/Chickamin, Spider and

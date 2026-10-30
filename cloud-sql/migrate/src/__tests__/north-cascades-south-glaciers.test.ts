@@ -35,7 +35,7 @@ test("parents, of-N, pinned RGI rows and containers", () => {
   assert.equal(place("Banded Glacier").facts.head_elevation_m, null);
   assert.ok(Math.abs(place("Neve Glacier").facts.area_km2! - 3.822) < 1e-3, "all three Neve parts");
   assert.deepEqual(m.places.filter(p => !placeContainer(m, p)).map(p => p.name).sort(),
-    ["Cache Glacier", "S Glacier", "Sandalee Glacier"]);
+    ["Cache Glacier", "S Glacier", "Sandalee Glacier", "Thunder Glacier"]);
 });
 
 test("decisions: rule 2 switches the three out-of-band outlines; 7 without facts; four glaciers from the 2017 cohort", () => {
