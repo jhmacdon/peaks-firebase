@@ -131,3 +131,34 @@ test("per-place containers and parents: absent containers skip coverage and link
     c.release();await pool.end();
   }
 });
+
+test("identity: a same-name glacier from another OSM element imports; same-name non-glacier rows and reused OSM keys still collide",{skip:!url},async()=>{
+  const token=randomUUID(), parent=`glacier-same-parent-${token}`, poi=`glacier-same-poi-${token}`;
+  const ids=["a","b","c","d"].map(k=>`glacier-same-${k}-${token}`);
+  const pool=new Pool({connectionString:url,max:1}), c=await pool.connect();
+  const previous=process.env.GLACIER_DATABASE_URL;
+  const ring=(x:number)=>[[x,0],[x+2,0],[x+2,2],[x,2],[x,0]].map(([a,b])=>[-121.76+a*.001,46.85+b*.001]);
+  const base=loadRainierOsmPackage(), { container_area: _single, ...rest } = base;
+  const shared=`Twin Glacier ${token}`, keys=[0,1].map(i=>`way:${Date.now()}${i}${Math.floor(Math.random()*10000)}`);
+  const one=(id:string,name:string,osm_key:string,x:number): GlacierManifest=>({...rest,
+    parent:{...base.parent,name:parent,lat:46.85,lng:-121.76,features:["summit"]},container_areas:{},
+    places:[{...base.places[0],id,name,osm_key,external_ids:{},aliases:[],container_area_key:null,
+      boundary:{type:"MultiPolygon" as const,coordinates:[[ring(x)]]}}]});
+  const apply=(m:GlacierManifest)=>{ const hash=manifestSha256(m);
+    return applyGlacierManifest({...m,manifest_sha256:hash},["--apply",`--expected-manifest-sha256=${hash}`,`--parent-mountain-id=${parent}`]); };
+  try {
+    process.env.GLACIER_DATABASE_URL=url;
+    for (const [id,features] of [[parent,"{summit}"],[poi,"{summit}"]]) await c.query(`INSERT INTO destinations(id,name,search_name,owner,features,country_code,state_code,location)
+      VALUES($1,$2,$2,'peaks',$3,'US','WA',ST_SetSRID(ST_MakePoint(-121.76,46.85,0),4326)::geography)`,[id,id===poi?`Lone Glacier ${token}`:id,features]);
+    await apply(one(ids[0],shared,keys[0],0));
+    await apply(one(ids[1],shared,keys[1],10));
+    assert.equal((await c.query("SELECT count(*)::int n FROM destination_glacier_facts WHERE destination_id=ANY($1::text[])",[ids])).rows[0].n,2,
+      "two glaciers that share a name but not an OSM element are both imported");
+    await assert.rejects(apply(one(ids[2],`Lone Glacier ${token}`,`way:${Date.now()}9`,20)),/Identity collision/,"an older same-name row that is not a glacier still collides");
+    await assert.rejects(apply(one(ids[3],`Other Glacier ${token}`,keys[0],30)),/Identity collision/,"a reused OSM element still collides");
+  } finally {
+    if (previous===undefined) delete process.env.GLACIER_DATABASE_URL; else process.env.GLACIER_DATABASE_URL=previous;
+    await c.query("DELETE FROM destinations WHERE id=ANY($1::text[])",[[...ids,poi,parent]]);
+    c.release();await pool.end();
+  }
+});
