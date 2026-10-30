@@ -1,12 +1,12 @@
 # Glacier outline decisions
 
-Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).
+Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).
 
 Areas in km², measured in WGS84 ellipsoidal Lambert equal-area projection. Overlap is IoU / candidate share. ⚑ means review remains due. Historical fits infer extent age; they do not date OSM imagery.
 
-Input manifest: `97d2755ecb75a746ed8fee241cd72797d401e18963f4843e4e66ac158f470e89`
+Input manifest: `c0faca40289f5a4123a209d6c6948de0dead7195a1916d11f5e400a6ab734821`
 
-Output manifest: `3b7f23b88afd37b1c4d2e67fac6e67bb1591aa28a79b1ed67209637e3606fbcd`
+Output manifest: `5ed2165785fc61d8ee7fd2c091c5e9806a38e1bbb01648bce5840078fcf67885`
 
 | Glacier | OSM | GLIMS | Facts | OSM/facts | GLIMS/facts | Overlap | Chosen source | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
@@ -17,7 +17,7 @@ Output manifest: `3b7f23b88afd37b1c4d2e67fac6e67bb1591aa28a79b1ed67209637e3606fb
 | Puyallup Glacier | 3.609 | 3.362 | 3.098 | 1.165 | 1.085 | 0.887 / 0.974 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Ohanapecosh Glacier | 1.172 | 0.802 | 0.616 | 1.903 | 1.303 | 0.457 / 0.771 | glims-2019-09-09 | OSM ratio outside band; newest licence-OK candidate newer than evident OSM extent has a ratio closer to 1 |
 | Pinnacle Glacier | 0.002 | — | — | — | — | — / — | osm ⚑ | No individual facts area; retain OSM for review |
-| Sarvant Glacier | 0.227 | 0.325 | 0.380 | 0.596 | 0.855 | 0.609 / 0.642 | osm ⚑ | OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent |
+| Sarvant Glacier | 0.227 | 0.325 | 0.380 | 0.596 | 0.855 | 0.609 / 0.642 | glims-2019-09-09 | OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2) |
 | Flett Glacier | 0.430 | 0.452 | 0.363 | 1.186 | 1.244 | 0.903 / 0.927 | osm | OSM/facts ratio is within [0.67, 1.5] |
 | Paradise Glacier | 1.002 | 0.454 | 0.581 | 1.726 | 0.782 | 0.404 / 0.923 | glims-2019-09-09 | OSM ratio outside band; newest licence-OK candidate newer than evident OSM extent has a ratio closer to 1 |
 | Ingraham Glacier | 3.588 | 3.462 | 2.962 | 1.211 | 1.169 | 0.895 / 0.962 | osm | OSM/facts ratio is within [0.67, 1.5] |
@@ -42,3 +42,7 @@ Output manifest: `3b7f23b88afd37b1c4d2e67fac6e67bb1591aa28a79b1ed67209637e3606fb
 
 - glims-2019-09-09: 27 matched systems; 55 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
 - glims-1970-09-09-reference: 27 matched systems; 138 unmatched groups/features; 0 ambiguous; 0 invalid. Full identities and reasons are in JSON.
+
+## Outline overlaps
+
+No pair of final outlines overlaps by more than 1% of the smaller or 0.01 km².

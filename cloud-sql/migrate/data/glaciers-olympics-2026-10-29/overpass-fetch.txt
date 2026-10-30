@@ -1,0 +1,7 @@
+POST https://overpass.private.coffee/api/interpreter   (mirror listed in src/expand-lake-coverage.ts OVERPASS_ENDPOINTS)
+Body: data=<overpass-query.txt>
+User-Agent: PeaksApp-glacier-import/1.0
+Fetched: 2026-10-29
+osm3s.timestamp_osm_base: 2026-07-15T15:22:01Z (the mirror's database date; overpass-api.de resets
+connections from the cloud agent's network). The geometry describes OSM as of that date, not 2026-10-29.
+Licence evidence files are copies of the 2026-10-29 fetches saved with the Mount Baker package.

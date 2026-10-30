@@ -37,6 +37,7 @@ export const BAKER_SPEC: RegionSpec = {
   inventory: BAKER_INVENTORY_CONFIG,
   activities: ["outdoor-trek", "ski"],
   country_code: "US", state_code: "WA",
+  outline_rule: 2,
 };
 export const ROSTER = Object.keys(BAKER_SPEC.roster);
 

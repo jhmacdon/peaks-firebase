@@ -1,5 +1,10 @@
 # Glacier Peak glaciers — review packet, 2026-10-29
 
+> **Update 2026-10-29 (outline rule 2 + neighbour check):** replay hash
+> `34d7b0da90a1a93ec72088a1821f7a4401bf9290a324a33e18ca812610423ce7`. Milk
+> Lake (OSM ratio 15.8) takes the PSU 2015 outline; no overlaps. Details:
+> [glacier-manifest-hashes.md](glacier-manifest-hashes.md).
+
 Offline work only: no production reads or writes, no OSM edits. Spec:
 `cloud-sql/migrate/src/import-glacier-peak-glaciers.ts` (generic
 `RegionSpec`). Decisions: [Markdown](glacier-peak-glacier-outline-decisions-2026-10-29.md),

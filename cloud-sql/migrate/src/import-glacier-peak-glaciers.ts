@@ -53,6 +53,7 @@ export const GLACIER_PEAK_SPEC: RegionSpec = {
   },
   activities: ["outdoor-trek", "ski"],
   country_code: "US", state_code: "WA",
+  outline_rule: 2,
 };
 
 export const loadGlacierPeakOsmPackage = () => loadRegionOsmPackage(GLACIER_PEAK_SPEC);

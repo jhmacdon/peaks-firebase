@@ -5,7 +5,7 @@ import { JsonLdScript } from "../../../../components/json-ld-script";
 import { Breadcrumb } from "../../../../components/detail-sections";
 import { DetailSectionNav } from "../../../../components/detail-section-nav";
 import GlacierOutlinesMap from "../../../../components/glacier/glacier-outlines-embed";
-import { GlacierFaqList, GlacierRosterTable } from "../../../../components/glacier/glacier-sections";
+import { GlacierRosterTable } from "../../../../components/glacier/glacier-sections";
 import { PageHeader } from "../../../../components/ui/page-header";
 import { SectionHeading } from "../../../../components/ui/section-heading";
 import { Topline, type ToplineStat } from "../../../../components/ui/topline";
@@ -17,12 +17,11 @@ import {
   formatAreaKm2,
   formatAreaMi2,
   formatPercentChange,
-  glacierMountainFaqs,
   glacierMountainPath,
   mountainGlacierTitle,
   rosterOutlineCredits,
 } from "../../../../lib/glaciers";
-import { buildFaqJsonLd, buildListJsonLd } from "../../../../lib/json-ld";
+import { buildListJsonLd } from "../../../../lib/json-ld";
 import { formatRegion, subdivisionName } from "../../../../lib/regions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 import { catalogShareImage } from "../../../../lib/catalog-share-image";
@@ -63,10 +62,8 @@ export default async function GlacierMountainPage({ params }: Params) {
   if (glaciers.length === 0) throw new Error(`No glaciers for ${mountain.id}`);
 
   const path = glacierMountainPath(mountain);
-  const stateName = subdivisionName(mountain.country_code, mountain.state_code);
   const region = formatRegion(mountain.state_code, mountain.country_code);
   const context = mountain.context;
-  const faqs = glacierMountainFaqs(mountain, glaciers, stateName);
   const credits = rosterOutlineCredits(glaciers);
   const outlines = glaciers.flatMap((g) => (g.boundary ? [{ id: g.id, name: g.name, boundary: g.boundary }] : []));
   const ranked = glaciers.filter((g) => g.kind === "glacier" && g.area_km2 != null);
@@ -124,7 +121,6 @@ export default async function GlacierMountainPage({ params }: Params) {
       { name: "Glaciers", url: absoluteUrl("/glaciers") },
       { name: `${mountain.name} glaciers`, url: absoluteUrl(path) },
     ]),
-    buildFaqJsonLd({ items: faqs }),
   ];
 
   return (
@@ -157,7 +153,6 @@ export default async function GlacierMountainPage({ params }: Params) {
           sections={[
             ...(outlines.length ? [{ id: "glacier-map", label: "Map" }] : []),
             { id: "glacier-roster", label: "All glaciers" },
-            ...(faqs.length ? [{ id: "glacier-faq", label: "Questions" }] : []),
             { id: "glacier-sources", label: "Sources" },
           ]}
         />
@@ -184,8 +179,6 @@ export default async function GlacierMountainPage({ params }: Params) {
             </SectionHeading>
             <GlacierRosterTable glaciers={glaciers} caption={`Glaciers on ${mountain.name}, by area`} className="mt-4" />
           </section>
-
-          <GlacierFaqList items={faqs} />
 
           <section id="glacier-sources" className="scroll-mt-24" aria-labelledby="glacier-sources-heading">
             <SectionHeading>

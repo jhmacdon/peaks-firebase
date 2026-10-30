@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DATA_DIR, loadRainierPackage, loadRainierOsmPackage, importRainierGlaciers } from "../import-rainier-glaciers";
-import { parseGlaciers, sha256, SNAPSHOT_SHA256 } from "../glaciers/rainier";
+import { parseGlaciers, parseRainierFacts, sha256, SNAPSHOT_SHA256 } from "../glaciers/rainier";
 import { parseGlacierBackfillOptions } from "../backfill-glacier-crossings";
 
 const coords=(points: number[][])=>points.map(([lon,lat])=>({lon,lat}));
@@ -75,6 +75,7 @@ test("Table 4/5/7/12 facts cross-check independent published values and units",(
   assert.deepEqual(emmons.area_history.map(o=>o.year),[1896,1913,1971,1994,2009,2015,2021]);
   assert.equal(emmons.area_history[0].area_km2,17.458);
   assert.ok(Math.abs(emmons.percent_change_since_earliest!-((10.959/17.458-1)*100))<1e-10);
+  assert.ok(Math.abs((emmons.provenance.area_change as any).percent-((10.959/11.158-1)*100))<1e-10);
   assert.equal(facts("Carbon Glacier").type_code,"C");
   assert.equal(facts("Winthrop Glacier").terminus_elevation_m,1479);
   assert.equal(pkg.mountain_context.area_km2,75.496);
@@ -123,4 +124,62 @@ test("the Rainier builder emits a generic manifest; the writer reads every name,
   assert.throws(()=>validateGlacierManifest({...body,places:[]}),/no places/);
   assert.throws(()=>validateGlacierManifest({...body,places:[{...body.places[0],aliases:undefined as never}]}),/aliases/);
   await assert.rejects(importGlacierManifest([]),/--manifest/);
+});
+
+test("low-accuracy surveys come from the report text; the headline starts at the first reliable survey",()=>{
+  const report=readFileSync(join(DATA_DIR,"nps-beason-2023-report.txt"),"utf8");
+  const pkg=loadRainierPackage(), facts=(name:string)=>pkg.places.find(p=>p.name===name)!.facts;
+  assert.match(report.replace(/\s+/g," "),/The older maps in 1896 and 1913 had poor spatial accuracy/);
+  assert.match(report,/Winthrop\s+8\.235 ± 0\.435\s+10\.183 ± 0\.536\s+9\.631 ± 0\.507/);
+  const winthrop=facts("Winthrop Glacier"), p=winthrop.provenance as any;
+  assert.deepEqual(winthrop.area_history.map(o=>[o.year,o.accuracy]),
+    [[1896,"low"],[1913,"low"],[1971,null],[1994,null],[2009,null],[2015,null],[2021,null]]);
+  assert.ok(winthrop.percent_change_since_earliest!>0,"deprecated field keeps its 1896 meaning");
+  assert.equal(p.area_change.baseline_year,1971);
+  assert.equal(p.area_change.end_year,2021);
+  assert.ok(Math.abs(p.area_change.percent-((8.688/9.631-1)*100))<1e-10);
+  assert.equal(p.area_history_note.text,"The 1896 and 1913 maps have poor spatial accuracy.");
+  assert.equal(p.area_history_note.citation,"Beason et al. (2023), p.6");
+  assert.deepEqual(p.area_history_note.low_accuracy_years,[1896,1913]);
+  // Flett has no 1896 map; the note names only the measured low year.
+  assert.deepEqual((facts("Flett Glacier").provenance as any).area_history_note.low_accuracy_years,[1913]);
+  assert.equal((facts("Flett Glacier").provenance as any).area_change.baseline_year,1971);
+  // No history, no change, no note: never zeros.
+  for (const name of ["Pinnacle Glacier","Muir Snowfield"]) {
+    const q=facts(name).provenance as any;
+    assert.equal(q.area_change,null); assert.equal(q.area_history_note,null); assert.equal(q.surface_change,null);
+  }
+  assert.equal(pkg.mountain_context.change_baseline_year,1971);
+  assert.match(report,/Total:\s+129\.308 ± 6\.874\s+111\.950 ± 6\.006\s+91\.583 ± 4\.944/);
+  assert.equal(pkg.mountain_context.percent_change_since_baseline,Math.round((75.496/91.583-1)*1000)/10);
+});
+
+test("Table 11 surface and volume change maps to individual glaciers, abbreviations included",()=>{
+  const report=readFileSync(join(DATA_DIR,"nps-beason-2023-report.txt"),"utf8");
+  const pkg=loadRainierPackage(), surface=(name:string)=>(pkg.places.find(p=>p.name===name)!.facts.provenance as any).surface_change;
+  assert.match(report,/Winthrop\s+-5\.26 ± 0\.28\s+-44,844,808 ± 2,383,945\s+-0\.045 ± 0\.002/);
+  assert.deepEqual(surface("Winthrop Glacier"),{ start_year:2007, start_label:"2007/8", end_year:2021,
+    mean_elevation_change_m:-5.26, mean_elevation_change_uncertainty_m:.28,
+    volume_change_km3:-.044844808, volume_change_uncertainty_km3:.002383945,
+    method:"2021 SfM surface model minus the 2007/8 LiDAR bare-earth model, clipped to the 2009 glacier extents",
+    citation:"Beason et al. (2023), Table 11, pp.36–37 (m³ converted to km³)",
+    credit:"Beason et al. (2023), National Park Service", source_url:"https://doi.org/10.36967/2299328" });
+  assert.equal(surface("North Mowich Glacier").mean_elevation_change_m,-3.66);
+  assert.equal(surface("South Tahoma Glacier").mean_elevation_change_m,-5.18);
+  assert.equal(surface("Sarvant Glacier").mean_elevation_change_m,-15.71,"NPS spelling Sarvent");
+  // Combined area histories keep individual surface change.
+  assert.equal(surface("Cowlitz Glacier").mean_elevation_change_m,-10.41);
+  assert.equal(surface("Ingraham Glacier").mean_elevation_change_m,-3.42);
+  // The m³ column keeps a loss the rounded km³ column prints as 0.000.
+  assert.equal(surface("Columbia Crest Glacier").volume_change_km3,-.00031482);
+});
+
+test("Table 11 is read from the table body, not the List of Tables entry",()=>{
+  const report=readFileSync(join(DATA_DIR,"nps-beason-2023-report.txt"),"utf8");
+  const candidates=parseGlaciers(JSON.parse(readFileSync(join(DATA_DIR,"rainier-glaciers-overpass.json"),"utf8")));
+  const heading="\nTable 11. Total volumetric change of glaciers at Mount Rainier National Park from 2007/8";
+  const body=report.lastIndexOf(heading);
+  assert.ok(body>report.indexOf("\fTable 7.") && report.indexOf("\nTable 11. Total volumetric change")<body,"the contents entry comes first");
+  const withoutBody=report.slice(0,body)+"\nTable 11 heading removed"+report.slice(body+heading.length);
+  assert.throws(()=>parseRainierFacts(withoutBody,candidates,{}),/Missing Table 11/);
 });

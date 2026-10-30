@@ -50,10 +50,12 @@ test("facts cross-check the saved WFS rows; of 16 counts East White River", () =
   }
 });
 
-test("outline decisions: Ptarmigan takes the 2015 inventory; Milk Lake and Gerdine flagged", () => {
+test("outline decisions (rule 2): Ptarmigan and Milk Lake take the 2015 inventory; Gerdine flagged", () => {
   const { report, manifest } = review;
-  assert.deepEqual(report.decisions.filter(d => d.chosen_source !== "osm").map(d => d.glacier), ["Ptarmigan Glacier"]);
-  assert.deepEqual(report.decisions.filter(d => d.flagged).map(d => d.glacier).sort(), ["Gerdine Glacier", "Milk Lake Glacier"]);
+  assert.deepEqual(report.decisions.filter(d => d.chosen_source !== "osm").map(d => d.glacier).sort(), ["Milk Lake Glacier", "Ptarmigan Glacier"]);
+  assert.match(report.decisions.find(d => d.glacier === "Milk Lake Glacier")!.reason, /rule 2/);
+  assert.deepEqual(report.decisions.filter(d => d.flagged).map(d => d.glacier), ["Gerdine Glacier"]);
+  assert.deepEqual(report.neighbour_overlaps, []);
   const ptarmigan = report.decisions.find(d => d.glacier === "Ptarmigan Glacier")!;
   assert.equal(ptarmigan.extent_evidence!.source_key, "glims-1984-09-09-reference");
   const p = manifest.places.find(x => x.name === "Ptarmigan Glacier")!;
@@ -62,7 +64,7 @@ test("outline decisions: Ptarmigan takes the 2015 inventory; Milk Lake and Gerdi
   assert.deepEqual(report.sources[0].audit.unmatched.filter(u => u.name.trim() && u.name !== "WA").map(u => u.name).sort(),
     ["Butterfly Glacier", "East White River", "Pilz Glacier", "Richardson Glacier"]);
   assert.equal(report.sources[0].audit.invalid.length + report.sources[0].audit.ambiguous.length, 0);
-  for (const x of manifest.places.filter(x => x.name !== "Ptarmigan Glacier")) assert.equal(x.geometry!.snapshot_at, "2026-07-15");
+  for (const x of manifest.places.filter(x => !["Milk Lake Glacier", "Ptarmigan Glacier"].includes(x.name))) assert.equal(x.geometry!.snapshot_at, "2026-07-15");
 });
 
 test("apply needs the reviewed hash and a checked wilderness ID", async () => {

@@ -1,89 +1,45 @@
-"use client";
-
-import { Suspense, useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { getTripReportCountForDestination, getTripReportsForDestination } from "../../../../../lib/actions/trip-reports";
-import { getDestination, type DestinationDetail } from "../../../../../lib/actions/destinations";
+import { notFound, redirect } from "next/navigation";
+import { getDestinationReportsPageCached } from "../../../../../lib/actions/cached-reports";
 import { formatShortDate, reportPreview } from "../../../../../lib/destination-detail";
-import type { TripReport } from "../../../../../lib/actions/trip-reports";
-import { useAuth } from "../../../../../lib/auth-context";
-import { LOADING_LABEL } from "../../../../../lib/constants";
+import { catalogPageMetadata, catalogPageNumber, catalogPagePath, type CatalogSearchParams } from "../../../../../lib/catalog-seo";
 import { Breadcrumb } from "../../../../../components/detail-sections";
 import { PageHeader } from "../../../../../components/ui/page-header";
 import { Button } from "../../../../../components/ui/button";
 import { EmptyState } from "../../../../../components/ui/empty-state";
 import { CatalogPagination } from "../../../../../components/catalog-pagination";
+import { WriteDestinationReport } from "../../../../../components/destination/write-destination-report";
 
-const PAGE_SIZE = 20;
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<CatalogSearchParams>;
+};
 
-export default function DestinationReportsPage() {
-  return <Suspense fallback={<EmptyState>{LOADING_LABEL}</EmptyState>}><DestinationReportsContent /></Suspense>;
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const result = await getDestinationReportsPageCached(id, catalogPageNumber((await searchParams).page));
+  if (!result) return { title: "Destination not found", robots: { index: false } };
+  return catalogPageMetadata({
+    path: `/destinations/${encodeURIComponent(id)}/reports`,
+    title: `${result.dest.name || "Destination"} trip reports`,
+    description: `Read trip reports, trail conditions, route notes, and photos from visits to ${result.dest.name || "this destination"} on Peaks.`,
+    page: result.page,
+    noindex: result.totalCount === 0,
+  });
 }
 
-function DestinationReportsContent() {
-  const params = useParams();
-  const search = useSearchParams();
-  const requestedPage = Number(search.get("page") || 1);
-  const page = Number.isFinite(requestedPage) ? Math.min(50_001, Math.max(1, Math.trunc(requestedPage))) : 1;
-  const id = params.id as string;
-  const { user } = useAuth();
-
-  const [dest, setDest] = useState<DestinationDetail | null>(null);
-  const [reports, setReports] = useState<TripReport[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [retry, setRetry] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [d, r, count] = await Promise.all([
-          getDestination(id),
-          getTripReportsForDestination(id, PAGE_SIZE, (page - 1) * PAGE_SIZE),
-          getTripReportCountForDestination(id),
-        ]);
-        if (!cancelled) {
-          setDest(d);
-          setReports(r);
-          setTotalCount(count);
-        }
-      } catch {
-        if (!cancelled) setError("Couldn’t load trip reports. Please try again.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    return () => { cancelled = true; };
-  }, [id, page, retry]);
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-[1200px] px-6 py-8">
-        <div className="py-12 text-center text-muted">{LOADING_LABEL}</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div className="mx-auto max-w-[1200px] px-6 py-8"><EmptyState title="Trip reports are unavailable"><p role="alert">{error}</p><div className="mt-5 flex flex-wrap justify-center gap-3"><Button onClick={() => setRetry((value) => value + 1)}>Try again</Button><Button href={`/destinations/${id}`} variant="secondary">Back to place</Button></div></EmptyState></div>;
-  }
-
-  if (!dest) {
-    return (
-      <div className="mx-auto max-w-[1200px] px-6 py-8">
-        <EmptyState title="Destination not found" />
-      </div>
-    );
-  }
+export default async function DestinationReportsPage({ params, searchParams }: Props) {
+  const { id } = await params;
+  const requestedPage = catalogPageNumber((await searchParams).page);
+  const result = await getDestinationReportsPageCached(id, requestedPage);
+  if (!result) notFound();
+  const { dest, reports, totalCount, page } = result;
+  const path = `/destinations/${encodeURIComponent(id)}/reports`;
+  if (page !== requestedPage) redirect(catalogPagePath(path, page));
+  const PAGE_SIZE = 20;
 
   const destName = dest.name || "Unnamed";
-  const writeHref = `/reports/new?dest=${id}`;
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-8">
@@ -98,7 +54,7 @@ function DestinationReportsContent() {
               ]}
             />
           }
-          title="Trip reports"
+          title={`${destName} trip reports`}
           meta={
             totalCount > 0 ? (
               <span>
@@ -108,21 +64,14 @@ function DestinationReportsContent() {
           }
           className="min-w-0"
         />
-        {/* One primary action, and only for a reader who can actually use
-            it — the same signed-in gate the flagship page's own reports
-            section applies to its "Write the first one" link. */}
-        {user ? (
-          <Button href={writeHref} size="sm">
-            Write a report
-          </Button>
-        ) : null}
+        <WriteDestinationReport destinationId={id} />
       </div>
 
       {reports.length === 0 ? (
         <EmptyState
           className="mt-10"
           title={totalCount > 0 ? "No reports on this page" : "No trip reports yet"}
-          description={totalCount > 0 ? "Return to the first page to read the latest reports." : user ? "Been here? Write the first one." : undefined}
+          description={totalCount > 0 ? "Return to the first page to read the latest reports." : undefined}
         >{totalCount > 0 && <Button href={`/destinations/${id}/reports`} className="mt-4">First page</Button>}</EmptyState>
       ) : (
         // Quiet rows, not cards — the same shape as the flagship page's own
@@ -159,7 +108,7 @@ function DestinationReportsContent() {
           })}
         </ul>
       )}
-      <CatalogPagination page={page} pageCount={Math.max(1, Math.ceil(totalCount / PAGE_SIZE))} href={(nextPage) => `/destinations/${encodeURIComponent(id)}/reports?page=${nextPage}`} />
+      <CatalogPagination page={page} pageCount={Math.max(1, Math.ceil(totalCount / PAGE_SIZE))} href={(nextPage) => catalogPagePath(path, nextPage)} />
     </div>
   );
 }

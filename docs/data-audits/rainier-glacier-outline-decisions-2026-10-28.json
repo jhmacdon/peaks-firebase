@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "rule": "Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
+  "rule": "Rule 2: OSM extents are undated; without dated evidence of OSM's age an out-of-band OSM outline gives way to the newest dated licence-OK candidate closer to the facts area, unless a reviewed decision keeps OSM. Keep OSM in inclusive [0.67,1.5]; otherwise choose newest licence-OK candidate, closer to facts area and newer than evidenced OSM extent. Historical inference: IoU >=0.3, historical candidate share >=0.5, IoU advantage >=0.1 over newest candidate. Names AND overlap required (IoU >=0.1 OR candidate share >=0.5).",
   "crs": "+proj=laea +lat_0=46.8523 +lon_0=-121.7603 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-  "input_manifest_sha256": "97d2755ecb75a746ed8fee241cd72797d401e18963f4843e4e66ac158f470e89",
-  "output_manifest_sha256": "3b7f23b88afd37b1c4d2e67fac6e67bb1591aa28a79b1ed67209637e3606fbcd",
+  "input_manifest_sha256": "c0faca40289f5a4123a209d6c6948de0dead7195a1916d11f5e400a6ab734821",
+  "output_manifest_sha256": "5ed2165785fc61d8ee7fd2c091c5e9806a38e1bbb01648bce5840078fcf67885",
   "sources": [
     {
       "key": "glims-2019-09-09",
@@ -2778,9 +2778,9 @@
         }
       ],
       "extent_evidence": null,
-      "chosen_source": "osm",
-      "flagged": true,
-      "reason": "OSM ratio outside band; no dated evidence that an alternative is newer than its evident extent"
+      "chosen_source": "glims-2019-09-09",
+      "flagged": false,
+      "reason": "OSM ratio outside band; OSM extent undated, so the newest dated licence-OK candidate with a ratio closer to 1 replaces it (rule 2)"
     },
     {
       "id": "04824F15CF78E5965087",
@@ -3500,5 +3500,6 @@
       "flagged": false,
       "reason": "OSM/facts ratio is within [0.67, 1.5]"
     }
-  ]
+  ],
+  "neighbour_overlaps": []
 }

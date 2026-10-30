@@ -70,6 +70,28 @@ No applied package changes:
 | Mount Baker | `ecca694dbab15a7614ad06a83c963e8827a8d65fd9d9eeaba0f3be410c20c833` (unchanged) |
 | Glacier Peak | `9e183267f40c53f458a63c3a4be1ddf4dce23c0b1d34a02e639967a6b97ade02` (unchanged) |
 
+## Outline rule 2 and the neighbour check for applied mountains (2026-10-29)
+
+Rule 2 (#290) treats OSM extents as undated: an out-of-band OSM outline
+gives way to the newest dated licence-OK inventory outline whose ratio is
+closer to 1. The neighbour check then puts any connected group of touching
+glaciers whose final outlines overlap (over 1% of the smaller or 0.01 km²)
+on one source. Replayed on a disposable database: the main manifest applied,
+then the new one, then the new one again (unchanged).
+
+| Package | Applied hash | Hash after this change | Outline changes |
+| --- | --- | --- | --- |
+| Rainier | `3b7f23b8…` | `a47c05a3e67d8e8c59d15de5b971844a61572864b6406008a73a30ac293eeca7` | Sarvant: OSM 0.227 km² → PSU 2019 0.325 km² (ratio 0.596, rule 2). No overlaps. |
+| Mount Baker | `ecca694d…` | `05f2ef2e0fa9ec7a247ef09253a0308bb957abf2556afe870b20b4993be16c7e` | Park (1.506) and Talum (0.623) switch under rule 2; Talum's PSU outline then overlaps Squak's OSM outline by 0.331 km² (17.5% of the smaller), so the one touching group of 12 goes to the PSU 2015 inventory (12 of 12 ratios in band, against 10 on OSM). Hadley and No Name stay OSM. |
+| Glacier Peak | `9e183267…` | `34d7b0da90a1a93ec72088a1821f7a4401bf9290a324a33e18ca812610423ce7` | Milk Lake: OSM 0.365 km² → PSU 2015 0.023 km² (ratio 15.8, rule 2). No overlaps. |
+
+Baker outline areas, OSM → PSU 2015 (km²): Boulder 2.874 → 3.381, Coleman
+5.732 → 6.056, Deming 3.851 → 4.382, Easton 2.778 → 3.015, Mazama 3.834 →
+4.424, Park 4.813 → 3.196, Rainbow 1.676 → 2.004, Roosevelt 3.340 → 3.700,
+Sholes 1.108 → 1.015, Squak 2.264 → 1.921, Talum 1.177 → 1.888, Thunder
+0.840 → 0.795. Every other row in the three packages changes provenance only
+(the review records rule 2). Facts are unchanged.
+
 ## Cross-package outline check (2026-10-29)
 
 `glacier-cross-package.test.ts` loads every `import-*-glaciers` package in the
@@ -94,3 +116,27 @@ URL. A mountain total that mixes area sources now has `source_url: null`
 and a `sources` list giving each credit, URL and the glaciers it supplies.
 No package has such a total today (South Cascade Glacier, the one USGS area,
 is the only glacier on its mountain), so no hash changes.
+
+## Survey accuracy and surface change (2026-10-29)
+
+Beason et al. (2023, p.6) say the 1896 and 1913 maps "had poor spatial
+accuracy"; their example of boundaries that do not match modern mapping comes
+from the 1896 inventory alone. Winthrop's Table 7 row (8.235 km² in 1896, 8.688 km² in 2021) made
+the old headline read +5.5% since 1896. The Rainier builder now marks those
+two surveys `accuracy: "low"` (from a quote checked against the saved report),
+adds a series note, a headline change from the first reliable survey (1971),
+and Table 11's 2007/8–2021 surface-elevation and volume change per glacier.
+`percent_change_since_earliest` keeps its old value.
+
+| Package | Hash before | Hash after this change |
+| --- | --- | --- |
+| Rainier | `a47c05a3e67d8e8c59d15de5b971844a61572864b6406008a73a30ac293eeca7` | `5ed2165785fc61d8ee7fd2c091c5e9806a38e1bbb01648bce5840078fcf67885` |
+| All other packages | | unchanged (no area history) |
+
+No outline, geometry, decision or existing fact changes: the outline decision
+report differs only in its input and output manifest hashes. A replay should
+rewrite each Rainier facts row once (`area_history` and `provenance`) and leave
+destination rows, outline revisions and route/session queues alone, as in the
+earlier provenance-only replays; no disposable-database replay was run for
+this change. Only Winthrop's headline changes sign (+5.5% since
+1896 → −9.8% since 1971).
