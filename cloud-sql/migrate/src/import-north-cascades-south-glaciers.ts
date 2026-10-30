@@ -27,7 +27,8 @@ const summit = (name: string, lat: number, lng: number): GlacierParent =>
  *
  * 41 of the 42 named OSM glaciers in the box. Containers from the NPS and USFS
  * EDW boundaries (50 m margin); Cache (8 m), S and Sandalee (split) and Lyall
- * (outside both) keep none. */
+ * (outside both) keep none; so does Thunder, whose PSU 2015 outline runs
+ * 0.012 km² (9%) past the production park polygon (checked 2026-10-29). */
 export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
   label: "North Cascades (south)", data_dir: DATA_DIR, outline_dir: OUTLINE_DATA_DIR,
   files: { osm: "north-cascades-south-glaciers-overpass.json", rgi: "rgi7-wfs-north-cascades-south.json",
@@ -77,7 +78,7 @@ export const NORTH_CASCADES_SOUTH_SPEC: RegionSpec = {
     "relation:15567191": { parent: "sentinel-peak", inventory: "South Cascade Glacier", container: GPW }, // South Cascade Glacier
     "relation:13325689": { parent: "spider-mountain", inventory: "Spider Glacier", container: GPW }, // Spider Glacier
     "way:305203925": { parent: "dome-peak", inventory: "Spire Glacier", container: GPW }, // Spire Glacier
-    "relation:9954625": { parent: "buckner-mountain", inventory: "Thunder Glacier", container: PARK }, // Thunder Glacier
+    "relation:9954625": { parent: "buckner-mountain", inventory: "Thunder Glacier", container: null }, // Thunder Glacier: its PSU 2015 outline (rule 2) runs 0.012 km² past the park boundary
     "relation:14496307": { parent: "storm-king", inventory: "Wyeth Glacier", container: PARK }, // Wyeth Glacier
     "relation:14488137": { parent: "magic-mountain", inventory: "Yawning Glacier", container: PARK }, // Yawning Glacier
   },
