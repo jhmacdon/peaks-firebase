@@ -1,0 +1,812 @@
+{
+  "schema_version": 1,
+  "kind": "peaks-route-research-handoff",
+  "researched_at": "2026-11-05T22:05:04Z",
+  "destination": {
+    "id": "lE8Xh02BVk0o8ew7fuRs",
+    "expected_name": "Sloan Peak",
+    "url": "https://getpeaks.app/destinations/lE8Xh02BVk0o8ew7fuRs",
+    "catalog_identity_verified": false,
+    "catalog_list_memberships": null,
+    "catalog_elevation_m": null,
+    "catalog_coordinates": null
+  },
+  "catalog_audit": {
+    "status": "not_run",
+    "checked_at": null,
+    "missing_route_predicate": "linked routes.owner = 'peaks' AND routes.status = 'active'",
+    "existing_active_routes": null,
+    "existing_pending_routes": null,
+    "existing_user_routes": null,
+    "reason": "No configured Cloud SQL credentials or connected Peaks admin browser in this session. The destination page was unavailable through the web reader. No claim that routes are currently missing."
+  },
+  "publication": {
+    "state": "blocked_before_import",
+    "database_rows_written": 0,
+    "importable": false,
+    "blockers": [
+      "Live destination identity, list memberships, existing routes and trailhead IDs must be checked.",
+      "No reusable full-route geometry has been acquired or reviewed.",
+      "Current access, terrain profile, shared segments and independent source checks have not been completed."
+    ]
+  },
+  "discovery_checks": [
+    {
+      "publisher": "alltrails",
+      "status": "unavailable",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "attempted_url": "https://www.alltrails.com/search?search_query=Sloan%20Peak",
+      "note": "Public search page could not be opened; the AllTrails search was also reported blocked by robots. No matching direct trail page verified."
+    },
+    {
+      "publisher": "peakbagger",
+      "status": "matched",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "url": "https://www.peakbagger.com/peak.aspx?pid=1803",
+      "source_id": "peakbagger-sloan",
+      "note": "Peak page names Corkscrew. Trailhead labels and route metrics still need reconciliation with Peaks and the exact approach."
+    }
+  ],
+  "geometry_search": {
+    "status": "not_run",
+    "country_code_for_source_search": "US",
+    "official_registry_path": "cloud-sql/migrate/data/official-trail-sources.json",
+    "reviewed_registry_sources": [
+      {
+        "source_id": "usfs-nfs-trails",
+        "registry_status": "ready_publishable",
+        "attempt_status": "not_run"
+      },
+      {
+        "source_id": "nps-public-trails",
+        "registry_status": "validation_only",
+        "attempt_status": "not_run"
+      },
+      {
+        "source_id": "blm-national-public-trails",
+        "registry_status": "validation_only",
+        "attempt_status": "not_run"
+      },
+      {
+        "source_id": "usgs-national-digital-trails",
+        "registry_status": "validation_only",
+        "attempt_status": "not_run"
+      }
+    ],
+    "geometry_priority": [
+      "registered ready_publishable official features",
+      "existing USGS adapter with exact source-rights check",
+      "OSM with ODbL attribution after earlier tiers have documented negative outcomes"
+    ],
+    "rights_note": "Written descriptions and publicly downloadable GPX files do not establish geometry reuse rights. No GPX, topo photo, traced line or third-party coordinates are included."
+  },
+  "sources": [
+    {
+      "id": "mountaineers-corkscrew",
+      "title": "The Mountaineers — Sloan Peak/Corkscrew Route",
+      "url": "https://www.mountaineers.org/activities/routes-places/sloan-peak-corkscrew-route",
+      "type": "regional_climbing_organization",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "peakbagger-sloan",
+      "title": "Peakbagger — Sloan Peak",
+      "url": "https://www.peakbagger.com/peak.aspx?pid=1803",
+      "type": "community_peak_catalog",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "summitpost-sloan",
+      "title": "SummitPost — Sloan Peak",
+      "url": "https://www.summitpost.org/sloan-peak/150937",
+      "type": "community_route_reference",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "summitpost-se-shelf",
+      "title": "SummitPost — Sloan Peak SE shelf",
+      "url": "https://www.summitpost.org/sloan-peak-se-shelf/865646",
+      "type": "community_route_reference",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "mountaineers-se-face",
+      "title": "The Mountaineers — Sloan Peak/Southeast Face",
+      "url": "https://www.mountaineers.org/activities/routes-places/sloan-peak-southeast-face",
+      "type": "regional_climbing_organization",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "summitpost-west-face",
+      "title": "SummitPost — West Face",
+      "url": "https://www.summitpost.org/west-face/168478",
+      "type": "community_route_reference",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "mp-fire",
+      "title": "Mountain Project — Fire on the Mountain",
+      "url": "https://www.mountainproject.com/route/122891276/fire-on-the-mountain",
+      "type": "community_route_reference",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "aaj-fire",
+      "title": "American Alpine Journal — Fire on the Mountain (2010)",
+      "url": "https://publications.americanalpineclub.org/articles/12201009201",
+      "type": "first_ascent_account",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "mp-diamond",
+      "title": "Mountain Project — Diamond in the Rough",
+      "url": "https://www.mountainproject.com/route/117637828/diamond-in-the-rough",
+      "type": "community_route_reference",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "aaj-cascades-2012",
+      "title": "American Alpine Journal — Cascades Summary (2012)",
+      "url": "https://publications.americanalpineclub.org/articles/12201209100",
+      "type": "regional_climbing_summary",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "mp-nw-buttress",
+      "title": "Mountain Project — Northwest Buttress",
+      "url": "https://www.mountainproject.com/route/119519445/northwest-buttress",
+      "type": "first_ascent_participant_account",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "kyle-superalpine",
+      "title": "Kyle McCrohen — Superalpine (2020)",
+      "url": "https://climberkyle.com/2020/02/28/fa-sloan-peak-superalpine-wi3-4-1000/",
+      "type": "first_ascent_participant_account",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "cc-superalpine-2022",
+      "title": "CascadeClimbers — Superalpine, April 17, 2022",
+      "url": "https://cascadeclimbers.com/forum/topic/104401-tr-north-cascades-sloan-peak-superalpine-wi3-4-1000-04172022/",
+      "type": "trip_report",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "aaj-full-moon",
+      "title": "American Alpine Journal — Full Moon Fever (2012)",
+      "url": "https://publications.americanalpineclub.org/articles/12201209502",
+      "type": "first_ascent_account",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "aaj-merrill-minton",
+      "title": "American Alpine Journal — Merrill-Minton (2024)",
+      "url": "https://publications.americanalpineclub.org/articles/13201216588",
+      "type": "first_ascent_account",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "aaj-borrowed-time",
+      "title": "American Alpine Journal — Borrowed Time (2025)",
+      "url": "https://publications.americanalpineclub.org/articles/13201216960",
+      "type": "first_ascent_account",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "mp-borrowed-time",
+      "title": "Mountain Project — Borrowed Time",
+      "url": "https://www.mountainproject.com/route/200656568/borrowed-time",
+      "type": "first_ascent_participant_account",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "aaj-east-face-1967",
+      "title": "American Alpine Journal — East Face (1968)",
+      "url": "https://publications.americanalpineclub.org/articles/12196813603",
+      "type": "first_ascent_account",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "aaj-sw-face-1948",
+      "title": "American Alpine Journal — First Ascent of S.W. Face (1949)",
+      "url": "https://publications.americanalpineclub.org/articles/12194921902",
+      "type": "first_ascent_account",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    },
+    {
+      "id": "nwmj-se-corner-2008",
+      "title": "Northwest Mountaineering Journal — SE Ridge/Corner variation (2009)",
+      "url": "https://www.alpenglow.org/nwmj/09/091_Shorts3.html",
+      "type": "regional_climbing_journal",
+      "checked_at": "2026-11-05T22:05:04Z",
+      "geometry_reuse_permission": "not_established"
+    }
+  ],
+  "routes": [
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "corkscrew-cougar-creek",
+      "proposed_name": "Sloan Peak via Corkscrew Route from Cougar Creek",
+      "source_route_name": "Corkscrew Route",
+      "route_family": "corkscrew",
+      "priority": "first",
+      "normal_ascent": true,
+      "activity": "glacier climb",
+      "grade": "Class 3 and glacier travel; brief Class 4 step reported",
+      "grade_reports": [
+        {
+          "source_id": "mountaineers-corkscrew",
+          "value": "Class 3; ascent text mentions a short Class 4 step"
+        }
+      ],
+      "access": {
+        "name": "Sloan Peak Trail #648 trailhead (Cougar Creek approach)",
+        "road": "North Fork Sauk River Road / Forest Road 49",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Approach from the Sauk River side, cross Sloan Glacier, then use the south-side ledge and upper west-side scramble.",
+      "season": "July–September in the Mountaineers catalog; glacier and ledge conditions govern feasibility.",
+      "caveats": [
+        "Do not treat historical log crossings as current bridges.",
+        "Do not confuse the Trail #648 start with the separate Sloan Creek trailhead farther up the road.",
+        "The glacier crossing and upper scramble require mountaineering skills."
+      ],
+      "source_ids": [
+        "mountaineers-corkscrew",
+        "peakbagger-sloan",
+        "summitpost-sloan"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "corkscrew-bedal-creek",
+      "proposed_name": "Sloan Peak via Corkscrew Route from Bedal Creek",
+      "source_route_name": "Corkscrew Route — Bedal Creek approach",
+      "route_family": "corkscrew",
+      "priority": "first",
+      "normal_ascent": true,
+      "activity": "glacier climb",
+      "grade": "Class 3 and glacier travel; brief Class 4 step reported",
+      "grade_reports": [
+        {
+          "source_id": "mountaineers-corkscrew",
+          "value": "Class 3; ascent text mentions a short Class 4 step"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Climb toward the Bedal–Sloan saddle, then cross Sloan Glacier to join Corkscrew.",
+      "season": "July–September in the Mountaineers catalog; condition dependent.",
+      "caveats": [
+        "This approach still crosses Sloan Glacier.",
+        "Keep separate from the Bedal Basin approach to Southeast Shelf and west-face routes.",
+        "Both Corkscrew approaches share the upper line; review segment reuse rather than duplicating shared geometry."
+      ],
+      "source_ids": [
+        "mountaineers-corkscrew"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "southeast-shelf",
+      "proposed_name": "Sloan Peak via Southeast Shelf",
+      "source_route_name": "Sloan Peak SE shelf",
+      "route_family": "southeast-shelf",
+      "priority": "second",
+      "normal_ascent": false,
+      "activity": "alpine rock",
+      "grade": "5.4 reported; condition-dependent fifth-class steps",
+      "grade_reports": [
+        {
+          "source_id": "summitpost-se-shelf",
+          "value": "5.4 (header); narrative describes low- and mid-fifth-class steps"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Reach the southeast basin via Bedal Basin, gain the sloping shelf, then join upper Corkscrew.",
+      "season": "Summer; snow recession changes access to the shelf.",
+      "caveats": [
+        "Separate from the four-pitch Southeast Face climb.",
+        "Avoiding the north-side glacier does not make this a nontechnical or snow-free hike.",
+        "The moat, polished entry slabs and fifth-class exit step require their own geometry and grade review."
+      ],
+      "source_ids": [
+        "summitpost-se-shelf",
+        "mountaineers-se-face"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "southeast-face",
+      "proposed_name": "Sloan Peak via Southeast Face",
+      "source_route_name": "Sloan Peak/Southeast Face",
+      "route_family": "southeast-face",
+      "priority": "second",
+      "normal_ascent": false,
+      "activity": "alpine rock",
+      "grade": "II 5.7",
+      "grade_reports": [
+        {
+          "source_id": "mountaineers-se-face",
+          "value": "II 5.7; four pitches with a 60 m rope"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Use the southeast shelf approach, then climb the technical face above the Corkscrew ledge to summit terrain.",
+      "season": "July–September in the Mountaineers catalog.",
+      "caveats": [
+        "Do not use Southeast Shelf as an alias for this climb.",
+        "Published descent follows upper Corkscrew and returns through the shelf approach.",
+        "The access moat can block entry even in the nominal summer season."
+      ],
+      "source_ids": [
+        "mountaineers-se-face"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "west-face",
+      "proposed_name": "Sloan Peak via West Face",
+      "source_route_name": "West Face",
+      "route_family": "west-face",
+      "priority": "second",
+      "normal_ascent": false,
+      "activity": "alpine rock",
+      "grade": "5.8; steep snow and routefinding",
+      "grade_reports": [
+        {
+          "source_id": "summitpost-west-face",
+          "value": "5.8, steep snow, routefinding"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Reach the west-face spur from Bedal Basin and climb the face to the upper mountain.",
+      "season": "Not independently established in this handoff.",
+      "caveats": [
+        "Source describes uncertain alignment and variations; choose an exact line before building geometry.",
+        "Do not merge with Northwest Buttress or the 1948 Southwest Face account without comparing their lines."
+      ],
+      "source_ids": [
+        "summitpost-west-face"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "fire-on-the-mountain",
+      "proposed_name": "Sloan Peak via Fire on the Mountain",
+      "source_route_name": "Fire on the Mountain",
+      "route_family": "fire-on-the-mountain",
+      "priority": "technical",
+      "normal_ascent": false,
+      "activity": "alpine rock",
+      "grade": "5.10d on Mountain Project; 5.11- and III+ in the AAJ account",
+      "grade_reports": [
+        {
+          "source_id": "mp-fire",
+          "value": "5.10d"
+        },
+        {
+          "source_id": "aaj-fire",
+          "value": "III+; one pitch approximately 5.11-; author also discusses IV"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Climb the named steep rock line on the southwest face, followed by scrambling to the summit.",
+      "season": "Rock-climbing conditions; exact seasonal access not verified.",
+      "caveats": [
+        "Preserve the grade disagreement instead of silently downgrading the line.",
+        "Published wall lengths and pitch counts describe climbing, not full trailhead-to-summit distance or gain."
+      ],
+      "source_ids": [
+        "mp-fire",
+        "aaj-fire"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "diamond-in-the-rough",
+      "proposed_name": "Sloan Peak via Diamond in the Rough",
+      "source_route_name": "Diamond in the Rough",
+      "route_family": "diamond-in-the-rough",
+      "priority": "technical",
+      "normal_ascent": false,
+      "activity": "alpine rock",
+      "grade": "III 5.11- on Mountain Project; III 5.10 in the 2012 AAJ summary",
+      "grade_reports": [
+        {
+          "source_id": "mp-diamond",
+          "value": "III 5.11-"
+        },
+        {
+          "source_id": "aaj-cascades-2012",
+          "value": "III 5.10"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Named west/southwest-face rock route; confirm exact start and finish against the source before mapping.",
+      "season": "Rock-climbing conditions; exact seasonal access not verified.",
+      "caveats": [
+        "The reported grades differ.",
+        "Do not substitute Fire on the Mountain geometry or infer an identical summit finish."
+      ],
+      "source_ids": [
+        "mp-diamond",
+        "aaj-cascades-2012"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "northwest-buttress",
+      "proposed_name": "Sloan Peak via Northwest Buttress",
+      "source_route_name": "Northwest Buttress",
+      "route_family": "northwest-buttress",
+      "priority": "technical",
+      "normal_ascent": false,
+      "activity": "alpine rock",
+      "grade": "IV 5.9+",
+      "grade_reports": [
+        {
+          "source_id": "mp-nw-buttress",
+          "value": "IV 5.9+; nine pitches"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Climb the buttress on the left side of the broad west face, then scramble over the upper mountain.",
+      "season": "July–September suggested by the route contributor; conditions not verified.",
+      "caveats": [
+        "Includes loose rock, vegetation and poorly protected sections.",
+        "Do not classify this as the ordinary West Face route."
+      ],
+      "source_ids": [
+        "mp-nw-buttress"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "full-moon-fever",
+      "proposed_name": "Sloan Peak via Full Moon Fever",
+      "source_route_name": "Full Moon Fever",
+      "route_family": "full-moon-fever",
+      "priority": "winter",
+      "normal_ascent": false,
+      "activity": "alpine ice and mixed",
+      "grade": "IV 5.8 AI4 50°; R reported in later AAJ coverage",
+      "grade_reports": [
+        {
+          "source_id": "aaj-full-moon",
+          "value": "IV 5.8 AI4 50°"
+        },
+        {
+          "source_id": "aaj-borrowed-time",
+          "value": "IV 5.8 AI4 R"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Climb ice above Bedal Basin on the northwest aspect, continuing along the northern shoulder to the summit ridge.",
+      "season": "Winter conditions; no reliable calendar window implied.",
+      "caveats": [
+        "Distinct from the main west-face Superalpine line.",
+        "Condition-sensitive ice, protection and avalanche exposure must be reviewed separately from summer approaches."
+      ],
+      "source_ids": [
+        "aaj-full-moon",
+        "aaj-borrowed-time"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "superalpine",
+      "proposed_name": "Sloan Peak via Superalpine",
+      "source_route_name": "Superalpine",
+      "route_family": "superalpine",
+      "priority": "winter",
+      "normal_ascent": false,
+      "activity": "alpine ice",
+      "grade": "IV WI3/4",
+      "grade_reports": [
+        {
+          "source_id": "kyle-superalpine",
+          "value": "WI3–4 on the technical face"
+        },
+        {
+          "source_id": "aaj-borrowed-time",
+          "value": "IV WI3/4 for the completed line"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Climb the right-side west-face ice system, then continue through upper snow terrain to the summit.",
+      "season": "Winter conditions; no reliable calendar window implied.",
+      "caveats": [
+        "The 2020 establishing climb retreated below the summit.",
+        "The summit continuation was completed in 2022; use that completed itinerary for any summit route.",
+        "The approximately 1,000-foot technical face is not the full approach or total gain."
+      ],
+      "source_ids": [
+        "kyle-superalpine",
+        "cc-superalpine-2022",
+        "aaj-merrill-minton",
+        "aaj-borrowed-time"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "merrill-minton",
+      "proposed_name": "Sloan Peak via Merrill–Minton",
+      "source_route_name": "Merrill-Minton",
+      "route_family": "merrill-minton",
+      "priority": "hold",
+      "normal_ascent": false,
+      "activity": "alpine ice",
+      "grade": "IV WI4+; later conditions reported as WI5 R on shared pitches",
+      "grade_reports": [
+        {
+          "source_id": "aaj-merrill-minton",
+          "value": "IV WI4+; ten pitches"
+        },
+        {
+          "source_id": "aaj-borrowed-time",
+          "value": "WI5 R encountered on the shared opening pitches in 2025"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Climb seven new west-face pitches before joining upper Superalpine.",
+      "season": "Winter conditions; no reliable calendar window implied.",
+      "caveats": [
+        "The 2023 party turned around approximately 70 m below the summit.",
+        "That report does not establish an integral summit ascent of this itinerary.",
+        "Do not publish as a complete summit route until its continuation and endpoints are independently verified."
+      ],
+      "reported_ascent_ended_below_summit_m": 70,
+      "summit_continuation_verified": false,
+      "source_ids": [
+        "aaj-merrill-minton",
+        "aaj-borrowed-time"
+      ]
+    },
+    {
+      "publication_state": "research_only",
+      "catalog_route_id": null,
+      "evidence_grade": null,
+      "evidence_grade_reason": "A current Cloud SQL gap has not been verified; the backfill A/B/C grades cannot yet be assigned.",
+      "one_way_distance_m": null,
+      "one_way_gain_m": null,
+      "estimated_duration_hours": null,
+      "geometry": null,
+      "geometry_source": null,
+      "geometry_license": null,
+      "current_access_verified": false,
+      "key": "borrowed-time",
+      "proposed_name": "Sloan Peak via Borrowed Time",
+      "source_route_name": "Borrowed Time",
+      "route_family": "borrowed-time",
+      "priority": "winter",
+      "normal_ascent": false,
+      "activity": "alpine ice and mixed",
+      "grade": "IV WI5 M7; R on Mountain Project",
+      "grade_reports": [
+        {
+          "source_id": "aaj-borrowed-time",
+          "value": "IV WI5 M7"
+        },
+        {
+          "source_id": "mp-borrowed-time",
+          "value": "WI5 M7 R"
+        }
+      ],
+      "access": {
+        "name": "Bedal Creek Trailhead",
+        "road": "Forest Road 4096",
+        "catalog_trailhead_id": null
+      },
+      "approach_summary": "Share the opening Merrill-Minton pitches, climb through the hanging dagger, then take the upper mixed corner to the summit.",
+      "season": "Winter conditions; no reliable calendar window implied.",
+      "caveats": [
+        "Use the direct upper finish rather than assuming the Superalpine exit.",
+        "The two first-ascent sources describe descent differently; a separate descent line requires reconciliation.",
+        "Shared lower pitches do not make this the same route as Merrill–Minton."
+      ],
+      "source_ids": [
+        "aaj-borrowed-time",
+        "mp-borrowed-time"
+      ]
+    }
+  ],
+  "historical_leads": [
+    {
+      "source_route_name": "East Face direct (1967)",
+      "reported_grade": "IV F8 A4",
+      "source_ids": [
+        "aaj-east-face-1967"
+      ],
+      "state": "historical_research_only",
+      "reason": "A historical aid line; contemporary grade, condition and exact geometry unverified."
+    },
+    {
+      "source_route_name": "Southwest Face (1948)",
+      "reported_grade": null,
+      "source_ids": [
+        "aaj-sw-face-1948"
+      ],
+      "state": "identity_unresolved",
+      "reason": "Do not create another West Face record until its relationship to the later route is resolved."
+    },
+    {
+      "source_route_name": "SE Ridge/Corner variation (2008)",
+      "reported_grade": null,
+      "source_ids": [
+        "nwmj-se-corner-2008"
+      ],
+      "state": "identity_unresolved",
+      "reason": "Compare with the technical Southeast Face route before deciding whether a separate route is warranted."
+    }
+  ]
+}
