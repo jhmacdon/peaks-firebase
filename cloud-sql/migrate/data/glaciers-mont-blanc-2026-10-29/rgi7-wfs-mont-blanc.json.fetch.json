@@ -1,0 +1,30 @@
+{
+  "url": "https://www.glims.org/geoserver/GLIMS/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=GLIMS:RGI2000-v7.0-G-11_central_europe_epsg3857&outputFormat=application/json&srsName=EPSG:4326&bbox=6.70,45.72,7.15,46.08,EPSG:4326&maxFeatures=2000",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:35:32.887008+00:00",
+  "status": 200,
+  "final_url": "https://www.glims.org/geoserver/GLIMS/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=GLIMS:RGI2000-v7.0-G-11_central_europe_epsg3857&outputFormat=application/json&srsName=EPSG:4326&bbox=6.70,45.72,7.15,46.08,EPSG:4326&maxFeatures=2000",
+  "response_headers": {
+    "Date": "Thu, 29 Oct 2026 17:35:33 GMT",
+    "Server": "Apache/2.4.58 (Ubuntu)",
+    "Access-Control-Allow-Origin": "*",
+    "Content-Disposition": "inline; filename=RGI2000-v7.0-G-11_central_europe_epsg3857",
+    "Content-Security-Policy": "base-uri 'self'; default-src 'none'; child-src 'self'; connect-src 'self'; font-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; form-action 'self'; frame-ancestors 'self';",
+    "Content-Type": "application/json;charset=UTF-8",
+    "X-Concurrent-Limit-Ip": "10",
+    "X-Concurrent-Limit-User": "6",
+    "X-Concurrent-Requests-Ip": "1",
+    "X-Concurrent-Requests-User": "1",
+    "X-Content-Type-Options": "nosniff",
+    "X-Control-Flow-Delay-Ms": "0",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Set-Cookie": "GS_FLOW_CONTROL=GS_CFLOW_-73c7b198:1a188abd685:3f60",
+    "Connection": "close",
+    "Transfer-Encoding": "chunked"
+  },
+  "sha256": "a56bf038d68d030ab49ffe14087743edf549fb3c337d9f510044d8e6fbdc7171",
+  "bytes": 756431
+}

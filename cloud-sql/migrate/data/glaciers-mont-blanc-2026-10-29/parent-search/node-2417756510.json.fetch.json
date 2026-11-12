@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Triangle+du+Tacul&lat=45.8608217&lng=6.888008&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:40:43.809967+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Triangle+du+Tacul&lat=45.8608217&lng=6.888008&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=110, reset=29",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"cc4-coBGZN7UfZ37r+5bI/TYkAr4CsA\"",
+    "x-cloud-trace-context": "31acfc2cddafbaf56b50d4e5d2715247",
+    "date": "Thu, 29 Oct 2026 18:40:45 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3268",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "b11af50a949a697fd1e915a6076fabb997629ed603df64830c0ca15e92d59ea7",
+  "bytes": 3268
+}

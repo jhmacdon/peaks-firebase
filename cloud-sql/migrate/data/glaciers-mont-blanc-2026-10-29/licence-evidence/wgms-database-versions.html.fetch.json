@@ -1,0 +1,22 @@
+{
+  "url": "https://wgms.ch/data_databaseversions/",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:53:15.654081+00:00",
+  "status": 200,
+  "final_url": "https://wgms.ch/data_databaseversions/",
+  "response_headers": {
+    "date": "Thu, 29 Oct 2026 17:53:16 GMT",
+    "server": "Apache",
+    "p3p": "CP=\"ALL DSP NID CURa ADMa DEVa HISa OTPa OUR NOR NAV DEM\"",
+    "link": "<https://wgms.ch/wp-json/>; rel=\"https://api.w.org/\", <https://wgms.ch/wp-json/wp/v2/pages/76>; rel=\"alternate\"; title=\"JSON\"; type=\"application/json\", <https://wgms.ch/?p=76>; rel=shortlink",
+    "connection": "Upgrade",
+    "vary": "Accept-Encoding",
+    "transfer-encoding": "chunked",
+    "content-type": "text/html; charset=UTF-8"
+  },
+  "sha256": "c3e92845ab887f92b760546171f71acc30e746fdcb358c19dff7571aae8c1926",
+  "bytes": 49115
+}

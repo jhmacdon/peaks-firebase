@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+du+Tacul&lat=45.884347&lng=6.9607788&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:24.530980+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+du+Tacul&lat=45.884347&lng=6.9607788&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=113, reset=49",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c3f-7danohat1Lqi5JnLRWQgufuekQs\"",
+    "x-cloud-trace-context": "4107c58c3729e454e401c65bedba5cea;o=1",
+    "date": "Thu, 29 Oct 2026 18:41:25 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3135",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "ae9e77d101955f9aec2a9a1e57c71da5a027213ded242ca7fdeae2e69fb74ce8",
+  "bytes": 3135
+}

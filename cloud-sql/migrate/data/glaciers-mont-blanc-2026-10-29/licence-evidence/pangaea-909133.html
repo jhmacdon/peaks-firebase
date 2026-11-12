@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Open+Sans:400,600,400italic,700,700italic,600italic,300,300italic,800,800italic">
+<link rel="stylesheet" href="//www.pangaea.de/assets/v.2d6f89e80fb0ee2bf039f8938c1ebe6a/bootstrap-24col/css/bootstrap.min.css">
+<link rel="stylesheet" href="//www.pangaea.de/assets/v.2d6f89e80fb0ee2bf039f8938c1ebe6a/css/pangaea.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<!--[if lte IE 9]>
+<style>#topics-pulldown-wrapper label:after { display:none; }</style>
+<![endif]-->
+<link rel="shortcut icon" href="//www.pangaea.de/assets/v.2d6f89e80fb0ee2bf039f8938c1ebe6a/favicon.ico">
+<link rel="icon" href="//www.pangaea.de/assets/v.2d6f89e80fb0ee2bf039f8938c1ebe6a/favicon.ico" type="image/vnd.microsoft.icon">
+<link rel="image_src" type="image/png" href="https://www.pangaea.de/assets/social-icons/pangaea-share.png">
+<meta property="og:image" content="https://www.pangaea.de/assets/social-icons/pangaea-share.png">
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery.matchHeight/0.7.0/jquery.matchHeight-min.js"></script>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery.appear/0.4.1/jquery.appear.min.js"></script>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+<script type="text/javascript" src="//www.pangaea.de/assets/v.2d6f89e80fb0ee2bf039f8938c1ebe6a/bootstrap-24col/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="text/javascript" src="//www.pangaea.de/assets/v.2d6f89e80fb0ee2bf039f8938c1ebe6a/js/datacombo-min.js"></script>
+<title>Paul, F et al. (2019): Glacier inventory of the Alps from Sentinel-2, shape files</title>
+<meta name="title" content="Glacier inventory of the Alps from Sentinel-2, shape files" />
+<meta name="author" content="Paul, Frank; Rastner, Philipp; Azzoni, Roberto Sergio; Diolaiuti, Guglielmina; Fugazza, Davide; Le Bris, Raymond; Nemec, Johanna; Rabatel, Antoine; Ramusovic, Mélanie; Schwaizer, Gabriele; Smiraglia, Claudio" />
+<meta name="date" content="2019" />
+<meta name="robots" content="index,follow,archive" />
+<meta name="keywords" content="Alps; change assessment; Glacier inventory; Sentinel-2; topography; uncerainty" />
+<meta name="description" content="Paul, Frank; Rastner, Philipp; Azzoni, Roberto Sergio; Diolaiuti, Guglielmina; Fugazza, Davide; Le Bris, Raymond; Nemec, Johanna; Rabatel, Antoine; Ramusovic, Mélanie; Schwaizer, Gabriele; Smiraglia, Claudio (2019): Glacier inventory of the Alps from Sentinel-2, shape files [dataset]. PANGAEA, https://doi.org/10.1594/PANGAEA.909133, Supplement to: Paul, F et al. (2020): Glacier shrinkage in the Alps continues unabated as revealed by a new glacier inventory from Sentinel-2. Earth System Science Data, 12(3), 1805-1821, https://doi.org/10.5194/essd-12-1805-2020" />
+<meta name="geo.position" content="47.000000;10.000000" />
+<meta name="ICBM" content="47.000000, 10.000000" />
+<!--BEGIN: Dublin Core description-->
+<link rel="schema.DC" href="http://purl.org/dc/elements/1.1/" />
+<link rel="schema.DCTERMS" href="http://purl.org/dc/terms/" />
+<meta name="DC.title" content="Glacier inventory of the Alps from Sentinel-2, shape files" />
+<meta name="DC.creator" content="Paul, Frank" />
+<meta name="DC.creator" content="Rastner, Philipp" />
+<meta name="DC.creator" content="Azzoni, Roberto Sergio" />
+<meta name="DC.creator" content="Diolaiuti, Guglielmina" />
+<meta name="DC.creator" content="Fugazza, Davide" />
+<meta name="DC.creator" content="Le Bris, Raymond" />
+<meta name="DC.creator" content="Nemec, Johanna" />
+<meta name="DC.creator" content="Rabatel, Antoine" />
+<meta name="DC.creator" content="Ramusovic, Mélanie" />
+<meta name="DC.creator" content="Schwaizer, Gabriele" />
+<meta name="DC.creator" content="Smiraglia, Claudio" />
+<meta name="DC.publisher" content="PANGAEA" />
+<meta name="DC.source" content="Supplement to: Paul, F et al. (2020): Glacier shrinkage in the Alps continues unabated as revealed by a new glacier inventory from Sentinel-2. Earth System Science Data, 12(3), 1805-1821, https://doi.org/10.5194/essd-12-1805-2020" />
+<meta name="DC.date" content="2019" scheme="DCTERMS.W3CDTF" />
+<meta name="DC.type" content="dataset" />
+<meta name="DC.language" content="en" scheme="DCTERMS.RFC3066" />
+<meta name="DCTERMS.license" scheme="DCTERMS.URI" content="https://creativecommons.org/licenses/by/4.0/" />
+<meta name="DC.identifier" content="https://doi.org/10.1594/PANGAEA.909133" scheme="DCTERMS.URI" />
+<meta name="DC.rights" scheme="DCTERMS.URI" content="info:eu-repo/semantics/openAccess" />
+<meta name="DC.format" content="application/zip, 7.5 MBytes" />
+<!--END: Dublin Core description-->
+<script type="text/javascript" src="//d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script>
+<link rel="cite-as" href="https://doi.org/10.1594/PANGAEA.909133">
+<link rel="describedby" href="https://doi.pangaea.de/10.1594/PANGAEA.909133?format=metadata_panmd" type="application/vnd.pangaea.metadata+xml">
+<link rel="describedby" href="https://doi.pangaea.de/10.1594/PANGAEA.909133?format=metadata_jsonld" type="application/ld+json">
+<link rel="describedby" href="https://doi.pangaea.de/10.1594/PANGAEA.909133?format=metadata_datacite4" type="application/vnd.datacite.datacite+xml">
+<link rel="describedby" href="https://doi.pangaea.de/10.1594/PANGAEA.909133?format=metadata_iso19139" type="application/vnd.iso19139.metadata+xml">
+<link rel="describedby" href="https://doi.pangaea.de/10.1594/PANGAEA.909133?format=metadata_dif" type="application/vnd.nasa.dif-metadata+xml">
+<link rel="describedby" href="https://doi.pangaea.de/10.1594/PANGAEA.909133?format=citation_text" type="text/x-bibliography">
+<link rel="describedby" href="https://doi.pangaea.de/10.1594/PANGAEA.909133?format=citation_ris" type="application/x-research-info-systems">
+<link rel="describedby" href="https://doi.pangaea.de/10.1594/PANGAEA.909133?format=citation_bibtex" type="application/x-bibtex">
+<link rel="item" href="https://store.pangaea.de/Publications/PaulF-etal_2019/c3s_gi_rgi11_s2_2015_v2.zip" type="application/zip">
+<link rel="author" href="https://orcid.org/0000-0002-5931-486X">
+<link rel="author" href="https://orcid.org/0000-0003-4523-9085">
+<link rel="author" href="https://orcid.org/0000-0002-5304-1055">
+<link rel="author" href="https://orcid.org/0000-0003-2611-6696">
+<link rel="license" href="https://creativecommons.org/licenses/by/4.0/">
+<link rel="type" href="https://schema.org/Dataset">
+<link rel="type" href="https://schema.org/AboutPage">
+<link rel="linkset" href="https://doi.pangaea.de/10.1594/PANGAEA.909133?format=linkset" type="application/linkset">
+<link rel="linkset" href="https://doi.pangaea.de/10.1594/PANGAEA.909133?format=linkset_json" type="application/linkset+json">
+<script type="application/ld+json">{"@type":"Dataset","@context":{"@language":"en","@vocab":"https://schema.org/","column":"cr:column","conformsTo":"dct:conformsTo","cr":"http://mlcommons.org/croissant/","dataType":{"@id":"cr:dataType","@type":"@vocab"},"dct":"http://purl.org/dc/terms/","extract":"cr:extract","field":"cr:field","fileProperty":"cr:fileProperty","fileObject":"cr:fileObject","format":"cr:format","includes":"cr:includes","recordSet":"cr:recordSet","sc":"https://schema.org/","separator":"cr:separator","source":"cr:source","transform":"cr:transform"},"conformsTo":"http://mlcommons.org/croissant/1.0","identifier":"https://doi.org/10.1594/PANGAEA.909133","url":"https://doi.pangaea.de/10.1594/PANGAEA.909133","creator":[{"@type":"Person","name":"Frank Paul","familyName":"Paul","givenName":"Frank","email":"frank.paul@geo.uzh.ch"},{"@type":"Person","name":"Philipp Rastner","familyName":"Rastner","givenName":"Philipp"},{"@id":"https://orcid.org/0000-0002-5931-486X","@type":"Person","name":"Roberto Sergio Azzoni","familyName":"Azzoni","givenName":"Roberto Sergio","identifier":"https://orcid.org/0000-0002-5931-486X"},{"@type":"Person","name":"Guglielmina Diolaiuti","familyName":"Diolaiuti","givenName":"Guglielmina"},{"@id":"https://orcid.org/0000-0003-4523-9085","@type":"Person","name":"Davide Fugazza","familyName":"Fugazza","givenName":"Davide","identifier":"https://orcid.org/0000-0003-4523-9085"},{"@type":"Person","name":"Raymond Le Bris","familyName":"Le Bris","givenName":"Raymond"},{"@type":"Person","name":"Johanna Nemec","familyName":"Nemec","givenName":"Johanna"},{"@id":"https://orcid.org/0000-0002-5304-1055","@type":"Person","name":"Antoine Rabatel","familyName":"Rabatel","givenName":"Antoine","identifier":"https://orcid.org/0000-0002-5304-1055","email":"antoine.rabatel@univ-grenoble-alpes.fr"},{"@type":"Person","name":"Mélanie Ramusovic","familyName":"Ramusovic","givenName":"Mélanie"},{"@id":"https://orcid.org/0000-0003-2611-6696","@type":"Person","name":"Gabriele Schwaizer","familyName":"Schwaizer","givenName":"Gabriele","identifier":"https://orcid.org/0000-0003-2611-6696","email":"gabriele.schwaizer@enveo.at"},{"@type":"Person","name":"Claudio Smiraglia","familyName":"Smiraglia","givenName":"Claudio"}],"name":"Glacier inventory of the Alps from Sentinel-2, shape files","publisher":{"@type":"Organization","name":"PANGAEA","disambiguatingDescription":"Data Publisher for Earth \u0026 Environmental Science","url":"https://www.pangaea.de/"},"includedInDataCatalog":{"@type":"DataCatalog","name":"PANGAEA","disambiguatingDescription":"Data Publisher for Earth \u0026 Environmental Science","url":"https://www.pangaea.de/"},"datePublished":"2019-11-26","additionalType":"dataset","description":"The on-going glacier shrinkage in the Alps requires frequent updates of glacier outlines to provide an accurate database for monitoring or modeling purposes (e.g. determination of run-off, mass balance, or future glacier extent) and other applications. With the launch of the first Sentinel-2 (S2) satellite in 2015, it became possible to create a consistent, Alpine-wide glacier inventory with an unprecedented spatial resolution of 10 m. Fortunately, already the first S2 images acquired in August 2015 provided excellent mapping conditions for most of the glacierised regions in the Alps. We have used this opportunity to compile a new Alpine-wide glacier inventory in a collaborative team effort. In all countries, glacier outlines from the latest national inventories have been used as a guide to compile a consistent update. However, cloud cover over many glaciers in Italy required including also S2 scenes from 2016. Whereas the automated mapping of clean glacier ice was straightforward using the band ratio method, the numerous debris-covered glaciers required intense manual editing. The uncertainty in the outlines was determined with multiple digitising of 14 glaciers by all participants. Topographic information for all glaciers was derived from the ALOS AW3D30 DEM. Overall, we derived a total glacier area of 1806 ±60 km² when considering 4394 glaciers \u003e0.01 km². This is 14% (-1.2%/a) less than the 2100 km² derived from Landsat scenes acquired in 2003 and indicating an unabated continuation of glacier shrinkage in the Alps since the mid-1980s. Due to the higher spatial resolution of S2 many small glaciers were additionally mapped in the new inventory or increased in size compared to 2003. An artificial reduction to the former extents would thus result in an even higher overall area loss. Still, the uncertainty assessment revealed locally considerable differences in interpretation of debris-covered glaciers, resulting in limitations for change assessment when using glacier extents digitised by different analysts.","abstract":"The on-going glacier shrinkage in the Alps requires frequent updates of glacier outlines to provide an accurate database for monitoring or modeling purposes (e.g. determination of run-off, mass balance, or future glacier extent) and other applications. With the launch of the first Sentinel-2 (S2) satellite in 2015, it became possible to create a consistent, Alpine-wide glacier inventory with an unprecedented spatial resolution of 10 m. Fortunately, already the first S2 images acquired in August 2015 provided excellent mapping conditions for most of the glacierised regions in the Alps. We have used this opportunity to compile a new Alpine-wide glacier inventory in a collaborative team effort. In all countries, glacier outlines from the latest national inventories have been used as a guide to compile a consistent update. However, cloud cover over many glaciers in Italy required including also S2 scenes from 2016. Whereas the automated mapping of clean glacier ice was straightforward using the band ratio method, the numerous debris-covered glaciers required intense manual editing. The uncertainty in the outlines was determined with multiple digitising of 14 glaciers by all participants. Topographic information for all glaciers was derived from the ALOS AW3D30 DEM. Overall, we derived a total glacier area of 1806 ±60 km² when considering 4394 glaciers \u003e0.01 km². This is 14% (-1.2%/a) less than the 2100 km² derived from Landsat scenes acquired in 2003 and indicating an unabated continuation of glacier shrinkage in the Alps since the mid-1980s. Due to the higher spatial resolution of S2 many small glaciers were additionally mapped in the new inventory or increased in size compared to 2003. An artificial reduction to the former extents would thus result in an even higher overall area loss. Still, the uncertainty assessment revealed locally considerable differences in interpretation of debris-covered glaciers, resulting in limitations for change assessment when using glacier extents digitised by different analysts.","@reverse":{"isBasedOn":{"@id":"https://doi.org/10.5194/essd-12-1805-2020","@type":["CreativeWork","ScholarlyArticle"],"identifier":"https://doi.org/10.5194/essd-12-1805-2020","url":"https://doi.org/10.5194/essd-12-1805-2020","creator":[{"@type":"Person","name":"Frank Paul","familyName":"Paul","givenName":"Frank","email":"frank.paul@geo.uzh.ch"},{"@type":"Person","name":"Philipp Rastner","familyName":"Rastner","givenName":"Philipp"},{"@id":"https://orcid.org/0000-0002-5931-486X","@type":"Person","name":"Roberto Sergio Azzoni","familyName":"Azzoni","givenName":"Roberto Sergio","identifier":"https://orcid.org/0000-0002-5931-486X"},{"@type":"Person","name":"Guglielmina Diolaiuti","familyName":"Diolaiuti","givenName":"Guglielmina"},{"@id":"https://orcid.org/0000-0003-4523-9085","@type":"Person","name":"Davide Fugazza","familyName":"Fugazza","givenName":"Davide","identifier":"https://orcid.org/0000-0003-4523-9085"},{"@type":"Person","name":"Raymond Le Bris","familyName":"Le Bris","givenName":"Raymond"},{"@type":"Person","name":"Johanna Nemec","familyName":"Nemec","givenName":"Johanna"},{"@id":"https://orcid.org/0000-0002-5304-1055","@type":"Person","name":"Antoine Rabatel","familyName":"Rabatel","givenName":"Antoine","identifier":"https://orcid.org/0000-0002-5304-1055","email":"antoine.rabatel@univ-grenoble-alpes.fr"},{"@type":"Person","name":"Mélanie Ramusovic","familyName":"Ramusovic","givenName":"Mélanie"},{"@id":"https://orcid.org/0000-0003-2611-6696","@type":"Person","name":"Gabriele Schwaizer","familyName":"Schwaizer","givenName":"Gabriele","identifier":"https://orcid.org/0000-0003-2611-6696","email":"gabriele.schwaizer@enveo.at"},{"@type":"Person","name":"Claudio Smiraglia","familyName":"Smiraglia","givenName":"Claudio"}],"name":"Glacier shrinkage in the Alps continues unabated as revealed by a new glacier inventory from Sentinel-2","datePublished":"2020","pagination":"1805-1821","isPartOf":{"@type":["Periodical","PublicationVolume"],"volumeNumber":"12(3)","name":"Earth System Science Data"},"additionalType":"journal article"}},"spatialCoverage":{"@type":"Place","geo":{"@type":"GeoCoordinates","latitude":47.0,"longitude":10.0}},"size":{"@type":"QuantitativeValue","value":7.5,"unitText":"MBytes"},"keywords":"Alps; change assessment; Glacier inventory; Sentinel-2; topography; uncerainty","license":"https://creativecommons.org/licenses/by/4.0/","conditionsOfAccess":"unrestricted","isAccessibleForFree":true,"inLanguage":"en","distribution":[{"@type":["cr:FileObject","DataDownload"],"contentUrl":"https://store.pangaea.de/Publications/PaulF-etal_2019/c3s_gi_rgi11_s2_2015_v2.zip","encodingFormat":"application/zip"}]}</script>
+<script type="text/javascript">/*<![CDATA[*/
+var _paq=window._paq=window._paq||[];(function(){
+var u="https://analytics.pangaea.de/";_paq.push(['setTrackerUrl',u+'matomo.php']);_paq.push(['setCookieDomain','pangaea.de']);_paq.push(['setDomains',['pangaea.de','www.pangaea.de','doi.pangaea.de']]);_paq.push(['setSiteId',1]);
+_paq.push(['enableLinkTracking']);_paq.push(['setDownloadClasses',['dl-link']]);_paq.push(['setDownloadExtensions',[]]);_paq.push(['setIgnoreClasses',['notrack']]);_paq.push(['trackPageView']);
+var d=document,g=d.createElement('script'),s=d.getElementsByTagName('script')[0];g.async=true;g.src=u+'matomo.js';s.parentNode.insertBefore(g,s);
+})();
+/*]]>*/</script>
+</head>
+<body class="homepage-layout">
+<div id="header-wrapper">
+  <div class="container-fluid">
+    <header class="row"><!-- volle Screen-Breite -->
+      <div class="content-wrapper"><!-- max. Breite -->
+        <div id="login-area-wrapper" class="hidden-print"><div id="login-area"><span id="user-name">Not logged in</span><a id="signup-button" class="glyphicon glyphicon-plus-sign self-referer-link" title="Sign Up / Create Account" aria-label="Sign up" target="_self" rel="nofollow" href="https://www.pangaea.de/user/signup.php?referer=https%3A%2F%2Fdoi.pangaea.de%2F" data-template="https://www.pangaea.de/user/signup.php?referer=#u#"></a><a id="login-button" class="glyphicon glyphicon-log-in self-referer-link" title="Log In" aria-label="Log in" target="_self" rel="nofollow" href="https://www.pangaea.de/user/login.php?referer=https%3A%2F%2Fdoi.pangaea.de%2F" data-template="https://www.pangaea.de/user/login.php?referer=#u#"></a></div></div>
+        <div class="blindspalte header-block col-lg-3 col-md-4"></div>
+        
+        <div id="header-logo-block" class="header-block col-lg-3 col-md-4 col-sm-4 col-xs-8">
+          <div id="pangaea-logo">
+            <a title="PANGAEA home" href="//www.pangaea.de/" class="home-link"><img src="//www.pangaea.de/assets/v.2d6f89e80fb0ee2bf039f8938c1ebe6a/layout-images/pangaea-logo.png" alt="PANGAEA home"></a>
+          </div>
+        </div>
+        
+        <div id="header-mid-block" class="header-block col-lg-12 col-md-9 col-sm-20 col-xs-16">
+          <div id="pangaea-logo-headline">
+            PANGAEA<span class="punkt">.</span>
+          </div>
+          <div id="pangaea-logo-slogan">
+            <span>Data Publisher for Earth &amp; </span><span class="nowrap">Environmental Science</span>
+          </div>
+          <div id="search-area-header" class="row"></div>
+        </div>
+        
+        <div id="header-main-menu-block" class="header-block hidden-print col-lg-6 col-md-7 col-sm-24 col-xs-24">
+          <nav id="main-nav">
+            <ul>
+              <li id="menu-search">
+                <!-- class on link is important, don't change!!! -->
+                <a href="//www.pangaea.de/" class="home-link">Search</a>
+              </li>
+              <li id="menu-submit">
+                <a href="//www.pangaea.de/submit/">Submit</a>
+              </li>
+              <li id="menu-help">
+                <a href="//wiki.pangaea.de/">Help</a>
+              </li>
+              <li id="menu-about">
+                <a href="//www.pangaea.de/about/">About</a>
+              </li>
+              <li id="menu-contact">
+                <a href="//www.pangaea.de/contact/">Contact</a>
+              </li>
+            </ul>
+          </nav>
+          <div class="clearfix"></div>
+        </div>
+      </div>
+    </header>
+  </div>
+</div>
+<div id="flex-wrapper">
+<div id="main-container" class="container-fluid">
+<div id="main-row" class="row main-row">
+<div id="main" class="col-lg-24 col-md-24 col-sm-24 col-xs-24">
+<div id="dataset">
+<div class="row"><div class="col-lg-3 col-md-4 col-sm-24 col-xs-24 hidden-xs hidden-sm"><div class="title citation invisible-top-border">Citation:</div>
+</div>
+<div class="col-lg-21 col-md-20 col-sm-24 col-xs-24"><div class="descr top-border"><div id="map-dataset-wrapper" class="map-wrapper hidden-print hidden-xs hidden-sm col-lg-8 col-md-8 col-sm-24 col-xs-24"><div class="embed-responsive embed-responsive-4by3"><div id="map-dataset" class="embed-responsive-item" data-maptype="event" data-id-dataset="909133" data-viewport-bbox="[10.0,47.0,10.0,47.0]"></div>
+</div>
+</div>
+<h1 class="hanging citation"><strong><a class="popover-link link-unstyled" href="#" data-title="&lt;span&gt;Paul, Frank&lt;a class=&quot;searchlink glyphicon glyphicon-search&quot; target=&quot;_blank&quot; rel=&quot;nofollow&quot; title=&quot;Search PANGAEA for other datasets related to 'Paul, Frank'...&quot; aria-label=&quot;Search PANGAEA for other datasets related to 'Paul, Frank'&quot; href=&quot;//www.pangaea.de/?q=author:email:frank.paul@geo.uzh.ch&quot;&gt;&lt;/a&gt;&lt;/span&gt;" data-content="&lt;div&gt;&lt;div&gt;&lt;a class=&quot;mail-link text-nowrap wide-icon-link&quot; href=&quot;mailto:frank.paul@geo.uzh.ch&quot;&gt;frank.paul@geo.uzh.ch&lt;/a&gt;&lt;/div&gt;&#10;&lt;/div&gt;&#10;">Paul, Frank</a>; Rastner, Philipp; <a class="popover-link link-unstyled" href="#" data-title="&lt;span&gt;Azzoni, Roberto Sergio&lt;a class=&quot;searchlink glyphicon glyphicon-search&quot; target=&quot;_blank&quot; rel=&quot;nofollow&quot; title=&quot;Search PANGAEA for other datasets related to 'Azzoni, Roberto Sergio'...&quot; aria-label=&quot;Search PANGAEA for other datasets related to 'Azzoni, Roberto Sergio'&quot; href=&quot;//www.pangaea.de/?q=author:orcid:0000-0002-5931-486X&quot;&gt;&lt;/a&gt;&lt;/span&gt;" data-content="&lt;div&gt;&lt;div&gt;&lt;a class=&quot;orcid-link text-nowrap wide-icon-link&quot; target=&quot;_blank&quot; href=&quot;https://orcid.org/0000-0002-5931-486X&quot;&gt;https://orcid.org/0000-0002-5931-486X&lt;/a&gt;&lt;/div&gt;&#10;&lt;/div&gt;&#10;">Azzoni, Roberto Sergio</a>; Diolaiuti, Guglielmina; <a class="popover-link link-unstyled" href="#" data-title="&lt;span&gt;Fugazza, Davide&lt;a class=&quot;searchlink glyphicon glyphicon-search&quot; target=&quot;_blank&quot; rel=&quot;nofollow&quot; title=&quot;Search PANGAEA for other datasets related to 'Fugazza, Davide'...&quot; aria-label=&quot;Search PANGAEA for other datasets related to 'Fugazza, Davide'&quot; href=&quot;//www.pangaea.de/?q=author:orcid:0000-0003-4523-9085&quot;&gt;&lt;/a&gt;&lt;/span&gt;" data-content="&lt;div&gt;&lt;div&gt;&lt;a class=&quot;orcid-link text-nowrap wide-icon-link&quot; target=&quot;_blank&quot; href=&quot;https://orcid.org/0000-0003-4523-9085&quot;&gt;https://orcid.org/0000-0003-4523-9085&lt;/a&gt;&lt;/div&gt;&#10;&lt;/div&gt;&#10;">Fugazza, Davide</a>; Le Bris, Raymond; Nemec, Johanna; <a class="popover-link link-unstyled" href="#" data-title="&lt;span&gt;Rabatel, Antoine&lt;a class=&quot;searchlink glyphicon glyphicon-search&quot; target=&quot;_blank&quot; rel=&quot;nofollow&quot; title=&quot;Search PANGAEA for other datasets related to 'Rabatel, Antoine'...&quot; aria-label=&quot;Search PANGAEA for other datasets related to 'Rabatel, Antoine'&quot; href=&quot;//www.pangaea.de/?q=author:orcid:0000-0002-5304-1055&quot;&gt;&lt;/a&gt;&lt;/span&gt;" data-content="&lt;div&gt;&lt;div&gt;&lt;a class=&quot;orcid-link text-nowrap wide-icon-link&quot; target=&quot;_blank&quot; href=&quot;https://orcid.org/0000-0002-5304-1055&quot;&gt;https://orcid.org/0000-0002-5304-1055&lt;/a&gt;&lt;/div&gt;&#10;&lt;div&gt;&lt;a class=&quot;mail-link text-nowrap wide-icon-link&quot; href=&quot;mailto:antoine.rabatel@univ-grenoble-alpes.fr&quot;&gt;antoine.rabatel@univ-grenoble-alpes.fr&lt;/a&gt;&lt;/div&gt;&#10;&lt;/div&gt;&#10;">Rabatel, Antoine</a>; Ramusovic, Mélanie; <a class="popover-link link-unstyled" href="#" data-title="&lt;span&gt;Schwaizer, Gabriele&lt;a class=&quot;searchlink glyphicon glyphicon-search&quot; target=&quot;_blank&quot; rel=&quot;nofollow&quot; title=&quot;Search PANGAEA for other datasets related to 'Schwaizer, Gabriele'...&quot; aria-label=&quot;Search PANGAEA for other datasets related to 'Schwaizer, Gabriele'&quot; href=&quot;//www.pangaea.de/?q=author:orcid:0000-0003-2611-6696&quot;&gt;&lt;/a&gt;&lt;/span&gt;" data-content="&lt;div&gt;&lt;div&gt;&lt;a class=&quot;orcid-link text-nowrap wide-icon-link&quot; target=&quot;_blank&quot; href=&quot;https://orcid.org/0000-0003-2611-6696&quot;&gt;https://orcid.org/0000-0003-2611-6696&lt;/a&gt;&lt;/div&gt;&#10;&lt;div&gt;&lt;a class=&quot;mail-link text-nowrap wide-icon-link&quot; href=&quot;mailto:gabriele.schwaizer@enveo.at&quot;&gt;gabriele.schwaizer@enveo.at&lt;/a&gt;&lt;/div&gt;&#10;&lt;/div&gt;&#10;">Schwaizer, Gabriele</a>; Smiraglia, Claudio (2019):</strong> Glacier inventory of the Alps from Sentinel-2, shape files [dataset]. <em>PANGAEA</em>, <a id="citation-doi-link" rel="nofollow bookmark" href="https://doi.org/10.1594/PANGAEA.909133" data-pubstatus="4" class="text-linkwrap popover-link doi-link">https://doi.org/10.1594/PANGAEA.909133</a>,<hr class="spacer" aria-hidden="true" />
+<em>Supplement to:</em> <strong>Paul, F et al. (2020):</strong> Glacier shrinkage in the Alps continues unabated as revealed by a new glacier inventory from Sentinel-2. <em>Earth System Science Data</em>, <strong>12(3)</strong>, 1805-1821, <a class="text-linkwrap doi-link" href="https://doi.org/10.5194/essd-12-1805-2020" target="_blank">https://doi.org/10.5194/essd-12-1805-2020</a></h1>
+<p class="howtocite"><small><span class="glyphicon glyphicon-bullhorn" aria-hidden="true"></span> <strong>Always quote citation above when using data!</strong> You can download the citation in several formats below.</small></p>
+<p class="data-maintenance-dates"><small><span class="glyphicon glyphicon-calendar" aria-hidden="true"></span> <span title="Published: 2019-11-26T15:55:10"><strong>Published:</strong> 2019-11-26</span> • <span title="DOI registered: 2020-07-22T09:41:52"><strong>DOI registered:</strong> 2020-07-22</span></small></p>
+<p class="data-buttons"><a rel="nofollow describedby" title="Export citation to Reference Manager, EndNote, ProCite" href="?format=citation_ris" class="actionbuttonlink"><span class="actionbutton">RIS Citation</span></a><a rel="nofollow describedby" title="Export citation to BibTeX" href="?format=citation_bibtex" class="actionbuttonlink"><span class="actionbutton"><span style="font-variant:small-caps;">BibTeX</span> Citation</span></a><a id="text-citation-link" rel="nofollow" title="Export citation as plain text" href="?format=citation_text" target="_blank" class="actionbuttonlink share-link"><span class="actionbutton">Text Citation</span></a><span class="separator"></span><a id="share-button" rel="nofollow" class="popover-link actionbuttonlink" href="//www.pangaea.de/nojs.php" data-title="Share Dataset on Social Media"><span class="actionbutton" title="Share Dataset on Social Media"><span class="glyphicon glyphicon-share"></span> Share</span></a><span class="separator"></span><a rel="nofollow" target="_blank" title="Display events in map" href="//www.pangaea.de/advanced/map-dataset-events.php?id=909133&amp;viewportBBOX=10.0,47.0,10.0,47.0" class="actionbuttonlink"><span class="actionbutton">Show Map</span></a><a rel="nofollow" title="Display events in Google Earth" href="?format=events_kml" class="actionbuttonlink"><span class="actionbutton">Google Earth</span></a><span data-badge-type="1" data-doi="10.1594/PANGAEA.909133" data-badge-popover="right" data-hide-no-mentions="true" class="altmetric-embed sep-before"></span><span class="sep-before" id="usage-stats"></span></p>
+<div class="clearfix"></div>
+</div>
+</div>
+</div>
+<div class="row"><div class="col-lg-3 col-md-4 col-sm-24 col-xs-24"><div class="title">Abstract:</div>
+</div>
+<div class="col-lg-21 col-md-20 col-sm-24 col-xs-24"><div class="descr"><div class="abstract">The on-going glacier shrinkage in the Alps requires frequent updates of glacier outlines to provide an accurate database for monitoring or modeling purposes (e.g. determination of run-off, mass balance, or future glacier extent) and other applications. With the launch of the first Sentinel-2 (S2) satellite in 2015, it became possible to create a consistent, Alpine-wide glacier inventory with an unprecedented spatial resolution of 10 m. Fortunately, already the first S2 images acquired in August 2015 provided excellent mapping conditions for most of the glacierised regions in the Alps. We have used this opportunity to compile a new Alpine-wide glacier inventory in a collaborative team effort. In all countries, glacier outlines from the latest national inventories have been used as a guide to compile a consistent update. However, cloud cover over many glaciers in Italy required including also S2 scenes from 2016. Whereas the automated mapping of clean glacier ice was straightforward using the band ratio method, the numerous debris-covered glaciers required intense manual editing. The uncertainty in the outlines was determined with multiple digitising of 14 glaciers by all participants. Topographic information for all glaciers was derived from the ALOS AW3D30 DEM. Overall, we derived a total glacier area of 1806 ±60 km² when considering 4394 glaciers &gt;0.01 km². This is 14% (-1.2%/a) less than the 2100 km² derived from Landsat scenes acquired in 2003 and indicating an unabated continuation of glacier shrinkage in the Alps since the mid-1980s. Due to the higher spatial resolution of S2 many small glaciers were additionally mapped in the new inventory or increased in size compared to 2003. An artificial reduction to the former extents would thus result in an even higher overall area loss. Still, the uncertainty assessment revealed locally considerable differences in interpretation of debris-covered glaciers, resulting in limitations for change assessment when using glacier extents digitised by different analysts.</div>
+</div>
+</div>
+</div>
+<div class="row"><div class="col-lg-3 col-md-4 col-sm-24 col-xs-24"><div class="title">Keyword(s):</div>
+</div>
+<div class="col-lg-21 col-md-20 col-sm-24 col-xs-24"><div class="descr"><div class="hanging">Alps<a class="searchlink glyphicon glyphicon-search" target="_blank" rel="nofollow" title="Search PANGAEA for other datasets related to 'Alps'..." aria-label="Search PANGAEA for other datasets related to 'Alps'" href="//www.pangaea.de/?q=keyword:%22Alps%22"></a>; change assessment<a class="searchlink glyphicon glyphicon-search" target="_blank" rel="nofollow" title="Search PANGAEA for other datasets related to 'change assessment'..." aria-label="Search PANGAEA for other datasets related to 'change assessment'" href="//www.pangaea.de/?q=keyword:%22change%20assessment%22"></a>; Glacier inventory<a class="searchlink glyphicon glyphicon-search" target="_blank" rel="nofollow" title="Search PANGAEA for other datasets related to 'Glacier inventory'..." aria-label="Search PANGAEA for other datasets related to 'Glacier inventory'" href="//www.pangaea.de/?q=keyword:%22Glacier%20inventory%22"></a>; Sentinel-2<a class="searchlink glyphicon glyphicon-search" target="_blank" rel="nofollow" title="Search PANGAEA for other datasets related to 'Sentinel-2'..." aria-label="Search PANGAEA for other datasets related to 'Sentinel-2'" href="//www.pangaea.de/?q=keyword:%22Sentinel-2%22"></a>; topography<a class="searchlink glyphicon glyphicon-search" target="_blank" rel="nofollow" title="Search PANGAEA for other datasets related to 'topography'..." aria-label="Search PANGAEA for other datasets related to 'topography'" href="//www.pangaea.de/?q=keyword:%22topography%22"></a>; uncerainty<a class="searchlink glyphicon glyphicon-search" target="_blank" rel="nofollow" title="Search PANGAEA for other datasets related to 'uncerainty'..." aria-label="Search PANGAEA for other datasets related to 'uncerainty'" href="//www.pangaea.de/?q=keyword:%22uncerainty%22"></a></div>
+</div>
+</div>
+</div>
+<div class="row"><div class="col-lg-3 col-md-4 col-sm-24 col-xs-24"><div class="title">Coverage:</div>
+</div>
+<div class="col-lg-21 col-md-20 col-sm-24 col-xs-24"><div class="descr"><div class="hanging geo"><em class="unfarbe">Latitude: </em><span class="latitude">47.000000</span><em class="unfarbe"> * Longitude: </em><span class="longitude">10.000000</span></div>
+</div>
+</div>
+</div>
+<div class="row"><div class="col-lg-3 col-md-4 col-sm-24 col-xs-24"><div class="title">Event(s):</div>
+</div>
+<div class="col-lg-21 col-md-20 col-sm-24 col-xs-24"><div class="descr"><div class="hanging geo"><strong>AlpineRegion</strong><a class="searchlink glyphicon glyphicon-search" target="_blank" rel="nofollow" title="Search PANGAEA for other datasets related to 'AlpineRegion'..." aria-label="Search PANGAEA for other datasets related to 'AlpineRegion'" href="//www.pangaea.de/?q=event:label:AlpineRegion"></a><em class="unfarbe"> * Latitude: </em><span class="latitude">47.000000</span><em class="unfarbe"> * Longitude: </em><span class="longitude">10.000000</span></div>
+</div>
+</div>
+</div>
+<div class="row"><div class="col-lg-3 col-md-4 col-sm-24 col-xs-24"><div class="title">License:</div>
+</div>
+<div class="col-lg-21 col-md-20 col-sm-24 col-xs-24"><div class="descr"><div class="hanging"><span><a href="https://creativecommons.org/licenses/by/4.0/" class="license-icon-CC-BY" rel="license" target="_blank">Creative Commons Attribution 4.0 International</a> (CC-BY-4.0)</span></div>
+</div>
+</div>
+</div>
+<div class="row"><div class="col-lg-3 col-md-4 col-sm-24 col-xs-24"><div class="title">Size:</div>
+</div>
+<div class="col-lg-21 col-md-20 col-sm-24 col-xs-24"><div class="descr"><div class="hanging">7.5 MBytes</div>
+</div>
+</div>
+</div>
+<div class="row"><div class="col-lg-21 col-md-20 col-sm-24 col-xs-24 col-lg-offset-3 col-md-offset-4"><div class="text-block top-border">
+<h2 id="download">Download Data</h2>
+<p><a rel="nofollow" id="static-download-link" class="dl-link notrack" href="https://store.pangaea.de/Publications/PaulF-etal_2019/c3s_gi_rgi11_s2_2015_v2.zip" target="_self">Download dataset</a></p>
+</div></div></div><div id="recommendations"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="footer-wrapper" class="top-border hidden-print">
+  <div class="container-fluid">
+    <footer class="row"><!-- volle Screen-Breite -->
+      <div class="content-wrapper"><!-- max. Breite -->
+        <div class="blindspalte col-lg-3 col-md-4 col-sm-4 col-xs-4"></div>
+        <div id="footer-hosted-by-area" class="col-lg-21 col-md-9 col-sm-24 col-xs-24">
+          <div class="col-lg-12 col-md-24 col-sm-24 col-xs-24">
+            <div class="headline underlined">
+              PANGAEA is hosted by
+            </div>
+            
+            <div>
+              <p>
+                Alfred Wegener Institute, Helmholtz Center for Polar and Marine Research (AWI)<br/>
+                Center for Marine Environmental Sciences, University of Bremen (MARUM)
+              </p>
+            </div>
+
+            <div class="headline underlined">
+              The System is supported by
+            </div>
+            
+            <div>
+              <p>
+                The European Commission, Research<br/>
+                Federal Ministry of Research, Technology and Space (BMFTR)<br/>
+                Deutsche Forschungsgemeinschaft (DFG)<br/>
+                International Ocean Discovery Program (IODP)
+              </p>
+            </div>
+
+            <div class="headline underlined">
+              Citation
+            </div>
+
+            <div>
+              <p>
+                <strong>Felden, J; Möller, L; Schindler, U; Huber, R; Schumacher, S; Koppe, R; Diepenbroek, M; Glöckner, FO (2023):</strong>
+                PANGAEA &ndash; Data Publisher for Earth &amp; Environmental Science. <em>Scientific Data</em>, <strong>10(1)</strong>, 347,
+                <a class="text-linkwrap doi-link" href="https://doi.org/10.1038/s41597-023-02269-x" target="_blank">https://doi.org/10.1038/s41597-023-02269-x</a>
+              </p>
+            </div>
+          </div>
+
+          <div class="col-lg-12 col-md-24 col-sm-24 col-xs-24">
+            <div class="headline underlined">
+              PANGAEA is certified by
+            </div>
+            
+            <div>
+              <a href="//www.worlddatasystem.org/" target="_blank" title="World Data System">
+                <img class="col-lg-6 col-md-6 col-sm-6 col-xs-6" src="//www.pangaea.de/assets/v.2d6f89e80fb0ee2bf039f8938c1ebe6a/logos/logo-wds-block.png" alt="World Data System">
+              </a>
+              <a href="//www.wmo.int/" target="_blank" title="World Meteorological Organization">
+                <img class="col-lg-6 col-md-6 col-sm-6 col-xs-6" src="//www.pangaea.de/assets/v.2d6f89e80fb0ee2bf039f8938c1ebe6a/logos/logo-wmo-block.png" alt="World Meteorological Organization">
+              </a>
+              <a href="//www.coretrustseal.org/" target="_blank" title="CoreTrustSeal">
+                <img class="col-lg-6 col-md-6 col-sm-6 col-xs-6" src="//www.pangaea.de/assets/v.2d6f89e80fb0ee2bf039f8938c1ebe6a/logos/logo-coretrustseal-block.png" alt="CoreTrustSeal">
+              </a>
+            </div>
+          </div>
+        </div>
+                
+        <div id="footer-menu-area" class="col-lg-24 col-md-24 col-sm-24 col-xs-24">
+          <div class="blindspalte col-lg-3 col-md-4 col-sm-4 col-xs-4"></div>
+          <div id="footer-menu-wrapper" class="col-lg-21 col-md-20 col-sm-24 col-xs-24">
+            <nav id="footer-nav">
+              <ul>
+                <li id="about-legal-notice">
+                  <a href="//www.pangaea.de/about/legal.php">Legal notice</a>
+                </li>
+                <li id="about-term">
+                  <a href="//www.pangaea.de/about/terms.php">Terms of use</a>
+                </li>
+                <li id="about-privacy-policy">
+                  <a href="//www.pangaea.de/about/privacypolicy.php">Privacy policy</a>
+                </li>
+                <li id="about-cookies">
+                  <a href="//www.pangaea.de/about/cookies.php">Cookies</a>
+                </li>
+                <li id="about-jobs">
+                  <a href="//www.pangaea.de/about/jobs.php">Jobs</a>
+                </li>
+                <li id="about-contact">
+                  <a href="//www.pangaea.de/contact/">Contact</a>
+                </li>
+              </ul>
+            </nav>
+            <div class="clearfix"></div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+</div>
+</body>
+</html>

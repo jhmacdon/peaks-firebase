@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Cr%C3%AAte+S%C3%A8che&lat=45.9596501&lng=7.0769228&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:39:47.043670+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Cr%C3%AAte+S%C3%A8che&lat=45.9596501&lng=7.0769228&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=117, reset=23",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"25c-0ikAMY7RgDtt6Sn/ia6tHb0ZgkU\"",
+    "x-cloud-trace-context": "5b0d2a35ce774998f69dc02dc4480106",
+    "date": "Thu, 29 Oct 2026 18:39:48 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "604",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "029ff15687bd73558cfd9f77e1cc98f3609942b7e8bcdcdf0f0c7cce4576b8f7",
+  "bytes": 604
+}

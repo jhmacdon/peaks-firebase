@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Mont%20Blanc&lat=45.8326&lng=6.865&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:32:01.673518+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Mont%20Blanc&lat=45.8326&lng=6.865&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=119, reset=60",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c30-f6z6rKqNYMeeefGoTwSzYGC4/ZM\"",
+    "x-cloud-trace-context": "845b36c42768b9a13520f5fa1ad50925",
+    "date": "Thu, 29 Oct 2026 18:32:14 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3120",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "4abcef7f3519583ba9a0a46a6508c59f3e1195b1d8129cfa4b634e203e68fb63",
+  "bytes": 3120
+}

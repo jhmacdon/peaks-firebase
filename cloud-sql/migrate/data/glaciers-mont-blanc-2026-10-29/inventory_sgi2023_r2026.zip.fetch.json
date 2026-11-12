@@ -1,0 +1,22 @@
+{
+  "url": "https://doi.glamos.ch/data/inventory/inventory_sgi2023_r2026.zip",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:53:34.927315+00:00",
+  "status": 200,
+  "final_url": "https://doi.glamos.ch/data/inventory/inventory_sgi2023_r2026.zip",
+  "response_headers": {
+    "Date": "Thu, 29 Oct 2026 17:53:36 GMT",
+    "Server": "Apache/2.4.59 (Debian)",
+    "Last-Modified": "Thu, 27 Aug 2026 13:33:25 GMT",
+    "ETag": "\"1dd23f8-65a07615cb340\"",
+    "Accept-Ranges": "bytes",
+    "Content-Length": "31269880",
+    "Content-Type": "application/zip",
+    "Connection": "close"
+  },
+  "sha256": "ecef353d4b70f760eda83c6131e5345a2fd999527ea560b0bda4b7c27823f9fb",
+  "bytes": 31269880
+}

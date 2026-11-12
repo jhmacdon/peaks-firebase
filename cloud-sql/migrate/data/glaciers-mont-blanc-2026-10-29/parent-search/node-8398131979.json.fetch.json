@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Tour+Noir&lat=45.94884&lng=7.0374269&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:42:41.512259+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Tour+Noir&lat=45.94884&lng=7.0374269&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=109, reset=34",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c0d-O/Pkf2aHQ72+YQjoG54HLN5eAEA\"",
+    "x-cloud-trace-context": "34e9924ea8f280ea41056cf6ad36b7a3",
+    "date": "Thu, 29 Oct 2026 18:42:44 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3085",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "7d5e06c799eb31c93315bac59c32a4a7ba0d42eaa877f457dc9e8fd014f5c8e2",
+  "bytes": 3085
+}

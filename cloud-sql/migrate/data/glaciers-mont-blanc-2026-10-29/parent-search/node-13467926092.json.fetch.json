@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pic+de+la+Brenva&lat=45.8392346&lng=6.9144103&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:40:18.012538+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pic+de+la+Brenva&lat=45.8392346&lng=6.9144103&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=117, reset=50",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c6a-e945It2fvkna3zKwbVq+/J3+HU0\"",
+    "x-cloud-trace-context": "f95561f3e3717d8309a4e0f5977416fc;o=1",
+    "date": "Thu, 29 Oct 2026 18:40:25 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3178",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "6d4c72cb1875774d270f7c3651456d31fca247315a712e832a043cd1e28cbdb8",
+  "bytes": 3178
+}

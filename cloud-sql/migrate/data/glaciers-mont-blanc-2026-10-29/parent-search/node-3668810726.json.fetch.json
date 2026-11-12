@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Tr%C3%A9-la-T%C3%AAte+Nord&lat=45.7982424&lng=6.8114176&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:33.258334+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Tr%C3%A9-la-T%C3%AAte+Nord&lat=45.7982424&lng=6.8114176&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=108, reset=41",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c9e-OKVgC0AlWhp6vZEbF1ojKAwtMhU\"",
+    "x-cloud-trace-context": "541d0c299eaaec63b71e80cc703d0075",
+    "date": "Thu, 29 Oct 2026 18:41:34 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3230",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "1302e7744b95ebc0d3c046d011efa7f3bf39bcf9d7d805ff7015938804aa250d",
+  "bytes": 3230
+}

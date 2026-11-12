@@ -1,0 +1,34 @@
+{
+  "postgres": "15.15",
+  "postgis": "3.6.4",
+  "manifest_sha256": "522908808212c1e2b814ecdf418b0ccd856d6785df91c1ddb54fbd711139091b",
+  "imported": 91,
+  "replay": "unchanged",
+  "queues": {
+    "routes": 0,
+    "sessions": 0
+  },
+  "route_spans": 1,
+  "session_spans": 1,
+  "verify_rows": 0,
+  "unit_checks": "74 tests: 71 pass, 3 DB tests skipped without TEST_DATABASE_URL; those 3 pass separately with the disposable database. Final pilot suite: 5 pass.",
+  "typecheck": "pass",
+  "lint": "0 errors; two existing unused-variable warnings",
+  "cross_package": "pass against Rainier, Baker and Glacier Peak (all other packages on main)",
+  "head_reproduction": {
+    "places": 91,
+    "dem_sha256": {
+      "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif": "c33ccb8ac9641eaeefe65585f8ae715bba023ed350ceeea4d198712ddab44bce",
+      "Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif": "638c155dd9a5f0b7ee818146def740093da33cee4606071b2bbf7ce3fa00ab95",
+      "Copernicus_DSM_COG_10_N46_00_E006_00_DEM.tif": "43372378d9fdbcba2d8acd6a2b58c8a0d19ba7d2d49e16297bc48d9365f26493",
+      "Copernicus_DSM_COG_10_N46_00_E007_00_DEM.tif": "426e3d1492d94e4f23d444843f852ff5be675da5c4c14e661b5642006864047d"
+    }
+  },
+  "subdivision_comparison": {
+    "max_hausdorff_m": 0.025108999590599704,
+    "max_area_difference_m2": 13.778102390078534,
+    "hausdorff_limit_m": 0.05,
+    "relative_area_limit": 5e-06,
+    "largest_display_polygon": "exact equality"
+  }
+}

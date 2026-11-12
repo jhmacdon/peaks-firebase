@@ -1,0 +1,31 @@
+{
+  "url": "https://store.pangaea.de/Publications/PaulF-etal_2019/c3s_gi_rgi11_s2_2015_v2.zip",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:32:08.725667+00:00",
+  "status": 200,
+  "final_url": "https://store.pangaea.de/Publications/PaulF-etal_2019/c3s_gi_rgi11_s2_2015_v2.zip",
+  "response_headers": {
+    "Server": "nginx/1.31.8",
+    "Date": "Thu, 29 Oct 2026 17:32:09 GMT",
+    "Content-Type": "application/zip",
+    "Content-Length": "7824789",
+    "Last-Modified": "Mon, 20 Jul 2020 14:32:10 GMT",
+    "Connection": "close",
+    "set-cookie": "pansessid=ee18a244dfebfd07f274a0a628bc1c0b; Path=/; Domain=.pangaea.de; Secure; HttpOnly; SameSite=Lax",
+    "cache-control": "public",
+    "content-disposition": "attachment",
+    "ETag": "\"5f15aaea-776595\"",
+    "Alt-Svc": "clear",
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-UA-Compatible": "IE=Edge",
+    "X-Content-Type-Options": "nosniff",
+    "Vary": "Cookie, Authorization",
+    "X-CID": "ee18a244dfebfd07f274a0a628bc1c0b",
+    "Accept-Ranges": "bytes"
+  },
+  "sha256": "7ab160fb022cc4fca45620d169dfe19d5fb17d4d1b9b0462650c948f87138991",
+  "bytes": 7824789
+}

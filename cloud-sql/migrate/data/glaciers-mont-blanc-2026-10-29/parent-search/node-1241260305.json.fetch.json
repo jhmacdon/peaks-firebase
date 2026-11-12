@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+la+R%C3%A9publique&lat=45.9056685&lng=6.9212635&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:39:55.020979+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+la+R%C3%A9publique&lat=45.9056685&lng=6.9212635&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=114, reset=15",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c81-jcaFg+bPE3mq++mPHKiqPn35edM\"",
+    "x-cloud-trace-context": "02d590862a2deb44ce261e1a3543688e",
+    "date": "Thu, 29 Oct 2026 18:39:57 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3201",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "c238a90322c47f2aad1db4c76b89fed2a19db633956c894d7f705f116c577364",
+  "bytes": 3201
+}

@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pointe+Morin&lat=45.9435268&lng=7.0365985&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:39:20.783109+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pointe+Morin&lat=45.9435268&lng=7.0365985&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=118, reset=49",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c5c-bQJQ9snx8IxXcm23FbQFKxIOoyc\"",
+    "x-cloud-trace-context": "c153aad627c78108dd4448a42ce546e3;o=1",
+    "date": "Thu, 29 Oct 2026 18:39:45 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3164",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "30fb08adb59ecdc45c971f9b730ef0ef6332d82666801024892cd04d227e9cbe",
+  "bytes": 3164
+}

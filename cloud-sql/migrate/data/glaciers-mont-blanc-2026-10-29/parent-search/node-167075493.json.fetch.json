@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+du+Midi&lat=45.8786426&lng=6.8873514&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:40:30.508999+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+du+Midi&lat=45.8786426&lng=6.8873514&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=114, reset=43",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c3f-OaEGaeifOiJK1/3UDcdPdEHzrsY\"",
+    "x-cloud-trace-context": "0f5a3b8f8cb0dbf39f7eeab202881d50",
+    "date": "Thu, 29 Oct 2026 18:40:31 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3135",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "184a6426e4d741f7856539aa8a1623f38562ea0d8c92d02abda33bb6e9032bf9",
+  "bytes": 3135
+}

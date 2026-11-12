@@ -1,0 +1,25 @@
+{
+  "url": "https://www.glims.org/About/citations.html",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:48:30.901120+00:00",
+  "status": 200,
+  "final_url": "https://www.glims.org/About/citations.html",
+  "response_headers": {
+    "Date": "Thu, 29 Oct 2026 17:48:31 GMT",
+    "Server": "nginx/1.28.3 (Ubuntu)",
+    "Content-Type": "text/html",
+    "Content-Length": "5739",
+    "Last-Modified": "Tue, 27 Oct 2026 22:35:57 GMT",
+    "ETag": "\"6ae1274d-166b\"",
+    "Strict-Transport-Security": "max-age=63072000",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Accept-Ranges": "bytes",
+    "Connection": "close"
+  },
+  "sha256": "20a3f48317dfa2edade8dcd371fedfd307a044cea6ed4ea366178f1379b04c2c",
+  "bytes": 5739
+}

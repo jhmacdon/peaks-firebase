@@ -1,0 +1,31 @@
+{
+  "url": "https://www.glims.org/geoserver/GLIMS/ows?service=WFS&version=1.0.0&request=GetCapabilities",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T17:34:59.081203+00:00",
+  "status": 200,
+  "final_url": "https://www.glims.org/geoserver/GLIMS/ows?service=WFS&version=1.0.0&request=GetCapabilities",
+  "response_headers": {
+    "Date": "Thu, 29 Oct 2026 17:34:59 GMT",
+    "Server": "Apache/2.4.58 (Ubuntu)",
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "max-age=0, must-revalidate",
+    "Content-Disposition": "inline; filename=geoserver-GetCapabilities.application",
+    "Content-Security-Policy": "base-uri 'self'; default-src 'none'; child-src 'self'; connect-src 'self'; font-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; form-action 'self'; frame-ancestors 'self';",
+    "Content-Type": "application/xml",
+    "X-Concurrent-Limit-Ip": "10",
+    "X-Concurrent-Limit-User": "6",
+    "X-Concurrent-Requests-Ip": "1",
+    "X-Concurrent-Requests-User": "1",
+    "X-Content-Type-Options": "nosniff",
+    "X-Control-Flow-Delay-Ms": "0",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Set-Cookie": "GS_FLOW_CONTROL=GS_CFLOW_-73c7b198:1a188abd685:3f5e",
+    "Connection": "close",
+    "Transfer-Encoding": "chunked"
+  },
+  "sha256": "adb74840706fa33fe6db19597ba1740d00d68e992a81eb7eb6732600c699a298",
+  "bytes": 37077
+}

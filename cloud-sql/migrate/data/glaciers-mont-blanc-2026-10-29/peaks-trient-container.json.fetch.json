@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search/all?q=Trient&lat=46&lng=7&limit=20",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T19:00:37.328167+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search/all?q=Trient&lat=46&lng=7&limit=20",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=118, reset=29",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"42-7TeFqKUs8gXLiBqYF38dBk5tRbg\"",
+    "x-cloud-trace-context": "ac0b52d04f55cf551723ad160bbc89b2;o=1",
+    "date": "Thu, 29 Oct 2026 19:00:41 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "66",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "a45891abed8ee9d77a9a3167005a9b9338b8069e168d907ebd3805701c43999f",
+  "bytes": 66
+}

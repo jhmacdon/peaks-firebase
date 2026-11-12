@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Blaiti%C3%A8re&lat=45.8992786&lng=6.9130467&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:23.039420+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Blaiti%C3%A8re&lat=45.8992786&lng=6.9130467&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=114, reset=51",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c71-WHCt0H77MOxLtigpcIDuWgZdD8k\"",
+    "x-cloud-trace-context": "0efe44f2902567975de17f07f7391a50",
+    "date": "Thu, 29 Oct 2026 18:41:23 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3185",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "2add4386dc7048c3b9014cbc0579bd78b173ea7f38ec9e1002e277241f29a2f3",
+  "bytes": 3185
+}

@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+du+Tour&lat=45.9945308&lng=7.0100128&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:00.712839+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+du+Tour&lat=45.9945308&lng=7.0100128&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=104, reset=13",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c3b-DFMVib0I7KpN5aAOQHMUWseXytQ\"",
+    "x-cloud-trace-context": "e43b74a22f691075fa359dfb65f8df78;o=1",
+    "date": "Thu, 29 Oct 2026 18:41:01 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3131",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "ac195318ca0be39e06cb5552e80806ade7b74f9689e517f4e92cedab31ad9f4d",
+  "bytes": 3131
+}

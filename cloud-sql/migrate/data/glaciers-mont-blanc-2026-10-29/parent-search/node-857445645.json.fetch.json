@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=D%C3%B4mes+de+Miage+-+Pointe+Sud-Ouest&lat=45.8104261&lng=6.7897905&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:42:49.747694+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=D%C3%B4mes+de+Miage+-+Pointe+Sud-Ouest&lat=45.8104261&lng=6.7897905&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=106, reset=25",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"27a-A4FbmoV36fTphrTP6t//fOyo314\"",
+    "x-cloud-trace-context": "d5d041f932cd77babe4058c550849393",
+    "date": "Thu, 29 Oct 2026 18:42:50 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "634",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "311f93c3713058e9ef5568c52a200af37ca4ca5c9054aeaec59aad49f43ab5a1",
+  "bytes": 634
+}

@@ -1,0 +1,37 @@
+{
+  "url": "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q1151985%7CQ117006822%7CQ117773814%7CQ118256206%7CQ124831309%7CQ132234010%7CQ132246952%7CQ136375919%7CQ136378786%7CQ136838%7CQ1578316%7CQ16569708%7CQ1705506%7CQ22435167%7CQ22519922%7CQ22540992%7CQ2334655%7CQ2403858%7CQ24932990%7CQ25202890%7CQ2569448%7CQ2827884%7CQ2827894%7CQ30434%7CQ30441%7CQ30466%7CQ30472%7CQ30493%7CQ30541%7CQ31616758%7CQ3377325%7CQ3382301%7CQ3437614%7CQ3607095%7CQ3607098%7CQ3607103%7CQ3646946%7CQ3861038%7CQ3925668%7CQ404669%7CQ404672%7CQ404686%7CQ404697%7CQ404720%7CQ404728%7CQ404738%7CQ583%7CQ646311%7CQ664824%7CQ665130&props=labels%7Cclaims%7Csitelinks&format=json",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:43:54.592254+00:00",
+  "status": 200,
+  "final_url": "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q1151985%7CQ117006822%7CQ117773814%7CQ118256206%7CQ124831309%7CQ132234010%7CQ132246952%7CQ136375919%7CQ136378786%7CQ136838%7CQ1578316%7CQ16569708%7CQ1705506%7CQ22435167%7CQ22519922%7CQ22540992%7CQ2334655%7CQ2403858%7CQ24932990%7CQ25202890%7CQ2569448%7CQ2827884%7CQ2827894%7CQ30434%7CQ30441%7CQ30466%7CQ30472%7CQ30493%7CQ30541%7CQ31616758%7CQ3377325%7CQ3382301%7CQ3437614%7CQ3607095%7CQ3607098%7CQ3607103%7CQ3646946%7CQ3861038%7CQ3925668%7CQ404669%7CQ404672%7CQ404686%7CQ404697%7CQ404720%7CQ404728%7CQ404738%7CQ583%7CQ646311%7CQ664824%7CQ665130&props=labels%7Cclaims%7Csitelinks&format=json",
+  "response_headers": {
+    "date": "Thu, 29 Oct 2026 18:43:55 GMT",
+    "server": "mw-api-ext.codfw.main-68d4fb98d9-th8n4",
+    "x-content-type-options": "nosniff",
+    "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+    "x-frame-options": "DENY",
+    "content-disposition": "inline; filename=api-result.json",
+    "cache-control": "private, must-revalidate, max-age=0",
+    "content-type": "application/json; charset=utf-8",
+    "age": "2",
+    "accept-ranges": "bytes",
+    "x-cache": "cp4038 miss, cp4038 pass",
+    "x-cache-status": "pass",
+    "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+    "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+    "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+    "set-cookie": "WMF-Last-Access=29-Oct-2026;Path=/;HttpOnly;secure;Expires=Mon, 30 Nov 2026 12:00:00 GMT",
+    "x-client-ip": "71.212.159.84",
+    "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+    "transfer-encoding": "chunked",
+    "x-request-id": "01ac3bcf-dd1a-4f31-9756-fb7ed480bf90",
+    "x-analytics": "",
+    "server-timing": "cache;desc=\"pass\", host;desc=\"cp4038\",co_id;desc=\"4017739466\"",
+    "connection": "close"
+  },
+  "sha256": "429abe7b5cbbee058d3cd2457fecfec2f1bdac065c26ece88f0e43d66bb05e2d",
+  "bytes": 584243
+}

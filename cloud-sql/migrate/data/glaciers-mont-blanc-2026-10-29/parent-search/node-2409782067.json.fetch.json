@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pic+Eccles&lat=45.8216427&lng=6.8748036&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:40:42.029675+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pic+Eccles&lat=45.8216427&lng=6.8748036&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=111, reset=32",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"4e0-LqtBt2FRdv7/zbS1lqb7TJAvFdk\"",
+    "x-cloud-trace-context": "9339c5e4b174f91f1fed6d13c70ea77b",
+    "date": "Thu, 29 Oct 2026 18:40:42 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "1248",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "dc86501e318c1223bd8563b5bbe5c34acf02412d49cfaec428b0316add504b07",
+  "bytes": 1248
+}

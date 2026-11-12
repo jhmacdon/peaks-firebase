@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pointe+H%C3%A9l%C3%A8ne&lat=45.8687569&lng=6.9793403&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:09.051779+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pointe+H%C3%A9l%C3%A8ne&lat=45.8687569&lng=6.9793403&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=100, reset=5",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c42-q+R8Kr/YKFKBNQitXZpiGnJHff0\"",
+    "x-cloud-trace-context": "0056da0e3cc087e781a4cbaf68db2ea0",
+    "date": "Thu, 29 Oct 2026 18:41:12 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3138",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "520ab9c060e0fe0fe3156b65cc04bcc4483bb19bf872016271cc869475cb5c30",
+  "bytes": 3138
+}

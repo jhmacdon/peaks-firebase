@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Petite+Aiguille+Verte&lat=45.9438549&lng=6.963623&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:58.795315+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Petite+Aiguille+Verte&lat=45.9438549&lng=6.963623&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=97, reset=15",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c47-PSlrWzm1BIAp/3q+PmOoGV43icA\"",
+    "x-cloud-trace-context": "d7a68f6fa17ed41ca043ce6e5efa6f58;o=1",
+    "date": "Thu, 29 Oct 2026 18:41:59 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3143",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "093f75f497216bfdaa3230c5ce1e740dbdcd49e80d0abc33bb31c15efd62e536",
+  "bytes": 3143
+}

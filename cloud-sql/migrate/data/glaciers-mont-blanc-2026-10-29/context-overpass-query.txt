@@ -1,0 +1,9 @@
+[out:json][timeout:25][maxsize:134217728];
+(
+  nwr["natural"="peak"](45.72,6.70,46.08,7.15);
+  nwr["tourism"~"^(alpine_hut|wilderness_hut|viewpoint)$"](45.72,6.70,46.08,7.15);
+  way["highway"~"^(path|footway)$"]["sac_scale"](45.72,6.70,46.08,7.15);
+  way["piste:type"="skitour"](45.72,6.70,46.08,7.15);
+  relation["boundary"~"^(national_park|protected_area)$"](45.72,6.70,46.08,7.15);
+);
+out meta geom;

@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+du+Moine&lat=45.9166313&lng=6.9614334&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:40.541799+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+du+Moine&lat=45.9166313&lng=6.9614334&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=105, reset=33",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c34-o6xnR8CQXbls0KtB2XskKzLqw1w\"",
+    "x-cloud-trace-context": "8f3674c523a223b56ed6e7803b5f6d1d",
+    "date": "Thu, 29 Oct 2026 18:41:40 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3124",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "edb6d357b6252bf8527745ac4f0727600493c82afe194cb05599d916453670ff",
+  "bytes": 3124
+}

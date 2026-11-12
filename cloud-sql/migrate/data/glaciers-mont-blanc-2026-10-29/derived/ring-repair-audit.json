@@ -1,0 +1,74 @@
+[
+  {
+    "inventory_id": 589,
+    "before_area_degrees2": 0.00034179109493846034,
+    "after_area_degrees2": 0.0003417910949384621,
+    "area_difference_degrees2": 1.734723475976807e-18,
+    "before_sha256": "3cda5654a1552737edb37ef19a411ec075b79f7e47b4630996e0fe2738d804aa",
+    "after_sha256": "e9d922c55ea3256b6199a8ad151a44ec6cd5f3d16030243c39cec8cdb9f3bcd5"
+  },
+  {
+    "inventory_id": 717,
+    "before_area_degrees2": 0.00011806054703114223,
+    "after_area_degrees2": 0.00011806054703113785,
+    "area_difference_degrees2": -4.377466271410224e-18,
+    "before_sha256": "4dd31901edcede1251468d0c8ee3f1c2c139f4b60fc669255023018a36ade4b9",
+    "after_sha256": "843489c58ad4635663f668ad3e615cecfb888dc227fd1391c31294e10cb8f90c"
+  },
+  {
+    "inventory_id": 734,
+    "before_area_degrees2": 8.101025855927716e-05,
+    "after_area_degrees2": 8.101025855927706e-05,
+    "area_difference_degrees2": -1.0842021724855044e-19,
+    "before_sha256": "3cdea88abca1bd05cae75270549a9871200e5e51559386383a311d9eae58e1cc",
+    "after_sha256": "55c62b905e729a42c5ec685b70f6a80dc0ea4b911eef5ea6e5204735f238633b"
+  },
+  {
+    "inventory_id": 755,
+    "before_area_degrees2": 5.5278840567260065e-05,
+    "after_area_degrees2": 5.52788405672635e-05,
+    "area_difference_degrees2": 3.435565634063442e-18,
+    "before_sha256": "86af1bab19947db0ff1af1283c6877d04fc0be5f7cad31de3390d570fd5e9615",
+    "after_sha256": "a36ae3d44a68868f1140ff8fa8c7f9770a5e8b46e9541848305c251926e1e2df"
+  },
+  {
+    "inventory_id": 831,
+    "before_area_degrees2": 3.537829213605847e-05,
+    "after_area_degrees2": 3.537829213605842e-05,
+    "area_difference_degrees2": -5.421010862427522e-20,
+    "before_sha256": "9c2f2dfd403978da1ec1f84b7ee8d8a11ea93a91dcf4efb3385275d93b84c066",
+    "after_sha256": "62a0403d0a79f718d7e1000ec0842d5daab3dc77a52760a85a2fc980e9730e79"
+  },
+  {
+    "inventory_id": 857,
+    "before_area_degrees2": 0.0007655871649896488,
+    "after_area_degrees2": 0.0007655871649896489,
+    "area_difference_degrees2": 1.0842021724855044e-19,
+    "before_sha256": "362052376793350b00e8ac87841140fcf7ce5dc6ccddc39451a6b2c4ca7c83e4",
+    "after_sha256": "e8907a1ac2dbad980950fa14928f75523944f6732b5a0fece93af2343ebd9f03"
+  },
+  {
+    "inventory_id": 2897,
+    "before_area_degrees2": 0.00013680775800893548,
+    "after_area_degrees2": 0.00013680775800893505,
+    "area_difference_degrees2": -4.336808689942018e-19,
+    "before_sha256": "f042ee51a05e4644320d381828935d6cd9fdffcbe45394957c0b6b7dfdf6e213",
+    "after_sha256": "787ed69c09be1284b2bcf6d5f8a9cf3941a21132b9ae0c9eb8ff16f4f2a8b99a"
+  },
+  {
+    "inventory_id": 3143,
+    "before_area_degrees2": 0.0033383625174737957,
+    "after_area_degrees2": 0.0033383625174737957,
+    "area_difference_degrees2": 0.0,
+    "before_sha256": "a4ea98ff3b1d9f5817c2f3eb2f44632b61ba8c943ca3dcd05089ba1048d5501c",
+    "after_sha256": "227a0104e1ac0ef43dd1670acf09406c11670c394ba060bf322f770ca182ccf2"
+  },
+  {
+    "inventory_id": 3192,
+    "before_area_degrees2": 0.0013038356047503329,
+    "after_area_degrees2": 0.0013038356047503329,
+    "area_difference_degrees2": 0.0,
+    "before_sha256": "9cad100940a1777e1f5415271c8c8da747958e29e6850e6c63f430f8db1602aa",
+    "after_sha256": "9742a6728332f56794ee5bec9e0a2950d5729e7fa32b7c2dbf48581255ffc7d8"
+  }
+]

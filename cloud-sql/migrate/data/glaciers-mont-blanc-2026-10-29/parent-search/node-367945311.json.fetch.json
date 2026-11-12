@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+Blanche+de+Peuterey+-+Nord&lat=45.8237506&lng=6.8812639&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:42.043799+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+Blanche+de+Peuterey+-+Nord&lat=45.8237506&lng=6.8812639&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=104, reset=32",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"ca0-Ysf+/YqVXGzYLYmvCkagiBJKYrc\"",
+    "x-cloud-trace-context": "e8bb3de42729c5ef20e4d7953eafdf53",
+    "date": "Thu, 29 Oct 2026 18:41:42 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3232",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "ac8cbf6d7e988b0a92e51db6fb45e3f8fd06ef72eb79d51802e006b861f64c6d",
+  "bytes": 3232
+}

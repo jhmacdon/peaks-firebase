@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pointes+des+Grands&lat=46.0029179&lng=6.990594&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:39:09.085865+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Pointes+des+Grands&lat=46.0029179&lng=6.990594&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=119, reset=60",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c9a-T1H2JqTwl2Y2aI36c0O5lBzSfoI\"",
+    "x-cloud-trace-context": "15261768e5cff828489f214218f30076;o=1",
+    "date": "Thu, 29 Oct 2026 18:39:19 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3226",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "1d79eb80aeba5e3f187105796131651bf9b798cfe0278823cd56d919466f5f56",
+  "bytes": 3226
+}

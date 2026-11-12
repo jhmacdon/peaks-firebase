@@ -4,9 +4,62 @@ import { test } from "node:test";
 import { Pool } from "pg";
 import { applyGlacierManifest, manifestSha256, sha256, type GlacierManifest } from "../import-glacier-manifest";
 import { loadRainierOsmPackage } from "../import-rainier-glaciers";
+import { assignGlacierCountries } from "../glaciers/countries";
 
 const url=process.env.TEST_DATABASE_URL;
 if (url && !new URL(url).pathname.endsWith("_test")) throw new Error("TEST_DATABASE_URL must name a database ending in _test");
+
+test("per-place primary countries and catalog country lists persist and replay without churn", { skip: !url }, async () => {
+  const token = randomUUID(), parentId = `country-parent-${token}`, id = `country-glacier-${token}`;
+  const pool = new Pool({ connectionString: url, max: 1 }), c = await pool.connect();
+  const previous = process.env.GLACIER_DATABASE_URL;
+  const base = loadRainierOsmPackage(), p = base.places[0];
+  const rest = { ...base };
+  delete rest.container_area;
+  const parent = { ...base.parent, name: parentId };
+  const countries = (code: string) => assignGlacierCountries(p.boundary, {
+    source_url: "https://example.test/country-fixture", source_sha256: "a".repeat(64), snapshot_at: "2026-10-29",
+    countries: [{ country_code: code, osm_key: "relation:1", admin_level: 2, boundary: p.boundary }],
+  }, parent);
+  const manifest = (code: string): GlacierManifest => ({ ...rest, parent, container_areas: {},
+    places: [{ ...p, id, name: `Country fixture ${token}`, osm_key: `way:${Date.now()}`, external_ids: {},
+      container_area_key: null, ...countries(code) }] });
+  const apply = async (m: GlacierManifest) => {
+    const hash = manifestSha256(m);
+    await applyGlacierManifest({ ...m, manifest_sha256: hash }, ["--apply", `--expected-manifest-sha256=${hash}`, `--parent-mountain-id=${parentId}`]);
+  };
+  const state = async () => (await c.query(`SELECT d.country_code, d.updated_at, d.metadata->'glacier_catalog' AS catalog,
+    gf.updated_at AS facts_updated, gf.outline_revision
+    FROM destinations d JOIN destination_glacier_facts gf ON gf.destination_id=d.id WHERE d.id=$1`, [id])).rows[0];
+  try {
+    process.env.GLACIER_DATABASE_URL = url;
+    await c.query(`INSERT INTO destinations(id,name,search_name,owner,features,country_code,state_code,location)
+      VALUES($1,$1,$1,'peaks',$2::destination_feature[],$3,$4,ST_SetSRID(ST_MakePoint($5,$6,0),4326)::geography)`,
+    [parentId, parent.features, parent.country_code, parent.state_code, parent.lng, parent.lat]);
+    const first = manifest("FR");
+    await apply(first);
+    const before = await state();
+    assert.equal(before.country_code, "FR", "place overrides package country");
+    assert.deepEqual(before.catalog.country_codes, ["FR"]);
+    assert.deepEqual(before.catalog.country_assignment, first.places[0].country_assignment);
+    await apply(first);
+    assert.deepEqual(await state(), before);
+    const changed = { ...first, places: [{ ...first.places[0], ...countries("IT") }] };
+    await apply(changed);
+    const after = await state();
+    assert.equal(after.country_code, "IT");
+    assert.deepEqual(after.catalog.country_codes, ["IT"]);
+    assert.equal(after.outline_revision, before.outline_revision);
+    assert.deepEqual(after.facts_updated, before.facts_updated);
+    await apply(changed);
+    assert.deepEqual(await state(), after);
+  } finally {
+    if (previous === undefined) delete process.env.GLACIER_DATABASE_URL; else process.env.GLACIER_DATABASE_URL = previous;
+    await c.query("DELETE FROM destinations WHERE id=$1", [id]);
+    await c.query("DELETE FROM destinations WHERE id=$1", [parentId]);
+    c.release(); await pool.end();
+  }
+});
 
 test("import replay preserves timestamps; outline-only source change refreshes parts and queues both footprints",{skip:!url},async()=>{
   const token=randomUUID(), parent=`glacier-import-parent-${token}`, id=`glacier-import-${token}`, area=`glacier-import-area-${token}`;

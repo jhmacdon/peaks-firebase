@@ -1,0 +1,37 @@
+{
+  "url": "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q731683%7CQ86660878&props=labels%7Cclaims%7Csitelinks&format=json",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:43:58.026777+00:00",
+  "status": 200,
+  "final_url": "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q731683%7CQ86660878&props=labels%7Cclaims%7Csitelinks&format=json",
+  "response_headers": {
+    "date": "Thu, 29 Oct 2026 18:43:58 GMT",
+    "server": "mw-api-ext.codfw.main-68d4fb98d9-g2nrk",
+    "x-content-type-options": "nosniff",
+    "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+    "x-frame-options": "DENY",
+    "content-disposition": "inline; filename=api-result.json",
+    "cache-control": "private, must-revalidate, max-age=0",
+    "content-type": "application/json; charset=utf-8",
+    "age": "0",
+    "accept-ranges": "bytes",
+    "x-cache": "cp4038 miss, cp4038 pass",
+    "x-cache-status": "pass",
+    "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+    "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+    "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+    "set-cookie": "WMF-Last-Access=29-Oct-2026;Path=/;HttpOnly;secure;Expires=Mon, 30 Nov 2026 12:00:00 GMT",
+    "x-client-ip": "71.212.159.84",
+    "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+    "transfer-encoding": "chunked",
+    "x-request-id": "b3b0f644-fd1e-4cf9-9a4b-a2fe880b1d1f",
+    "x-analytics": "",
+    "server-timing": "cache;desc=\"pass\", host;desc=\"cp4038\",co_id;desc=\"3781131372\"",
+    "connection": "close"
+  },
+  "sha256": "7c49521050602c12aa3d49a79ae21b0a2c96ba2066d58f0ea11f51e68004cd38",
+  "bytes": 18970
+}

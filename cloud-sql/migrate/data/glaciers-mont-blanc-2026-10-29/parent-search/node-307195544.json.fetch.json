@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Leschaux&lat=45.8872044&lng=7.0066752&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:13.265438+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+Leschaux&lat=45.8872044&lng=7.0066752&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=119, reset=60",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c74-uHG8zePCOTwIEeuJwBWSqm9E2+s\"",
+    "x-cloud-trace-context": "6819ed9f641a4780a47988730b3f4091;o=1",
+    "date": "Thu, 29 Oct 2026 18:41:14 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3188",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "9ddc320187720ca42bcd130441e66799bfb931fc131a79afa43c0cced28ca571",
+  "bytes": 3188
+}

@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Petite+Aiguille+de+Triolet+Orientale&lat=45.9166576&lng=7.0226777&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:42:26.279153+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Petite+Aiguille+de+Triolet+Orientale&lat=45.9166576&lng=7.0226777&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=114, reset=49",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c7b-MAgkw9ExoHlSithAlVkVxEZjs54\"",
+    "x-cloud-trace-context": "d995c8f97184ae14401332276bfb4957",
+    "date": "Thu, 29 Oct 2026 18:42:28 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3195",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "f0e7c9a5d81084e574d4434ba4ce59511d317482ba4b6e69163e3b96960924bb",
+  "bytes": 3195
+}

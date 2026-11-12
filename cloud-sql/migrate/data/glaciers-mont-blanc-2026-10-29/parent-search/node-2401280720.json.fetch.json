@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+des+Grands+Montets&lat=45.9482017&lng=6.9605461&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:40:40.044719+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+des+Grands+Montets&lat=45.9482017&lng=6.9605461&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=112, reset=34",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c89-XleFz7o3yVYZkGlprmYJHTQlVAk\"",
+    "x-cloud-trace-context": "bd5994324d61e66edf20be31fbcc9cab",
+    "date": "Thu, 29 Oct 2026 18:40:40 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3209",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "3fae54f654e06dd81e22f0eb136670da38b6c02b445bc4ac289835cc3ef64e4f",
+  "bytes": 3209
+}

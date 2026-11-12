@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+la+B%C3%A9rang%C3%A8re&lat=45.8027724&lng=6.7787895&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:41:45.525883+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Aiguille+de+la+B%C3%A9rang%C3%A8re&lat=45.8027724&lng=6.7787895&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=102, reset=28",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"c9b-pUis4pMozX3zn87xPwy9rvT+XwY\"",
+    "x-cloud-trace-context": "d36ede18e5c08396496f2feb84f9f41b",
+    "date": "Thu, 29 Oct 2026 18:41:46 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "3227",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "956552f6c1d884e09606f290596b1fbcde1b5774da1f4fe6a5ca62137c44745b",
+  "bytes": 3227
+}

@@ -1,0 +1,26 @@
+{
+  "url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Piton+des+Italiens&lat=45.8372078&lng=6.8304317&limit=10",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:42:51.518010+00:00",
+  "status": 200,
+  "final_url": "https://peaks-api-qownl77soa-uc.a.run.app/api/search?q=Piton+des+Italiens&lat=45.8372078&lng=6.8304317&limit=10",
+  "response_headers": {
+    "x-powered-by": "Express",
+    "ratelimit-policy": "120;w=60",
+    "ratelimit": "limit=120, remaining=105, reset=24",
+    "vary": "X-Peaks-Capabilities",
+    "content-type": "application/json; charset=utf-8",
+    "etag": "W/\"625-8PBTcU5KVrDZaQ6wq0aT7DKMa+c\"",
+    "x-cloud-trace-context": "52e54be13cacd11b30b829b71897547d",
+    "date": "Thu, 29 Oct 2026 18:42:52 GMT",
+    "server": "Google Frontend",
+    "Content-Length": "1573",
+    "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "Connection": "close"
+  },
+  "sha256": "eacc0d47854c5d8e7b3ceb8a93ba40e772b7ff5395244d7a45ba79301bfd0a5f",
+  "bytes": 1573
+}

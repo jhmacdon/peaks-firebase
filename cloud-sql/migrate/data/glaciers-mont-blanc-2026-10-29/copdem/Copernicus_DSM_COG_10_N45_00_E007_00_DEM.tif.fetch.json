@@ -1,0 +1,25 @@
+{
+  "url": "https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_N45_00_E007_00_DEM/Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+  "method": "GET",
+  "request_headers": {
+    "User-Agent": "peaks-glacier-import/1.0"
+  },
+  "fetched_at": "2026-10-29T18:29:41.979072+00:00",
+  "status": 200,
+  "final_url": "https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_N45_00_E007_00_DEM/Copernicus_DSM_COG_10_N45_00_E007_00_DEM.tif",
+  "response_headers": {
+    "x-amz-request-id": "45GMVD71YNY5ZRCQ",
+    "x-amz-id-2": "IH7Fz5dennMqfcd0uk/ZwDPeFP96Ue3BadGmOKRDeXbeYsQWActVj6OuY/Ip08661QPfj9qzDob5OB61s0Vnt94jmvH5e3nO",
+    "Content-Length": "42594792",
+    "Accept-Ranges": "bytes",
+    "Date": "Thu, 29 Oct 2026 18:29:42 GMT",
+    "Server": "AmazonS3",
+    "Last-Modified": "Mon, 09 May 2022 14:24:54 GMT",
+    "ETag": "\"9419a0784d0c7b90c48754dc8901bf49\"",
+    "x-amz-version-id": "null",
+    "Content-Type": "image/tiff",
+    "Connection": "close"
+  },
+  "sha256": "638c155dd9a5f0b7ee818146def740093da33cee4606071b2bbf7ce3fa00ab95",
+  "bytes": 42594792
+}
